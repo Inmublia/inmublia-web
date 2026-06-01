@@ -1,27 +1,7 @@
 <script>
-  import { onMount } from 'svelte';
-  import { supabase } from '$lib/supabase';
-
-  // Reactividad nativa de Svelte 5 (Runes) EAV
-  let propiedades = $state([]);
-  let cargando = $state(true);
-  let error = $state(null);
-
-  onMount(async () => {
-    try {
-      // Jalamos los datos en tiempo real desde Supabase
-      const { data, error: dbError } = await supabase
-        .from('propiedades')
-        .select('*');
-
-      if (dbError) throw dbError;
-      propiedades = data;
-    } catch (e) {
-      error = e.message;
-    } finally {
-      cargando = false;
-    }
-  });
+  // Recibimos los datos inyectados por +page.server.js
+  let { data } = $props();
+  let propiedades = data.propiedades;
 </script>
 
 <main class="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -32,17 +12,13 @@
         Inmublia Plataforma
       </h1>
       <p class="mt-4 text-xl text-slate-600">
-        Prueba de conexión con Supabase exitosa
+        Renderizado en el Edge (SEO Perfecto)
       </p>
     </header>
 
-    {#if cargando}
-      <div class="flex justify-center items-center py-12">
-        <p class="text-lg text-slate-600 animate-pulse">Consultando base de datos...</p>
-      </div>
-    {:else if error}
-      <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-md max-w-xl mx-auto">
-        <p class="text-sm text-red-700 font-bold">Error de conexión: {error}</p>
+    {#if propiedades.length === 0}
+      <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-md max-w-xl mx-auto">
+        <p class="text-sm text-yellow-700 font-bold">No se encontraron propiedades.</p>
       </div>
     {:else}
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
