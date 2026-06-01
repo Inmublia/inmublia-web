@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabase';
 
-  // Reactividad nativa de Svelte 5 (Runes)
+  // Reactividad nativa de Svelte 5 (Runes) EAV
   let propiedades = $state([]);
   let cargando = $state(true);
   let error = $state(null);
