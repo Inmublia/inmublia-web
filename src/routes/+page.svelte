@@ -1,19 +1,31 @@
 <script>
   // Recibimos los datos inyectados por +page.server.js
   let { data } = $props();
-  let propiedades = data.propiedades;
+  
+  // Usamos el rune $derived para mantener la reactividad en Svelte 5
+  let propiedades = $derived(data.propiedades);
+  let broker = $derived(data.brokerActivo);
 </script>
 
 <main class="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
   <div class="max-w-7xl mx-auto">
     
     <header class="mb-12 text-center">
-      <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight sm:text-5xl">
-        Inmublia Plataforma
-      </h1>
-      <p class="mt-4 text-xl text-slate-600">
-        Renderizado en el Edge (SEO Perfecto)
-      </p>
+      {#if broker}
+        <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight sm:text-5xl uppercase">
+          Propiedades de {broker.replace('-', ' ')}
+        </h1>
+        <p class="mt-4 text-xl text-slate-600">
+          Sitio exclusivo operado por Inmublia
+        </p>
+      {:else}
+        <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight sm:text-5xl">
+          Inmublia Directorio Global
+        </h1>
+        <p class="mt-4 text-xl text-slate-600">
+          Explora todas las propiedades de nuestra red
+        </p>
+      {/if}
     </header>
 
     {#if propiedades.length === 0}
@@ -21,6 +33,7 @@
         <p class="text-sm text-yellow-700 font-bold">No se encontraron propiedades.</p>
       </div>
     {:else}
+      <!-- Grid de Propiedades Dinámicas -->
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {#each propiedades as propiedad}
           <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200 hover:shadow-md transition-shadow duration-300">
