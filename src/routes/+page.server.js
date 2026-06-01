@@ -2,31 +2,43 @@ import { supabase } from '$lib/supabase';
 
 export async function load({ url }) {
   const hostname = url.hostname;
-  let brokerId = null;
+  let subdominioActivo = null;
+  let brokerData = null;
 
-  // Lógica para detectar si estamos en un subdominio de marca blanca
-  // Ignoramos 'www' y el dominio principal
+  // Detectar si estamos en un subdominio de marca blanca (ej: broker-juan.inmublia.com)
   if (hostname.includes('.inmublia.com') && !hostname.startsWith('www.')) {
-    brokerId = hostname.replace('.inmublia.com', '');
+    subdominioActivo = hostname.replace('.inmublia.com', '');
   }
 
-  // Preparamos la consulta a Supabase
   let query = supabase.from('propiedades').select('*');
 
-  // Si detectamos un broker, aplicamos el filtro estricto
-  if (brokerId) {
-    query = query.eq('broker_id', brokerId);
+  if (subdominioActivo) {
+    // 1. Buscar los datos reales del broker por su subdominio
+    const { data: broker, error: brokerError } = await supabase
+      .from('brokers')
+      .select('*')
+      .eq('subdominio', subdominioActivo)
+      .single();
+
+    if (!brokerError && broker) {
+      brokerData = broker;
+      // 2. Filtrar propiedades usando el UUID relacional del broker
+      query = query.eq('broker_id', broker.id);
+    } else {
+      // Si el subdominio no existe en la base de datos, retornamos vacío
+      return { propiedades: [], broker: null };
+    }
   }
 
-  const { data, error } = await query;
+  const { data: propiedades, error: propError } = await query;
 
-  if (error) {
-    console.error('Error de Supabase:', error.message);
-    return { propiedades: [], brokerActivo: brokerId };
+  if (propError) {
+    console.error('Error al consultar propiedades:', propError.message);
+    return { propiedades: [], broker: brokerData };
   }
 
   return {
-    propiedades: data,
-    brokerActivo: brokerId
+    propiedades: propiedades || [],
+    broker: brokerData
   };
 }
