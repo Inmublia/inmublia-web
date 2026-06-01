@@ -3,35 +3,41 @@ import { error } from '@sveltejs/kit';
 
 export async function load({ params, url }) {
   const hostname = url.hostname;
-  let brokerId = null;
+  let subdominioActivo = null;
+  let brokerData = null;
 
-  // Detectamos el subdominio de la misma forma
   if (hostname.includes('.inmublia.com') && !hostname.startsWith('www.')) {
-    brokerId = hostname.replace('.inmublia.com', '');
+    subdominioActivo = hostname.replace('.inmublia.com', '');
   }
 
-  // Buscamos la propiedad específica usando el 'slug' de la URL
   let query = supabase
     .from('propiedades')
     .select('*')
     .eq('slug', params.slug);
 
-  // Filtro estricto: la casa debe pertenecer a este broker
-  if (brokerId) {
-    query = query.eq('broker_id', brokerId);
+  if (subdominioActivo) {
+    const { data: broker, error: brokerError } = await supabase
+      .from('brokers')
+      .select('*')
+      .eq('subdominio', subdominioActivo)
+      .single();
+
+    if (!brokerError && broker) {
+      brokerData = broker;
+      query = query.eq('broker_id', broker.id);
+    } else {
+      throw error(404, { message: 'Broker no encontrado' });
+    }
   }
 
-  const { data, error: dbError } = await query.single();
+  const { data: propiedad, error: dbError } = await query.maybeSingle();
 
-  // Si no existe o no es de este broker, tiramos un error 404
-  if (dbError || !data) {
-    throw error(404, {
-      message: 'Propiedad no encontrada'
-    });
+  if (dbError || !propiedad) {
+    throw error(404, { message: 'Propiedad no encontrada' });
   }
 
   return {
-    propiedad: data,
-    brokerActivo: brokerId
+    propiedad,
+    broker: brokerData
   };
 }
