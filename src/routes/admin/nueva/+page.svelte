@@ -2,12 +2,20 @@
   import { enhance } from '$app/forms';
   let { form } = $props();
   let loading = $state(false);
+  
   let imagePreview = $state(null);
+  let galeriaPreviews = $state([]);
 
+  // Preview de Foto Principal
   function handleImageChange(event) {
     const file = event.target.files[0];
-    if (file) imagePreview = URL.createObjectURL(file);
-    else imagePreview = null;
+    imagePreview = file ? URL.createObjectURL(file) : null;
+  }
+
+  // Preview de Galería Múltiple
+  function handleGaleriaChange(event) {
+    const files = event.target.files;
+    galeriaPreviews = Array.from(files).map(file => URL.createObjectURL(file));
   }
 </script>
 
@@ -25,81 +33,114 @@
     <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-8 sm:p-10">
       
       {#if form?.error}
-        <div class="mb-8 bg-red-50 text-red-600 font-bold p-4 rounded-xl text-sm border border-red-100 flex items-center gap-3">
-          <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-          {form.error}
-        </div>
+        <div class="mb-8 bg-red-50 text-red-600 font-bold p-4 rounded-xl text-sm border border-red-100">{form.error}</div>
       {/if}
 
-      <form method="POST" action="?/crear" enctype="multipart/form-data" use:enhance={() => { loading = true; return async ({ update }) => { loading = false; update(); }; }} class="space-y-8">
+      <form method="POST" action="?/crear" enctype="multipart/form-data" use:enhance={() => { loading = true; return async ({ update }) => { loading = false; update(); }; }} class="space-y-10">
         
-        <div>
-          <label class="block text-sm font-bold text-slate-700 mb-3">Fotografía Principal (Portada)</label>
-          <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-colors relative overflow-hidden group">
-            {#if imagePreview}
-              <img src={imagePreview} alt="Preview" class="absolute inset-0 w-full h-full object-cover z-10" />
-            {/if}
-            <div class="space-y-1 text-center relative z-20 bg-white/80 backdrop-blur-sm p-4 rounded-lg">
-              <svg class="mx-auto h-12 w-12 text-blue-600" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-              <div class="flex text-sm text-slate-600 justify-center">
-                <label for="imagen" class="relative cursor-pointer font-bold text-blue-600 hover:text-blue-500">
-                  <span>Sube un archivo de imagen</span>
-                  <input id="imagen" name="imagen" type="file" accept="image/*" class="sr-only" required onchange={handleImageChange}>
-                </label>
+        <!-- SECCIÓN 1: FOTOGRAFÍAS -->
+        <div class="space-y-6">
+          <h3 class="text-lg font-black text-slate-900 border-b border-slate-100 pb-2">Material Visual</h3>
+          
+          <!-- Foto Principal -->
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-2">Fotografía Principal (Hero)</label>
+            <div class="flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-colors relative overflow-hidden group h-48">
+              {#if imagePreview}
+                <img src={imagePreview} alt="Preview" class="absolute inset-0 w-full h-full object-cover z-10" />
+              {/if}
+              <div class="relative z-20 bg-white/80 backdrop-blur-sm p-4 rounded-lg text-center">
+                <span class="text-blue-600 font-bold cursor-pointer">Subir portada (1 foto)</span>
+                <input name="imagen" type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" required onchange={handleImageChange}>
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="grid grid-cols-1 gap-y-6 gap-x-6 sm:grid-cols-2">
-          <div class="sm:col-span-2">
-            <label for="titulo" class="block text-sm font-bold text-slate-700 mb-2">Título de la Publicación</label>
-            <input type="text" name="titulo" id="titulo" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-100 transition-all">
-          </div>
-
+          <!-- Galería Secundaria -->
           <div>
-            <label class="block text-sm font-bold text-slate-700 mb-2">Operación</label>
-            <select name="operacion" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-medium">
-              <option value="Venta">Venta</option>
-              <option value="Renta">Renta</option>
-              <option value="Preventa">Preventa</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-bold text-slate-700 mb-2">Tipo de Inmueble</label>
-            <select name="tipo" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-medium">
-              <option value="Casa">Casa</option>
-              <option value="Departamento">Departamento</option>
-              <option value="Terreno">Terreno</option>
-              <option value="Oficina">Oficina</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="precio" class="block text-sm font-bold text-slate-700 mb-2">Precio (MXN)</label>
-            <div class="relative">
-              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><span class="text-slate-500 font-bold">$</span></div>
-              <input type="number" name="precio" id="precio" required class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 py-3 focus:ring-2 focus:ring-blue-100 transition-all">
+            <label class="block text-sm font-bold text-slate-700 mb-2">Galería Secundaria (Mosaico)</label>
+            <div class="flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-colors relative">
+              <div class="text-center">
+                <span class="text-blue-600 font-bold cursor-pointer">Seleccionar 3 a 5 fotos adicionales</span>
+                <input name="galeria" type="file" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange={handleGaleriaChange}>
+              </div>
+              {#if galeriaPreviews.length > 0}
+                <div class="mt-4 grid grid-cols-4 gap-2 w-full">
+                  {#each galeriaPreviews as preview}
+                    <div class="aspect-square rounded-lg overflow-hidden bg-slate-100"><img src={preview} class="w-full h-full object-cover"/></div>
+                  {/each}
+                </div>
+              {/if}
             </div>
           </div>
+        </div>
 
-          <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mt-7">
-            <input type="checkbox" id="destacada" name="destacada" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer">
-            <label for="destacada" class="ml-3 block text-sm font-bold text-slate-700 cursor-pointer">Marcar como Propiedad Destacada (VIP)</label>
-          </div>
+        <!-- SECCIÓN 2: DATOS GENERALES -->
+        <div class="space-y-6 pt-6 border-t border-slate-100">
+          <h3 class="text-lg font-black text-slate-900 border-b border-slate-100 pb-2">Información Principal</h3>
+          
+          <div class="grid grid-cols-1 gap-y-6 gap-x-6 sm:grid-cols-2">
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-bold text-slate-700 mb-2">Título de la Publicación</label>
+              <input type="text" name="titulo" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-100">
+            </div>
 
-          <div class="sm:col-span-2">
-            <label for="descripcion" class="block text-sm font-bold text-slate-700 mb-2">Descripción Completa</label>
-            <textarea id="descripcion" name="descripcion" rows="4" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-100 transition-all"></textarea>
+            <div>
+              <label class="block text-sm font-bold text-slate-700 mb-2">Operación</label>
+              <select name="operacion" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-medium">
+                <option value="Venta">Venta</option>
+                <option value="Renta">Renta</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-slate-700 mb-2">Tipo de Inmueble</label>
+              <select name="tipo" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-medium">
+                <option value="Casa">Casa</option>
+                <option value="Departamento">Departamento</option>
+                <option value="Terreno">Terreno</option>
+              </select>
+            </div>
+
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-bold text-slate-700 mb-2">Precio (MXN)</label>
+              <input type="number" name="precio" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-100">
+            </div>
+
+            <div class="sm:col-span-2 flex items-center mt-2">
+              <input type="checkbox" id="destacada" name="destacada" class="w-5 h-5 text-blue-600 rounded cursor-pointer">
+              <label for="destacada" class="ml-3 text-sm font-bold text-slate-700 cursor-pointer">Propiedad Premium (VIP)</label>
+            </div>
           </div>
         </div>
 
-        <div class="pt-6 border-t border-slate-100 flex justify-end">
-          <a href="/admin" class="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold py-3 px-6 rounded-xl mr-4 transition-colors">Cancelar</a>
-          <button type="submit" disabled={loading} class="bg-slate-900 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-xl shadow-md disabled:bg-slate-400 transition-colors">
-            {loading ? 'Publicando...' : 'Publicar Propiedad'}
+        <!-- SECCIÓN 3: FICHA TÉCNICA Y UBICACIÓN -->
+        <div class="space-y-6 pt-6 border-t border-slate-100">
+          <h3 class="text-lg font-black text-slate-900 border-b border-slate-100 pb-2">Ficha Técnica & Entorno</h3>
+          
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
+            <div class="col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-2">M² Terreno</label><input type="number" name="m2_terreno" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3"></div>
+            <div class="col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-2">M² Interiores</label><input type="number" name="m2_construccion" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3"></div>
+            
+            <div><label class="block text-xs font-bold text-slate-500 uppercase mb-2">Recámaras</label><input type="number" name="recamaras" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3"></div>
+            <div><label class="block text-xs font-bold text-slate-500 uppercase mb-2">Baños</label><input type="number" name="banos" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3"></div>
+            <div><label class="block text-xs font-bold text-slate-500 uppercase mb-2">Medios Baños</label><input type="number" name="medio_bano" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3"></div>
+            <div><label class="block text-xs font-bold text-slate-500 uppercase mb-2">Autos</label><input type="number" name="estacionamientos" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3"></div>
+            
+            <div class="col-span-2 sm:col-span-4">
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Ubicación (Colonia, Ciudad)</label>
+              <input type="text" name="ubicacion" placeholder="Ej. Puerta de Hierro, Zapopan" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3">
+            </div>
+            <div class="col-span-2 sm:col-span-4">
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Descripción Editorial</label>
+              <textarea name="descripcion" rows="5" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-8 flex justify-end">
+          <a href="/admin" class="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold py-3 px-6 rounded-xl mr-4">Cancelar</a>
+          <button type="submit" disabled={loading} class="bg-slate-900 text-white font-bold py-3 px-8 rounded-xl disabled:bg-slate-400">
+            {loading ? 'Subiendo datos y fotos...' : 'Publicar Propiedad'}
           </button>
         </div>
       </form>
