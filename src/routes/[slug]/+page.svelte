@@ -4,13 +4,6 @@
   let broker = $derived(data.broker);
 
   const formatearPrecio = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
-
-  // Imágenes de demostración temporal para visualizar el diseño premium
-  const galeriaDemo = [
-    propiedad.imagen_url,
-    "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2075&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?q=80&w=2070&auto=format&fit=crop"
-  ];
 </script>
 
 <!-- ========================================== -->
@@ -79,30 +72,38 @@
     <div class="max-w-[1000px] mx-auto px-6 pt-16 pb-24">
       
       <!-- ========================================== -->
-      <!-- NUEVO: GALERÍA MASONRY PREMIUM             -->
+      <!-- GALERÍA DINÁMICA MASONRY PREMIUM           -->
       <!-- ========================================== -->
-      <div class="mb-20">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 auto-rows-[250px] md:auto-rows-[300px]">
-          <!-- Foto Principal Izquierda (Toma 2 espacios) -->
-          <div class="md:col-span-2 md:row-span-2 relative overflow-hidden group rounded-sm bg-slate-100">
-            <img src={galeriaDemo[0]} alt="Vista Principal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out">
-          </div>
-          <!-- Fotos Secundarias Derecha -->
-          <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-100">
-            <img src={galeriaDemo[1]} alt="Vista Secundaria" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out">
-          </div>
-          <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-100">
-            <img src={galeriaDemo[2]} alt="Vista Terciaria" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out">
-            <!-- Overlay para ver más -->
-            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer">
-              <span class="text-white font-bold uppercase tracking-[0.2em] text-sm flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                Ver Galería Completa
-              </span>
+      {#if propiedad.galeria_urls && propiedad.galeria_urls.length > 0}
+        <div class="mb-20">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 auto-rows-[250px] md:auto-rows-[300px]">
+            
+            <!-- Foto Principal de la Galería -->
+            <div class="md:col-span-2 md:row-span-2 relative overflow-hidden group rounded-sm bg-slate-100">
+              <img src={propiedad.galeria_urls[0]} alt="Vista Principal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out">
+            </div>
+            
+            <!-- Foto Secundaria -->
+            {#if propiedad.galeria_urls[1]}
+              <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-100">
+                <img src={propiedad.galeria_urls[1]} alt="Vista Secundaria" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out">
+              </div>
+            {/if}
+
+            <!-- Foto Terciaria o Relleno si no hay -->
+            <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-100">
+              <img src={propiedad.galeria_urls[2] || propiedad.imagen_url} alt="Vista" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out">
+              <!-- Overlay para ver más -->
+              <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer">
+                <span class="text-white font-bold uppercase tracking-[0.2em] text-sm flex items-center gap-2">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                  +{propiedad.galeria_urls.length} Fotos
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      {/if}
 
       <!-- DATA TYPOGRAPHY (Ficha Técnica) -->
       <div class="flex flex-wrap justify-center gap-x-12 gap-y-10 py-12 border-y border-slate-200 mb-20">
