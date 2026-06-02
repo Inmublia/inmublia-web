@@ -29,7 +29,7 @@ export const actions = {
       return fail(400, { error: 'Error de vinculación con tu agencia.' });
     }
 
-    // 4. PREPARACIÓN DE LA IMAGEN (LA SOLUCIÓN AL ERROR)
+    // 4. PREPARACIÓN DE LA IMAGEN
     const fileExt = imagen.name.split('.').pop();
     const fileName = `${broker.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
     
@@ -46,7 +46,7 @@ export const actions = {
 
     if (uploadError) {
       console.error("Error de Storage:", uploadError);
-      return fail(500, { error: 'La bóveda rechazó el archivo. Revisa los permisos de Supabase Storage.' });
+      return fail(500, { error: `La bóveda rechazó el archivo: ${uploadError.message}` });
     }
 
     // 5. Obtenemos la URL pública
@@ -54,7 +54,7 @@ export const actions = {
       .from('propiedades')
       .getPublicUrl(fileName);
 
-    // 6. Generamos el Slug
+    // 6. Generamos el Slug amigable
     const slug = titulo
       .toLowerCase()
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
@@ -75,7 +75,8 @@ export const actions = {
 
     if (insertError) {
       console.error("Error de Base de Datos:", insertError);
-      return fail(500, { error: 'La imagen se subió, pero hubo un error al guardar los datos.' });
+      // Imprimirá el error exacto de Supabase en tu pantalla
+      return fail(500, { error: `Error SQL: ${insertError.message}` });
     }
 
     // 8. Éxito rotundo
