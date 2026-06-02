@@ -3,25 +3,22 @@ import { redirect, fail } from '@sveltejs/kit';
 
 export const actions = {
   crear: async ({ request, locals }) => {
-    // 1. Verificamos la identidad del broker desde la sesión segura
+    // 1. Verificamos la identidad del broker
     const user = locals.user;
-    if (!user) {
-      throw redirect(303, '/login');
-    }
+    if (!user) throw redirect(303, '/login');
 
     // 2. Extraemos los datos del formulario
     const formData = await request.formData();
     const titulo = formData.get('titulo');
     const precio = formData.get('precio');
     const descripcion = formData.get('descripcion');
-    const imagen = formData.get('imagen'); // Esto es el archivo físico
+    const imagen = formData.get('imagen'); // Objeto File de SvelteKit
 
-    // Validaciones básicas
     if (!titulo || !precio || !imagen || imagen.size === 0) {
       return fail(400, { error: 'Por favor, completa todos los campos y sube una imagen.' });
     }
 
-    // 3. Obtenemos el ID del broker en la base de datos
+    // 3. Obtenemos el ID del broker
     const { data: broker, error: brokerError } = await supabase
       .from('brokers')
       .select('id')
@@ -32,36 +29,39 @@ export const actions = {
       return fail(400, { error: 'Error de vinculación con tu agencia.' });
     }
 
-    // 4. Procesamiento y subida de la imagen a Supabase Storage
-    // Generamos un nombre único para evitar que se sobreescriban fotos con el mismo nombre
+    // 4. PREPARACIÓN DE LA IMAGEN (LA SOLUCIÓN AL ERROR)
     const fileExt = imagen.name.split('.').pop();
     const fileName = `${broker.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
     
+    // Convertimos el File a un ArrayBuffer para que Supabase lo digiera perfectamente en el backend
+    const buffer = await imagen.arrayBuffer();
+    
     const { error: uploadError } = await supabase.storage
       .from('propiedades')
-      .upload(fileName, imagen, {
+      .upload(fileName, buffer, {
+        contentType: imagen.type, // Le decimos si es JPG, PNG, etc.
         cacheControl: '3600',
         upsert: false
       });
 
     if (uploadError) {
-      console.error(uploadError);
-      return fail(500, { error: 'Hubo un problema al subir la fotografía de alta calidad.' });
+      console.error("Error de Storage:", uploadError);
+      return fail(500, { error: 'La bóveda rechazó el archivo. Revisa los permisos de Supabase Storage.' });
     }
 
-    // 5. Obtenemos la URL pública generada por Supabase
+    // 5. Obtenemos la URL pública
     const { data: { publicUrl } } = supabase.storage
       .from('propiedades')
       .getPublicUrl(fileName);
 
-    // 6. Generamos un "Slug" amigable para SEO (Ej: "casa-en-zapopan")
+    // 6. Generamos el Slug
     const slug = titulo
       .toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Quita acentos
-      .replace(/[^a-z0-9]+/g, '-') // Reemplaza espacios por guiones
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
+      .replace(/[^a-z0-9]+/g, '-') 
       .replace(/(^-|-$)+/g, '');
 
-    // 7. Insertamos todo en la tabla de propiedades
+    // 7. Insertamos en la tabla de propiedades
     const { error: insertError } = await supabase
       .from('propiedades')
       .insert({
@@ -71,15 +71,14 @@ export const actions = {
         precio: parseFloat(precio),
         descripcion: descripcion,
         imagen_url: publicUrl
-        // Aquí agregaremos galeria_urls: [] en la siguiente iteración
       });
 
     if (insertError) {
-      console.error(insertError);
-      return fail(500, { error: 'La imagen se subió, pero hubo un error al guardar los datos de la propiedad.' });
+      console.error("Error de Base de Datos:", insertError);
+      return fail(500, { error: 'La imagen se subió, pero hubo un error al guardar los datos.' });
     }
 
-    // 8. Éxito rotundo: Devolvemos al broker a su panel de control
+    // 8. Éxito rotundo
     throw redirect(303, '/admin');
   }
 };
