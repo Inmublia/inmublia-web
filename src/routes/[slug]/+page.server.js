@@ -1,43 +1,39 @@
 import { supabase } from '$lib/supabase';
 import { error } from '@sveltejs/kit';
 
-export async function load({ params, url }) {
-  const hostname = url.hostname;
-  let subdominioActivo = null;
-  let brokerData = null;
+export async function load({ params }) {
+  const { slug } = params;
 
-  if (hostname.includes('.inmublia.com') && !hostname.startsWith('www.')) {
-    subdominioActivo = hostname.replace('.inmublia.com', '');
-  }
-
-  let query = supabase
+  // 1. Buscamos la propiedad exacta por su slug amigable
+  const { data: propiedad, error: propError } = await supabase
     .from('propiedades')
     .select('*')
-    .eq('slug', params.slug);
+    .eq('slug', slug)
+    .single();
 
-  if (subdominioActivo) {
-    const { data: broker, error: brokerError } = await supabase
-      .from('brokers')
-      .select('*')
-      .eq('subdominio', subdominioActivo)
-      .single();
-
-    if (!brokerError && broker) {
-      brokerData = broker;
-      query = query.eq('broker_id', broker.id);
-    } else {
-      throw error(404, { message: 'Broker no encontrado' });
-    }
+  // Si la propiedad no existe o hubo un error, mandamos un 404 elegante
+  if (propError || !propiedad) {
+    throw error(404, {
+      message: 'La propiedad que buscas no está disponible o ha sido removida.'
+    });
   }
 
-  const { data: propiedad, error: dbError } = await query.maybeSingle();
+  // 2. Extraemos el perfil completo del broker dueño de esta propiedad
+  const { data: broker, error: brokerError } = await supabase
+    .from('brokers')
+    .select('*')
+    .eq('id', propiedad.broker_id)
+    .single();
 
-  if (dbError || !propiedad) {
-    throw error(404, { message: 'Propiedad no encontrada' });
+  if (brokerError || !broker) {
+    throw error(404, {
+      message: 'La agencia encargada de esta propiedad no se encuentra activa.'
+    });
   }
 
+  // Devolvemos el paquete de datos limpio al lado visual
   return {
     propiedad,
-    broker: brokerData
+    broker
   };
 }
