@@ -264,27 +264,31 @@
               <div class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold p-4 rounded-xl text-sm text-center">
                 Solicitud enviada con éxito. El asesor se comunicará pronto.
               </div>
-            {:else}
-              <form method="POST" action="?/contacto" use:enhance={() => { enviando = true; return async ({ update }) => { enviando = false; update(); }; }} class="space-y-4">
-                <input type="hidden" name="propiedad_id" value={propiedad.id}>
-                <input type="hidden" name="broker_id" value={broker.id}>
-                <input type="hidden" name="propiedad_titulo" value={propiedad.titulo}>
-                
-                <div>
-                  <input type="text" name="nombre" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nombre completo">
-                </div>
-                <div>
-                  <input type="email" name="correo" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Correo electrónico">
-                </div>
-                <div>
-                  <input type="tel" name="telefono" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Teléfono móvil">
-                </div>
-                
-                <button type="submit" disabled={enviando} class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-sm transition-all disabled:opacity-50">
-                  {enviando ? 'Enviando...' : 'Solicitar Información'}
-                </button>
-              </form>
+            {:else if form?.error}
+              <div class="mb-4 bg-red-50 text-red-700 font-bold p-3 rounded-lg text-sm border border-red-200 text-center">
+                {form.error}
+              </div>
             {/if}
+
+            <form method="POST" action="?/contacto" use:enhance={() => { enviando = true; return async ({ update }) => { enviando = false; update({ reset: form?.success }); }; }} class="space-y-4">
+              <input type="hidden" name="propiedad_id" value={propiedad.id}>
+              <input type="hidden" name="broker_id" value={broker.id}>
+              <input type="hidden" name="propiedad_titulo" value={propiedad.titulo}>
+              
+              <div>
+                <input type="text" name="nombre" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nombre completo">
+              </div>
+              <div>
+                <input type="email" name="correo" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Correo electrónico">
+              </div>
+              <div>
+                <input type="tel" name="telefono" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Teléfono móvil">
+              </div>
+              
+              <button type="submit" disabled={enviando} class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-sm transition-all disabled:opacity-50">
+                {enviando ? 'Enviando...' : 'Solicitar Información'}
+              </button>
+            </form>
           </div>
 
         </div>
