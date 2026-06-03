@@ -43,18 +43,20 @@ export const actions = {
     const formData = await request.formData();
     
     const nombre = formData.get('nombre');
+    const correo = formData.get('correo');
     const telefono = formData.get('telefono');
     const propiedad_id = formData.get('propiedad_id');
     const broker_id = formData.get('broker_id');
     const propiedad_titulo = formData.get('propiedad_titulo');
 
-    // Validación estricta de campos obligatorios
-    if (!nombre || !telefono || !propiedad_id || !broker_id) {
+    // Validación estricta de campos obligatorios (ahora incluye correo)
+    if (!nombre || !correo || !telefono || !propiedad_id || !broker_id) {
       return fail(400, { error: 'Por favor, llena todos los campos obligatorios del formulario.' });
     }
 
     const leadData = {
       nombre,
+      correo,
       telefono,
       propiedad_id,
       broker_id,
@@ -89,6 +91,7 @@ export const actions = {
           propiedad_interes: propiedad_titulo,
           prospecto: {
             nombre,
+            correo,
             telefono,
             registro: leadData.creado_en
           }
