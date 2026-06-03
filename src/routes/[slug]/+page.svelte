@@ -10,7 +10,6 @@
   let isBrochure = $derived($page.url.searchParams.get('brochure') === 'true');
   let enviando = $state(false);
 
-  // MODO INMERSIVO (Detección de noche)
   let isNight = $state(false);
   onMount(() => {
     const hora = new Date().getHours();
@@ -51,13 +50,9 @@
     "floorSize": { "@type": "QuantitativeValue", "value": propiedad.m2_construccion, "unitCode": "MTK" }
   });
 
-  // ==========================================
-  // LÓGICA DE GALERÍA LIGHTBOX (PANTALLA COMPLETA)
-  // ==========================================
   let isGalleryOpen = $state(false);
   let currentImageIndex = $state(0);
   
-  // Unimos la foto principal con las de la galería en un solo array
   let allPhotos = $derived(
     propiedad.galeria_urls?.length 
       ? [propiedad.imagen_url, ...propiedad.galeria_urls] 
@@ -67,12 +62,12 @@
   function openGallery(index) {
     currentImageIndex = index;
     isGalleryOpen = true;
-    document.body.style.overflow = 'hidden'; // Bloquea el scroll del fondo
+    document.body.style.overflow = 'hidden';
   }
 
   function closeGallery() {
     isGalleryOpen = false;
-    document.body.style.overflow = ''; // Restaura el scroll
+    document.body.style.overflow = '';
   }
 
   function nextImage(e) {
@@ -107,23 +102,18 @@
 
 {#if isGalleryOpen}
   <div class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex items-center justify-center" onclick={closeGallery}>
-    
     <button class="absolute top-6 right-6 text-white/70 hover:text-white bg-black/50 hover:bg-white/10 p-3 rounded-full transition-all z-[210]" onclick={closeGallery}>
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
     </button>
-
     <button class="absolute left-6 text-white/70 hover:text-white bg-black/50 hover:bg-white/10 p-4 rounded-full transition-all z-[210]" onclick={prevImage}>
       <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
     </button>
-
     <div class="relative max-w-7xl max-h-[90vh] px-16 flex items-center justify-center w-full h-full" onclick={(e) => e.stopPropagation()}>
       <img src={allPhotos[currentImageIndex]} alt="Vista {currentImageIndex + 1}" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-300">
-      
       <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-white text-xs font-bold tracking-widest uppercase backdrop-blur-md">
         {currentImageIndex + 1} / {allPhotos.length}
       </div>
     </div>
-
     <button class="absolute right-6 text-white/70 hover:text-white bg-black/50 hover:bg-white/10 p-4 rounded-full transition-all z-[210]" onclick={nextImage}>
       <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
     </button>
@@ -162,13 +152,9 @@
         <span class="text-sm md:text-base font-bold uppercase tracking-[0.2em] text-white drop-shadow-md">{broker.nombre_comercial}</span>
         
         {#if isBrochure}
-          <span class="bg-white/20 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full border border-white/30">
-            Smart Brochure
-          </span>
+          <span class="bg-white/20 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full border border-white/30">Smart Brochure</span>
         {:else}
-          <a href="https://{broker.subdominio}.inmublia.com" class="text-white font-medium text-xs uppercase tracking-[0.15em] hover:text-white/70 transition-colors">
-            Catálogo Exclusivo
-          </a>
+          <a href="https://{broker.subdominio}.inmublia.com" class="text-white font-medium text-xs uppercase tracking-[0.15em] hover:text-white/70 transition-colors">Catálogo Exclusivo</a>
         {/if}
       </div>
     </nav>
@@ -200,14 +186,12 @@
               <img src={propiedad.galeria_urls[0]} alt="Vista Principal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
               <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
             </div>
-            
             {#if propiedad.galeria_urls[1]}
               <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" onclick={() => openGallery(2)}>
                 <img src={propiedad.galeria_urls[1]} alt="Vista Secundaria" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
               </div>
             {/if}
-
             <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" onclick={() => openGallery(3 % allPhotos.length)}>
               <img src={propiedad.galeria_urls[2] || propiedad.imagen_url} alt="Vista" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
               <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -249,62 +233,60 @@
         </div>
       {/if}
 
-      <div class="mb-16">
+      <div class="mb-24">
         <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">El Entorno</h2>
-        <div class="w-full h-[400px] {isNight ? 'bg-slate-800' : 'bg-slate-100'} overflow-hidden relative rounded-sm">
-          <iframe width="100%" height="100%" frameborder="0" style="border:0; filter: grayscale(100%) contrast(120%) opacity(80%); pointer-events: none;" src="https://maps.google.com/maps?q={encodeURIComponent(propiedad.ubicacion || 'Guadalajara, Jalisco')}&t=&z=15&ie=UTF8&iwloc=&output=embed" allowfullscreen></iframe>
-          <div class="absolute bottom-6 left-6 right-6 {isNight ? 'bg-slate-900/90' : 'bg-white/90'} backdrop-blur-md p-4 max-w-xs rounded-sm">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Ubicación</p>
-            <p class="text-base font-bold {isNight ? 'text-white' : 'text-slate-900'} truncate">{propiedad.ubicacion || 'Ubicación Privada'}</p>
-          </div>
+        <div class="w-full h-[500px] {isNight ? 'bg-slate-800' : 'bg-slate-100'} overflow-hidden relative rounded-sm shadow-inner">
+          <iframe width="100%" height="100%" frameborder="0" style="border:0;" src="https://maps.google.com/maps?q={encodeURIComponent(propiedad.ubicacion || 'Guadalajara, Jalisco')}&t=&z=15&ie=UTF8&iwloc=&output=embed" allowfullscreen></iframe>
         </div>
-      </div>
-
-      <div class="{isNight ? 'bg-slate-800' : 'bg-slate-50'} py-10 px-6 text-center border-y {isNight ? 'border-slate-800' : 'border-slate-200'} mb-16 rounded-2xl">
-        <div class="w-16 h-16 bg-slate-900 rounded-full mx-auto mb-4 overflow-hidden shadow-md">
-          <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=0f172a&color=fff" alt="Avatar" class="w-full h-full object-cover">
-        </div>
-        <h3 class="text-xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{broker.nombre_comercial}</h3>
-        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2 mb-6">Asesoría Inmobiliaria</p>
-        
-        <button onclick={descargarVCard} class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-blue-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-full transition-colors mb-4 shadow-sm">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-          Guardar Contacto VIP
-        </button>
       </div>
 
       {#if !isBrochure}
-        <div class="bg-slate-900 rounded-2xl p-6 md:p-8 shadow-xl relative overflow-hidden mb-12">
-          <div class="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 rounded-full bg-white/5 blur-3xl pointer-events-none"></div>
-          <div class="max-w-xl mx-auto text-center relative z-10">
-            <h2 class="text-xl md:text-2xl font-light text-white mb-2">Agendar Recorrido</h2>
-            <p class="text-slate-400 text-xs mb-8">El asesor <span class="text-white font-bold">{broker.nombre_comercial}</span> le contactará para coordinar.</p>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-24">
+          
+          <div class="{isNight ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} border rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
+            <div class="w-20 h-20 bg-slate-900 rounded-full mb-4 overflow-hidden shadow-md">
+              <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=0f172a&color=fff" alt="Avatar" class="w-full h-full object-cover">
+            </div>
+            <h3 class="text-xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{broker.nombre_comercial}</h3>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2 mb-6">Asesoría Inmobiliaria</p>
+            
+            <button onclick={descargarVCard} class="inline-flex items-center gap-2 px-6 py-3 {isNight ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-900 hover:bg-slate-800'} text-white text-[10px] font-bold uppercase tracking-widest rounded-full transition-colors shadow-sm w-full justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              Guardar Contacto VIP
+            </button>
+          </div>
+
+          <div class="{isNight ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-8 shadow-sm">
+            <h2 class="text-xl font-light {isNight ? 'text-white' : 'text-slate-900'} mb-2">Agendar Recorrido</h2>
+            <p class="text-slate-400 text-xs mb-6">Deje sus datos y el asesor le contactará.</p>
             
             {#if form?.success}
-              <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold p-4 rounded-xl text-sm">
+              <div class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold p-4 rounded-xl text-sm">
                 Solicitud enviada con éxito.
               </div>
             {:else}
-              <form method="POST" action="?/contacto" use:enhance={() => { enviando = true; return async ({ update }) => { enviando = false; update(); }; }} class="space-y-4 text-left">
+              <form method="POST" action="?/contacto" use:enhance={() => { enviando = true; return async ({ update }) => { enviando = false; update(); }; }} class="space-y-4">
                 <input type="hidden" name="propiedad_id" value={propiedad.id}>
                 <input type="hidden" name="broker_id" value={broker.id}>
                 <input type="hidden" name="propiedad_titulo" value={propiedad.titulo}>
                 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <input type="text" name="nombre" required class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:ring-2 focus:ring-amber-400 outline-none" placeholder="Nombre completo">
-                  </div>
-                  <div>
-                    <input type="tel" name="telefono" required class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:ring-2 focus:ring-amber-400 outline-none" placeholder="Teléfono móvil">
-                  </div>
+                <div>
+                  <input type="text" name="nombre" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nombre completo">
+                </div>
+                <div>
+                  <input type="email" name="correo" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Correo electrónico">
+                </div>
+                <div>
+                  <input type="tel" name="telefono" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Teléfono móvil">
                 </div>
                 
-                <button type="submit" disabled={enviando} class="w-full mt-2 bg-gradient-to-r from-amber-200 to-amber-400 hover:from-amber-300 text-slate-900 font-black py-3 px-6 rounded-lg text-sm transition-all disabled:opacity-50">
+                <button type="submit" disabled={enviando} class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-sm transition-all disabled:opacity-50">
                   {enviando ? 'Enviando...' : 'Solicitar Contacto VIP'}
                 </button>
               </form>
             {/if}
           </div>
+
         </div>
       {/if}
 
