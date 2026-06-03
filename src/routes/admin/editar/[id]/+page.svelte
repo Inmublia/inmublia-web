@@ -39,7 +39,6 @@
 
         <form method="POST" action="?/actualizar" enctype="multipart/form-data" use:enhance={() => { loading = true; return async ({ update }) => { loading = false; update(); }; }} class="space-y-10">
           
-          <!-- SECCIÓN 1: IMÁGENES -->
           <div class="space-y-6">
             <h3 class="text-lg font-black text-slate-900 border-b border-slate-100 pb-3">Material Visual Actual</h3>
             
@@ -136,6 +135,11 @@
               <div class="col-span-2 sm:col-span-4">
                 <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Descripción Editorial</label>
                 <textarea name="descripcion" rows="6" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-medium leading-relaxed">{propiedad.descripcion}</textarea>
+              </div>
+              
+              <div class="col-span-2 sm:col-span-4">
+                <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Enlace de Video Recorrido (YouTube / Vimeo)</label>
+                <input type="url" name="video_url" value={propiedad.video_url || ''} placeholder="Ej. https://www.youtube.com/watch?v=..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-medium focus:ring-2 focus:ring-blue-100">
               </div>
             </div>
           </div>
