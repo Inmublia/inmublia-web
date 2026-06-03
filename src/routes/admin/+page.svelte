@@ -5,7 +5,7 @@
   let propiedades = $derived(data.propiedades || []);
   let totalPropiedades = $derived(propiedades.length);
 
-  // MEJORA 1: Motor de búsqueda en tiempo real
+  // Motor de búsqueda en tiempo real
   let searchQuery = $state('');
   let propiedadesFiltradas = $derived(
     propiedades.filter(p => p.titulo.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -17,7 +17,7 @@
     alert('Enlace copiado: ' + url);
   }
 
-  // Generador de Códigos QR al vuelo
+  // Generador de Códigos QR
   function abrirQR(slug, titulo) {
     const url = `https://${broker.subdominio}.inmublia.com/${slug}`;
     const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=800x800&data=${encodeURIComponent(url)}&format=png&margin=20`;
@@ -35,7 +35,7 @@
     `);
   }
 
-  // MEJORA 2: Validador de calidad del listado
+  // Validador de calidad del listado
   function obtenerEstado(prop) {
     if (!prop.m2_terreno || !prop.recamaras || !prop.banos) {
       return { texto: 'Faltan Datos', clase: 'bg-amber-100 text-amber-700 border-amber-200' };
@@ -154,6 +154,10 @@
                     <td class="px-8 py-6 text-right">
                       <div class="flex items-center justify-end gap-2">
                         
+                        <button onclick={() => window.open(`/${propiedad.slug}?brochure=true`, '_blank')} class="text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 p-2.5 rounded-lg transition-colors border border-amber-200" title="Abrir Smart Brochure (Modo Presentación)">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        </button>
+
                         <button onclick={() => abrirQR(propiedad.slug, propiedad.titulo)} class="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg transition-colors" title="Generar Código QR">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
                         </button>
