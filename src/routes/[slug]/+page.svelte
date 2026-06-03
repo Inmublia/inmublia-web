@@ -1,16 +1,23 @@
 <script>
   import { page } from '$app/stores';
   import { enhance } from '$app/forms';
+  import { onMount } from 'svelte';
 
   let { data, form } = $props();
   let propiedad = $derived(data.propiedad);
   let broker = $derived(data.broker);
 
-  // Detector mágico del Modo Presentación
   let isBrochure = $derived($page.url.searchParams.get('brochure') === 'true');
-
-  // Estados del formulario
   let enviando = $state(false);
+
+  // MODO INMERSIVO (Detección de noche)
+  let isNight = $state(false);
+  onMount(() => {
+    const hora = new Date().getHours();
+    if (hora >= 19 || hora < 6) {
+      isNight = true;
+    }
+  });
 
   const formatearPrecio = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
 
@@ -19,7 +26,65 @@
     const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/);
     return match ? match[1] : null;
   };
+
+  // GENERADOR DE TARJETA DE PRESENTACIÓN V-CARD
+  function descargarVCard() {
+    const vcard = `BEGIN:VCARD
+VERSION:3.0
+FN:${broker.nombre_comercial}
+ORG:Inmublia Exclusivas
+TITLE:Asesor Inmobiliario VIP
+TEL;TYPE=CELL:${broker.whatsapp}
+NOTE:Especialista en ${propiedad.ubicacion}
+URL:https://${broker.subdominio}.inmublia.com
+END:VCARD`;
+    
+    const blob = new Blob([vcard], { type: 'text/vcard' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${broker.nombre_comercial.replace(/\s+/g, '_')}_Contacto.vcf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Schema Markup para SEO y AEO (Inteligencia Artificial)
+  let schemaData = $derived({
+    "@context": "https://schema.org",
+    "@type": "RealEstateListing",
+    "name": propiedad.titulo,
+    "description": propiedad.descripcion,
+    "image": propiedad.imagen_url,
+    "offers": {
+      "@type": "Offer",
+      "price": propiedad.precio,
+      "priceCurrency": "MXN"
+    },
+    "accommodationCategory": propiedad.tipo,
+    "numberOfRooms": propiedad.recamaras,
+    "numberOfBathroomsTotal": propiedad.banos,
+    "floorSize": {
+      "@type": "QuantitativeValue",
+      "value": propiedad.m2_construccion,
+      "unitCode": "MTK"
+    }
+  });
 </script>
+
+<svelte:head>
+  <title>{propiedad.titulo} | {broker.nombre_comercial}</title>
+  
+  <meta property="og:title" content="{propiedad.titulo} | Exclusiva" />
+  <meta property="og:description" content="{propiedad.operacion} en {propiedad.ubicacion} por {formatearPrecio(propiedad.precio)}. Contáctanos para un recorrido privado." />
+  <meta property="og:image" content={propiedad.imagen_url} />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:type" content="website" />
+
+  <script type="application/ld+json">
+    {@html JSON.stringify(schemaData)}
+  </script>
+</svelte:head>
 
 {#if !isBrochure}
   <a href="https://wa.me/{broker.whatsapp}?text=Hola,%20me%20interesa%20agendar%20un%20recorrido%20para:%20{propiedad.titulo}"
@@ -49,7 +114,7 @@
 {/if}
 
 {#if broker.template === 'luxury'}
-  <main class="min-h-screen bg-white text-slate-900 font-sans pb-32">
+  <main class="min-h-screen {isNight ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'} font-sans pb-32 transition-colors duration-1000">
     
     <nav class="absolute top-0 w-full z-40 bg-gradient-to-b from-black/50 to-transparent">
       <div class="max-w-[1400px] mx-auto px-6 h-28 flex justify-between items-center border-b border-white/10">
@@ -67,8 +132,8 @@
       </div>
     </nav>
 
-    <div class="relative w-full h-screen min-h-[600px] bg-slate-900">
-      <img src={propiedad.imagen_url} alt={propiedad.titulo} class="w-full h-full object-cover opacity-80" />
+    <div class="relative w-full h-screen min-h-[600px] bg-black">
+      <img src={propiedad.imagen_url} alt={propiedad.titulo} class="w-full h-full object-cover {isNight ? 'opacity-60' : 'opacity-80'}" />
       <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
       
       <div class="absolute bottom-0 w-full">
@@ -90,16 +155,16 @@
       {#if propiedad.galeria_urls && propiedad.galeria_urls.length > 0}
         <div class="mb-20">
           <div class="grid grid-cols-1 md:grid-cols-4 gap-4 auto-rows-[250px] md:auto-rows-[300px]">
-            <div class="md:col-span-2 md:row-span-2 relative overflow-hidden group rounded-sm bg-slate-100">
-              <img src={propiedad.galeria_urls[0]} alt="Vista Principal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out">
+            <div class="md:col-span-2 md:row-span-2 relative overflow-hidden group rounded-sm bg-slate-800">
+              <img src={propiedad.galeria_urls[0]} alt="Vista Principal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
             </div>
             {#if propiedad.galeria_urls[1]}
-              <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-100">
-                <img src={propiedad.galeria_urls[1]} alt="Vista Secundaria" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out">
+              <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800">
+                <img src={propiedad.galeria_urls[1]} alt="Vista Secundaria" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
               </div>
             {/if}
-            <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-100">
-              <img src={propiedad.galeria_urls[2] || propiedad.imagen_url} alt="Vista" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out">
+            <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800">
+              <img src={propiedad.galeria_urls[2] || propiedad.imagen_url} alt="Vista" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
               <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer">
                 <span class="text-white font-bold uppercase tracking-[0.2em] text-sm flex items-center gap-2">
                   +{propiedad.galeria_urls.length} Fotos
@@ -110,21 +175,21 @@
         </div>
       {/if}
 
-      <div class="flex flex-wrap justify-center gap-x-12 gap-y-10 py-12 border-y border-slate-200 mb-20">
-        <div class="text-center"><p class="text-4xl font-light text-slate-900">{propiedad.recamaras || '-'}</p><p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-3">Recámaras</p></div>
-        <div class="w-px bg-slate-200 hidden sm:block"></div>
-        <div class="text-center"><p class="text-4xl font-light text-slate-900">{propiedad.banos || '-'}</p><p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-3">Baños</p></div>
-        <div class="w-px bg-slate-200 hidden sm:block"></div>
-        <div class="text-center"><p class="text-4xl font-light text-slate-900">{propiedad.m2_construccion || '-'}</p><p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-3">M² Interiores</p></div>
-        <div class="w-px bg-slate-200 hidden sm:block"></div>
-        <div class="text-center"><p class="text-4xl font-light text-slate-900">{propiedad.m2_terreno || '-'}</p><p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-3">M² Terreno</p></div>
-        <div class="w-px bg-slate-200 hidden lg:block"></div>
-        <div class="text-center"><p class="text-4xl font-light text-slate-900">{propiedad.estacionamientos || '-'}</p><p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-3">Autos</p></div>
+      <div class="flex flex-wrap justify-center gap-x-12 gap-y-10 py-12 border-y {isNight ? 'border-slate-800' : 'border-slate-200'} mb-20">
+        <div class="text-center"><p class="text-4xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.recamaras || '-'}</p><p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-3">Recámaras</p></div>
+        <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden sm:block"></div>
+        <div class="text-center"><p class="text-4xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.banos || '-'}</p><p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-3">Baños</p></div>
+        <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden sm:block"></div>
+        <div class="text-center"><p class="text-4xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.m2_construccion || '-'}</p><p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-3">M² Interiores</p></div>
+        <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden sm:block"></div>
+        <div class="text-center"><p class="text-4xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.m2_terreno || '-'}</p><p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-3">M² Terreno</p></div>
+        <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden lg:block"></div>
+        <div class="text-center"><p class="text-4xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.estacionamientos || '-'}</p><p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-3">Autos</p></div>
       </div>
 
       <div class="mb-24">
         <h2 class="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mb-10 text-center">La Residencia</h2>
-        <div class="prose prose-xl prose-slate max-w-none text-slate-600 font-light leading-relaxed whitespace-pre-line text-center md:text-left mx-auto">
+        <div class="prose prose-xl max-w-none font-light leading-relaxed whitespace-pre-line text-center md:text-left mx-auto {isNight ? 'text-slate-300' : 'text-slate-600'}">
           {propiedad.descripcion}
         </div>
       </div>
@@ -132,7 +197,7 @@
       {#if propiedad.video_url && obtenerIdYouTube(propiedad.video_url)}
         <div class="mb-24">
           <h2 class="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mb-10 text-center">Recorrido en Video</h2>
-          <div class="relative w-full aspect-video rounded-sm overflow-hidden shadow-2xl bg-slate-100">
+          <div class="relative w-full aspect-video rounded-sm overflow-hidden shadow-2xl {isNight ? 'bg-slate-800' : 'bg-slate-100'}">
             <iframe class="absolute top-0 left-0 w-full h-full" src="https://www.youtube.com/embed/{obtenerIdYouTube(propiedad.video_url)}?autoplay=0&controls=1&rel=0&modestbranding=1" title="Recorrido Virtual" frameborder="0" allowfullscreen></iframe>
           </div>
         </div>
@@ -140,26 +205,43 @@
 
       <div class="mb-24">
         <h2 class="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mb-10 text-center">El Entorno</h2>
-        <div class="w-full h-[500px] bg-slate-100 overflow-hidden relative rounded-sm">
+        <div class="w-full h-[500px] {isNight ? 'bg-slate-800' : 'bg-slate-100'} overflow-hidden relative rounded-sm">
           <iframe width="100%" height="100%" frameborder="0" style="border:0; filter: grayscale(100%) contrast(120%) opacity(80%); pointer-events: none;" src="https://maps.google.com/maps?q={encodeURIComponent(propiedad.ubicacion || 'Guadalajara, Jalisco')}&t=&z=15&ie=UTF8&iwloc=&output=embed" allowfullscreen></iframe>
-          <div class="absolute bottom-8 left-8 right-8 bg-white/90 backdrop-blur-md p-6 max-w-sm rounded-sm">
+          <div class="absolute bottom-8 left-8 right-8 {isNight ? 'bg-slate-900/90' : 'bg-white/90'} backdrop-blur-md p-6 max-w-sm rounded-sm">
             <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Ubicación</p>
-            <p class="text-lg font-bold text-slate-900">{propiedad.ubicacion || 'Ubicación Privada'}</p>
+            <p class="text-lg font-bold {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.ubicacion || 'Ubicación Privada'}</p>
           </div>
         </div>
+      </div>
+
+      <div class="{isNight ? 'bg-slate-800' : 'bg-slate-50'} py-16 px-8 text-center border-y {isNight ? 'border-slate-800' : 'border-slate-200'} mb-24 rounded-3xl">
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-8">Representación Exclusiva</h2>
+        <div class="w-20 h-20 bg-slate-900 rounded-full mx-auto mb-6 overflow-hidden shadow-lg shadow-black/20">
+          <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=0f172a&color=fff" alt="Avatar" class="w-full h-full object-cover">
+        </div>
+        <h3 class="text-2xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{broker.nombre_comercial}</h3>
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mt-3 mb-8">Asesoría Inmobiliaria</p>
+        
+        <button onclick={descargarVCard} class="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold uppercase tracking-widest rounded-full transition-colors mb-6 shadow-md">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          Guardar Contacto VIP
+        </button>
+        
+        <p class="max-w-md mx-auto {isNight ? 'text-slate-400' : 'text-slate-500'} text-sm leading-relaxed">
+          Atención de guante blanco y absoluta discreción.
+        </p>
       </div>
 
       {#if !isBrochure}
         <div class="bg-slate-900 rounded-2xl p-8 md:p-12 shadow-2xl relative overflow-hidden mb-24">
           <div class="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-white/5 blur-3xl pointer-events-none"></div>
-          
           <div class="max-w-2xl mx-auto text-center relative z-10">
             <h2 class="text-2xl md:text-3xl font-light text-white mb-3">Agendar Recorrido Privado</h2>
-            <p class="text-slate-400 text-sm mb-10 leading-relaxed">Deje sus datos y el asesor <span class="text-white font-bold">{broker.nombre_comercial}</span> se comunicará personalmente para coordinar una visita o proveer los planos de la residencia.</p>
+            <p class="text-slate-400 text-sm mb-10 leading-relaxed">Deje sus datos y el asesor <span class="text-white font-bold">{broker.nombre_comercial}</span> se comunicará personalmente para coordinar una visita.</p>
             
             {#if form?.success}
               <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold p-6 rounded-xl">
-                Su solicitud ha sido enviada con éxito. El asesor se pondrá en contacto a la brevedad.
+                Su solicitud ha sido enviada con éxito.
               </div>
             {:else}
               <form method="POST" action="?/contacto" use:enhance={() => { enviando = true; return async ({ update }) => { enviando = false; update(); }; }} class="space-y-4 text-left">
@@ -170,19 +252,15 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Nombre Completo</label>
-                    <input type="text" name="nombre" required class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 focus:bg-white/10 transition-all outline-none" placeholder="Su nombre">
+                    <input type="text" name="nombre" required class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-amber-400 outline-none" placeholder="Su nombre">
                   </div>
                   <div>
                     <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Teléfono Móvil</label>
-                    <input type="tel" name="telefono" required class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 focus:bg-white/10 transition-all outline-none" placeholder="Ej. 33 1234 5678">
+                    <input type="tel" name="telefono" required class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-amber-400 outline-none" placeholder="Ej. 33 1234 5678">
                   </div>
                 </div>
                 
-                {#if form?.error}
-                  <p class="text-red-400 text-sm font-bold text-center mt-4">{form.error}</p>
-                {/if}
-
-                <button type="submit" disabled={enviando} class="w-full mt-6 bg-gradient-to-r from-amber-200 to-amber-400 hover:from-amber-300 hover:to-amber-500 text-slate-900 font-black py-4 px-8 rounded-xl transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50">
+                <button type="submit" disabled={enviando} class="w-full mt-6 bg-gradient-to-r from-amber-200 to-amber-400 hover:from-amber-300 hover:to-amber-500 text-slate-900 font-black py-4 px-8 rounded-xl transition-all shadow-lg disabled:opacity-50">
                   {enviando ? 'Enviando solicitud...' : 'Solicitar Contacto VIP'}
                 </button>
               </form>
