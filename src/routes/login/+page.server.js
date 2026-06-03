@@ -44,7 +44,7 @@ export const actions = {
 
     // Ejecutar la recuperación con Supabase
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://inmublia.com/admin/actualizar-password', // Ruta donde el usuario cambiará la contraseña
+      redirectTo: 'https://inmublia.com/recuperar-acceso', // <--- RUTA CORREGIDA
     });
 
     if (error) {
