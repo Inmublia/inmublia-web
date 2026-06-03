@@ -42,14 +42,14 @@ export const actions = {
   contacto: async ({ request }) => {
     const formData = await request.formData();
     
-    const nombre = formData.get('nombre');
-    const correo = formData.get('correo');
-    const telefono = formData.get('telefono');
+    const nombre = formData.get('nombre')?.toString().trim();
+    const correo = formData.get('correo')?.toString().trim();
+    const telefono = formData.get('telefono')?.toString().trim();
     const propiedad_id = formData.get('propiedad_id');
     const broker_id = formData.get('broker_id');
     const propiedad_titulo = formData.get('propiedad_titulo');
 
-    // Validación estricta de campos obligatorios (ahora incluye correo)
+    // Validación estricta de campos obligatorios en el servidor
     if (!nombre || !correo || !telefono || !propiedad_id || !broker_id) {
       return fail(400, { error: 'Por favor, llena todos los campos obligatorios del formulario.' });
     }
