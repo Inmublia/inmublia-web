@@ -24,6 +24,9 @@ export const actions = {
     const parseNum = (val) => val ? parseFloat(val) : 0;
     const parseIntNum = (val) => val ? parseInt(val) : 0;
 
+    // NUEVO: Extraemos el enlace de video de YouTube/Vimeo
+    const video_url = formData.get('video_url') || null;
+
     const actualizaciones = {
       titulo: formData.get('titulo'),
       precio: parseNum(formData.get('precio')),
@@ -37,7 +40,8 @@ export const actions = {
       banos: parseNum(formData.get('banos')),
       medio_bano: parseIntNum(formData.get('medio_bano')),
       estacionamientos: parseIntNum(formData.get('estacionamientos')),
-      ubicacion: formData.get('ubicacion') || 'Ubicación Privada'
+      ubicacion: formData.get('ubicacion') || 'Ubicación Privada',
+      video_url: video_url // NUEVO: Se actualiza el enlace en la BD
     };
 
     const { data: broker } = await supabase.from('brokers').select('id').eq('email', user.email).single();
