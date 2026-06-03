@@ -1,20 +1,20 @@
-import { supabase } from '$lib/supabase';
 import { redirect, fail } from '@sveltejs/kit';
 
 export async function load({ locals }) {
-  const user = locals.user;
-  if (!user) throw redirect(303, '/login');
+  // 1. Extraemos tanto al usuario como al cliente autenticado de la petición
+  const { user, supabase } = locals; 
+  if (!user || !supabase) throw redirect(303, '/login');
 
-  // 1. Obtener el perfil del broker
-  const { data: broker } = await supabase
+  // 2. Obtener el perfil del broker
+  const { data: broker, error: brokerError } = await supabase
     .from('brokers')
     .select('*')
     .eq('email', user.email)
     .single();
 
-  if (!broker) throw redirect(303, '/login');
+  if (brokerError || !broker) throw redirect(303, '/login');
 
-  // 2. Traer todos los prospectos de este broker, ordenados por los más recientes
+  // 3. Traer todos los prospectos. Ahora Supabase recibe el token y el RLS te permite leer.
   const { data: leads, error } = await supabase
     .from('leads')
     .select('*')
@@ -28,10 +28,9 @@ export async function load({ locals }) {
 }
 
 export const actions = {
-  // Acción que recibe el nuevo estado al arrastrar y soltar
   actualizar: async ({ request, locals }) => {
-    const user = locals.user;
-    if (!user) return fail(401, { error: 'No autorizado' });
+    const { user, supabase } = locals;
+    if (!user || !supabase) return fail(401, { error: 'No autorizado' });
 
     const formData = await request.formData();
     const leadId = formData.get('id');
@@ -48,10 +47,9 @@ export const actions = {
     return { success: true };
   },
 
-  // Acción para limpiar prospectos basura
   eliminar: async ({ request, locals }) => {
-    const user = locals.user;
-    if (!user) return fail(401, { error: 'No autorizado' });
+    const { user, supabase } = locals;
+    if (!user || !supabase) return fail(401, { error: 'No autorizado' });
 
     const formData = await request.formData();
     const leadId = formData.get('id');
