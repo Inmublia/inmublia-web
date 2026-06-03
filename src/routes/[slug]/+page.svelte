@@ -27,7 +27,7 @@
   };
 
   function descargarVCard() {
-    const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${broker.nombre_comercial}\nORG:Inmublia Exclusivas\nTITLE:Asesor Inmobiliario VIP\nTEL;TYPE=CELL:${broker.whatsapp}\nNOTE:Especialista en ${propiedad.ubicacion}\nURL:https://${broker.subdominio}.inmublia.com\nEND:VCARD`;
+    const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${broker.nombre_comercial}\nORG:Inmublia Exclusivas\nTITLE:Asesor Inmobiliario\nTEL;TYPE=CELL:${broker.whatsapp}\nNOTE:Especialista en ${propiedad.ubicacion}\nURL:https://${broker.subdominio}.inmublia.com\nEND:VCARD`;
     const blob = new Blob([vcard], { type: 'text/vcard' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -236,7 +236,7 @@
       <div class="mb-24">
         <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">El Entorno</h2>
         <div class="w-full h-[500px] {isNight ? 'bg-slate-800' : 'bg-slate-100'} overflow-hidden relative rounded-sm shadow-inner">
-          <iframe width="100%" height="100%" frameborder="0" style="border:0;" src="https://maps.google.com/maps?q={encodeURIComponent(propiedad.ubicacion || 'Guadalajara, Jalisco')}&t=&z=15&ie=UTF8&iwloc=&output=embed" allowfullscreen></iframe>
+          <iframe width="100%" height="100%" frameborder="0" style="border:0;" src="https://maps.google.com/maps?q={encodeURIComponent(propiedad.ubicacion || 'Guadalajara, Jalisco')}&t=m&z=15&output=embed&iwloc=near" allowfullscreen></iframe>
         </div>
       </div>
 
@@ -252,17 +252,17 @@
             
             <button onclick={descargarVCard} class="inline-flex items-center gap-2 px-6 py-3 {isNight ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-900 hover:bg-slate-800'} text-white text-[10px] font-bold uppercase tracking-widest rounded-full transition-colors shadow-sm w-full justify-center">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-              Guardar Contacto VIP
+              Guardar Contacto
             </button>
           </div>
 
-          <div class="{isNight ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-8 shadow-sm">
+          <div class="{isNight ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-8 shadow-sm flex flex-col justify-center">
             <h2 class="text-xl font-light {isNight ? 'text-white' : 'text-slate-900'} mb-2">Agendar Recorrido</h2>
             <p class="text-slate-400 text-xs mb-6">Deje sus datos y el asesor le contactará.</p>
             
             {#if form?.success}
-              <div class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold p-4 rounded-xl text-sm">
-                Solicitud enviada con éxito.
+              <div class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold p-4 rounded-xl text-sm text-center">
+                Solicitud enviada con éxito. El asesor se comunicará pronto.
               </div>
             {:else}
               <form method="POST" action="?/contacto" use:enhance={() => { enviando = true; return async ({ update }) => { enviando = false; update(); }; }} class="space-y-4">
@@ -281,7 +281,7 @@
                 </div>
                 
                 <button type="submit" disabled={enviando} class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-sm transition-all disabled:opacity-50">
-                  {enviando ? 'Enviando...' : 'Solicitar Contacto VIP'}
+                  {enviando ? 'Enviando...' : 'Solicitar Información'}
                 </button>
               </form>
             {/if}
