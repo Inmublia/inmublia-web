@@ -32,5 +32,25 @@ export const actions = {
 
     // Redirigir al broker directamente a su panel de control
     throw redirect(303, '/admin');
+  },
+
+  recuperar: async ({ request }) => {
+    const formData = await request.formData();
+    const email = formData.get('email');
+
+    if (!email) {
+      return fail(400, { error: 'Por favor, ingresa tu correo electrónico.' });
+    }
+
+    // Ejecutar la recuperación con Supabase
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://inmublia.com/admin/actualizar-password', // Ruta donde el usuario cambiará la contraseña
+    });
+
+    if (error) {
+      return fail(400, { error: error.message });
+    }
+
+    return { success: true, message: 'Te hemos enviado un enlace al correo para recuperar tu contraseña.' };
   }
 };
