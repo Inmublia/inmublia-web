@@ -17,6 +17,24 @@
     alert('Enlace copiado: ' + url);
   }
 
+  // Generador de Códigos QR al vuelo
+  function abrirQR(slug, titulo) {
+    const url = `https://${broker.subdominio}.inmublia.com/${slug}`;
+    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=800x800&data=${encodeURIComponent(url)}&format=png&margin=20`;
+    
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; background-color:#f8fafc; margin:0;">
+        <h2 style="color:#0f172a; margin-bottom:10px;">${titulo}</h2>
+        <p style="color:#64748b; margin-top:0; margin-bottom:30px;">Escanea para acceder a la ficha técnica privada</p>
+        <div style="background:white; padding:20px; border-radius:24px; box-shadow:0 10px 40px rgba(0,0,0,0.08);">
+          <img src="${qrApiUrl}" style="max-width:400px; width:100%; border-radius:12px;"/>
+        </div>
+        <button onclick="window.print()" style="margin-top:40px; padding:12px 32px; background:#0f172a; color:white; border:none; border-radius:50px; font-weight:bold; cursor:pointer;">Imprimir / Guardar PDF</button>
+      </div>
+    `);
+  }
+
   // MEJORA 2: Validador de calidad del listado
   function obtenerEstado(prop) {
     if (!prop.m2_terreno || !prop.recamaras || !prop.banos) {
@@ -34,10 +52,17 @@
     </div>
     <nav class="flex-1 p-6 space-y-2">
       <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-2">Consola Operativa</p>
+      
       <a href="/admin" class="flex items-center gap-3 px-4 py-3 bg-slate-100 text-slate-900 rounded-xl font-bold transition-colors">
         <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
         Inventario Real
       </a>
+      
+      <a href="/admin/leads" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-bold transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+        Prospectos (CRM)
+      </a>
+
     </nav>
     <div class="p-6 border-t border-slate-100 bg-white">
       <div class="px-2 py-2 text-sm font-bold text-slate-900 truncate">{broker ? broker.nombre_comercial : 'Usuario'}</div>
@@ -128,6 +153,11 @@
                     </td>
                     <td class="px-8 py-6 text-right">
                       <div class="flex items-center justify-end gap-2">
+                        
+                        <button onclick={() => abrirQR(propiedad.slug, propiedad.titulo)} class="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg transition-colors" title="Generar Código QR">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
+                        </button>
+
                         <button onclick={() => copiarEnlace(propiedad.slug)} class="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg transition-colors" title="Copiar Enlace">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
                         </button>
