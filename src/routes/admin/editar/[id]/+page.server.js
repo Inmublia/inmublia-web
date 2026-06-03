@@ -20,7 +20,7 @@ export const actions = {
     const formData = await request.formData();
     const id = params.id;
 
-    // Limpiamos los números para evitar que la DB colapse con campos vacíos
+    // Limpiamos los números para evitar NaN en la base de datos
     const parseNum = (val) => val ? parseFloat(val) : 0;
     const parseIntNum = (val) => val ? parseInt(val) : 0;
 
@@ -48,7 +48,7 @@ export const actions = {
     const imagen = formData.get('imagen'); 
     const galeriaArchivos = formData.getAll('galeria');
 
-    // 1. Si el usuario subió una NUEVA foto principal
+    // 1. Nueva Foto Principal
     if (imagen && imagen.size > 0) {
       const fileExt = imagen.name.split('.').pop();
       const fileName = `${broker.id}/${Date.now()}-main-edit.${fileExt}`;
@@ -61,7 +61,7 @@ export const actions = {
       }
     }
 
-    // 2. Si el usuario subió una NUEVA galería (Reemplaza la anterior)
+    // 2. Nueva Galería Múltiple
     if (galeriaArchivos.length > 0 && galeriaArchivos[0].size > 0) {
       let galeriaUrls = [];
       for (const file of galeriaArchivos) {
@@ -82,12 +82,18 @@ export const actions = {
       }
     }
 
-    // Ejecutamos la actualización y PEDIMOS QUE NOS DEVUELVA LOS DATOS (.select) PARA CONFIRMAR
-    const { data: updatedData, error } = await supabase.from('propiedades').update(actualizaciones).eq('id', id).select();
+    // ==========================================
+    // INSERCIÓN SEGURA (CANDADO DE BROKER ID)
+    // ==========================================
+    const { data: updatedData, error } = await supabase
+      .from('propiedades')
+      .update(actualizaciones)
+      .eq('id', id)
+      .eq('broker_id', broker.id) // Seguridad: El servidor solo actualiza si la casa es de este broker
+      .select();
 
-    // El detector de impactos:
     if (error) return fail(500, { error: `Error SQL al actualizar: ${error.message}` });
-    if (!updatedData || updatedData.length === 0) return fail(500, { error: 'La base de datos bloqueó la actualización de forma silenciosa. Revisa los permisos RLS.' });
+    if (!updatedData || updatedData.length === 0) return fail(500, { error: 'No se pudo actualizar. Verifica que la propiedad exista y te pertenezca.' });
     
     throw redirect(303, '/admin');
   }
