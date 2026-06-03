@@ -20,7 +20,7 @@ export const actions = {
     const formData = await request.formData();
     const id = params.id;
 
-    // Función de limpieza de números para evitar que la DB colapse con campos vacíos
+    // Limpiamos los números para evitar que la DB colapse con campos vacíos
     const parseNum = (val) => val ? parseFloat(val) : 0;
     const parseIntNum = (val) => val ? parseInt(val) : 0;
 
@@ -40,16 +40,15 @@ export const actions = {
       ubicacion: formData.get('ubicacion') || 'Ubicación Privada'
     };
 
-    // Obtenemos datos del broker para las carpetas de imágenes
     const { data: broker } = await supabase.from('brokers').select('id').eq('email', user.email).single();
 
     // ==========================================
-    // PROCESAMIENTO DE IMÁGENES (NUEVO)
+    // PROCESAMIENTO DE IMÁGENES
     // ==========================================
     const imagen = formData.get('imagen'); 
     const galeriaArchivos = formData.getAll('galeria');
 
-    // Si el usuario seleccionó una NUEVA foto principal
+    // 1. Si el usuario subió una NUEVA foto principal
     if (imagen && imagen.size > 0) {
       const fileExt = imagen.name.split('.').pop();
       const fileName = `${broker.id}/${Date.now()}-main-edit.${fileExt}`;
@@ -62,7 +61,7 @@ export const actions = {
       }
     }
 
-    // Si el usuario seleccionó una NUEVA galería (Reemplaza la anterior)
+    // 2. Si el usuario subió una NUEVA galería (Reemplaza la anterior)
     if (galeriaArchivos.length > 0 && galeriaArchivos[0].size > 0) {
       let galeriaUrls = [];
       for (const file of galeriaArchivos) {
@@ -83,10 +82,13 @@ export const actions = {
       }
     }
 
-    // Ejecutamos la actualización en la Base de Datos
-    const { error } = await supabase.from('propiedades').update(actualizaciones).eq('id', id);
+    // Ejecutamos la actualización y PEDIMOS QUE NOS DEVUELVA LOS DATOS (.select) PARA CONFIRMAR
+    const { data: updatedData, error } = await supabase.from('propiedades').update(actualizaciones).eq('id', id).select();
 
+    // El detector de impactos:
     if (error) return fail(500, { error: `Error SQL al actualizar: ${error.message}` });
+    if (!updatedData || updatedData.length === 0) return fail(500, { error: 'La base de datos bloqueó la actualización de forma silenciosa. Revisa los permisos RLS.' });
+    
     throw redirect(303, '/admin');
   }
 };
