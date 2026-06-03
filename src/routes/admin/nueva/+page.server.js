@@ -24,6 +24,9 @@ export const actions = {
     const medio_bano = formData.get('medio_bano') || 0;
     const estacionamientos = formData.get('estacionamientos') || 0;
     const ubicacion = formData.get('ubicacion') || 'Guadalajara, Jalisco';
+    
+    // NUEVO: Extraemos el enlace del video
+    const video_url = formData.get('video_url') || null;
 
     // Imágenes
     const imagen = formData.get('imagen'); 
@@ -75,7 +78,8 @@ export const actions = {
         medio_bano: parseInt(medio_bano),
         estacionamientos: parseInt(estacionamientos),
         imagen_url: portadaUrl,
-        galeria_urls: galeriaUrls // El array de fotos
+        galeria_urls: galeriaUrls, // El array de fotos
+        video_url // NUEVO: Se guarda el enlace de YouTube en la BD
       });
 
     if (insertError) return fail(500, { error: `Error SQL: ${insertError.message}` });
