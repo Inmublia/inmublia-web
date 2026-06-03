@@ -130,10 +130,18 @@
               <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Ubicación (Colonia, Ciudad)</label>
               <input type="text" name="ubicacion" placeholder="Ej. Puerta de Hierro, Zapopan" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3">
             </div>
+            
             <div class="col-span-2 sm:col-span-4">
               <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Descripción Editorial</label>
               <textarea name="descripcion" rows="5" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3"></textarea>
             </div>
+
+            <!-- NUEVO: CAMPO DE VIDEO DE YOUTUBE -->
+            <div class="col-span-2 sm:col-span-4">
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Enlace de Video Recorrido (YouTube / Vimeo)</label>
+              <input type="url" name="video_url" placeholder="Ej. https://www.youtube.com/watch?v=..." class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-100">
+            </div>
+
           </div>
         </div>
 
