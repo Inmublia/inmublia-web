@@ -5,7 +5,6 @@
   let propiedad = $derived(data.propiedad || {}); 
   let loading = $state(false);
 
-  // Previsualizaciones de nuevas imágenes si el agente decide cambiarlas
   let imagePreview = $state(null);
   let galeriaPreviews = $state([]);
 
@@ -40,6 +39,7 @@
 
         <form method="POST" action="?/actualizar" enctype="multipart/form-data" use:enhance={() => { loading = true; return async ({ update }) => { loading = false; update(); }; }} class="space-y-10">
           
+          <!-- SECCIÓN 1: IMÁGENES -->
           <div class="space-y-6">
             <h3 class="text-lg font-black text-slate-900 border-b border-slate-100 pb-3">Material Visual Actual</h3>
             
@@ -79,7 +79,7 @@
 
                   <div class="absolute inset-0 bg-black/50 z-20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center">
                     <span class="text-white font-bold text-sm tracking-widest uppercase cursor-pointer">Reemplazar Todas</span>
-                    <span class="text-white/70 text-[10px] mt-1">Selecciona 3-5 fotos nuevas</span>
+                    <span class="text-white/70 text-[10px] mt-1">Selecciona 15-25 fotos nuevas</span>
                   </div>
                   <input name="galeria" type="file" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30" onchange={handleGaleriaChange}>
                 </div>
