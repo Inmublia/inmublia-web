@@ -4,6 +4,13 @@
   let broker = $derived(data.broker);
 
   const formatearPrecio = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
+
+  // Extractor automático del ID de YouTube
+  const obtenerIdYouTube = (url) => {
+    if (!url) return null;
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/);
+    return match ? match[1] : null;
+  };
 </script>
 
 <a href="https://wa.me/{broker.whatsapp}?text=Hola,%20me%20interesa%20la%20propiedad:%20{propiedad.titulo}"
@@ -128,9 +135,28 @@
         </div>
       </div>
 
+      <!-- ========================================== -->
+      <!-- MÓDULO DE VIDEO CINEMÁTICO                 -->
+      <!-- ========================================== -->
+      {#if propiedad.video_url && obtenerIdYouTube(propiedad.video_url)}
+        <div class="mb-24">
+          <h2 class="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mb-10 text-center">Recorrido en Video</h2>
+          <div class="relative w-full aspect-video rounded-sm overflow-hidden shadow-2xl bg-slate-100">
+            <iframe 
+              class="absolute top-0 left-0 w-full h-full"
+              src="https://www.youtube.com/embed/{obtenerIdYouTube(propiedad.video_url)}?autoplay=0&controls=1&rel=0&modestbranding=1" 
+              title="Recorrido Virtual" 
+              frameborder="0" 
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+              allowfullscreen>
+            </iframe>
+          </div>
+        </div>
+      {/if}
+
       <div class="mb-24">
         <h2 class="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mb-10 text-center">El Entorno</h2>
-        <div class="w-full h-[500px] bg-slate-100 overflow-hidden relative">
+        <div class="w-full h-[500px] bg-slate-100 overflow-hidden relative rounded-sm">
           <iframe 
             width="100%" 
             height="100%" 
@@ -139,7 +165,7 @@
             src="https://maps.google.com/maps?q={encodeURIComponent(propiedad.ubicacion || 'Guadalajara, Jalisco')}&t=&z=15&ie=UTF8&iwloc=&output=embed" 
             allowfullscreen>
           </iframe>
-          <div class="absolute bottom-8 left-8 right-8 bg-white/90 backdrop-blur-md p-6 max-w-sm">
+          <div class="absolute bottom-8 left-8 right-8 bg-white/90 backdrop-blur-md p-6 max-w-sm rounded-sm">
             <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Ubicación</p>
             <p class="text-lg font-bold text-slate-900">{propiedad.ubicacion || 'Ubicación Privada'}</p>
             <p class="text-xs text-slate-500 mt-2">La ubicación exacta se provee a solicitud para garantizar la privacidad.</p>
