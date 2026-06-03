@@ -1,5 +1,7 @@
 <script>
   import { enhance } from '$app/forms';
+  import { generarFichaPDF } from '$lib/utils/pdf'; // <-- IMPORTACIÓN DEL MOTOR PDF
+  
   let { data } = $props();
   let broker = $derived(data.broker);
   let propiedades = $derived(data.propiedades || []);
@@ -10,6 +12,22 @@
   let propiedadesFiltradas = $derived(
     propiedades.filter(p => p.titulo.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  // Estado global para saber si un PDF se está generando
+  let generandoPDF = $state(false);
+
+  // Función asíncrona para disparar la descarga
+  async function descargarFicha(propiedad) {
+    generandoPDF = true;
+    try {
+      await generarFichaPDF(propiedad, broker);
+    } catch (error) {
+      console.error('Error al generar PDF:', error);
+      alert('Hubo un problema al generar el archivo. Intenta de nuevo.');
+    } finally {
+      generandoPDF = false;
+    }
+  }
 
   function copiarEnlace(slug) {
     const url = `https://${broker.subdominio}.inmublia.com/${slug}`;
@@ -159,6 +177,12 @@
                     <td class="px-8 py-6 text-right">
                       <div class="flex items-center justify-end gap-2">
                         
+                        <button onclick={() => descargarFicha(propiedad)} disabled={generandoPDF} class="text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 p-2.5 rounded-lg transition-colors disabled:opacity-50" title="Descargar Ficha en PDF">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                          </svg>
+                        </button>
+
                         <button onclick={() => window.open(`/${propiedad.slug}?brochure=true`, '_blank')} class="text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 p-2.5 rounded-lg transition-colors border border-amber-200" title="Abrir Smart Brochure (Modo Presentación)">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                         </button>
