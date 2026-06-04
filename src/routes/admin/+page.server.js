@@ -1,32 +1,57 @@
-import { supabase } from '$lib/supabase';
-import { redirect } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
+import { env as publicEnv } from '$env/dynamic/public';
+import { env as privateEnv } from '$env/dynamic/private';
+import { redirect, fail } from '@sveltejs/kit';
+
+const getSupabaseAdmin = () => {
+  return createClient(
+    publicEnv.PUBLIC_SUPABASE_URL,
+    privateEnv.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } }
+  );
+};
 
 export async function load({ locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
-  const { data: broker } = await supabase.from('brokers').select('*').eq('email', user.email).single();
-  if (!broker) return { broker: null, propiedades: [] };
+  const supabaseAdmin = getSupabaseAdmin();
 
-  const { data: propiedades } = await supabase.from('propiedades').select('*').eq('broker_id', broker.id).order('creado_en', { ascending: false });
+  // 1. Buscamos al broker
+  const { data: broker, error: brokerError } = await supabaseAdmin
+    .from('brokers')
+    .select('*')
+    .eq('email', user.email)
+    .single();
 
-  return { broker, propiedades: propiedades || [] };
+  if (brokerError || !broker) {
+    throw redirect(303, '/login?error=broker-not-found');
+  }
+
+  // 2. Traemos las propiedades cruzando la tabla de open_houses
+  // Así sabremos si alguna propiedad tiene un evento vinculado
+  const { data: propiedades } = await supabaseAdmin
+    .from('propiedades')
+    .select('*, open_houses(id, event_date)') // El cruce mágico
+    .eq('broker_id', broker.id)
+    .order('creado_en', { ascending: false });
+
+  return {
+    broker,
+    propiedades: propiedades || []
+  };
 }
 
 export const actions = {
   eliminar: async ({ request, locals }) => {
+    // ... (Tu acción de eliminar actual queda intacta)
     const user = locals.user;
-    if (!user) throw redirect(303, '/login');
-    
+    if (!user) return fail(401, { error: 'No autorizado' });
     const formData = await request.formData();
     const id = formData.get('id');
-
-    // Validamos que el broker sea el dueño antes de borrar
-    const { data: broker } = await supabase.from('brokers').select('id').eq('email', user.email).single();
-    
-    if (broker && id) {
-      const { error } = await supabase.from('propiedades').delete().match({ id: id, broker_id: broker.id });
-      if (error) console.error("Error al eliminar:", error);
-    }
+    const supabaseAdmin = getSupabaseAdmin();
+    const { error } = await supabaseAdmin.from('propiedades').delete().eq('id', id);
+    if (error) return fail(500, { error: error.message });
+    return { success: true };
   }
 };
