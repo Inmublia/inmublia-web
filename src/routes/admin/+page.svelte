@@ -242,8 +242,8 @@
                 <tr>
                   <th scope="col" class="w-4/12 px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Inmueble</th>
                   <th scope="col" class="w-2/12 px-4 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valor</th>
-                  <th scope="col" class="w-3/12 px-4 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Calidad</th>
-                  <th scope="col" class="w-3/12 px-8 py-5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gestión</th>
+                  <th scope="col" class="w-2/12 px-4 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Estatus</th>
+                  <th scope="col" class="w-4/12 px-8 py-5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gestión / Eventos</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-50">
@@ -265,17 +265,34 @@
                         </div>
                       </div>
                     </td>
+                    
                     <td class="px-4 py-6 truncate">
                       <div class="text-sm font-black text-slate-900">${new Intl.NumberFormat('es-MX').format(propiedad.precio)}</div>
                       <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1">{propiedad.operacion}</div>
                     </td>
+                    
                     <td class="px-4 py-6 whitespace-nowrap">
-                      <span class="px-3 py-1.5 inline-flex text-[10px] font-bold uppercase tracking-widest rounded-full border shadow-sm {obtenerEstado(propiedad).clase}">
-                        {obtenerEstado(propiedad).texto}
-                      </span>
+                      {#if propiedad.estatus === 'Pre-Mercado'}
+                        <span class="px-3 py-1.5 inline-flex text-[10px] font-bold uppercase tracking-widest rounded-full border shadow-sm bg-indigo-50 text-indigo-700 border-indigo-200">
+                          Pre-Mercado
+                        </span>
+                      {:else}
+                        <span class="px-3 py-1.5 inline-flex text-[10px] font-bold uppercase tracking-widest rounded-full border shadow-sm bg-emerald-50 text-emerald-700 border-emerald-200">
+                          Catálogo Público
+                        </span>
+                      {/if}
                     </td>
+                    
                     <td class="px-8 py-6 text-right">
-                      <div class="grid grid-cols-3 gap-2 w-max ml-auto">
+                      <div class="flex gap-2 justify-end items-center flex-wrap w-max ml-auto">
+                        
+                        {#if propiedad.open_houses && propiedad.open_houses.length > 0}
+                          <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-4 py-2.5 rounded-lg transition-colors border border-indigo-200 flex items-center gap-2 text-xs font-bold uppercase tracking-widest" title="Dashboard Open House">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            Evento
+                          </a>
+                        {/if}
+
                         <button onclick={() => descargarFicha(propiedad)} disabled={generandoPDF} class="text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 p-2.5 rounded-lg transition-colors disabled:opacity-50 border border-transparent hover:border-emerald-100 flex justify-center" title="Descargar Ficha PDF">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         </button>
