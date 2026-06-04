@@ -89,7 +89,6 @@
 
 <div class="min-h-screen bg-zinc-50 flex font-sans text-slate-900 selection:bg-blue-100">
   
-  <!-- BARRA LATERAL (UNIFICADA) -->
   <aside class="w-64 bg-white flex flex-col hidden md:flex border-r border-slate-200 shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10">
     <div class="h-24 flex items-center px-8 border-b border-slate-100">
       <img src="/logo.png" alt="Inmublia" class="h-9 w-auto">
@@ -123,7 +122,6 @@
     </div>
   </aside>
 
-  <!-- CONTENIDO PRINCIPAL -->
   <main class="flex-1 flex flex-col h-screen overflow-hidden">
     <header class="h-24 bg-white border-b border-slate-200 flex items-center justify-between px-10 shrink-0">
       <h1 class="text-2xl font-black text-slate-900 tracking-tight">Gestión de Interesados</h1>
@@ -131,7 +129,6 @@
 
     <div class="p-10 flex-1 overflow-auto">
       
-      <!-- BARRA DE BÚSQUEDA Y FILTRADO -->
       <div class="flex flex-col lg:flex-row gap-8 mb-10">
         <div class="flex-1 bg-white rounded-2xl p-2 shadow-sm border border-slate-200 flex items-center px-4">
           <svg class="w-5 h-5 text-slate-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
@@ -139,7 +136,6 @@
         </div>
       </div>
 
-      <!-- TABLERO KANBAN -->
       <div class="flex gap-6 overflow-x-auto pb-8 items-start min-h-[600px]">
         {#each columnas as columna}
           <div 
@@ -172,7 +168,6 @@
                       </div>
                     </div>
                     
-                    <!-- Botón Eliminar (Deseable #2) -->
                     <button onclick={() => eliminarLead(lead.id)} class="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Descartar prospecto">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                     </button>
@@ -180,7 +175,9 @@
                   
                   <div class="bg-slate-50 p-3 rounded-lg mb-4 border border-slate-100">
                     <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Interés en</p>
-                    <p class="text-xs text-slate-900 font-bold truncate">{lead.propiedad_titulo || 'Propiedad Privada'}</p>
+                    <p class="text-xs text-slate-900 font-bold truncate">
+                      {lead.propiedad_titulo || lead.propiedad || 'Propiedad Privada'}
+                    </p>
                     
                     {#if lead.correo}
                       <p class="text-[10px] text-slate-500 font-medium mt-2 flex items-center gap-1 truncate">
@@ -191,8 +188,9 @@
                   </div>
                   
                   <a 
-                    href="https://wa.me/52{lead.telefono.replace(/\s+/g, '')}?text=Hola%20{lead.nombre.split(' ')[0]},%20soy%20tu%20asesor%20de%20Inmublia.%20Recibí%20tu%20solicitud%20por%20la%20propiedad:%20{lead.propiedad_titulo}.%20¿En%20qué%20te%20puedo%20ayudar?" 
+                    href="https://wa.me/{lead.telefono ? lead.telefono.replace(/\D/g, '') : ''}?text={encodeURIComponent('Hola ' + lead.nombre.split(' ')[0] + ', soy tu asesor de Inmublia. Recibí tu solicitud por la propiedad: ' + (lead.propiedad_titulo || lead.propiedad || 'Propiedad Privada') + '. ¿En qué te puedo ayudar?')}" 
                     target="_blank"
+                    rel="noopener noreferrer"
                     class="flex items-center justify-center gap-2 w-full py-2.5 bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] text-xs font-bold uppercase tracking-widest rounded-lg transition-colors border border-[#25D366]/20"
                   >
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
