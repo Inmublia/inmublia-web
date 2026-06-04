@@ -35,18 +35,125 @@
   function abrirQR(slug, titulo) {
     const url = `https://${broker.subdominio}.inmublia.com/${slug}`;
     const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=800x800&data=${encodeURIComponent(url)}&format=png&margin=20`;
+    const nombreArchivo = `QR-${titulo.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')}.png`;
     
     const win = window.open('', '_blank');
     win.document.write(`
-      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; background-color:#f8fafc; margin:0;">
-        <h2 style="color:#0f172a; margin-bottom:10px;">${titulo}</h2>
-        <p style="color:#64748b; margin-top:0; margin-bottom:30px;">Escanea para acceder a la ficha técnica privada</p>
-        <div style="background:white; padding:20px; border-radius:24px; box-shadow:0 10px 40px rgba(0,0,0,0.08);">
-          <img src="${qrApiUrl}" style="max-width:400px; width:100%; border-radius:12px;"/>
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <title>QR - ${titulo}</title>
+        <style>
+          @page {
+            size: auto;
+            margin: 0mm; 
+          }
+          
+          body {
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            font-family: system-ui, -apple-system, sans-serif; 
+            background-color: #f8fafc; 
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+          }
+          h2 {
+            color: #0f172a; 
+            margin-bottom: 8px;
+            font-size: 24px;
+            font-weight: 800;
+          }
+          p {
+            color: #64748b; 
+            margin-top: 0; 
+            margin-bottom: 32px;
+          }
+          .qr-card {
+            background: white; 
+            padding: 24px; 
+            border-radius: 24px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+          }
+          img {
+            max-width: 400px; 
+            width: 100%; 
+            border-radius: 12px;
+          }
+          .botones {
+            margin-top: 40px;
+            display: flex;
+            gap: 16px;
+          }
+          button {
+            padding: 12px 32px; 
+            border-radius: 50px; 
+            font-weight: bold; 
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+          }
+          .btn-imprimir {
+            background: #0f172a; 
+            color: white; 
+            border: none;
+          }
+          .btn-guardar {
+            background: white; 
+            color: #0f172a; 
+            border: 2px solid #e2e8f0;
+          }
+          
+          @media print {
+            body { 
+              background-color: white; 
+              justify-content: flex-start;
+              padding-top: 40px;
+            }
+            .botones { display: none; }
+            .qr-card { box-shadow: none; padding: 0; border: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <h2>${titulo}</h2>
+        <p>Escanea para acceder a la ficha técnica privada</p>
+        
+        <div class="qr-card">
+          <img src="${qrApiUrl}" alt="Código QR"/>
         </div>
-        <button onclick="window.print()" style="margin-top:40px; padding:12px 32px; background:#0f172a; color:white; border:none; border-radius:50px; font-weight:bold; cursor:pointer;">Imprimir / Guardar PDF</button>
-      </div>
+        
+        <div class="botones">
+          <button class="btn-imprimir" onclick="window.print()">Imprimir QR</button>
+          <button class="btn-guardar" onclick="descargar()">Guardar Imagen</button>
+        </div>
+
+        <script>
+          async function descargar() {
+            try {
+              const res = await fetch('${qrApiUrl}');
+              const blob = await res.blob();
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = '${nombreArchivo}';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              window.URL.revokeObjectURL(url);
+            } catch (e) {
+              alert('La seguridad del navegador bloqueó la descarga directa. Haz clic derecho en el QR y selecciona "Guardar imagen como..."');
+            }
+          }
+        </script>
+      </body>
+      </html>
     `);
+    win.document.close();
   }
 
   function obtenerEstado(prop) {
@@ -158,23 +265,23 @@
                       <div class="text-sm font-black text-slate-900">${new Intl.NumberFormat('es-MX').format(propiedad.precio)}</div>
                       <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1">{propiedad.operacion}</div>
                     </td>
-                    <td class="px-4 py-6">
+                    <td class="px-4 py-6 whitespace-nowrap">
                       <span class="px-3 py-1.5 inline-flex text-[10px] font-bold uppercase tracking-widest rounded-full border shadow-sm {obtenerEstado(propiedad).clase}">
                         {obtenerEstado(propiedad).texto}
                       </span>
                     </td>
-                    <td class="px-8 py-6">
+                    <td class="px-8 py-6 text-right">
                       <div class="grid grid-cols-3 gap-2 w-max ml-auto">
-                        <button onclick={() => descargarFicha(propiedad)} disabled={generandoPDF} class="text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 p-2.5 rounded-lg transition-colors disabled:opacity-50 border border-transparent hover:border-emerald-100" title="Descargar Ficha en PDF">
+                        <button onclick={() => descargarFicha(propiedad)} disabled={generandoPDF} class="text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 p-2.5 rounded-lg transition-colors disabled:opacity-50 border border-transparent hover:border-emerald-100 flex justify-center" title="Descargar Ficha PDF">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         </button>
-                        <button onclick={() => window.open(`/${propiedad.slug}?brochure=true`, '_blank')} class="text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 p-2.5 rounded-lg transition-colors border border-amber-200" title="Smart Brochure">
+                        <button onclick={() => window.open(`/${propiedad.slug}?brochure=true`, '_blank')} class="text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 p-2.5 rounded-lg transition-colors border border-amber-200 flex justify-center" title="Smart Brochure">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                         </button>
-                        <button onclick={() => abrirQR(propiedad.slug, propiedad.titulo)} class="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg transition-colors border border-transparent hover:border-slate-200" title="Generar Código QR">
+                        <button onclick={() => abrirQR(propiedad.slug, propiedad.titulo)} class="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg transition-colors border border-transparent hover:border-slate-200 flex justify-center" title="Generar Código QR">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
                         </button>
-                        <button onclick={() => copiarEnlace(propiedad.slug)} class="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg transition-colors border border-transparent hover:border-slate-200" title="Copiar Enlace">
+                        <button onclick={() => copiarEnlace(propiedad.slug)} class="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg transition-colors border border-transparent hover:border-slate-200 flex justify-center" title="Copiar Enlace">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
                         </button>
                         <a href="/admin/editar/{propiedad.id}" class="text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 p-2.5 rounded-lg transition-colors border border-transparent hover:border-blue-100 flex items-center justify-center" title="Editar">
