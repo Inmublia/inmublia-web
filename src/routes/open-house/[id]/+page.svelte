@@ -1,6 +1,5 @@
 <script>
-  import OpenHouse from '$lib/components/OpenHouse.svelte';
+  import OpenHousePublic from '$lib/components/OpenHousePublic.svelte';
   let { data } = $props();
 </script>
-
-<OpenHouse event={data.event} attendeesDb={data.attendeesDb} agentMode={false} />
+<OpenHousePublic event={data.event} attendeesDb={data.attendeesDb} />
