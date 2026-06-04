@@ -1,6 +1,6 @@
 <script>
   import OpenHouse from '$lib/components/OpenHouse.svelte';
-  // agentMode={false} le dice al componente que muestre la vista de RSVP para clientes
+  let { data } = $props();
 </script>
 
-<OpenHouse agentMode={false} />
+<OpenHouse event={data.event} attendeesDb={data.attendeesDb} agentMode={false} />
