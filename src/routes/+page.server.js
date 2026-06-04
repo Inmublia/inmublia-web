@@ -10,7 +10,8 @@ export async function load({ url }) {
     subdominioActivo = hostname.replace('.inmublia.com', '');
   }
 
-  let query = supabase.from('propiedades').select('*');
+  // EL CANDADO APLICADO: Solo traemos las propiedades que están 100% públicas ("Activa")
+  let query = supabase.from('propiedades').select('*').eq('estatus', 'Activa');
 
   if (subdominioActivo) {
     // 1. Buscar los datos reales del broker por su subdominio
