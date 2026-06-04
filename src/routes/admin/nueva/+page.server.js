@@ -83,6 +83,14 @@ export const actions = {
     const slug = titulo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
     // 4. INSERTAR TODO A LA BASE DE DATOS
+    // 🔥 FIX: Limpieza agresiva de strings numéricos antes del parseFloat
+    const cleanNumber = (val) => {
+        if (!val) return 0;
+        // Quita símbolo de dólar, comas, letras y espacios. Solo deja números y el punto decimal.
+        const cleaned = String(val).replace(/[^0-9.]/g, ''); 
+        return parseFloat(cleaned) || 0;
+    };
+
     const { error: insertError } = await supabaseAdmin.from('propiedades').insert({
         broker_id: broker.id,
         titulo, 
@@ -92,14 +100,14 @@ export const actions = {
         destacada, 
         descripcion, 
         ubicacion,
-        estatus, // NUEVO: Se guarda el estatus ('Activa' o 'Pre-Mercado')
-        precio: parseFloat(precio),
-        m2_terreno: parseFloat(m2_terreno),
-        m2_construccion: parseFloat(m2_construccion),
-        recamaras: parseInt(recamaras),
-        banos: parseFloat(banos),
-        medio_bano: parseInt(medio_bano),
-        estacionamientos: parseInt(estacionamientos),
+        estatus,
+        precio: cleanNumber(precio), // LIMPIO
+        m2_terreno: cleanNumber(m2_terreno), // LIMPIO
+        m2_construccion: cleanNumber(m2_construccion), // LIMPIO
+        recamaras: parseInt(recamaras) || 0,
+        banos: cleanNumber(banos), // LIMPIO (puede ser 1.5)
+        medio_bano: parseInt(medio_bano) || 0,
+        estacionamientos: parseInt(estacionamientos) || 0,
         imagen_url: portadaUrl,
         galeria_urls: galeriaUrls, 
         video_url 
