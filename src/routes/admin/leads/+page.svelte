@@ -7,12 +7,12 @@
   // Clonamos los leads en un estado local para la actualización optimista (UI instantánea)
   let leads = $state(data.leads || []);
   
-  // Motor de búsqueda
+  // Motor de búsqueda actualizado para leer la propiedad anidada (lead.propiedades?.titulo)
   let searchQuery = $state('');
   let leadsFiltrados = $derived(
     leads.filter(l => 
       l.nombre.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      (l.propiedad_titulo && l.propiedad_titulo.toLowerCase().includes(searchQuery.toLowerCase()))
+      (l.propiedades?.titulo && l.propiedades.titulo.toLowerCase().includes(searchQuery.toLowerCase()))
     )
   );
 
@@ -53,7 +53,7 @@
   async function soltar(event, nuevaColumnaId) {
     event.preventDefault();
     if (draggedLeadId) {
-      // 1. Actualización Optimista (La UI cambia de inmediato)
+      // 1. Actualización Optimista
       leads = leads.map(lead => {
         if (lead.id === draggedLeadId) {
           return { ...lead, estado: nuevaColumnaId };
@@ -61,7 +61,7 @@
         return lead;
       });
 
-      // 2. Sincronización Silenciosa con Supabase
+      // 2. Sincronización
       const formData = new FormData();
       formData.append('id', draggedLeadId);
       formData.append('estado', nuevaColumnaId);
@@ -77,9 +77,7 @@
 
   async function eliminarLead(id) {
     if (confirm('¿Eliminar este prospecto permanentemente?')) {
-      // Remover de la UI inmediatamente
       leads = leads.filter(l => l.id !== id);
-      
       const formData = new FormData();
       formData.append('id', id);
       fetch('?/eliminar', { method: 'POST', body: formData });
@@ -176,7 +174,7 @@
                   <div class="bg-slate-50 p-3 rounded-lg mb-4 border border-slate-100">
                     <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Interés en</p>
                     <p class="text-xs text-slate-900 font-bold truncate">
-                      {lead.propiedad_titulo || lead.propiedad || 'Propiedad Privada'}
+                      {lead.propiedades?.titulo || 'Propiedad Privada'}
                     </p>
                     
                     {#if lead.correo}
@@ -188,7 +186,7 @@
                   </div>
                   
                   <a 
-                    href="https://wa.me/{lead.telefono ? lead.telefono.replace(/\D/g, '') : ''}?text={encodeURIComponent('Hola ' + lead.nombre.split(' ')[0] + ', soy tu asesor de Inmublia. Recibí tu solicitud por la propiedad: ' + (lead.propiedad_titulo || lead.propiedad || 'Propiedad Privada') + '. ¿En qué te puedo ayudar?')}" 
+                    href="https://wa.me/{lead.telefono ? lead.telefono.replace(/\D/g, '') : ''}?text={encodeURIComponent('Hola ' + lead.nombre.split(' ')[0] + ', soy tu asesor de Inmublia. Recibí tu solicitud por la propiedad: ' + (lead.propiedades?.titulo || 'Propiedad Privada') + '. ¿En qué te puedo ayudar?')}" 
                     target="_blank"
                     rel="noopener noreferrer"
                     class="flex items-center justify-center gap-2 w-full py-2.5 bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] text-xs font-bold uppercase tracking-widest rounded-lg transition-colors border border-[#25D366]/20"
