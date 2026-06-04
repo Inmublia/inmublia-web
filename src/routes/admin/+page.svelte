@@ -140,7 +140,7 @@
               const url = window.URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.download = '${nombreArchivo}';
+              a.setAttribute('download', '${nombreArchivo}');
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
@@ -149,7 +149,7 @@
               alert('La seguridad del navegador bloqueó la descarga directa. Haz clic derecho en el QR y selecciona "Guardar imagen como..."');
             }
           }
-        </script>
+        <\/script>
       </body>
       </html>
     `);
