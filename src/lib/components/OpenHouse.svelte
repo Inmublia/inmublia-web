@@ -204,8 +204,100 @@
           <a href="https://wa.me/{event.agent?.whatsapp}?text={whatsappMsg}" target="_blank" rel="noopener noreferrer" class="btn-inmublia-primary mt-8">Contactar Concierge Vía WhatsApp</a>
         </div>
       {:else}
+        <div class="form-header-editorial">
+          <h3 class="form-editorial-title">{isFull ? 'Lista de Espera de Alta Prioridad' : 'Confirmar Registro Privado'}</h3>
+          <div class="social-validation-strip">
+            <div class="premium-avatar-stack">
+              {#each [0, 1, 2, 3] as i}
+                <div class="luxury-mini-avatar" style="background: {['#0A0A0A', '#1A1A1A', '#2A2A2A', '#8C7034'][i]}; z-index: {4 - i}"></div>
+              {/each}
+            </div>
+            <p class="validation-strip-text">
+              <strong>{attendees.length} Miembros Registrados</strong> · 
+              <span class={spotsLeft <= 3 ? 'text-[#B89848] font-bold' : ''}>
+                {isFull ? 'Cupo Completo' : `${spotsLeft} Invitaciones Disponibles`}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <form method="POST" action="?/rsvp" use:enhance={() => {
+          submitting = true;
+          return async ({ result }) => {
+            submitting = false;
+            if (result.type === 'success') showSuccess = true;
+          };
+        }} class="inmublia-interactive-form">
+          <input type="hidden" name="status" value={isFull ? 'waitlist' : 'confirmed'}>
+          <div class="luxury-input-wrapper"><input type="text" name="name" required placeholder="Nombre Completo *" class="inmublia-input-ui" /></div>
+          <div class="luxury-input-wrapper"><input type="tel" name="phone" required placeholder="Teléfono / WhatsApp Instantáneo *" class="inmublia-input-ui" /></div>
+          <div class="luxury-input-wrapper">
+            <select name="intent" required class="inmublia-select-ui">
+              <option value="">¿Cuál es tu objetivo de adquisición? *</option>
+              <option value="Comprar">Adquisición Inmediata Patrimonial</option>
+              <option value="Invertir">Inversión de Alta Rentabilidad / Portafolio</option>
+              <option value="Rentar">Arrendamiento Corporativo / Residencial</option>
+              <option value="Solo conocer">Bróker Autorizado / Alianza Comercial</option>
+            </select>
+          </div>
+          <div class="luxury-input-wrapper">
+            <select name="budget" class="inmublia-select-ui">
+              <option value="">Rango de Presupuesto (Opcional)</option>
+              <option value="Menos de $5M">Menos de $5,000,000 MXN</option>
+              <option value="$5M–$10M">$5,000,000 a $10,000,000 MXN</option>
+              <option value="Más de $10M">Más de $10,000,000 MXN</option>
+            </select>
+          </div>
+          <button type="submit" disabled={submitting} class="btn-inmublia-primary">
+            {#if submitting}
+              <span class="luxury-loading-bar"></span> Cifrando credenciales...
+            {:else if isFull}
+              Solicitar Entrada en Lista de Espera
+            {:else}
+              Emitir Invitación Digital Exclusiva
+            {/if}
+          </button>
+          <p class="form-privacy-disclaimer">🔒 Sus datos están protegidos bajo protocolos de estricta confidencialidad de la agencia.</p>
+        </form>
+      {/if}
+    </div>
+  {/if}
+
+  <div class="luxury-agent-card-section">
+    <div class="agent-profile-layout">
+      <div class="agent-avatar-luxury-frame">{event.agent?.avatar || 'IN'}</div>
+      <div>
+        <h4 class="agent-luxury-name">{event.agent?.name}</h4>
+        <p class="agent-luxury-title-label">{event.agent?.specialty || 'Private Client Advisor'}</p>
+        <div class="agent-stars-row"><span>★★★★★</span> <span class="numerical-rating">{event.agent?.rating || '5.0'}</span></div>
+      </div>
+    </div>
+    <div class="agent-actions-grid">
+      <a href="https://wa.me/{event.agent?.whatsapp}?text={whatsappMsg}" target="_blank" rel="noopener noreferrer" class="btn-inmublia-secondary">Contactar Asesor</a>
+      <a href="https://wa.me/?text={shareMsg}" target="_blank" rel="noopener noreferrer" class="btn-inmublia-secondary">Compartir Lanzamiento</a>
+    </div>
+  </div>
+
+  <div class="physical-access-qr-section">
+    <div class="qr-luxury-frame">
+      <svg viewBox="0 0 100 100" class="w-8 h-8 text-black" aria-label="QR Code">
+        <rect width="24" height="24" fill="currentColor"/><rect x="76" width="24" height="24" fill="currentColor"/><rect y="76" width="24" height="24" fill="currentColor"/><rect x="38" y="38" width="24" height="24" fill="currentColor"/>
+      </svg>
+    </div>
+    <div>
+      <h4 class="qr-section-header">Pase de Acceso Físico Automatizado</h4>
+      <p class="qr-section-body">Al arribar a la residencia, presente este identificador digital o realice su Check-In automático con el concierge en puerta.</p>
+    </div>
+  </div>
+
+  <footer class="inmublia-luxury-footer">
+    <p>Powered by <span class="footer-brand-highlight">Inmublia</span> Technology Systems</p>
+    <p class="footer-domain-sub">{event.agent?.url}</p>
+  </footer>
+</div>
+
+{:else}
 <div class="min-h-screen bg-zinc-50 flex font-sans text-slate-900 selection:bg-indigo-100 animate-fade-in">
-  
   <aside class="w-64 bg-white flex flex-col hidden md:flex border-r border-slate-200 shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10">
     <div class="h-24 flex items-center px-8 border-b border-slate-100">
       <img src="/logo.png" alt="Inmublia" class="h-9 w-auto">
@@ -237,7 +329,6 @@
   </aside>
 
   <main class="flex-1 flex flex-col h-screen overflow-hidden">
-    
     <header class="h-24 bg-white border-b border-slate-200 flex items-center justify-between px-10 shrink-0">
       <div class="flex items-center">
         <a href="/admin" class="text-slate-400 hover:text-indigo-600 transition-colors mr-6 bg-slate-50 hover:bg-indigo-50 p-2.5 rounded-xl border border-slate-200" title="Volver al Inventario">
@@ -250,27 +341,18 @@
       </div>
       <div class="flex items-center gap-4">
         {#if eventStatus === 'live'}
-          <span class="px-4 py-2 rounded-full bg-red-100 text-red-700 font-bold text-xs uppercase tracking-widest border border-red-200 flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> En Vivo
-          </span>
+          <span class="px-4 py-2 rounded-full bg-red-100 text-red-700 font-bold text-xs uppercase tracking-widest border border-red-200 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> En Vivo</span>
         {:else if eventStatus === 'today'}
-          <span class="px-4 py-2 rounded-full bg-amber-100 text-amber-700 font-bold text-xs uppercase tracking-widest border border-amber-200">
-            Sucede Hoy
-          </span>
+          <span class="px-4 py-2 rounded-full bg-amber-100 text-amber-700 font-bold text-xs uppercase tracking-widest border border-amber-200">Sucede Hoy</span>
         {:else if eventStatus === 'upcoming'}
-          <span class="px-4 py-2 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs uppercase tracking-widest border border-indigo-200">
-            Próximo
-          </span>
+          <span class="px-4 py-2 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs uppercase tracking-widest border border-indigo-200">Próximo</span>
         {:else}
-          <span class="px-4 py-2 rounded-full bg-slate-100 text-slate-600 font-bold text-xs uppercase tracking-widest border border-slate-200">
-            Finalizado
-          </span>
+          <span class="px-4 py-2 rounded-full bg-slate-100 text-slate-600 font-bold text-xs uppercase tracking-widest border border-slate-200">Finalizado</span>
         {/if}
       </div>
     </header>
 
     <div class="p-10 flex-1 overflow-auto">
-      
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Prospectos Registrados</p>
@@ -305,7 +387,6 @@
           <div class="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200">
              <h3 class="text-lg font-black text-slate-900 mb-2">Canales de Difusión Directa</h3>
              <p class="text-sm text-slate-500 font-medium mb-8">Utiliza estos enlaces para promover el evento exclusivo en tus redes.</p>
-             
              <div class="flex flex-col gap-4">
                <a href="https://wa.me/?text={shareMsg}" target="_blank" rel="noopener noreferrer" class="bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] font-bold py-3.5 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors border border-[#25D366]/20">
                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
@@ -441,7 +522,6 @@
   </main>
 </div>
 {/if}
-
 <style>
   /* --- HOJA DE ESTILO PÚBLICA INMUBLIA LUXURY THEME --- */
   :root {
