@@ -1,19 +1,18 @@
 <script>
   import { enhance } from '$app/forms';
+  import { invalidateAll } from '$app/navigation'; // <-- Agregado vital para persistencia
 
   let { data, form } = $props();
   let broker = $state(data.broker || {});
   
   let saving = $state(false);
   let showSuccess = $state(false);
-  let previewUrl = $state(null); // Para mostrar la foto seleccionada antes de guardar
+  let previewUrl = $state(null);
 
-  // Variables del webhook
   let webhookUrl = $state(broker.webhook_url || '');
   let testingWebhook = $state(false);
   let webhookSuccess = $state(false);
 
-  // Función para previsualizar la imagen al elegirla
   function handleFileSelect(event) {
     const file = event.target.files[0];
     if (file) {
@@ -45,9 +44,7 @@
 
 <div class="min-h-screen bg-zinc-50 flex font-sans text-slate-900 selection:bg-indigo-100 animate-[fadeIn_0.5s_ease-out]">
   
-  <!-- SIDEBAR -->
   <aside class="w-64 bg-white flex flex-col hidden md:flex border-r border-slate-200 shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10">
-    <!-- LOGO GIGANTE -->
     <div class="h-28 flex items-center justify-center border-b border-slate-100 px-6 py-4">
       <img src="/logo.png" alt="Inmublia" class="h-16 w-full object-contain">
     </div>
@@ -64,7 +61,6 @@
         Prospectos (CRM)
       </a>
 
-      <!-- Pestaña Activa -->
       <a href="/admin/perfil" class="flex items-center gap-3 px-4 py-3 text-indigo-600 bg-indigo-50 rounded-xl font-bold transition-colors shadow-sm">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
         Configuración
@@ -81,7 +77,6 @@
     </div>
   </aside>
 
-  <!-- CONTENIDO PRINCIPAL -->
   <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
     
     <header class="h-24 bg-white border-b border-slate-200 flex items-center px-10 shrink-0">
@@ -103,14 +98,16 @@
           </div>
         {/if}
 
-        <!-- EL ENCTYPE ES CLAVE PARA SUBIR FOTOS -->
         <form method="POST" action="?/updateProfile" enctype="multipart/form-data" use:enhance={() => {
           saving = true;
           return async ({ update, result }) => {
             saving = false;
-            if (result.type === 'success') {
+            if (result.type === 'failure') {
+              alert(result.data?.error || "Hubo un problema al guardar. Verifica la conexión.");
+            } else if (result.type === 'success') {
               showSuccess = true;
               setTimeout(() => showSuccess = false, 4000);
+              await invalidateAll(); // FUERZA LA RECARGA DESDE LA BASE DE DATOS
             }
             update({ reset: false });
           };
@@ -119,7 +116,6 @@
             
             <div class="lg:col-span-8 space-y-6">
               
-              <!-- Identidad de Marca -->
               <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100">
                 <div class="flex items-center gap-3 mb-6">
                   <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
@@ -128,7 +124,6 @@
 
                 <div class="space-y-5">
                   <div class="flex items-center gap-6 pb-4 border-b border-slate-50">
-                    <!-- BOTÓN FUNCIONAL DE IMAGEN (Wrap con etiqueta LABEL) -->
                     <label class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 border border-slate-200 overflow-hidden relative group cursor-pointer shadow-sm">
                       <input type="file" name="avatar" accept="image/png, image/jpeg" class="hidden" onchange={handleFileSelect} />
                       
@@ -165,7 +160,6 @@
                 </div>
               </div>
 
-              <!-- Presencia Digital -->
               <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100">
                 <div class="flex items-center gap-3 mb-6">
                   <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
@@ -198,7 +192,6 @@
 
             </div>
 
-            <!-- COLUMNA LATERAL (Derecha) -->
             <div class="lg:col-span-4 space-y-6">
               
               <div class="bg-[#111827] text-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
@@ -243,7 +236,6 @@
             </div>
           </div>
 
-          <!-- BOTÓN GUARDAR CAMBIOS -->
           <div class="fixed bottom-0 right-0 p-6 z-40 bg-gradient-to-t from-zinc-50 via-zinc-50 to-transparent w-full md:w-[calc(100%-16rem)] flex justify-end">
             <button type="submit" disabled={saving} class="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white font-bold py-4 px-8 rounded-2xl shadow-2xl flex items-center gap-3 transition-all border border-slate-700">
               {#if saving}
