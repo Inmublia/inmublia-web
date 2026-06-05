@@ -85,190 +85,255 @@
   }
 </script>
 
-<div class="min-h-screen bg-zinc-50 text-slate-900 font-sans selection:bg-indigo-100 pb-20">
+<div class="min-h-screen bg-zinc-50 text-slate-900 font-sans selection:bg-indigo-100">
   
-  <header class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
-    <div class="font-black text-lg tracking-tight text-slate-900 flex items-center gap-2">
-      <div class="w-8 h-8 bg-slate-900 text-white rounded-lg flex items-center justify-center text-xs">
-        {event.agent?.name?.substring(0, 2).toUpperCase() || 'IN'}
-      </div>
-      {event.agent?.name || 'Inmublia'}
-    </div>
-    <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full">
-      Open House
-    </div>
-  </header>
-
-  <main class="max-w-2xl mx-auto px-4 sm:px-6 mt-8 space-y-6">
+  <!-- HERO SECTION MAJESTUOSA (Full Width & Height) -->
+  <div class="relative w-full h-[85vh] bg-slate-900 overflow-hidden group">
     
-    {#if eventStatus === 'live'}
-      <div class="bg-red-50 text-red-600 border border-red-100 rounded-2xl p-4 flex items-center justify-center gap-3 font-bold text-xs uppercase tracking-widest shadow-sm">
-        <span class="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
-        En Vivo: Ingreso Abierto
+    <!-- Imagen de Fondo -->
+    {#if event.photos && event.photos.length > 0}
+      <img src={event.photos[currentPhoto]} alt="Propiedad Exclusiva" class="absolute inset-0 w-full h-full object-cover transition-transform duration-[1.5s] ease-out group-hover:scale-105" />
+    {/if}
+    
+    <!-- Gradiente de Oscurecimiento Premium (Para que resalte el texto) -->
+    <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-black/30 z-10 pointer-events-none"></div>
+
+    <!-- Header Flotante -->
+    <header class="absolute top-0 w-full z-50 px-6 sm:px-12 py-8 flex justify-between items-center text-white">
+      <div class="font-black text-xl tracking-tight flex items-center gap-3">
+        <div class="w-10 h-10 bg-white text-slate-900 rounded-xl flex items-center justify-center text-sm shadow-lg">
+          {event.agent?.name?.substring(0, 2).toUpperCase() || 'IN'}
+        </div>
+        <span class="drop-shadow-md">{event.agent?.name || 'Inmublia'}</span>
       </div>
-    {:else if eventStatus === 'today'}
-      <div class="bg-amber-50 text-amber-700 border border-amber-100 rounded-2xl p-4 flex items-center justify-center gap-3 font-bold text-xs uppercase tracking-widest shadow-sm">
-        El Evento Es Hoy
+      <div class="text-[10px] font-bold uppercase tracking-widest text-white/90 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20">
+        Open House Exclusivo
       </div>
+    </header>
+
+    <!-- Controles de Galería -->
+    {#if event.photos && event.photos.length > 1}
+      <button class="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/20 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-40 border border-white/10" onclick={prevPhoto}>
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+      </button>
+      <button class="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/20 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-40 border border-white/10" onclick={nextPhoto}>
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+      </button>
     {/if}
 
-    <div class="bg-white rounded-[2rem] p-3 shadow-sm border border-slate-200 overflow-hidden relative">
-      <div class="relative h-72 sm:h-96 w-full rounded-[1.5rem] overflow-hidden bg-slate-100 group">
-        {#if event.photos && event.photos.length > 0}
-          <img src={event.photos[currentPhoto]} alt="Propiedad" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-        {/if}
-        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent"></div>
+    <!-- Contenido sobre la Imagen -->
+    <div class="absolute inset-0 z-20 flex flex-col justify-end px-6 sm:px-12 pb-16 sm:pb-24 max-w-7xl mx-auto w-full">
+      <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
         
-        {#if event.photos && event.photos.length > 1}
-          <button class="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors" onclick={prevPhoto}>
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-          </button>
-          <button class="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors" onclick={nextPhoto}>
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-          </button>
-        {/if}
-
-        <div class="absolute bottom-6 left-6 right-6 text-white">
-          <span class="inline-block px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-widest mb-3 border border-white/10">
-            Lanzamiento Exclusivo
-          </span>
-          <h1 class="text-2xl sm:text-3xl font-black tracking-tight leading-tight shadow-sm">{event.title}</h1>
-        </div>
-      </div>
-      
-      <div class="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div class="text-2xl font-black text-slate-900">{formattedPrice}</div>
-          <div class="text-sm font-medium text-slate-500 mt-1 flex items-center gap-1.5">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-            {event.address}
-          </div>
-        </div>
-        <div class="flex gap-3">
-          <div class="bg-slate-50 px-4 py-2 rounded-xl text-center border border-slate-100">
-            <div class="text-sm font-black text-slate-900">{event.bedrooms}</div>
-            <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Recs</div>
-          </div>
-          <div class="bg-slate-50 px-4 py-2 rounded-xl text-center border border-slate-100">
-            <div class="text-sm font-black text-slate-900">{event.bathrooms}</div>
-            <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Baños</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {#if eventStatus === 'upcoming' || eventStatus === 'today'}
-      <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 text-center">
-        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">El acceso se habilita en</p>
-        <div class="flex justify-center gap-4 sm:gap-8">
-          {#each [ { v: countdown.days, l: 'Días' }, { v: countdown.hours, l: 'Hrs' }, { v: countdown.minutes, l: 'Min' }, { v: countdown.seconds, l: 'Seg' } ] as unit}
-            <div class="flex flex-col items-center">
-              <span class="text-3xl sm:text-4xl font-black text-slate-900 tabular-nums tracking-tight">{String(unit.v).padStart(2, '0')}</span>
-              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{unit.l}</span>
-            </div>
-          {/each}
-        </div>
-        <div class="mt-6 inline-flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-full border border-slate-100 text-xs font-bold text-slate-600">
-          <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-          {formattedDate} · {event.timeStart} a {event.timeEnd}
-        </div>
-      </div>
-    {/if}
-
-    <div class="space-y-4">
-      {#if event.benefit}
-        <div class="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 flex gap-4">
-          <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path></svg>
-          </div>
-          <div>
-            <h4 class="text-xs font-bold text-emerald-800 uppercase tracking-widest mb-1">Beneficio de Asistencia</h4>
-            <p class="text-sm text-emerald-700 font-medium leading-relaxed">{event.benefit}</p>
-          </div>
-        </div>
-      {/if}
-      
-      <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
-        <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Acerca de la Propiedad</h4>
-        <p class="text-sm text-slate-600 leading-relaxed font-medium">{event.description}</p>
-      </div>
-    </div>
-
-    {#if eventStatus !== 'ended'}
-      <div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden relative">
-        <div class="bg-slate-900 p-8 text-white relative overflow-hidden">
-          <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white opacity-5 blur-2xl"></div>
-          <h3 class="text-xl font-black mb-2 relative z-10">{isFull ? 'Lista de Espera' : 'Asegura tu Acceso'}</h3>
-          <div class="flex items-center gap-3 relative z-10">
-            <div class="flex -space-x-2">
-              {#each [1, 2, 3] as i}
-                <div class="w-6 h-6 rounded-full bg-slate-700 border-2 border-slate-900 flex items-center justify-center text-[8px] font-bold text-slate-400">👤</div>
-              {/each}
-            </div>
-            <p class="text-xs font-medium text-slate-300">
-              <strong class="text-white">{attendees.length}</strong> registrados · 
-              <span class={spotsLeft <= 3 ? 'text-amber-400 font-bold' : ''}>{isFull ? 'Cupo Lleno' : `${spotsLeft} lugares disponibles`}</span>
-            </p>
-          </div>
-        </div>
-
-        <div class="p-8">
-          {#if showSuccess}
-            <div class="text-center py-6 animate-fade-in">
-              <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-              </div>
-              <h3 class="text-xl font-black text-slate-900 mb-2">¡Lugar Reservado!</h3>
-              <p class="text-sm text-slate-500 font-medium mb-6">Hemos registrado tu invitación. El asesor se pondrá en contacto para enviarte tu acceso.</p>
-              <a href="https://wa.me/{event.agent?.whatsapp}?text={whatsappMsg}" target="_blank" class="block w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-3.5 rounded-xl transition-colors shadow-sm">
-                Confirmar vía WhatsApp
-              </a>
+        <!-- Título y Datos -->
+        <div class="max-w-3xl">
+          {#if eventStatus === 'live'}
+            <div class="inline-flex items-center gap-2 px-3 py-1 bg-red-600/90 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-widest rounded-sm mb-4 shadow-lg">
+              <span class="w-2 h-2 bg-white rounded-full animate-pulse"></span> PUERTAS ABIERTAS AHORA
             </div>
           {:else}
-            <form method="POST" action="?/rsvp" use:enhance={() => {
-              submitting = true; return async ({ result }) => { submitting = false; if (result.type === 'success') showSuccess = true; };
-            }} class="space-y-4">
-              <input type="hidden" name="status" value={isFull ? 'waitlist' : 'confirmed'}>
+            <div class="inline-flex px-3 py-1 bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-widest border border-white/30 rounded-sm mb-4">
+              Lanzamiento Privado
+            </div>
+          {/if}
+          
+          <h1 class="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tighter leading-[1.05] drop-shadow-xl mb-4">
+            {event.title}
+          </h1>
+          
+          <p class="text-lg sm:text-xl text-white/80 font-medium flex items-center gap-2 drop-shadow-md">
+            <svg class="w-5 h-5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            {event.address}
+          </p>
+        </div>
+
+        <!-- CONTADOR DE ALTO IMPACTO -->
+        {#if eventStatus === 'upcoming' || eventStatus === 'today'}
+          <div class="bg-black/40 backdrop-blur-xl p-6 rounded-2xl border border-white/10 shadow-2xl shrink-0">
+            <p class="text-[10px] font-bold text-white/60 uppercase tracking-widest text-center mb-4">Apertura de Accesos en</p>
+            <div class="flex gap-4 sm:gap-6 justify-center">
+              {#each [ { v: countdown.days, l: 'Días' }, { v: countdown.hours, l: 'Hrs' }, { v: countdown.minutes, l: 'Min' }, { v: countdown.seconds, l: 'Seg' } ] as unit}
+                <div class="flex flex-col items-center">
+                  <span class="text-4xl sm:text-5xl font-black text-white tabular-nums tracking-tighter drop-shadow-lg">{String(unit.v).padStart(2, '0')}</span>
+                  <span class="text-[9px] font-bold text-white/50 uppercase tracking-widest mt-1">{unit.l}</span>
+                </div>
+              {/each}
+            </div>
+            <div class="mt-5 text-center text-xs font-bold text-white/80 uppercase tracking-widest border-t border-white/10 pt-4">
+              {formattedDate} · {event.timeStart}
+            </div>
+          </div>
+        {/if}
+
+      </div>
+    </div>
+  </div>
+<!-- MAIN BODY: Especificaciones y Formulario -->
+  <main class="max-w-7xl mx-auto px-6 sm:px-12 py-16 sm:py-24">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 relative">
+      
+      <!-- COLUMNA IZQUIERDA: Detalles -->
+      <div class="lg:col-span-7 space-y-12">
+        
+        <!-- Ficha de Precio y Espacios -->
+        <div>
+          <div class="text-5xl sm:text-6xl font-black text-slate-900 tracking-tighter mb-8">
+            {formattedPrice} <span class="text-2xl text-slate-400 font-bold ml-1">MXN</span>
+          </div>
+          
+          <div class="flex flex-wrap gap-4 sm:gap-8 border-y border-slate-200 py-8">
+            <div>
+              <div class="text-2xl font-black text-slate-900">{event.bedrooms}</div>
+              <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Recámaras</div>
+            </div>
+            <div class="w-px h-12 bg-slate-200 hidden sm:block"></div>
+            <div>
+              <div class="text-2xl font-black text-slate-900">{event.bathrooms}</div>
+              <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Baños</div>
+            </div>
+            <div class="w-px h-12 bg-slate-200 hidden sm:block"></div>
+            <div>
+              <div class="text-2xl font-black text-slate-900">{event.sqm}</div>
+              <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">M² Construcción</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Beneficio Premium -->
+        {#if event.benefit}
+          <div class="bg-indigo-900 text-white rounded-3xl p-8 relative overflow-hidden shadow-xl shadow-indigo-900/10">
+            <div class="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl"></div>
+            <h4 class="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2">Incentivo de Asistencia</h4>
+            <p class="text-lg font-medium leading-relaxed">{event.benefit}</p>
+          </div>
+        {/if}
+
+        <!-- Descripción Editorial -->
+        <div>
+          <h3 class="text-lg font-black text-slate-900 mb-6">Acerca del Inmueble</h3>
+          <p class="text-base text-slate-600 leading-relaxed font-medium whitespace-pre-line text-justify">
+            {event.description}
+          </p>
+        </div>
+
+        <!-- Tarjeta del Asesor -->
+        <div class="flex items-center gap-6 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm mt-8">
+          <div class="w-16 h-16 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-xl font-black">
+            {event.agent?.avatar || 'IN'}
+          </div>
+          <div>
+            <h4 class="text-lg font-black text-slate-900">{event.agent?.name}</h4>
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">{event.agent?.specialty || 'Asesor Inmobiliario'}</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- COLUMNA DERECHA: Formulario Sticky -->
+      <div class="lg:col-span-5 relative">
+        <div class="sticky top-32">
+          
+          {#if eventStatus === 'ended'}
+            <div class="bg-white rounded-[2rem] p-10 text-center shadow-xl border border-slate-200">
+              <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              </div>
+              <h3 class="text-2xl font-black text-slate-900 mb-2">Evento Concluido</h3>
+              <p class="text-slate-500 font-medium mb-8">El Open House ha finalizado, pero aún puedes solicitar información de la propiedad.</p>
+              <a href="https://wa.me/{event.agent?.whatsapp}" target="_blank" class="block w-full bg-slate-900 text-white font-bold py-4 rounded-xl transition-all hover:bg-slate-800">
+                Contactar Asesor
+              </a>
+            </div>
+          
+          {#else}
+            <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
               
-              <div>
-                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Nombre Completo</label>
-                <input type="text" name="name" required placeholder="Ej. Juan Pérez" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all" />
+              <!-- Encabezado del Formulario -->
+              <div class="bg-slate-900 p-8 text-white text-center">
+                <h3 class="text-2xl font-black tracking-tight mb-4">
+                  {isFull ? 'Lista de Espera' : 'Asegura tu Acceso'}
+                </h3>
+                <div class="flex flex-col items-center justify-center">
+                  <p class="text-xs font-medium text-slate-300">
+                    <strong class="text-white font-bold">{attendees.length}</strong> Registros validados
+                  </p>
+                  <p class="text-xs font-bold uppercase tracking-widest mt-2 px-3 py-1 rounded-full border border-white/20 {spotsLeft <= 3 ? 'text-amber-400 border-amber-400/30' : 'text-emerald-400 border-emerald-400/30'}">
+                    {isFull ? 'Cupo Lleno' : `${spotsLeft} Lugares Disponibles`}
+                  </p>
+                </div>
               </div>
 
-              <div>
-                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">WhatsApp</label>
-                <input type="tel" name="phone" required placeholder="Ej. 33 1234 5678" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all" />
-              </div>
-
-              <div>
-                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Objetivo</label>
-                <select name="intent" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all appearance-none cursor-pointer">
-                  <option value="">Selecciona una opción...</option>
-                  <option value="Comprar">Quiero comprar</option>
-                  <option value="Invertir">Busco invertir</option>
-                  <option value="Rentar">Me interesa rentar</option>
-                  <option value="Solo conocer">Solo quiero conocer</option>
-                </select>
-              </div>
-
-              <button type="submit" disabled={submitting} class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-xl transition-all shadow-md shadow-indigo-200 mt-2 flex justify-center items-center gap-2">
-                {#if submitting}
-                  Procesando...
-                {:else if isFull}
-                  Unirme a la lista de espera
+              <!-- Cuerpo del Formulario -->
+              <div class="p-8">
+                {#if showSuccess}
+                  <div class="text-center py-8 animate-fade-in">
+                    <div class="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-black text-slate-900 mb-3">Lugar Reservado</h3>
+                    <p class="text-sm text-slate-500 font-medium mb-8 leading-relaxed">Hemos registrado tu acceso VIP. Un concierge de Inmublia se comunicará contigo vía WhatsApp.</p>
+                    <a href="https://wa.me/{event.agent?.whatsapp}?text={whatsappMsg}" target="_blank" class="block w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-black uppercase tracking-widest py-4 rounded-xl transition-colors shadow-lg shadow-[#25D366]/20">
+                      Abrir WhatsApp
+                    </a>
+                  </div>
                 {:else}
-                  Asegurar mi lugar
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                  <form method="POST" action="?/rsvp" use:enhance={() => {
+                    submitting = true; return async ({ result }) => { submitting = false; if (result.type === 'success') showSuccess = true; };
+                  }} class="space-y-5">
+                    <input type="hidden" name="status" value={isFull ? 'waitlist' : 'confirmed'}>
+                    
+                    <div>
+                      <input type="text" name="name" required placeholder="Nombre Completo *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all" />
+                    </div>
+
+                    <div>
+                      <input type="tel" name="phone" required placeholder="WhatsApp de Contacto *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all" />
+                    </div>
+
+                    <div>
+                      <select name="intent" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all appearance-none cursor-pointer">
+                        <option value="" disabled selected>¿Cuál es tu objetivo? *</option>
+                        <option value="Comprar">Adquisición / Comprar</option>
+                        <option value="Invertir">Inversión Inmobiliaria</option>
+                        <option value="Rentar">Arrendamiento</option>
+                        <option value="Solo conocer">Asesor Inmobiliario / Conocer</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <select name="budget" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all appearance-none cursor-pointer">
+                        <option value="" disabled selected>Presupuesto Estimado (Opcional)</option>
+                        <option value="Menos de $5M">Menos de $5,000,000 MXN</option>
+                        <option value="$5M–$10M">$5M – $10M MXN</option>
+                        <option value="Más de $10M">Más de $10,000,000 MXN</option>
+                      </select>
+                    </div>
+
+                    <button type="submit" disabled={submitting} class="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg mt-4">
+                      {#if submitting}
+                        Procesando...
+                      {:else if isFull}
+                        Unirme a lista de espera
+                      {:else}
+                        Solicitar Invitación
+                      {/if}
+                    </button>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center mt-6">
+                      🔒 Datos encriptados y confidenciales
+                    </p>
+                  </form>
                 {/if}
-              </button>
-              <p class="text-[10px] font-medium text-slate-400 text-center mt-4 flex items-center justify-center gap-1">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                Tus datos están protegidos por la agencia.
-              </p>
-            </form>
+              </div>
+            </div>
           {/if}
         </div>
       </div>
-    {/if}
+
+    </div>
   </main>
+
+  <footer class="bg-slate-900 py-12 text-center text-white/50 text-xs">
+    <p class="font-bold tracking-widest uppercase">Powered by <span class="text-white">Inmublia</span></p>
+  </footer>
+
 </div>
