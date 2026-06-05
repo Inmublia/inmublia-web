@@ -185,27 +185,38 @@
       
       {#if propiedad.galeria_urls && propiedad.galeria_urls.length > 0}
         <div class="mb-16">
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 auto-rows-[200px] md:auto-rows-[250px]">
-            <div class="md:col-span-2 md:row-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" onclick={() => openGallery(1)}>
-              <img src={propiedad.galeria_urls[0]} alt="Vista Principal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
-              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+          {#if isBrochure}
+            <div class="flex flex-col gap-10 md:gap-16">
+              {#each propiedad.galeria_urls as foto, idx}
+                <div class="w-full rounded-sm overflow-hidden shadow-xl {isNight ? 'bg-slate-800 shadow-black/50' : 'bg-slate-100 shadow-slate-200/50'} relative group cursor-pointer" onclick={() => openGallery(idx + 1)}>
+                  <img src={foto} alt="Detalle de propiedad {idx + 1}" class="w-full h-auto max-h-[80vh] object-cover transition-transform duration-700 ease-out group-hover:scale-[1.02]" loading="lazy">
+                  <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors"></div>
+                </div>
+              {/each}
             </div>
-            {#if propiedad.galeria_urls[1]}
-              <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" onclick={() => openGallery(2)}>
-                <img src={propiedad.galeria_urls[1]} alt="Vista Secundaria" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
+          {:else}
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 auto-rows-[200px] md:auto-rows-[250px]">
+              <div class="md:col-span-2 md:row-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" onclick={() => openGallery(1)}>
+                <img src={propiedad.galeria_urls[0]} alt="Vista Principal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
               </div>
-            {/if}
-            <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" onclick={() => openGallery(3 % allPhotos.length)}>
-              <img src={propiedad.galeria_urls[2] || propiedad.imagen_url} alt="Vista" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
-              <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <span class="text-white font-bold uppercase tracking-[0.2em] text-xs flex items-center gap-2">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                   Ver las {allPhotos.length} Fotos
-                </span>
+              {#if propiedad.galeria_urls[1]}
+                <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" onclick={() => openGallery(2)}>
+                  <img src={propiedad.galeria_urls[1]} alt="Vista Secundaria" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
+                  <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+                </div>
+              {/if}
+              <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" onclick={() => openGallery(3 % allPhotos.length)}>
+                <img src={propiedad.galeria_urls[2] || propiedad.imagen_url} alt="Vista" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
+                <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <span class="text-white font-bold uppercase tracking-[0.2em] text-xs flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                     Ver las {allPhotos.length} Fotos
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          {/if}
         </div>
       {/if}
 
