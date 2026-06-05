@@ -87,18 +87,14 @@
 
 <div class="min-h-screen bg-zinc-50 text-slate-900 font-sans selection:bg-indigo-100">
   
-  <!-- HERO SECTION MAJESTUOSA (Full Width & Height) -->
   <div class="relative w-full h-[85vh] bg-slate-900 overflow-hidden group">
     
-    <!-- Imagen de Fondo -->
     {#if event.photos && event.photos.length > 0}
       <img src={event.photos[currentPhoto]} alt="Propiedad Exclusiva" class="absolute inset-0 w-full h-full object-cover transition-transform duration-[1.5s] ease-out group-hover:scale-105" />
     {/if}
     
-    <!-- Gradiente de Oscurecimiento Premium (Para que resalte el texto) -->
     <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-black/30 z-10 pointer-events-none"></div>
 
-    <!-- Header Flotante -->
     <header class="absolute top-0 w-full z-50 px-6 sm:px-12 py-8 flex justify-between items-center text-white">
       <div class="font-black text-xl tracking-tight flex items-center gap-3">
         <div class="w-10 h-10 bg-white text-slate-900 rounded-xl flex items-center justify-center text-sm shadow-lg">
@@ -111,21 +107,18 @@
       </div>
     </header>
 
-    <!-- Controles de Galería -->
     {#if event.photos && event.photos.length > 1}
-      <button class="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/20 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-40 border border-white/10" onclick={prevPhoto}>
+      <button class="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/20 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-40 border border-white/10" onclick={prevPhoto} aria-label="Foto Anterior">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
       </button>
-      <button class="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/20 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-40 border border-white/10" onclick={nextPhoto}>
+      <button class="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/20 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-40 border border-white/10" onclick={nextPhoto} aria-label="Siguiente Foto">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
       </button>
     {/if}
 
-    <!-- Contenido sobre la Imagen -->
     <div class="absolute inset-0 z-20 flex flex-col justify-end px-6 sm:px-12 pb-16 sm:pb-24 max-w-7xl mx-auto w-full">
       <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
         
-        <!-- Título y Datos -->
         <div class="max-w-3xl">
           {#if eventStatus === 'live'}
             <div class="inline-flex items-center gap-2 px-3 py-1 bg-red-600/90 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-widest rounded-sm mb-4 shadow-lg">
@@ -147,7 +140,6 @@
           </p>
         </div>
 
-        <!-- CONTADOR DE ALTO IMPACTO -->
         {#if eventStatus === 'upcoming' || eventStatus === 'today'}
           <div class="bg-black/40 backdrop-blur-xl p-6 rounded-2xl border border-white/10 shadow-2xl shrink-0">
             <p class="text-[10px] font-bold text-white/60 uppercase tracking-widest text-center mb-4">Apertura de Accesos en</p>
@@ -168,14 +160,12 @@
       </div>
     </div>
   </div>
-<!-- MAIN BODY: Especificaciones y Formulario -->
+
   <main class="max-w-7xl mx-auto px-6 sm:px-12 py-16 sm:py-24">
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 relative">
       
-      <!-- COLUMNA IZQUIERDA: Detalles -->
       <div class="lg:col-span-7 space-y-12">
         
-        <!-- Ficha de Precio y Espacios -->
         <div>
           <div class="text-5xl sm:text-6xl font-black text-slate-900 tracking-tighter mb-8">
             {formattedPrice} <span class="text-2xl text-slate-400 font-bold ml-1">MXN</span>
@@ -199,16 +189,14 @@
           </div>
         </div>
 
-        <!-- Beneficio Premium -->
         {#if event.benefit}
           <div class="bg-indigo-900 text-white rounded-3xl p-8 relative overflow-hidden shadow-xl shadow-indigo-900/10">
-            <div class="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl"></div>
-            <h4 class="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2">Incentivo de Asistencia</h4>
-            <p class="text-lg font-medium leading-relaxed">{event.benefit}</p>
+            <div class="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl pointer-events-none"></div>
+            <h4 class="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2 relative z-10">Incentivo de Asistencia</h4>
+            <p class="text-lg font-medium leading-relaxed relative z-10">{event.benefit}</p>
           </div>
         {/if}
 
-        <!-- Descripción Editorial -->
         <div>
           <h3 class="text-lg font-black text-slate-900 mb-6">Acerca del Inmueble</h3>
           <p class="text-base text-slate-600 leading-relaxed font-medium whitespace-pre-line text-justify">
@@ -216,7 +204,6 @@
           </p>
         </div>
 
-        <!-- Tarjeta del Asesor -->
         <div class="flex items-center gap-6 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm mt-8">
           <div class="w-16 h-16 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-xl font-black">
             {event.agent?.avatar || 'IN'}
@@ -229,11 +216,8 @@
 
       </div>
 
-      <!-- COLUMNA DERECHA: Formulario Sticky -->
       <div class="lg:col-span-5 relative">
-        <div class="sticky top-32">
-          
-          {#if eventStatus === 'ended'}
+        <div class="sticky top-10"> {#if eventStatus === 'ended'}
             <div class="bg-white rounded-[2rem] p-10 text-center shadow-xl border border-slate-200">
               <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-6">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -248,12 +232,12 @@
           {#else}
             <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
               
-              <!-- Encabezado del Formulario -->
-              <div class="bg-slate-900 p-8 text-white text-center">
-                <h3 class="text-2xl font-black tracking-tight mb-4">
+              <div class="bg-slate-900 p-8 text-white text-center relative overflow-hidden">
+                <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white opacity-5 blur-2xl pointer-events-none"></div>
+                <h3 class="text-2xl font-black tracking-tight mb-4 relative z-10">
                   {isFull ? 'Lista de Espera' : 'Asegura tu Acceso'}
                 </h3>
-                <div class="flex flex-col items-center justify-center">
+                <div class="flex flex-col items-center justify-center relative z-10">
                   <p class="text-xs font-medium text-slate-300">
                     <strong class="text-white font-bold">{attendees.length}</strong> Registros validados
                   </p>
@@ -263,10 +247,9 @@
                 </div>
               </div>
 
-              <!-- Cuerpo del Formulario -->
               <div class="p-8">
                 {#if showSuccess}
-                  <div class="text-center py-8 animate-fade-in">
+                  <div class="text-center py-8 animate-[fadeIn_0.5s_ease-out]">
                     <div class="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
                       <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
                     </div>
@@ -309,13 +292,14 @@
                       </select>
                     </div>
 
-                    <button type="submit" disabled={submitting} class="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg mt-4">
+                    <button type="submit" disabled={submitting} class="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg mt-4 flex justify-center items-center gap-2">
                       {#if submitting}
                         Procesando...
                       {:else if isFull}
                         Unirme a lista de espera
                       {:else}
                         Solicitar Invitación
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                       {/if}
                     </button>
                     <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center mt-6">
@@ -325,14 +309,13 @@
                 {/if}
               </div>
             </div>
-          {/if}
+            {/if}
         </div>
       </div>
-
     </div>
   </main>
 
-  <footer class="bg-slate-900 py-12 text-center text-white/50 text-xs">
+  <footer class="bg-slate-900 py-12 text-center text-white/50 text-xs mt-24">
     <p class="font-bold tracking-widest uppercase">Powered by <span class="text-white">Inmublia</span></p>
   </footer>
 
