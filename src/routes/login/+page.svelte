@@ -1,5 +1,6 @@
 <script>
   import { enhance } from '$app/forms';
+  import { page } from '$app/stores'; // Importamos la tienda de SvelteKit
   
   // Recibe los errores que mandamos desde el servidor
   let { form } = $props();
@@ -7,6 +8,9 @@
   
   // Estado para intercambiar entre Login y Recuperar Contraseña
   let isResetting = $state(false);
+
+  // Leemos el parámetro de inactividad de la URL
+  let motivo = $derived($page.url.searchParams.get('motivo'));
 </script>
 
 <div class="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -25,12 +29,21 @@
 
     <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-xl shadow-slate-200/50 transition-all duration-300">
       
+      {#if motivo === 'inactividad'}
+        <div class="bg-amber-50 text-amber-800 border border-amber-200 p-4 rounded-xl mb-6 text-sm text-center font-medium shadow-sm flex flex-col items-center gap-2 animate-[fadeIn_0.5s_ease-out]">
+          <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+            <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </div>
+          Tu sesión caducó por inactividad. Por favor, vuelve a ingresar.
+        </div>
+      {/if}
+
       {#if form?.error}
-        <div class="mb-6 bg-red-50 text-red-600 font-bold p-3 rounded-lg text-sm text-center border border-red-100">
+        <div class="mb-6 bg-red-50 text-red-600 font-bold p-3 rounded-lg text-sm text-center border border-red-100 animate-[fadeIn_0.3s_ease-out]">
           {form.error}
         </div>
       {:else if form?.success}
-        <div class="mb-6 bg-emerald-50 text-emerald-600 font-bold p-3 rounded-lg text-sm text-center border border-emerald-100">
+        <div class="mb-6 bg-emerald-50 text-emerald-600 font-bold p-3 rounded-lg text-sm text-center border border-emerald-100 animate-[fadeIn_0.3s_ease-out]">
           {form.message}
         </div>
       {/if}
@@ -53,7 +66,7 @@
           <div>
             <label for="password" class="block text-sm font-bold text-slate-700 mb-2 flex justify-between">
               Contraseña
-              <button type="button" onclick={() => { isResetting = true; form = null; }} class="text-blue-600 hover:text-blue-800 text-xs bg-transparent border-none cursor-pointer p-0 m-0">
+              <button type="button" onclick={() => { isResetting = true; form = null; }} class="text-blue-600 hover:text-blue-800 text-xs bg-transparent border-none cursor-pointer p-0 m-0 transition-colors">
                 ¿Olvidaste tu contraseña?
               </button>
             </label>
@@ -112,7 +125,7 @@
           </button>
 
           <div class="text-center mt-4">
-            <button type="button" onclick={() => { isResetting = false; form = null; }} class="text-sm font-bold text-slate-500 hover:text-slate-900 bg-transparent border-none cursor-pointer">
+            <button type="button" onclick={() => { isResetting = false; form = null; }} class="text-sm font-bold text-slate-500 hover:text-slate-900 bg-transparent border-none cursor-pointer transition-colors">
               ← Volver al Login
             </button>
           </div>
