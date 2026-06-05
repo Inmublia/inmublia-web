@@ -13,14 +13,15 @@
     
     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-8">
       <p class="text-sm font-medium text-slate-500 mb-2 uppercase tracking-widest text-[10px]">Detalle del Sistema</p>
-      <p class="text-sm font-mono text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100">
+      <p class="text-sm font-mono text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 overflow-hidden text-ellipsis">
         {$page.error?.message || 'Error interno de sincronización.'}
       </p>
     </div>
 
-    <button onclick={() => window.history.back()} class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-8 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mx-auto">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-      Regresar e intentar de nuevo
-    </button>
+    <!-- MEJORA: Enlace directo al Dashboard en lugar de history.back() -->
+    <a href="/admin" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-8 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mx-auto inline-flex">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+      Volver al Panel Principal
+    </a>
   </div>
 </div>
