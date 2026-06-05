@@ -20,17 +20,22 @@ export async function load({ locals }) {
 }
 
 export const actions = {
-  guardar: async ({ request, locals }) => {
+  updateProfile: async ({ request, locals }) => {
     const user = locals.user;
     if (!user) throw redirect(303, '/login');
 
     const formData = await request.formData();
     
-    // Extracción y limpieza de datos
+    // Extracción y limpieza de datos originales
     const nombre_comercial = formData.get('nombre_comercial')?.toString().trim();
     const whatsapp = formData.get('whatsapp')?.toString().trim().replace(/[^0-9]/g, ''); // Deja solo números
     const subdominio = formData.get('subdominio')?.toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
     const webhook_url = formData.get('webhook_url')?.toString().trim() || null;
+
+    // Extracción de los nuevos campos de perfil Elite
+    const bio = formData.get('bio')?.toString().trim() || null;
+    const instagram = formData.get('instagram')?.toString().trim() || null;
+    const linkedin = formData.get('linkedin')?.toString().trim() || null;
 
     if (!nombre_comercial || !whatsapp || !subdominio) {
       return fail(400, { error: 'El nombre, WhatsApp y subdominio son obligatorios.' });
@@ -43,7 +48,10 @@ export const actions = {
         nombre_comercial,
         whatsapp,
         subdominio,
-        webhook_url
+        webhook_url,
+        bio,
+        instagram,
+        linkedin
       })
       .eq('email', user.email);
 
