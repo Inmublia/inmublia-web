@@ -11,6 +11,30 @@
   let attendees = $derived(attendeesDb);
   let timer;
 
+  // Variables para la edición del evento
+  let isEditing = $state(false);
+  let editForm = $state({
+    date: event.date || '',
+    timeStart: event.timeStart || '',
+    timeEnd: event.timeEnd || '',
+    maxCapacity: event.maxCapacity || 30
+  });
+
+  // Generador de horarios (idéntico al de creación)
+  const timeOptions = [];
+  for (let i = 7; i <= 21; i++) {
+    for (let m = 0; m < 60; m += 30) {
+      const hour24 = i.toString().padStart(2, '0');
+      const min = m === 0 ? '00' : '30';
+      const hour12 = i % 12 === 0 ? 12 : i % 12;
+      const ampm = i < 12 ? 'AM' : 'PM';
+      timeOptions.push({
+        value: `${hour24}:${min}`,
+        label: `${hour12}:${min} ${ampm}`
+      });
+    }
+  }
+
   function updateStatus() {
     if (!event.date) return;
     const now = new Date();
@@ -58,11 +82,11 @@
   }
 </script>
 
-<div class="min-h-screen bg-zinc-50 flex font-sans text-slate-900 selection:bg-indigo-100 animate-fade-in">
+<div class="min-h-screen bg-zinc-50 flex font-sans text-slate-900 selection:bg-indigo-100 animate-[fadeIn_0.5s_ease-out]">
   
   <aside class="w-64 bg-white flex flex-col hidden md:flex border-r border-slate-200 shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10">
     <div class="h-24 flex items-center px-8 border-b border-slate-100">
-      <img src="/logo.png" alt="Inmublia" class="h-9 w-auto">
+      <img src="/logo.png" alt="Inmublia" class="h-14 w-auto object-contain">
     </div>
     <nav class="flex-1 p-6 space-y-2">
       <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-2">Consola Operativa</p>
@@ -79,10 +103,91 @@
         Configuración
       </a>
     </nav>
+    <div class="p-6 border-t border-slate-100 bg-white">
+      <div class="px-2 py-2 text-sm font-bold text-slate-900 truncate">{event.agent?.name || 'Usuario'}</div>
+      <form action="/logout" method="POST">
+        <button type="submit" class="flex items-center gap-3 px-2 py-2 text-slate-500 hover:text-red-600 font-medium transition-colors w-full text-left text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+          Cerrar Sesión
+        </button>
+      </form>
+    </div>
   </aside>
 
-  <main class="flex-1 flex flex-col h-screen overflow-hidden">
+  <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
     
+    {#if isEditing}
+      <div class="absolute inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden">
+          <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <h3 class="text-lg font-black text-slate-900">Editar Horarios del Evento</h3>
+            <button onclick={() => isEditing = false} class="text-slate-400 hover:text-slate-900 transition-colors p-2 rounded-full hover:bg-slate-100">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+          </div>
+          
+          <form method="POST" action="?/updateSettings" use:enhance={() => {
+            return async ({ result, update }) => {
+              if (result.type === 'success') {
+                isEditing = false;
+                alert('Ajustes guardados correctamente.');
+                // Actualizar el estado local para reflejar los cambios
+                event.date = editForm.date;
+                event.timeStart = editForm.timeStart;
+                event.timeEnd = editForm.timeEnd;
+                event.maxCapacity = editForm.maxCapacity;
+                updateStatus();
+              } else {
+                alert('Hubo un error al guardar los ajustes.');
+              }
+              update();
+            };
+          }} class="p-6 space-y-6">
+            
+            <input type="hidden" name="id" value={event.id}>
+
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Fecha del Evento</label>
+              <input type="date" name="date" bind:value={editForm.date} required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Hora Inicio</label>
+                <select name="timeStart" bind:value={editForm.timeStart} required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all">
+                  {#each timeOptions as time}
+                    <option value={time.value}>{time.label}</option>
+                  {/each}
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Hora Fin</label>
+                <select name="timeEnd" bind:value={editForm.timeEnd} required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all">
+                  {#each timeOptions as time}
+                    <option value={time.value}>{time.label}</option>
+                  {/each}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Aforo Máximo</label>
+              <input type="number" name="maxCapacity" bind:value={editForm.maxCapacity} min="1" max="500" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all" />
+            </div>
+
+            <div class="flex gap-3 pt-4 border-t border-slate-100">
+              <button type="button" onclick={() => isEditing = false} class="flex-1 bg-white hover:bg-slate-50 text-slate-700 font-bold py-3.5 rounded-xl transition-colors border border-slate-200 text-sm">
+                Cancelar
+              </button>
+              <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md shadow-indigo-200 text-sm">
+                Guardar Ajustes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    {/if}
+
     <header class="h-24 bg-white border-b border-slate-200 flex items-center justify-between px-10 shrink-0">
       <div class="flex items-center">
         <a href="/admin" class="text-slate-400 hover:text-indigo-600 transition-colors mr-6 bg-slate-50 hover:bg-indigo-50 p-2.5 rounded-xl border border-slate-200" title="Volver al Inventario">
@@ -90,7 +195,14 @@
         </a>
         <div>
           <h1 class="text-2xl font-black text-slate-900 tracking-tight">{event.title}</h1>
-          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Dashboard del Open House</p>
+          <div class="flex items-center gap-3 mt-1">
+            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Dashboard del Open House</p>
+            <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+            <button onclick={() => isEditing = true} class="text-[10px] font-bold text-indigo-500 hover:text-indigo-700 uppercase tracking-widest flex items-center gap-1 transition-colors">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+              Editar Fecha/Hora
+            </button>
+          </div>
         </div>
       </div>
       <div class="flex items-center gap-4">
@@ -169,7 +281,7 @@
           </div>
           
           {#if showCheckin}
-            <div class="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 flex flex-col items-center justify-center text-center animate-fade-in relative">
+            <div class="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 flex flex-col items-center justify-center text-center animate-[fadeIn_0.2s_ease-out] relative">
               <h4 class="text-lg font-black text-slate-900 mb-2">Código QR de Autoregistro</h4>
               <p class="text-sm text-slate-500 font-medium mb-6">Muestra esto en la entrada de la casa para que los prospectos escaneen y liberen su acceso físico.</p>
               
