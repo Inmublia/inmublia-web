@@ -23,6 +23,7 @@ export const actions = {
 
     const formData = await request.formData();
     
+    // Extracción de datos
     const nombre_comercial = formData.get('nombre_comercial')?.toString().trim();
     const whatsapp = formData.get('whatsapp')?.toString().trim().replace(/[^0-9]/g, '');
     const subdominio = formData.get('subdominio')?.toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
@@ -32,35 +33,38 @@ export const actions = {
     const linkedin = formData.get('linkedin')?.toString().trim() || null;
 
     if (!nombre_comercial || !whatsapp || !subdominio) {
+      console.error("Faltan campos obligatorios");
       return fail(400, { error: 'El nombre, WhatsApp y subdominio son obligatorios.' });
     }
 
-    // LÓGICA DE SUBIDA DE IMAGEN
+    // Manejo de la foto
     const avatarFile = formData.get('avatar');
-    let avatar_url = undefined; // Si es undefined, Supabase no sobreescribe lo que ya existe
+    let avatar_url = undefined; 
 
-    // Solo procesamos si el usuario de verdad subió un archivo nuevo
-    if (avatarFile && avatarFile.size > 0) {
+    // Verificamos que realmente venga un archivo (a veces llega un objeto File vacío con size 0)
+    if (avatarFile && avatarFile.size > 0 && avatarFile.name !== 'undefined') {
       const fileExt = avatarFile.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       
-      // Subimos la imagen al bucket 'agencias' que creaste en el PASO 1
+      console.log(`Subiendo foto al bucket 'agencias': ${fileName}`);
+
       const { data: uploadData, error: uploadError } = await supabase
         .storage
         .from('agencias')
         .upload(fileName, avatarFile, { upsert: true });
 
       if (uploadError) {
-        console.error("Error subiendo foto:", uploadError);
-        return fail(500, { error: 'Error al subir la imagen al servidor.' });
+        console.error("Error FATAL subiendo foto a Supabase:", uploadError);
+        return fail(500, { error: `Error subiendo foto: ${uploadError.message}` });
       }
 
-      // Generamos la URL pública
       const { data: { publicUrl } } = supabase.storage.from('agencias').getPublicUrl(fileName);
       avatar_url = publicUrl;
+      console.log("Foto subida exitosamente:", avatar_url);
+    } else {
+      console.log("No se detectó un archivo de foto nuevo para subir.");
     }
 
-    // Preparamos el objeto a actualizar en la BD
     const updatePayload = {
       nombre_comercial,
       whatsapp,
@@ -71,22 +75,25 @@ export const actions = {
       linkedin
     };
 
-    // Solo inyectamos la URL del avatar si hubo foto nueva
     if (avatar_url) updatePayload.avatar_url = avatar_url;
 
-    // Actualización en Supabase
+    console.log("Payload a inyectar en la base de datos:", updatePayload);
+
+    // Actualizamos la base de datos
     const { error: updateError } = await supabase
       .from('brokers')
       .update(updatePayload)
       .eq('email', user.email);
 
     if (updateError) {
+      console.error("Error FATAL actualizando la tabla brokers:", updateError);
       if (updateError.code === '23505') {
-        return fail(400, { error: 'Ese enlace personalizado ya está en uso. Elige otro.' });
+        return fail(400, { error: 'Ese enlace personalizado ya está en uso.' });
       }
-      return fail(500, { error: `Error interno: ${updateError.message}` });
+      return fail(500, { error: `Error interno BD: ${updateError.message}` });
     }
 
+    console.log("¡Perfil actualizado con éxito en backend!");
     return { success: true };
   }
 };
