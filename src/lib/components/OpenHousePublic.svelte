@@ -162,7 +162,8 @@
   </div>
 <!-- MAIN BODY: Especificaciones y Formulario -->
   <main class="max-w-7xl mx-auto px-6 sm:px-12 py-16 sm:py-24">
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 relative">
+    <!-- Agregamos items-start para que el Sticky funcione impecable -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 relative items-start">
       
       <!-- COLUMNA IZQUIERDA: Detalles -->
       <div class="lg:col-span-7 space-y-12">
@@ -222,106 +223,95 @@
       </div>
 
       <!-- COLUMNA DERECHA: Formulario Sticky -->
-      <div class="lg:col-span-5 relative">
-        <div class="sticky top-10">
-          
-          {#if eventStatus === 'ended'}
-            <div class="bg-white rounded-[2rem] p-10 text-center shadow-xl border border-slate-200">
-              <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-              </div>
-              <h3 class="text-2xl font-black text-slate-900 mb-2">Evento Concluido</h3>
-              <p class="text-slate-500 font-medium mb-8">El Open House ha finalizado, pero aún puedes solicitar información de la propiedad.</p>
-              <a href="https://wa.me/{event.agent?.whatsapp}" target="_blank" class="block w-full bg-slate-900 text-white font-bold py-4 rounded-xl transition-all hover:bg-slate-800">
-                Contactar Asesor
-              </a>
+      <div class="lg:col-span-5 relative w-full sticky top-10">
+        
+        {#if eventStatus === 'ended'}
+          <div class="bg-white rounded-[2rem] p-10 text-center shadow-xl border border-slate-200">
+            <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </div>
-          {:else}
-            <!-- Inicio del Formulario Activo -->
-            <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-              
-              <!-- Encabezado del Formulario -->
-              <div class="bg-slate-900 p-8 text-white text-center relative overflow-hidden">
-                <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white opacity-5 blur-2xl pointer-events-none"></div>
-                <h3 class="text-2xl font-black tracking-tight mb-4 relative z-10">
-                  {isFull ? 'Lista de Espera' : 'Asegura tu Acceso'}
-                </h3>
-                <div class="flex flex-col items-center justify-center relative z-10">
-                  <p class="text-xs font-medium text-slate-300">
-                    <strong class="text-white font-bold">{attendees.length}</strong> Registros validados
-                  </p>
-                  <p class="text-xs font-bold uppercase tracking-widest mt-2 px-3 py-1 rounded-full border border-white/20 {spotsLeft <= 3 ? 'text-amber-400 border-amber-400/30' : 'text-emerald-400 border-emerald-400/30'}">
-                    {isFull ? 'Cupo Lleno' : `${spotsLeft} Lugares Disponibles`}
-                  </p>
-                </div>
+            <h3 class="text-2xl font-black text-slate-900 mb-2">Evento Concluido</h3>
+            <p class="text-slate-500 font-medium mb-8">El Open House ha finalizado, pero aún puedes solicitar información de la propiedad.</p>
+            <a href="https://wa.me/{event.agent?.whatsapp}" target="_blank" class="block w-full bg-slate-900 text-white font-bold py-4 rounded-xl transition-all hover:bg-slate-800">
+              Contactar Asesor
+            </a>
+          </div>
+        {:else}
+          <!-- Inicio del Formulario Activo -->
+          <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+            
+            <!-- Encabezado del Formulario -->
+            <div class="bg-slate-900 p-8 text-white text-center relative overflow-hidden">
+              <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white opacity-5 blur-2xl pointer-events-none"></div>
+              <h3 class="text-2xl font-black tracking-tight mb-4 relative z-10">
+                {isFull ? 'Lista de Espera' : 'Asegura tu Acceso'}
+              </h3>
+              <div class="flex flex-col items-center justify-center relative z-10">
+                <p class="text-xs font-medium text-slate-300">
+                  <strong class="text-white font-bold">{attendees.length}</strong> Registros validados
+                </p>
+                <p class="text-xs font-bold uppercase tracking-widest mt-2 px-3 py-1 rounded-full border border-white/20 {spotsLeft <= 3 ? 'text-amber-400 border-amber-400/30' : 'text-emerald-400 border-emerald-400/30'}">
+                  {isFull ? 'Cupo Lleno' : `${spotsLeft} Lugares Disponibles`}
+                </p>
               </div>
+            </div>
 
-              <!-- Cuerpo del Formulario -->
-              <div class="p-8">
-                {#if showSuccess}
-                  <div class="text-center py-8 transition-opacity duration-500">
-                    <div class="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-                    </div>
-                    <h3 class="text-2xl font-black text-slate-900 mb-3">Lugar Reservado</h3>
-                    <p class="text-sm text-slate-500 font-medium mb-8 leading-relaxed">Hemos registrado tu acceso VIP. Un concierge de Inmublia se comunicará contigo vía WhatsApp.</p>
-                    <a href="https://wa.me/{event.agent?.whatsapp}?text={whatsappMsg}" target="_blank" class="block w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-black uppercase tracking-widest py-4 rounded-xl transition-colors shadow-lg shadow-[#25D366]/20 text-center">
-                      Abrir WhatsApp
-                    </a>
+            <!-- Cuerpo del Formulario -->
+            <div class="p-8">
+              {#if showSuccess}
+                <div class="text-center py-8 transition-opacity duration-500">
+                  <div class="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
                   </div>
-                {:else}
-                  <form method="POST" action="?/rsvp" use:enhance={() => {
-                    submitting = true; return async ({ result }) => { submitting = false; if (result.type === 'success') showSuccess = true; };
-                  }} class="space-y-5">
-                    <input type="hidden" name="status" value={isFull ? 'waitlist' : 'confirmed'}>
-                    
-                    <div>
-                      <input type="text" name="name" required placeholder="Nombre Completo *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all" />
-                    </div>
+                  <h3 class="text-2xl font-black text-slate-900 mb-3">Lugar Reservado</h3>
+                  <p class="text-sm text-slate-500 font-medium mb-8 leading-relaxed">Hemos registrado tu acceso VIP. Un concierge de Inmublia se comunicará contigo vía WhatsApp.</p>
+                  <a href="https://wa.me/{event.agent?.whatsapp}?text={whatsappMsg}" target="_blank" class="block w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-black uppercase tracking-widest py-4 rounded-xl transition-colors shadow-lg shadow-[#25D366]/20 text-center">
+                    Abrir WhatsApp
+                  </a>
+                </div>
+              {:else}
+                <form method="POST" action="?/rsvp" use:enhance={() => {
+                  submitting = true; return async ({ result }) => { submitting = false; if (result.type === 'success') showSuccess = true; };
+                }} class="space-y-5">
+                  <input type="hidden" name="status" value={isFull ? 'waitlist' : 'confirmed'}>
+                  
+                  <div>
+                    <input type="text" name="name" required placeholder="Nombre Completo *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all" />
+                  </div>
 
-                    <div>
-                      <input type="tel" name="phone" required placeholder="WhatsApp de Contacto *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all" />
-                    </div>
+                  <div>
+                    <input type="tel" name="phone" required placeholder="Teléfono de Contacto *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all" />
+                  </div>
 
-                    <div>
-                      <select name="intent" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all appearance-none cursor-pointer">
-                        <option value="" disabled selected>¿Cuál es tu objetivo? *</option>
-                        <option value="Comprar">Adquisición / Comprar</option>
-                        <option value="Invertir">Inversión Inmobiliaria</option>
-                        <option value="Rentar">Arrendamiento</option>
-                        <option value="Solo conocer">Asesor Inmobiliario / Conocer</option>
-                      </select>
-                    </div>
+                  <div>
+                    <select name="intent" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all appearance-none cursor-pointer">
+                      <option value="" disabled selected>Motivo de su registro *</option>
+                      <option value="Comprar">Adquisición / Residencia propia</option>
+                      <option value="Invertir">Inversión / Portafolio</option>
+                      <option value="Rentar">Arrendamiento</option>
+                      <option value="Solo conocer">Asesor Inmobiliario / Colega</option>
+                    </select>
+                  </div>
 
-                    <div>
-                      <select name="budget" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all appearance-none cursor-pointer">
-                        <option value="" disabled selected>Presupuesto Estimado (Opcional)</option>
-                        <option value="Menos de $5M">Menos de $5,000,000 MXN</option>
-                        <option value="$5M–$10M">$5M – $10M MXN</option>
-                        <option value="Más de $10M">Más de $10,000,000 MXN</option>
-                      </select>
-                    </div>
-
-                    <button type="submit" disabled={submitting} class="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg mt-4 flex justify-center items-center gap-2">
-                      {#if submitting}
-                        Procesando...
-                      {:else if isFull}
-                        Unirme a lista de espera
-                      {:else}
-                        Solicitar Invitación
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                      {/if}
-                    </button>
-                    <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center mt-6">
-                      🔒 Datos encriptados y confidenciales
-                    </p>
-                  </form>
-                {/if}
-              </div>
+                  <button type="submit" disabled={submitting} class="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg mt-4 flex justify-center items-center gap-2">
+                    {#if submitting}
+                      Procesando...
+                    {:else if isFull}
+                      Unirme a lista de espera
+                    {:else}
+                      Solicitar Invitación
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    {/if}
+                  </button>
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center mt-6">
+                    🔒 Datos encriptados y confidenciales
+                  </p>
+                </form>
+              {/if}
             </div>
-            <!-- Fin del Formulario Activo -->
-          {/if}
-        </div>
+          </div>
+          <!-- Fin del Formulario Activo -->
+        {/if}
       </div>
 
     </div>
