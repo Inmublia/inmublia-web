@@ -39,6 +39,11 @@
     {#if status === 404}
       <h2 class="text-xl font-bold text-slate-800 mb-4">Página no encontrada</h2>
       <p class="text-slate-500 text-sm mb-8">La dirección a la que intentas acceder no existe o fue movida.</p>
+      
+      <a href="/admin" data-sveltekit-reload class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-6 rounded-xl transition-colors text-sm w-full block">
+        Volver al Panel Principal
+      </a>
+      
     {:else if status === 500}
       <h2 class="text-xl font-bold text-slate-800 mb-4">Sesión Inactiva o Error de Sistema</h2>
       <p class="text-slate-500 text-sm mb-6">Por tu seguridad, hemos pausado la conexión. Serás redirigido al inicio de sesión para continuar.</p>
@@ -47,13 +52,19 @@
         <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
         Redirigiendo en {countdown} segundos...
       </div>
+
+      <a href="/login?motivo=inactividad" data-sveltekit-reload class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-6 rounded-xl transition-colors text-sm w-full block">
+        Ir al Login ahora
+      </a>
+      
     {:else}
       <h2 class="text-xl font-bold text-slate-800 mb-4">Algo salió mal</h2>
       <p class="text-slate-500 text-sm mb-8">{errorMsg || 'Ha ocurrido un error inesperado.'}</p>
+      
+      <a href="/admin" data-sveltekit-reload class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-6 rounded-xl transition-colors text-sm w-full block">
+        Volver al Panel Principal
+      </a>
     {/if}
 
-    <a href="/admin" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-6 rounded-xl transition-colors text-sm w-full block">
-      Volver al Panel Principal
-    </a>
   </div>
 </div>
