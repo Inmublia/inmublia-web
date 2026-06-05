@@ -1,30 +1,9 @@
 <script>
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
 
-  // Obtenemos el código de error (ej. 404, 500)
+  // Obtenemos el código de error y el mensaje real del servidor
   let status = $derived($page.status);
   let errorMsg = $derived($page.error?.message);
-  
-  let countdown = $state(5);
-  let timer;
-
-  onMount(() => {
-    // Si es un error 500, iniciamos la redirección automática
-    if (status === 500) {
-      timer = setInterval(() => {
-        countdown -= 1;
-        if (countdown <= 0) {
-          clearInterval(timer);
-          window.location.href = '/login?motivo=inactividad';
-        }
-      }, 1000);
-    }
-
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  });
 </script>
 
 <div class="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 font-sans">
@@ -38,33 +17,17 @@
     
     {#if status === 404}
       <h2 class="text-xl font-bold text-slate-800 mb-4">Página no encontrada</h2>
-      <p class="text-slate-500 text-sm mb-8">La dirección a la que intentas acceder no existe o fue movida.</p>
-      
-      <a href="/admin" data-sveltekit-reload class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-6 rounded-xl transition-colors text-sm w-full block">
-        Volver al Panel Principal
-      </a>
-      
-    {:else if status === 500}
-      <h2 class="text-xl font-bold text-slate-800 mb-4">Sesión Inactiva o Error de Sistema</h2>
-      <p class="text-slate-500 text-sm mb-6">Por tu seguridad, hemos pausado la conexión. Serás redirigido al inicio de sesión para continuar.</p>
-      
-      <div class="bg-blue-50 border border-blue-100 text-blue-700 text-sm font-bold py-3 px-4 rounded-xl mb-8 flex items-center justify-center gap-2">
-        <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-        Redirigiendo en {countdown} segundos...
-      </div>
-
-      <a href="/login?motivo=inactividad" data-sveltekit-reload class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-6 rounded-xl transition-colors text-sm w-full block">
-        Ir al Login ahora
-      </a>
-      
+      <p class="text-slate-500 text-sm mb-8">La dirección a la que intentas acceder no existe.</p>
     {:else}
-      <h2 class="text-xl font-bold text-slate-800 mb-4">Algo salió mal</h2>
-      <p class="text-slate-500 text-sm mb-8">{errorMsg || 'Ha ocurrido un error inesperado.'}</p>
-      
-      <a href="/admin" data-sveltekit-reload class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-6 rounded-xl transition-colors text-sm w-full block">
-        Volver al Panel Principal
-      </a>
+      <!-- AHORA MOSTRAREMOS EL ERROR REAL AQUÍ -->
+      <h2 class="text-xl font-bold text-slate-800 mb-4">Fallo en el Sistema</h2>
+      <div class="bg-red-50 text-red-700 p-4 rounded-xl text-xs font-mono text-left mb-8 overflow-auto border border-red-100">
+        {errorMsg || 'Error interno del servidor sin detalles.'}
+      </div>
     {/if}
 
+    <a href="/admin" data-sveltekit-reload class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-6 rounded-xl transition-colors text-sm w-full block">
+      Volver al Panel Principal
+    </a>
   </div>
 </div>
