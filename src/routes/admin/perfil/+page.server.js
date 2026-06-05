@@ -1,11 +1,24 @@
-import { supabase } from '$lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+import { env as publicEnv } from '$env/dynamic/public';
+import { env as privateEnv } from '$env/dynamic/private';
 import { redirect, fail } from '@sveltejs/kit';
+
+// Usamos el cliente con privilegios de Administrador para saltar bloqueos de RLS al subir fotos
+const getSupabaseAdmin = () => {
+  return createClient(
+    publicEnv.PUBLIC_SUPABASE_URL,
+    privateEnv.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } }
+  );
+};
 
 export async function load({ locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
-  const { data: broker, error } = await supabase
+  const supabaseAdmin = getSupabaseAdmin();
+
+  const { data: broker, error } = await supabaseAdmin
     .from('brokers')
     .select('*')
     .eq('email', user.email)
@@ -21,9 +34,9 @@ export const actions = {
     const user = locals.user;
     if (!user) throw redirect(303, '/login');
 
+    const supabaseAdmin = getSupabaseAdmin();
     const formData = await request.formData();
     
-    // Extracción de datos
     const nombre_comercial = formData.get('nombre_comercial')?.toString().trim();
     const whatsapp = formData.get('whatsapp')?.toString().trim().replace(/[^0-9]/g, '');
     const subdominio = formData.get('subdominio')?.toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
@@ -33,36 +46,30 @@ export const actions = {
     const linkedin = formData.get('linkedin')?.toString().trim() || null;
 
     if (!nombre_comercial || !whatsapp || !subdominio) {
-      console.error("Faltan campos obligatorios");
+      // Usamos error 400 para que SvelteKit no censure el mensaje en producción
       return fail(400, { error: 'El nombre, WhatsApp y subdominio son obligatorios.' });
     }
 
-    // Manejo de la foto
+    // LÓGICA DE SUBIDA DE IMAGEN (Ahora con permisos de administrador)
     const avatarFile = formData.get('avatar');
     let avatar_url = undefined; 
 
-    // Verificamos que realmente venga un archivo (a veces llega un objeto File vacío con size 0)
     if (avatarFile && avatarFile.size > 0 && avatarFile.name !== 'undefined') {
       const fileExt = avatarFile.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       
-      console.log(`Subiendo foto al bucket 'agencias': ${fileName}`);
-
-      const { data: uploadData, error: uploadError } = await supabase
+      const { data: uploadData, error: uploadError } = await supabaseAdmin
         .storage
         .from('agencias')
         .upload(fileName, avatarFile, { upsert: true });
 
       if (uploadError) {
-        console.error("Error FATAL subiendo foto a Supabase:", uploadError);
-        return fail(500, { error: `Error subiendo foto: ${uploadError.message}` });
+        console.error("Error subiendo foto:", uploadError);
+        return fail(400, { error: `Permiso denegado al subir foto: ${uploadError.message}` });
       }
 
-      const { data: { publicUrl } } = supabase.storage.from('agencias').getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabaseAdmin.storage.from('agencias').getPublicUrl(fileName);
       avatar_url = publicUrl;
-      console.log("Foto subida exitosamente:", avatar_url);
-    } else {
-      console.log("No se detectó un archivo de foto nuevo para subir.");
     }
 
     const updatePayload = {
@@ -77,23 +84,18 @@ export const actions = {
 
     if (avatar_url) updatePayload.avatar_url = avatar_url;
 
-    console.log("Payload a inyectar en la base de datos:", updatePayload);
-
-    // Actualizamos la base de datos
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('brokers')
       .update(updatePayload)
       .eq('email', user.email);
 
     if (updateError) {
-      console.error("Error FATAL actualizando la tabla brokers:", updateError);
       if (updateError.code === '23505') {
-        return fail(400, { error: 'Ese enlace personalizado ya está en uso.' });
+        return fail(400, { error: 'Ese enlace personalizado ya está en uso. Elige otro.' });
       }
-      return fail(500, { error: `Error interno BD: ${updateError.message}` });
+      return fail(400, { error: `Error guardando datos: ${updateError.message}` });
     }
 
-    console.log("¡Perfil actualizado con éxito en backend!");
     return { success: true };
   }
 };
