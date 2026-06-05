@@ -132,8 +132,12 @@
         <p class="text-base md:text-xl font-black text-slate-900 leading-none mt-1">{formatearPrecio(propiedad.precio)}</p>
       </div>
       <div class="flex items-center gap-4">
-        <div class="w-10 h-10 rounded-full bg-slate-900 overflow-hidden shadow-sm">
-          <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=0f172a&color=fff" alt="Avatar" class="w-full h-full object-cover">
+        <div class="w-10 h-10 rounded-full bg-slate-900 overflow-hidden shadow-sm shrink-0 border border-slate-200">
+          {#if broker.avatar_url}
+            <img src={broker.avatar_url} alt="Asesor" class="w-full h-full object-cover">
+          {:else}
+            <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=0f172a&color=fff" alt="Avatar" class="w-full h-full object-cover">
+          {/if}
         </div>
         <div class="hidden sm:block text-right">
           <p class="text-xs font-bold text-slate-900 uppercase">{broker.nombre_comercial}</p>
@@ -168,7 +172,7 @@
           <div class="inline-flex items-center gap-3 mb-6">
             <span class="text-white text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] border border-white/30 px-6 py-2 rounded-sm">{propiedad.operacion}</span>
             {#if propiedad.destacada}
-              <span class="text-amber-300 text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] border border-amber-300/30 px-6 py-2 rounded-sm">Signature</span>
+               <span class="text-amber-300 text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] border border-amber-300/30 px-6 py-2 rounded-sm">Signature</span>
             {/if}
           </div>
           <h1 class="text-4xl md:text-6xl font-light text-white tracking-tight leading-tight drop-shadow-lg mb-4">{propiedad.titulo}</h1>
@@ -197,7 +201,7 @@
               <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <span class="text-white font-bold uppercase tracking-[0.2em] text-xs flex items-center gap-2">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                  Ver las {allPhotos.length} Fotos
+                   Ver las {allPhotos.length} Fotos
                 </span>
               </div>
             </div>
@@ -245,10 +249,17 @@
           
           <div class="{isNight ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} border rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
             <div class="w-20 h-20 bg-slate-900 rounded-full mb-4 overflow-hidden shadow-md">
-              <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=0f172a&color=fff" alt="Avatar" class="w-full h-full object-cover">
+              {#if broker.avatar_url}
+                <img src={broker.avatar_url} alt="Foto del Asesor" class="w-full h-full object-cover">
+              {:else}
+                <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=0f172a&color=fff" alt="Avatar" class="w-full h-full object-cover">
+              {/if}
             </div>
             <h3 class="text-xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{broker.nombre_comercial}</h3>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2 mb-6">Asesoría Inmobiliaria</p>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2 mb-2">Asesoría Inmobiliaria</p>
+            {#if broker.bio}
+              <p class="text-xs text-slate-500 italic mb-6">"{broker.bio}"</p>
+            {/if}
             
             <button onclick={descargarVCard} class="inline-flex items-center gap-2 px-6 py-3 {isNight ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-900 hover:bg-slate-800'} text-white text-[10px] font-bold uppercase tracking-widest rounded-full transition-colors shadow-sm w-full justify-center">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
