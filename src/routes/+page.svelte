@@ -74,16 +74,36 @@
       </div>
     </div>
 
+    <!-- TARJETA DEL ASESOR ACTUALIZADA -->
     <div class="bg-slate-900 text-white mt-12 py-16">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-8">
         <div class="flex items-center gap-6">
-          <div class="w-24 h-24 rounded-full bg-slate-700 border-4 border-slate-600 overflow-hidden shrink-0">
-            <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=1e293b&color=fff&size=150" alt="Broker" class="w-full h-full object-cover">
+          
+          <!-- Avatar dinámico -->
+          <div class="w-24 h-24 rounded-full bg-slate-700 border-4 border-slate-600 overflow-hidden shrink-0 shadow-lg">
+            {#if broker.avatar_url}
+              <img src={broker.avatar_url} alt="Foto del Asesor" class="w-full h-full object-cover">
+            {:else}
+              <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=1e293b&color=fff&size=150" alt="Avatar Genérico" class="w-full h-full object-cover">
+            {/if}
           </div>
+          
+          <!-- Info del Asesor -->
           <div>
             <h3 class="text-2xl font-bold">{broker.nombre_comercial}</h3>
-            <p class="text-blue-400 font-medium mb-2">Especialista en Bienes Raíces</p>
+            <p class="text-blue-400 font-medium mb-2">{broker.bio || 'Especialista en Bienes Raíces'}</p>
+            
+            <!-- Redes Sociales si están configuradas -->
+            <div class="flex gap-4 mt-2">
+              {#if broker.instagram}
+                <a href={broker.instagram} target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-white transition-colors text-sm font-medium">Instagram</a>
+              {/if}
+              {#if broker.linkedin}
+                <a href={broker.linkedin} target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-white transition-colors text-sm font-medium">LinkedIn</a>
+              {/if}
+            </div>
           </div>
+
         </div>
       </div>
     </div>
