@@ -27,7 +27,7 @@ export async function load({ params, locals }) {
   if (ohError || !oh) throw error(404, 'Evento no encontrado.');
   if (oh.brokers?.email !== user.email) throw error(403, 'No autorizado.');
 
-  // Jalamose la lista completa de interesados registrados
+  // Jalamos la lista completa de interesados registrados
   const { data: attendees } = await supabaseAdmin
     .from('open_house_attendees')
     .select('*')
@@ -82,6 +82,38 @@ export const actions = {
       .eq('id', attendeeId);
 
     if (updateError) return fail(500, { error: 'No se pudo admitir al prospecto' });
+    return { success: true };
+  },
+
+  // Acción NUEVA: Actualizar fechas, horas y aforo del evento
+  updateSettings: async ({ request, locals }) => {
+    const user = locals.user;
+    if (!user) return fail(401, { error: 'No autorizado' });
+
+    const supabaseAdmin = getSupabaseAdmin();
+    const formData = await request.formData();
+    
+    const id = formData.get('id');
+    const date = formData.get('date');
+    const timeStart = formData.get('timeStart');
+    const timeEnd = formData.get('timeEnd');
+    const maxCapacity = formData.get('maxCapacity');
+
+    const { error: updateError } = await supabaseAdmin
+      .from('open_houses')
+      .update({ 
+        event_date: date, 
+        time_start: timeStart, 
+        time_end: timeEnd, 
+        max_capacity: parseInt(maxCapacity, 10) 
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      console.error('Error al actualizar los ajustes del evento:', updateError);
+      return fail(500, { error: 'No se pudieron actualizar los ajustes.' });
+    }
+
     return { success: true };
   }
 };
