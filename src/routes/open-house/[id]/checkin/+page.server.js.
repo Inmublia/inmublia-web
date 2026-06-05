@@ -1,0 +1,49 @@
+import { supabase } from '$lib/supabase';
+import { fail } from '@sveltejs/kit';
+
+export async function load({ params }) {
+  // Traemos el nombre de la propiedad para mostrarlo en la pantalla
+  const { data: event } = await supabase
+    .from('open_houses')
+    .select('*, propiedades(titulo)')
+    .eq('id', params.id)
+    .single();
+
+  return { event };
+}
+
+export const actions = {
+  default: async ({ request, params }) => {
+    const formData = await request.formData();
+    const phone = formData.get('phone');
+    const openHouseId = params.id;
+
+    // Buscamos si el teléfono está en la lista de invitados de este evento
+    const { data: attendee, error: searchError } = await supabase
+      .from('open_house_attendees')
+      .select('*')
+      .eq('open_house_id', openHouseId)
+      .eq('phone', phone)
+      .single();
+
+    if (searchError || !attendee) {
+      return fail(404, { error: 'No encontramos este número en la lista de invitados. Verifica tu registro.' });
+    }
+
+    if (attendee.status === 'waitlist') {
+      return fail(403, { error: 'Actualmente estás en lista de espera. Por favor, acércate al concierge para verificar disponibilidad de aforo.' });
+    }
+
+    // Si está en la lista y confirmado, lo marcamos como que ya ingresó físicamente
+    const { error: updateError } = await supabase
+      .from('open_house_attendees')
+      .update({ checked_in: true })
+      .eq('id', attendee.id);
+
+    if (updateError) {
+      return fail(500, { error: 'Error del sistema al registrar la entrada.' });
+    }
+
+    return { success: true, attendee };
+  }
+};
