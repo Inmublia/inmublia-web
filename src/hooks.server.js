@@ -3,29 +3,36 @@ import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 export async function handle({ event, resolve }) {
-  // 1. Buscamos tu "gafete" seguro en las cookies
   const token = event.cookies.get('inmublia-auth-token');
 
-  // 2. EL FIX MAESTRO: Creamos el cliente de Supabase pero INYECTAMOS TU IDENTIDAD.
-  // Sin esta cabecera, el servidor hace consultas "Anónimas" y RLS oculta tus leads.
+  // 1. EL FIX QUE TE DEVUELVE EL ACCESO: 
+  // Creamos el cliente de Supabase. SÓLO agregamos la cabecera si el token EXISTE.
+  // Si no hay token (estás en el Login), dejamos que Supabase trabaje normal.
+  const customHeaders = {};
+  if (token) {
+    customHeaders.Authorization = `Bearer ${token}`;
+  }
+
+  // Desactivamos persistSession porque en el servidor no hay localStorage
   event.locals.supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: false 
+    },
     global: {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : ''
-      }
+      fetch: event.fetch, // Esto evita que Cloudflare se confunda de conexión
+      headers: customHeaders
     }
   });
 
-  // 3. Proteger la consola de administración
+  // 2. Proteger la consola de administración
   if (event.url.pathname.startsWith('/admin')) {
     
-    // Si no hay token, rebote directo al login
     if (!token) {
       throw redirect(303, '/login?motivo=inactividad');
     }
     
     try {
-      // Intentamos validar la sesión con Supabase
+      // Validamos el token
       const { data: { user }, error } = await event.locals.supabase.auth.getUser(token);
       
       if (error || !user) {
@@ -33,16 +40,14 @@ export async function handle({ event, resolve }) {
         throw redirect(303, '/login?motivo=inactividad');
       }
 
-      // Válido: guardamos identidad del broker
       event.locals.user = user;
 
     } catch (err) {
-      // Dejamos pasar los redireccionamientos propios de SvelteKit
       if ((typeof isRedirect === 'function' && isRedirect(err)) || err?.status === 303) {
         throw err;
       }
       
-      console.error('🔥 [CRÍTICO] Fallo de sesión en el servidor:', err);
+      console.error('🔥 [CRÍTICO] Fallo en Supabase.auth.getUser:', err);
       event.cookies.delete('inmublia-auth-token', { path: '/' });
       throw redirect(303, '/login?motivo=inactividad');
     }
@@ -51,7 +56,6 @@ export async function handle({ event, resolve }) {
   return await resolve(event);
 }
 
-// Registro de errores para la terminal en Cloudflare
 export async function handleError({ event, error }) {
   console.error('🔥 [500 INTERNAL SERVER ERROR] 🔥');
   console.error('Ruta:', event.url.href);
