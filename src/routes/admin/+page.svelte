@@ -14,6 +14,18 @@
 
   let generandoPDF = $state(false);
 
+  // --- LÓGICA DE TIEMPO PARA OPEN HOUSE ---
+  function getOpenHouseStatus(openHouse) {
+    if (!openHouse || !openHouse.event_date || !openHouse.time_end) return 'none';
+    
+    const now = new Date();
+    // Construimos la fecha y hora exacta de fin del evento
+    const eventEndString = `${openHouse.event_date}T${openHouse.time_end}`;
+    const eventEnd = new Date(eventEndString);
+
+    return now > eventEnd ? 'archived' : 'active';
+  }
+
   async function descargarFicha(propiedad) {
     generandoPDF = true;
     try {
@@ -45,75 +57,18 @@
         <meta charset="UTF-8">
         <title>QR - ${titulo}</title>
         <style>
-          @page {
-            size: auto;
-            margin: 0mm; 
-          }
-          
-          body {
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            min-height: 100vh; 
-            font-family: system-ui, -apple-system, sans-serif; 
-            background-color: #f8fafc; 
-            margin: 0;
-            padding: 20px;
-            text-align: center;
-          }
-          h2 {
-            color: #0f172a; 
-            margin-bottom: 8px;
-            font-size: 24px;
-            font-weight: 800;
-          }
-          p {
-            color: #64748b; 
-            margin-top: 0; 
-            margin-bottom: 32px;
-          }
-          .qr-card {
-            background: white; 
-            padding: 24px; 
-            border-radius: 24px; 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
-          }
-          img {
-            max-width: 400px; 
-            width: 100%; 
-            border-radius: 12px;
-          }
-          .botones {
-            margin-top: 40px;
-            display: flex;
-            gap: 16px;
-          }
-          button {
-            padding: 12px 32px; 
-            border-radius: 50px; 
-            font-weight: bold; 
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 14px;
-          }
-          .btn-imprimir {
-            background: #0f172a; 
-            color: white; 
-            border: none;
-          }
-          .btn-guardar {
-            background: white; 
-            color: #0f172a; 
-            border: 2px solid #e2e8f0;
-          }
-          
+          @page { size: auto; margin: 0mm; }
+          body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; text-align: center; }
+          h2 { color: #0f172a; margin-bottom: 8px; font-size: 24px; font-weight: 800; }
+          p { color: #64748b; margin-top: 0; margin-bottom: 32px; }
+          .qr-card { background: white; padding: 24px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); }
+          img { max-width: 400px; width: 100%; border-radius: 12px; }
+          .botones { margin-top: 40px; display: flex; gap: 16px; }
+          button { padding: 12px 32px; border-radius: 50px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-size: 14px; }
+          .btn-imprimir { background: #0f172a; color: white; border: none; }
+          .btn-guardar { background: white; color: #0f172a; border: 2px solid #e2e8f0; }
           @media print {
-            body { 
-              background-color: white; 
-              justify-content: flex-start;
-              padding-top: 40px;
-            }
+            body { background-color: white; justify-content: flex-start; padding-top: 40px; }
             .botones { display: none; }
             .qr-card { box-shadow: none; padding: 0; border: none; }
           }
@@ -122,16 +77,13 @@
       <body>
         <h2>${titulo}</h2>
         <p>Escanea para acceder a la ficha técnica privada</p>
-        
         <div class="qr-card">
           <img src="${qrApiUrl}" alt="Código QR"/>
         </div>
-        
         <div class="botones">
           <button class="btn-imprimir" onclick="window.print()">Imprimir QR</button>
           <button class="btn-guardar" onclick="descargar()">Guardar Imagen</button>
         </div>
-
         <script>
           async function descargar() {
             try {
@@ -154,13 +106,6 @@
       </html>
     `);
     win.document.close();
-  }
-
-  function obtenerEstado(prop) {
-    if (!prop.m2_terreno || !prop.recamaras || !prop.banos) {
-      return { texto: 'Faltan Datos', clase: 'bg-amber-100 text-amber-700 border-amber-200' };
-    }
-    return { texto: 'Optimizado', clase: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
   }
 </script>
 
@@ -240,10 +185,10 @@
             <table class="w-full divide-y divide-slate-100 table-fixed">
               <thead class="bg-slate-50/50">
                 <tr>
-                  <th scope="col" class="w-4/12 px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Inmueble</th>
-                  <th scope="col" class="w-2/12 px-4 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valor</th>
-                  <th scope="col" class="w-2/12 px-4 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Estatus</th>
-                  <th scope="col" class="w-4/12 px-8 py-5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gestión / Eventos</th>
+                  <th scope="col" class="w-[35%] px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Inmueble</th>
+                  <th scope="col" class="w-[15%] px-4 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valor</th>
+                  <th scope="col" class="w-[20%] px-4 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Estatus / Eventos</th>
+                  <th scope="col" class="w-[30%] px-8 py-5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gestión</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-50">
@@ -251,7 +196,7 @@
                   <tr class="hover:bg-slate-50/80 transition-colors group">
                     <td class="px-8 py-6 truncate">
                       <div class="flex items-center gap-6">
-                        <div class="h-16 w-24 shrink-0 rounded-xl overflow-hidden bg-slate-100 shadow-sm">
+                        <div class="h-16 w-24 shrink-0 rounded-xl overflow-hidden bg-slate-100 shadow-sm relative group-hover:shadow-md transition-all">
                           <img class="h-full w-full object-cover" src={propiedad.imagen_url} alt={propiedad.titulo}>
                         </div>
                         <div class="truncate">
@@ -271,49 +216,64 @@
                       <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1">{propiedad.operacion}</div>
                     </td>
                     
-                    <td class="px-4 py-6 whitespace-nowrap">
+                    <td class="px-4 py-6 whitespace-nowrap flex flex-col items-start gap-2 justify-center h-full">
                       {#if propiedad.estatus === 'Pre-Mercado'}
                         <span class="px-3 py-1.5 inline-flex text-[10px] font-bold uppercase tracking-widest rounded-full border shadow-sm bg-indigo-50 text-indigo-700 border-indigo-200">
                           Pre-Mercado
                         </span>
                       {:else}
                         <span class="px-3 py-1.5 inline-flex text-[10px] font-bold uppercase tracking-widest rounded-full border shadow-sm bg-emerald-50 text-emerald-700 border-emerald-200">
-                          Catálogo Público
+                          Activa
                         </span>
+                      {/if}
+
+                      {#if propiedad.open_houses && propiedad.open_houses.length > 0}
+                        {@const ohStatus = getOpenHouseStatus(propiedad.open_houses[0])}
+                        
+                        {#if ohStatus === 'active'}
+                          <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm" title="Ir al Dashboard del Evento">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            OH Activo
+                          </a>
+                        {:else}
+                          <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors border border-slate-200" title="Ver Leads del Evento Pasado">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                            Histórico OH
+                          </a>
+                        {/if}
                       {/if}
                     </td>
                     
-                    <td class="px-8 py-6 text-right">
-                      <div class="flex gap-2 justify-end items-center flex-wrap w-max ml-auto">
+                    <td class="px-8 py-6">
+                      <div class="flex gap-2 justify-end items-center">
                         
-                        {#if propiedad.open_houses && propiedad.open_houses.length > 0}
-                          <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-4 py-2.5 rounded-lg transition-colors border border-indigo-200 flex items-center gap-2 text-xs font-bold uppercase tracking-widest" title="Dashboard Open House">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            Evento
-                          </a>
-                        {/if}
-
-                        <button onclick={() => descargarFicha(propiedad)} disabled={generandoPDF} class="text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 p-2.5 rounded-lg transition-colors disabled:opacity-50 border border-transparent hover:border-emerald-100 flex justify-center" title="Descargar Ficha PDF">
+                        <button onclick={() => descargarFicha(propiedad)} disabled={generandoPDF} class="text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 p-2.5 rounded-lg transition-colors disabled:opacity-50 border border-transparent hover:border-emerald-100" title="Descargar Ficha PDF">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         </button>
-                        <button onclick={() => window.open(`/${propiedad.slug}?brochure=true`, '_blank')} class="text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 p-2.5 rounded-lg transition-colors border border-amber-200 flex justify-center" title="Smart Brochure">
+                        
+                        <button onclick={() => window.open(`/${propiedad.slug}?brochure=true`, '_blank')} class="text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 p-2.5 rounded-lg transition-colors border border-amber-200" title="Smart Brochure">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                         </button>
-                        <button onclick={() => abrirQR(propiedad.slug, propiedad.titulo)} class="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg transition-colors border border-transparent hover:border-slate-200 flex justify-center" title="Generar Código QR">
+                        
+                        <button onclick={() => abrirQR(propiedad.slug, propiedad.titulo)} class="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg transition-colors border border-transparent hover:border-slate-200" title="Generar Código QR">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
                         </button>
-                        <button onclick={() => copiarEnlace(propiedad.slug)} class="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg transition-colors border border-transparent hover:border-slate-200 flex justify-center" title="Copiar Enlace">
+                        
+                        <button onclick={() => copiarEnlace(propiedad.slug)} class="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg transition-colors border border-transparent hover:border-slate-200" title="Copiar Enlace">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
                         </button>
-                        <a href="/admin/editar/{propiedad.id}" class="text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 p-2.5 rounded-lg transition-colors border border-transparent hover:border-blue-100 flex items-center justify-center" title="Editar">
+                        
+                        <a href="/admin/editar/{propiedad.id}" class="text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 p-2.5 rounded-lg transition-colors border border-transparent hover:border-blue-100" title="Editar">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                         </a>
-                        <form method="POST" action="?/eliminar" use:enhance onsubmit={() => confirm('¿Borrar esta propiedad?')} class="inline flex">
+                        
+                        <form method="POST" action="?/eliminar" use:enhance onsubmit={() => confirm('¿Borrar esta propiedad?')} class="inline-flex m-0">
                           <input type="hidden" name="id" value={propiedad.id}>
-                          <button type="submit" class="text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 p-2.5 rounded-lg transition-colors border border-transparent hover:border-red-100 flex items-center justify-center w-full" title="Eliminar">
+                          <button type="submit" class="text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 p-2.5 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Eliminar">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                           </button>
                         </form>
+                        
                       </div>
                     </td>
                   </tr>
