@@ -1,84 +1,131 @@
-import { createClient } from '@supabase/supabase-js';
-import { env as publicEnv } from '$env/dynamic/public';
-import { env as privateEnv } from '$env/dynamic/private';
-import { redirect, fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 
-// 1. Instanciamos el Cliente de Servidor Confiable dinámicamente
-// Esto bypasa el RLS por diseño y es compatible con el Build de Cloudflare
-const getSupabaseAdmin = () => {
-  return createClient(
-    publicEnv.PUBLIC_SUPABASE_URL,
-    privateEnv.SUPABASE_SERVICE_ROLE_KEY,
-    { auth: { persistSession: false } }
-  );
-};
-
-export async function load({ locals }) {
-  // Verificamos que el hook de SvelteKit validó la cookie de sesión
-  const user = locals.user;
-  if (!user) throw redirect(303, '/login');
-
-  const supabaseAdmin = getSupabaseAdmin();
-
-  // 2. Buscamos al broker (Asegúrate de que el correo EXISTA en tu tabla brokers)
-  const { data: broker, error: brokerError } = await supabaseAdmin
-    .from('brokers')
-    .select('*')
-    .eq('email', user.email)
-    .single();
-
-  if (brokerError || !broker) {
-    console.error("El correo del usuario logeado no existe en la tabla brokers:", user.email);
-    throw redirect(303, '/login?error=broker-not-found');
+export const load = async ({ locals: { supabase } }) => {
+  // 1. Validar que el broker tenga una sesión activa
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    throw redirect(303, '/login');
   }
 
-  // 3. Traemos los prospectos cruzando la información con la tabla de propiedades.
-  // El .select('*, propiedades(titulo)') es lo que nos trae el nombre real.
-  const { data: leads } = await supabaseAdmin
+  // 2. Obtener los datos del perfil del broker
+  const { data: broker } = await supabase
+    .from('brokers')
+    .select('*')
+    .eq('id', session.user.id)
+    .single();
+
+  // 3. Consulta Relacional Élite: Traemos leads, su propiedad de interés Y su bitácora de notas
+  const { data: leads, error } = await supabase
     .from('leads')
-    .select('*, propiedades(titulo)')
-    .eq('broker_id', broker.id)
+    .select(`
+      *,
+      propiedades (*),
+      lead_notas (*)
+    `)
+    .eq('broker_id', session.user.id)
     .order('creado_en', { ascending: false });
+
+  if (error) {
+    console.error('🔥 Error al cargar leads con relaciones desde Supabase:', error);
+  }
+
+  // 4. Ordenamos las notas de cada lead (la más reciente primero) de forma limpia en memoria
+  const leadsProcesados = (leads || []).map(lead => {
+    if (lead.lead_notas) {
+      lead.lead_notas.sort((a, b) => new Date(b.creado_en) - new Date(a.creado_en));
+    } else {
+      lead.lead_notas = [];
+    }
+    return lead;
+  });
 
   return {
     broker,
-    leads: leads || []
+    leads: leadsProcesados
   };
-}
+};
 
 export const actions = {
-  actualizar: async ({ request, locals }) => {
-    if (!locals.user) return fail(401, { error: 'No autorizado' });
-
-    const supabaseAdmin = getSupabaseAdmin();
+  // Mueve las tarjetas en el tablero Kanban
+  actualizar: async ({ request, locals: { supabase } }) => {
     const formData = await request.formData();
-    const leadId = formData.get('id');
-    const nuevoEstado = formData.get('estado');
+    const id = formData.get('id');
+    const estado = formData.get('estado');
 
-    if (!leadId || !nuevoEstado) return fail(400, { error: 'Datos incompletos' });
-
-    const { error } = await supabaseAdmin
+    const { error } = await supabase
       .from('leads')
-      .update({ estado: nuevoEstado })
-      .eq('id', leadId);
+      .update({ estado })
+      .eq('id', id);
 
-    if (error) return fail(500, { error: error.message });
+    if (error) {
+      console.error('🔥 Error en Server Action actualizar:', error);
+      return fail(500, { error: 'No se pudo mover el prospecto.' });
+    }
+
     return { success: true };
   },
 
-  eliminar: async ({ request, locals }) => {
-    if (!locals.user) return fail(401, { error: 'No autorizado' });
-
-    const supabaseAdmin = getSupabaseAdmin();
+  // Elimina prospectos de forma permanente
+  eliminar: async ({ request, locals: { supabase } }) => {
     const formData = await request.formData();
-    const leadId = formData.get('id');
+    const id = formData.get('id');
 
-    const { error } = await supabaseAdmin
+    const { error } = await supabase
       .from('leads')
       .delete()
-      .eq('id', leadId);
+      .eq('id', id);
 
-    if (error) return fail(500, { error: error.message });
+    if (error) {
+      console.error('🔥 Error en Server Action eliminar:', error);
+      return fail(500, { error: 'No se pudo eliminar.' });
+    }
+
+    return { success: true };
+  },
+
+  // CAPTURA, INSERTA Y AUTOMATIZA LAS NOTAS DE LA BITÁCORA
+  guardarNota: async ({ request, locals: { supabase } }) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return fail(401, { error: 'No autorizado' });
+
+    const formData = await request.formData();
+    const leadId = formData.get('lead_id');
+    const contenido = formData.get('contenido');
+
+    if (!contenido || !contenido.trim()) {
+      return fail(400, { error: 'El contenido de la nota no puede estar vacío.' });
+    }
+
+    // 1. Guardamos el registro histórico en la tabla satélite
+    const { error: notaError } = await supabase
+      .from('lead_notas')
+      .insert({
+        lead_id: leadId,
+        broker_id: session.user.id,
+        contenido: contenido.trim(),
+        tipo: 'nota'
+      });
+
+    if (notaError) {
+      console.error('🔥 Error crítico insertando nota en Supabase:', notaError);
+      return fail(500, { error: 'Error interno al escribir la anotación.' });
+    }
+
+    // 2. AUTOMATIZACIÓN INVISIBLE: Si el lead está en estado 'nuevo', 
+    // el simple hecho de dejar una nota significa que ya se le atendió. Lo pasamos a 'contactado'.
+    const { data: lead } = await supabase
+      .from('leads')
+      .select('estado')
+      .eq('id', leadId)
+      .single();
+
+    if (lead && lead.estado === 'nuevo') {
+      await supabase
+        .from('leads')
+        .update({ estado: 'contactado' })
+        .eq('id', leadId);
+    }
+
     return { success: true };
   }
 };
