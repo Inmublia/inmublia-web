@@ -1,35 +1,34 @@
 import { fail, redirect } from '@sveltejs/kit';
 
-export const load = async ({ locals: { supabase } }) => {
-  // 1. Validar que el broker tenga una sesión activa
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
+export const load = async ({ locals }) => {
+  // 1. Validar identidad usando el user que ya validó el hook
+  if (!locals.user) {
     throw redirect(303, '/login');
   }
 
   // 2. Obtener los datos del perfil del broker
-  const { data: broker } = await supabase
+  const { data: broker } = await locals.supabase
     .from('brokers')
     .select('*')
-    .eq('id', session.user.id)
+    .eq('id', locals.user.id)
     .single();
 
-  // 3. Consulta Relacional Élite: Traemos leads, su propiedad de interés Y su bitácora de notas
-  const { data: leads, error } = await supabase
+  // 3. Consulta Relacional Élite: Traemos leads, propiedad y bitácora
+  const { data: leads, error } = await locals.supabase
     .from('leads')
     .select(`
       *,
       propiedades (*),
       lead_notas (*)
     `)
-    .eq('broker_id', session.user.id)
+    .eq('broker_id', locals.user.id)
     .order('creado_en', { ascending: false });
 
   if (error) {
     console.error('🔥 Error al cargar leads con relaciones desde Supabase:', error);
   }
 
-  // 4. Ordenamos las notas de cada lead (la más reciente primero) de forma limpia en memoria
+  // 4. Ordenamos las notas (la más reciente arriba) en memoria
   const leadsProcesados = (leads || []).map(lead => {
     if (lead.lead_notas) {
       lead.lead_notas.sort((a, b) => new Date(b.creado_en) - new Date(a.creado_en));
@@ -46,13 +45,15 @@ export const load = async ({ locals: { supabase } }) => {
 };
 
 export const actions = {
-  // Mueve las tarjetas en el tablero Kanban
-  actualizar: async ({ request, locals: { supabase } }) => {
+  // Mueve tarjetas Kanban
+  actualizar: async ({ request, locals }) => {
+    if (!locals.user) return fail(401, { error: 'No autorizado' });
+
     const formData = await request.formData();
     const id = formData.get('id');
     const estado = formData.get('estado');
 
-    const { error } = await supabase
+    const { error } = await locals.supabase
       .from('leads')
       .update({ estado })
       .eq('id', id);
@@ -65,12 +66,14 @@ export const actions = {
     return { success: true };
   },
 
-  // Elimina prospectos de forma permanente
-  eliminar: async ({ request, locals: { supabase } }) => {
+  // Elimina prospectos
+  eliminar: async ({ request, locals }) => {
+    if (!locals.user) return fail(401, { error: 'No autorizado' });
+
     const formData = await request.formData();
     const id = formData.get('id');
 
-    const { error } = await supabase
+    const { error } = await locals.supabase
       .from('leads')
       .delete()
       .eq('id', id);
@@ -83,10 +86,9 @@ export const actions = {
     return { success: true };
   },
 
-  // CAPTURA, INSERTA Y AUTOMATIZA LAS NOTAS DE LA BITÁCORA
-  guardarNota: async ({ request, locals: { supabase } }) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return fail(401, { error: 'No autorizado' });
+  // CAPTURA DE BITÁCORA Y AVANCE EN FUNNEL
+  guardarNota: async ({ request, locals }) => {
+    if (!locals.user) return fail(401, { error: 'No autorizado' });
 
     const formData = await request.formData();
     const leadId = formData.get('lead_id');
@@ -96,12 +98,12 @@ export const actions = {
       return fail(400, { error: 'El contenido de la nota no puede estar vacío.' });
     }
 
-    // 1. Guardamos el registro histórico en la tabla satélite
-    const { error: notaError } = await supabase
+    // 1. Guardamos el registro histórico
+    const { error: notaError } = await locals.supabase
       .from('lead_notas')
       .insert({
         lead_id: leadId,
-        broker_id: session.user.id,
+        broker_id: locals.user.id,
         contenido: contenido.trim(),
         tipo: 'nota'
       });
@@ -111,16 +113,15 @@ export const actions = {
       return fail(500, { error: 'Error interno al escribir la anotación.' });
     }
 
-    // 2. AUTOMATIZACIÓN INVISIBLE: Si el lead está en estado 'nuevo', 
-    // el simple hecho de dejar una nota significa que ya se le atendió. Lo pasamos a 'contactado'.
-    const { data: lead } = await supabase
+    // 2. AUTOMATIZACIÓN INVISIBLE: Pasar a "contactado"
+    const { data: lead } = await locals.supabase
       .from('leads')
       .select('estado')
       .eq('id', leadId)
       .single();
 
     if (lead && lead.estado === 'nuevo') {
-      await supabase
+      await locals.supabase
         .from('leads')
         .update({ estado: 'contactado' })
         .eq('id', leadId);
