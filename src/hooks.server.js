@@ -1,56 +1,56 @@
-import { redirect, fail } from '@sveltejs/kit';
+import { redirect, isRedirect } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
+import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
-export const actions = {
-  ingresar: async ({ request, cookies, locals }) => {
-    const formData = await request.formData();
-    const email = formData.get('email');
-    const password = formData.get('password');
+export async function handle({ event, resolve }) {
+  const token = event.cookies.get('inmublia-auth-token');
 
-    if (!email || !password) {
-      return fail(400, { error: 'Faltan credenciales', email });
-    }
-
-    // EL FIX MAESTRO: Usamos 'locals.supabase' (que ya tiene el fetch configurado para Cloudflare)
-    // en lugar del cliente global que causa el bucle infinito.
-    const { data, error } = await locals.supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) {
-      return fail(400, { error: 'Correo o contraseña incorrectos', email });
-    }
-
-    // Generar la cookie de sesión segura (dura 1 semana)
-    cookies.set('inmublia-auth-token', data.session.access_token, {
-      path: '/',
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 7 
-    });
-
-    // Redirigir al broker directamente a su panel de control
-    throw redirect(303, '/admin');
-  },
-
-  recuperar: async ({ request, locals }) => {
-    const formData = await request.formData();
-    const email = formData.get('email');
-
-    if (!email) {
-      return fail(400, { error: 'Por favor, ingresa tu correo electrónico.' });
-    }
-
-    // También arreglado aquí
-    const { error } = await locals.supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://inmublia.com/recuperar-acceso',
-    });
-
-    if (error) {
-      return fail(400, { error: error.message });
-    }
-
-    return { success: true, message: 'Te hemos enviado un enlace al correo para recuperar tu contraseña.' };
+  // Construimos las cabeceras limpias
+  const headers = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
   }
-};
+
+  // Cliente instanciado sin trucos de fetch que rompan el RLS
+  event.locals.supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+    auth: { 
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    },
+    global: { headers }
+  });
+
+  if (event.url.pathname.startsWith('/admin')) {
+    if (!token) {
+      throw redirect(303, '/login?motivo=inactividad');
+    }
+    
+    try {
+      // Supabase recibe el token intacto y valida
+      const { data: { user }, error } = await event.locals.supabase.auth.getUser(token);
+      
+      if (error || !user) {
+        event.cookies.delete('inmublia-auth-token', { path: '/' });
+        throw redirect(303, '/login?motivo=inactividad');
+      }
+
+      event.locals.user = user;
+
+    } catch (err) {
+      if ((typeof isRedirect === 'function' && isRedirect(err)) || err?.status === 303) {
+        throw err;
+      }
+      console.error('🔥 ERROR AUTH:', err);
+      event.cookies.delete('inmublia-auth-token', { path: '/' });
+      throw redirect(303, '/login?motivo=inactividad');
+    }
+  }
+
+  return await resolve(event);
+}
+
+export async function handleError({ error }) {
+  console.error('🔥 ERROR FATAL SSR:', error);
+  return { message: 'Fallo interno del servidor.' };
+}
