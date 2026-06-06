@@ -65,7 +65,7 @@
       {/if}
     </div>
 
-    <form method="POST" use:enhance={manejarEnvio} class="space-y-6">
+    <form method="POST" action="?/ingresar" use:enhance={manejarEnvio} class="space-y-6">
       
       <div class="space-y-1.5 relative group">
         <label for="email" class="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Correo electrónico</label>
