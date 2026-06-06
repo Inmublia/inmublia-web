@@ -5,26 +5,25 @@ import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/publi
 export async function handle({ event, resolve }) {
   const token = event.cookies.get('inmublia-auth-token');
 
-  // 1. EL FIX QUE TE DEVUELVE EL ACCESO: 
-  // Creamos el cliente de Supabase. SÓLO agregamos la cabecera si el token EXISTE.
-  // Si no hay token (estás en el Login), dejamos que Supabase trabaje normal.
   const customHeaders = {};
   if (token) {
     customHeaders.Authorization = `Bearer ${token}`;
   }
 
-  // Desactivamos persistSession porque en el servidor no hay localStorage
+  // EL FIX DEFINITIVO PARA CLOUDFLARE PAGES SEGÚN LA DOCUMENTACIÓN OFICIAL
   event.locals.supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
     auth: {
-      persistSession: false 
+      persistSession: false,      // Apaga el uso de localStorage
+      autoRefreshToken: false,    // APAGA EL TEMPORIZADOR QUE HACE EXPLOTAR A CLOUDFLARE
+      detectSessionInUrl: false   // Apaga la búsqueda del objeto 'window'
     },
     global: {
-      fetch: event.fetch, // Esto evita que Cloudflare se confunda de conexión
+      fetch: (...args) => fetch(...args), // Asegura compatibilidad pura con la red global Edge
       headers: customHeaders
     }
   });
 
-  // 2. Proteger la consola de administración
+  // Proteger la consola de administración
   if (event.url.pathname.startsWith('/admin')) {
     
     if (!token) {
@@ -32,7 +31,6 @@ export async function handle({ event, resolve }) {
     }
     
     try {
-      // Validamos el token
       const { data: { user }, error } = await event.locals.supabase.auth.getUser(token);
       
       if (error || !user) {
