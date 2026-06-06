@@ -1,137 +1,137 @@
 <script>
-  import { enhance } from '$app/forms';
-  import { page } from '$app/stores'; // Importamos la tienda de SvelteKit
+  import { applyAction, enhance } from '$app/forms';
+  import { page } from '$app/stores';
   
-  // Recibe los errores que mandamos desde el servidor
-  let { form } = $props();
-  let loading = $state(false);
-  
-  // Estado para intercambiar entre Login y Recuperar Contraseña
-  let isResetting = $state(false);
+  // Capturamos el motivo de la URL (?motivo=inactividad)
+  const motivo = $page.url.searchParams.get('motivo');
+  let cargando = $state(false);
+  let error = $state('');
 
-  // Leemos el parámetro de inactividad de la URL
-  let motivo = $derived($page.url.searchParams.get('motivo'));
+  function manejarEnvio() {
+    cargando = true;
+    error = '';
+    return async ({ result }) => {
+      if (result.type === 'failure') {
+        error = result.data?.error || 'Error al iniciar sesión';
+        cargando = false;
+      } else {
+        await applyAction(result);
+      }
+    };
+  }
 </script>
 
-<div class="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-  <div class="w-full max-w-md relative z-10">
-    <div class="text-center mb-10">
-      <a href="/" class="inline-block">
-        <img src="/logo.png" alt="Inmublia" class="h-14 w-auto mx-auto drop-shadow-sm">
-      </a>
-      <h2 class="mt-6 text-2xl font-black text-slate-900 tracking-tight">
-        {isResetting ? 'Recupera tu acceso' : 'Ingresa a tu Consola'}
-      </h2>
-      <p class="text-slate-500 mt-2 font-medium">
-        {isResetting ? 'Te enviaremos un enlace para crear una nueva contraseña' : 'Gestiona tu agencia y tu inventario'}
+<div class="min-h-screen bg-slate-50 flex flex-col justify-center items-center font-sans text-slate-900 selection:bg-slate-200">
+  
+  <div class="w-full max-w-[440px] px-6 py-12 md:px-10 md:py-16 bg-white sm:rounded-3xl sm:shadow-[0_16px_70px_rgba(0,0,0,0.04)] sm:border sm:border-slate-100 relative overflow-hidden">
+    
+    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-slate-100 via-slate-300 to-slate-100"></div>
+
+    <div class="flex flex-col items-center mb-12">
+      <img src="/logo.png" alt="Inmublia" class="h-10 w-auto mb-8">
+      
+      <h1 class="text-3xl font-black text-slate-950 tracking-tighter leading-tight text-center">
+        Consola Operativa
+      </h1>
+      <p class="text-sm text-slate-500 mt-2.5 text-center font-medium max-w-[300px]">
+        Gestiona tu inventario y prospectos con la plataforma líder en Real Estate.
       </p>
     </div>
 
-    <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-xl shadow-slate-200/50 transition-all duration-300">
+    <div class="space-y-4 mb-10">
       
       {#if motivo === 'inactividad'}
-        <div class="bg-amber-50 text-amber-800 border border-amber-200 p-4 rounded-xl mb-6 text-sm text-center font-medium shadow-sm flex flex-col items-center gap-2 animate-[fadeIn_0.5s_ease-out]">
-          <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
-            <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <div class="flex items-center gap-3.5 px-5 py-4 bg-slate-50 text-slate-700 rounded-2xl border border-slate-100 shadow-inner">
+          <div class="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-amber-500 shrink-0 shadow-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
           </div>
-          Tu sesión caducó por inactividad. Por favor, vuelve a ingresar.
+          <div class="flex-1">
+            <p class="text-xs font-bold text-slate-950">Acceso Seguro</p>
+            <p class="text-xs text-slate-600 mt-0.5">Por seguridad, tu sesión ha finalizado. Ingresa de nuevo.</p>
+          </div>
         </div>
       {/if}
 
-      {#if form?.error}
-        <div class="mb-6 bg-red-50 text-red-600 font-bold p-3 rounded-lg text-sm text-center border border-red-100 animate-[fadeIn_0.3s_ease-out]">
-          {form.error}
-        </div>
-      {:else if form?.success}
-        <div class="mb-6 bg-emerald-50 text-emerald-600 font-bold p-3 rounded-lg text-sm text-center border border-emerald-100 animate-[fadeIn_0.3s_ease-out]">
-          {form.message}
+      {#if error}
+        <div class="flex items-center gap-3.5 px-5 py-4 bg-red-50 text-red-700 rounded-2xl border border-red-100">
+          <div class="w-10 h-10 rounded-full bg-white border border-red-200 flex items-center justify-center text-red-500 shrink-0 shadow-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          </div>
+          <div class="flex-1">
+            <p class="text-xs font-bold text-red-950">Fallo de Autenticación</p>
+            <p class="text-xs text-red-600 mt-0.5">{error}</p>
+          </div>
         </div>
       {/if}
-
-      {#if !isResetting}
-        <form method="POST" action="?/ingresar" use:enhance={() => { loading = true; return async ({ update }) => { loading = false; update(); }; }} class="space-y-6">
-          <div>
-            <label for="email" class="block text-sm font-bold text-slate-700 mb-2">Correo Electrónico</label>
-            <input 
-              type="email" 
-              id="email" 
-              name="email" 
-              required
-              value={form?.email || ''}
-              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" 
-              placeholder="broker@tuagencia.com"
-            >
-          </div>
-          
-          <div>
-            <label for="password" class="block text-sm font-bold text-slate-700 mb-2 flex justify-between">
-              Contraseña
-              <button type="button" onclick={() => { isResetting = true; form = null; }} class="text-blue-600 hover:text-blue-800 text-xs bg-transparent border-none cursor-pointer p-0 m-0 transition-colors">
-                ¿Olvidaste tu contraseña?
-              </button>
-            </label>
-            <input 
-              type="password" 
-              id="password" 
-              name="password" 
-              required
-              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" 
-              placeholder="••••••••"
-            >
-          </div>
-
-          <button 
-            type="submit" 
-            disabled={loading}
-            class="w-full bg-slate-900 hover:bg-blue-600 text-white font-bold py-4 rounded-xl transition-colors mt-2 shadow-md disabled:bg-slate-400 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-          >
-            {#if loading}
-              <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Validando...
-            {:else}
-              Entrar a mi Consola
-            {/if}
-          </button>
-        </form>
-
-      {:else}
-        <form method="POST" action="?/recuperar" use:enhance={() => { loading = true; return async ({ update }) => { loading = false; update(); }; }} class="space-y-6">
-          <div>
-            <label for="reset-email" class="block text-sm font-bold text-slate-700 mb-2">Correo Electrónico</label>
-            <input 
-              type="email" 
-              id="reset-email" 
-              name="email" 
-              required
-              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" 
-              placeholder="broker@tuagencia.com"
-            >
-          </div>
-          
-          <button 
-            type="submit" 
-            disabled={loading}
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-colors mt-2 shadow-md disabled:bg-slate-400 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-          >
-            {#if loading}
-              <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              Enviando enlace...
-            {:else}
-              Enviar Enlace Mágico
-            {/if}
-          </button>
-
-          <div class="text-center mt-4">
-            <button type="button" onclick={() => { isResetting = false; form = null; }} class="text-sm font-bold text-slate-500 hover:text-slate-900 bg-transparent border-none cursor-pointer transition-colors">
-              ← Volver al Login
-            </button>
-          </div>
-        </form>
-      {/if}
-
     </div>
+
+    <form method="POST" use:enhance={manejarEnvio} class="space-y-6">
+      
+      <div class="space-y-1.5 relative group">
+        <label for="email" class="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Correo electrónico</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-4.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-slate-900 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.206"></path></svg>
+          </div>
+          <input 
+            type="email" 
+            name="email" 
+            id="email" 
+            placeholder="juan.perez@agencia.com" 
+            required 
+            class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-13 pr-5 py-4 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none transition-all shadow-inner"
+          />
+        </div>
+      </div>
+
+      <div class="space-y-1.5 relative group">
+        <label for="password" class="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Contraseña</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-4.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-slate-900 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+          </div>
+          <input 
+            type="password" 
+            name="password" 
+            id="password" 
+            placeholder="••••••••••••" 
+            required 
+            class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-13 pr-5 py-4 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none transition-all shadow-inner"
+          />
+        </div>
+      </div>
+
+      <div class="pt-2">
+        <button 
+          type="submit" 
+          disabled={cargando}
+          class="w-full bg-slate-950 hover:bg-slate-800 disabled:opacity-60 text-white font-bold py-4.5 px-6 rounded-2xl transition-all shadow-lg shadow-slate-950/10 flex items-center justify-center gap-3 text-sm"
+        >
+          {#if cargando}
+            <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            Verificando identidad...
+          {:else}
+            Entrar a mi Consola
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+          {/if}
+        </button>
+      </div>
+
+    </form>
+
+    <div class="mt-12 pt-8 border-t border-slate-100 text-center">
+      <p class="text-sm text-slate-500">
+        ¿No tienes cuenta? 
+        <a href="/registro" class="font-bold text-slate-950 hover:text-blue-600 transition-colors">
+          Contrata Inmublia
+        </a>
+      </p>
+    </div>
+
   </div>
+
+  <footer class="mt-10 text-center px-6">
+    <p class="text-xs text-slate-400 font-medium">&copy; 2024 Inmublia Technologies. Todos los derechos reservados.</p>
+  </footer>
+
 </div>
