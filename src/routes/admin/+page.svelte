@@ -216,32 +216,34 @@
                       <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1">{propiedad.operacion}</div>
                     </td>
                     
-                    <td class="px-4 py-6 whitespace-nowrap flex flex-col items-start gap-2 justify-center h-full">
-                      {#if propiedad.estatus === 'Pre-Mercado'}
-                        <span class="px-3 py-1.5 inline-flex text-[10px] font-bold uppercase tracking-widest rounded-full border shadow-sm bg-indigo-50 text-indigo-700 border-indigo-200">
-                          Pre-Mercado
-                        </span>
-                      {:else}
-                        <span class="px-3 py-1.5 inline-flex text-[10px] font-bold uppercase tracking-widest rounded-full border shadow-sm bg-emerald-50 text-emerald-700 border-emerald-200">
-                          Activa
-                        </span>
-                      {/if}
-
-                      {#if propiedad.open_houses && propiedad.open_houses.length > 0}
-                        {@const ohStatus = getOpenHouseStatus(propiedad.open_houses[0])}
-                        
-                        {#if ohStatus === 'active'}
-                          <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm" title="Ir al Dashboard del Evento">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            OH Activo
-                          </a>
+                    <td class="px-4 py-6 whitespace-nowrap">
+                      <div class="flex items-center gap-2 h-full">
+                        {#if propiedad.estatus === 'Pre-Mercado'}
+                          <span class="px-3 py-1.5 inline-flex text-[10px] font-bold uppercase tracking-widest rounded-full border shadow-sm bg-indigo-50 text-indigo-700 border-indigo-200">
+                            Pre-Mercado
+                          </span>
                         {:else}
-                          <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors border border-slate-200" title="Ver Leads del Evento Pasado">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
-                            Histórico OH
-                          </a>
+                          <span class="px-3 py-1.5 inline-flex text-[10px] font-bold uppercase tracking-widest rounded-full border shadow-sm bg-emerald-50 text-emerald-700 border-emerald-200">
+                            Activa
+                          </span>
                         {/if}
-                      {/if}
+
+                        {#if propiedad.open_houses && propiedad.open_houses.length > 0}
+                          {@const ohStatus = getOpenHouseStatus(propiedad.open_houses[0])}
+                          
+                          {#if ohStatus === 'active'}
+                            <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm" title="Ir al Dashboard del Evento">
+                              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                              OH
+                            </a>
+                          {:else}
+                            <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors border border-slate-200" title="Ver Histórico del Open House">
+                              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                              OH
+                            </a>
+                          {/if}
+                        {/if}
+                      </div>
                     </td>
                     
                     <td class="px-8 py-6">
