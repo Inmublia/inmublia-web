@@ -1,9 +1,8 @@
 import { fail } from '@sveltejs/kit';
 import { createServerClient } from '@supabase/ssr';
-import { env } from '$env/dynamic/public'; // Variables dinámicas para compatibilidad con Cloudflare
+import { env } from '$env/dynamic/public';
 
 export const actions = {
-  // Recibimos el objeto 'event' activo del request directamente de SvelteKit
   ingresar: async (event) => {
     const formData = await event.request.formData();
     const email = formData.get('email');
@@ -16,8 +15,7 @@ export const actions = {
     const supabaseUrl = env.PUBLIC_SUPABASE_URL || event.platform?.env?.PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = env.PUBLIC_SUPABASE_ANON_KEY || event.platform?.env?.PUBLIC_SUPABASE_ANON_KEY;
 
-    // 1. Instanciamos un cliente de Supabase local para la acción.
-    // Esto es el FIX CRÍTICO: Garantiza que las cookies se escriban en la cola activa de SvelteKit de este request.
+    // 1. Instanciamos el cliente local de Supabase
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         getAll() {
@@ -25,8 +23,12 @@ export const actions = {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
+            // ⚠️ FIX DE SEGURIDAD CRÍTICO: Eliminamos el 'domain' de las opciones de escritura
+            // para obligar al navegador a guardar la cookie localmente bajo 'inmublia.com'
+            const { domain, ...cleanOptions } = options;
+            
             event.cookies.set(name, value, { 
-              ...options, 
+              ...cleanOptions, 
               path: '/' 
             });
           });
@@ -69,8 +71,9 @@ export const actions = {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
+            const { domain, ...cleanOptions } = options;
             event.cookies.set(name, value, { 
-              ...options, 
+              ...cleanOptions, 
               path: '/' 
             });
           });
