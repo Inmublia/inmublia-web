@@ -3,15 +3,7 @@
   import { invalidateAll } from '$app/navigation'; // <-- Agregado vital para persistencia
 
   let { data, form } = $props();
-  // AHORA (Reactividad total y sincronizada)
-  let { data, form } = $props();
-  let broker = $state({});
-
-  $effect(() => {
-  if (data.broker) {
-  broker = { ...data.broker };
-  }
-  });
+  let broker = $state(data.broker || {});
   
   let saving = $state(false);
   let showSuccess = $state(false);
