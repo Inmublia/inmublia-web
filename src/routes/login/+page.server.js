@@ -1,8 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 
 export const actions = {
-  ingresar: async ({ request, locals }) => {
-    console.log(`[🔍 DEBUG LOGIN] Iniciando acción 'ingresar'...`);
+  ingresar: async ({ request, locals, cookies }) => {
     const formData = await request.formData();
     const email = formData.get('email');
     const password = formData.get('password');
@@ -11,19 +10,25 @@ export const actions = {
       return fail(400, { error: 'Faltan credenciales' });
     }
 
-    console.log(`[🔍 DEBUG LOGIN] Disparando signInWithPassword para: ${email}`);
-    const { error } = await locals.supabase.auth.signInWithPassword({
+    const { data, error } = await locals.supabase.auth.signInWithPassword({
       email,
       password
     });
 
     if (error) {
-      console.error(`🔥 [ERROR signInWithPassword]:`, error.message);
       return fail(400, { error: 'Correo o contraseña incorrectos' });
     }
 
-    console.log(`[🔍 DEBUG LOGIN] Credenciales correctas. Lanzando Redirect 303 a /admin...`);
-    // CRÍTICO: Esto es lo que manda al navegador a la consola
+    // 🛡️ SEGURO DE VIDA PARA CLOUDFLARE EDGE:
+    // Aunque actualizamos las librerías, forzamos la asignación de la sesión activa al cliente SSR.
+    // Esto obliga a disparar 'setAll' de forma síncrona, amarrando la cookie al navegador.
+    if (data.session) {
+      await locals.supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token
+      });
+    }
+
     throw redirect(303, '/admin');
   },
 
