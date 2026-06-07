@@ -1,19 +1,17 @@
 import { fail, redirect } from '@sveltejs/kit';
 
 export const load = async ({ locals }) => {
-  // 1. Validar identidad usando el user que ya validó el hook
-  if (!locals.user) {
-    throw redirect(303, '/login');
-  }
+  const { user } = await locals.safeGetSession();
+  if (!user) throw redirect(303, '/login');
 
-  // 2. Obtener los datos del perfil del broker
+  // 1. Obtener los datos del perfil del broker vinculando el email de la sesión activa
   const { data: broker } = await locals.supabase
     .from('brokers')
     .select('*')
-    .eq('id', locals.user.id)
+    .eq('email', user.email)
     .single();
 
-  // 3. Consulta Relacional Élite: Traemos leads, propiedad y bitácora
+  // 2. Consulta relacional firmada bajo RLS automática
   const { data: leads, error } = await locals.supabase
     .from('leads')
     .select(`
@@ -21,17 +19,17 @@ export const load = async ({ locals }) => {
       propiedades (*),
       lead_notas (*)
     `)
-    .eq('broker_id', locals.user.id)
+    .eq('broker_id', broker?.id)
     .order('creado_en', { ascending: false });
 
   if (error) {
     console.error('🔥 Error al cargar leads con relaciones desde Supabase:', error);
   }
 
-  // 4. Ordenamos las notas (la más reciente arriba) en memoria
+  // 3. Ordenamiento de notas históricas (la más reciente al inicio)
   const leadsProcesados = (leads || []).map(lead => {
     if (lead.lead_notas) {
-      lead.lead_notas.sort((a, b) => new Date(b.creado_en) - new Date(a.creado_en));
+      lead.lead_notas.sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime());
     } else {
       lead.lead_notas = [];
     }
@@ -45,9 +43,9 @@ export const load = async ({ locals }) => {
 };
 
 export const actions = {
-  // Mueve tarjetas Kanban
   actualizar: async ({ request, locals }) => {
-    if (!locals.user) return fail(401, { error: 'No autorizado' });
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: 'No autorizado' });
 
     const formData = await request.formData();
     const id = formData.get('id');
@@ -66,9 +64,9 @@ export const actions = {
     return { success: true };
   },
 
-  // Elimina prospectos
   eliminar: async ({ request, locals }) => {
-    if (!locals.user) return fail(401, { error: 'No autorizado' });
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: 'No autorizado' });
 
     const formData = await request.formData();
     const id = formData.get('id');
@@ -86,9 +84,9 @@ export const actions = {
     return { success: true };
   },
 
-  // CAPTURA DE BITÁCORA Y AVANCE EN FUNNEL
   guardarNota: async ({ request, locals }) => {
-    if (!locals.user) return fail(401, { error: 'No autorizado' });
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: 'No autorizado' });
 
     const formData = await request.formData();
     const leadId = formData.get('lead_id');
@@ -98,12 +96,19 @@ export const actions = {
       return fail(400, { error: 'El contenido de la nota no puede estar vacío.' });
     }
 
-    // 1. Guardamos el registro histórico
+    // Buscamos el id real del broker basándonos en la sesión segura
+    const { data: broker } = await locals.supabase
+      .from('brokers')
+      .select('id')
+      .eq('email', user.email)
+      .single();
+
+    // 1. Inserción de nota en bitácora
     const { error: notaError } = await locals.supabase
       .from('lead_notas')
       .insert({
         lead_id: leadId,
-        broker_id: locals.user.id,
+        broker_id: broker?.id,
         contenido: contenido.trim(),
         tipo: 'nota'
       });
@@ -113,7 +118,7 @@ export const actions = {
       return fail(500, { error: 'Error interno al escribir la anotación.' });
     }
 
-    // 2. AUTOMATIZACIÓN INVISIBLE: Pasar a "contactado"
+    // 2. AUTOMATIZACIÓN: Transición de estado de "nuevo" a "contactado"
     const { data: lead } = await locals.supabase
       .from('leads')
       .select('estado')
