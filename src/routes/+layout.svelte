@@ -7,14 +7,13 @@
 
   let { data, children } = $props();
 
-  // Inicialización del cliente en el navegador
+  // Instancia única del navegador
   const supabase = createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
 
-  // Escucha activa de cambios de estado (Login / Logout / Expiración)
+  // Sincronizador reactivo de cookies del cliente contra el contexto del servidor
   $effect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.access_token !== data.session?.access_token) {
-        // Fuerza a SvelteKit a ejecutar de nuevo el +layout.server.js de raíz
         invalidate('supabase:auth');
       }
     });
