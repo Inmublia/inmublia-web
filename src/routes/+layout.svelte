@@ -1,24 +1,28 @@
 <script lang="ts">
-  import './layout.css';
-  import favicon from '$lib/assets/favicon.svg';
-  import { createBrowserClient } from '@supabase/ssr';
-  import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
   import { invalidate } from '$app/navigation';
+  import './layout.css';
+  import favicon from '$lib/assets/favicon.png';
 
+  // Svelte 5: Declaración reactiva de propiedades (props)
   let { data, children } = $props();
 
-  // Instancia única del navegador
-  const supabase = createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
+  // Derivamos la sesión para poder rastrear cambios de forma reactiva
+  const session = $derived(data?.session);
 
-  // Sincronizador reactivo de cookies del cliente contra el contexto del servidor
+  // Svelte 5: Efecto secundario que sincroniza la sesión del cliente con el servidor
   $effect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.access_token !== data.session?.access_token) {
-        invalidate('supabase:auth');
-      }
-    });
+    if (data?.supabase?.auth) {
+      const { data: { subscription } } = data.supabase.auth.onAuthStateChange((event, _session) => {
+        // Si el token expira o cambia, invalidamos la carga del servidor de forma controlada
+        if (_session?.expires_at !== session?.expires_at) {
+          invalidate('supabase:auth');
+        }
+      });
 
-    return () => subscription.unsubscribe();
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
   });
 </script>
 
