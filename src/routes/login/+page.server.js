@@ -10,6 +10,7 @@ export const actions = {
       return fail(400, { error: 'Faltan credenciales', email });
     }
 
+    // El inicio de sesión se efectúa sobre locals.supabase, escribiendo las cookies automáticamente
     const { error } = await locals.supabase.auth.signInWithPassword({
       email,
       password
