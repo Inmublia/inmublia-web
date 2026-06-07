@@ -3,7 +3,7 @@ import { redirect, isRedirect } from '@sveltejs/kit';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 export async function handle({ event, resolve }) {
-  // 1. Instanciación oficial SSR: Vinculación nativa con el sistema de cookies de SvelteKit
+  // 1. Instanciación oficial SSR vinculada al sistema de cookies de SvelteKit
   event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
     cookies: {
       getAll() {
@@ -17,13 +17,12 @@ export async function handle({ event, resolve }) {
     }
   });
 
-  // 2. Operador seguro de identidad: Evita la desincronización de tokens en Cloudflare Edge
+  // 2. Operador seguro de sesión certificado para Cloudflare Edge
   event.locals.safeGetSession = async () => {
     try {
       const { data: { session } } = await event.locals.supabase.auth.getSession();
       if (!session) return { session: null, user: null };
 
-      // Validación real contra los servidores de Supabase Auth
       const { data: { user }, error } = await event.locals.supabase.auth.getUser();
       if (error) return { session: null, user: null };
 
@@ -33,7 +32,7 @@ export async function handle({ event, resolve }) {
     }
   };
 
-  // 3. Filtro de protección de rutas para la consola de administración
+  // 3. Barrera de seguridad para la consola de administración
   if (event.url.pathname.startsWith('/admin')) {
     const { user } = await event.locals.safeGetSession();
     if (!user) {
@@ -41,7 +40,6 @@ export async function handle({ event, resolve }) {
     }
   }
 
-  // 4. Resolución de peticiones inyectando las cabeceras de paginación de Supabase si se requieren
   return resolve(event, {
     filterSerializedResponseHeaders(name) {
       return name === 'content-range' || name === 'x-supabase-api-version';
@@ -51,5 +49,5 @@ export async function handle({ event, resolve }) {
 
 export async function handleError({ error }) {
   console.error('🔥 [ERROR CRÍTICO SSR]:', error);
-  return { message: 'Fallo interno de infraestructura.' };
+  return { message: 'Fallo interno del servidor.' };
 }
