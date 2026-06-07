@@ -1,6 +1,6 @@
 <script>
   import { applyAction, enhance } from '$app/forms';
-  import { page } from '$app/state'; // Svelte 5: Estado nativo de página
+  import { page } from '$app/state'; // API moderna de Svelte 5 para estados de página
   
   const motivo = $derived(page.url.searchParams.get('motivo'));
   let cargando = $state(false);
@@ -13,10 +13,14 @@
       if (result.type === 'failure') {
         error = result.data?.error || 'Error al iniciar sesión';
         cargando = false;
-      } else if (result.type === 'redirect') {
-        // BLINDAJE DE REDIRECCIÓN: Forzamos al navegador a realizar una carga fuerte
-        // Esto garantiza que las cookies de Supabase se escriban al 100% antes de ir a /admin
-        window.location.href = result.location;
+      } else if (result.type === 'success') {
+        // Redirección segura de Svelte 5: el servidor nos confirmó éxito y que grabó las cookies.
+        // Forzamos la redirección nativa para asegurar que la sesión esté 100% activa en /admin
+        if (result.data?.redirectTo) {
+          window.location.href = result.data.redirectTo;
+        } else {
+          await applyAction(result);
+        }
       } else {
         await applyAction(result);
       }
