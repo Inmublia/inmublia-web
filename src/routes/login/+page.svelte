@@ -1,9 +1,10 @@
 <script>
   import { applyAction, enhance } from '$app/forms';
-  import { page } from '$app/stores';
+  import { page } from '$app/state'; // Svelte 5: Estado nativo de página sin stores
   
-  // Capturamos el motivo de la URL (?motivo=inactividad)
-  const motivo = $page.url.searchParams.get('motivo');
+  // Svelte 5: Capturamos el motivo directamente de forma reactiva
+  const motivo = $derived(page.url.searchParams.get('motivo'));
+  
   let cargando = $state(false);
   let error = $state('');
 
