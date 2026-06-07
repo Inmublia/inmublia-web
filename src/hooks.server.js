@@ -1,21 +1,26 @@
 import { createServerClient } from '@supabase/ssr';
 import { redirect } from '@sveltejs/kit';
-import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { env } from '$env/dynamic/public'; // ¡MIGRACIÓN A ENTORNO DINÁMICO CRUCIAL EN CLOUDFLARE!
 
 export async function handle({ event, resolve }) {
+  const supabaseUrl = env.PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = env.PUBLIC_SUPABASE_ANON_KEY;
+
+  // Validación de seguridad para depuración en tu consola de Cloudflare
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('⚠️ [Supabase SSR Warning]: Las variables dinámicas de Supabase no están definidas en Cloudflare.');
+  }
+
   // 1. Instanciación oficial SSR vinculada a cookies y optimizada para Cloudflare Edge
-  event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+  event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
         return event.cookies.getAll();
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          // Desestructuramos el dominio para evitar bloqueos en entornos locales o proxies
-          const { domain, ...cleanOptions } = options;
-          
           event.cookies.set(name, value, { 
-            ...cleanOptions, 
+            ...options, 
             path: '/' 
           });
         });
