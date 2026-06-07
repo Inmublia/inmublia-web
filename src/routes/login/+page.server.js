@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 
 export const actions = {
+  // Acción de login oficial que genera las cookies correctas
   ingresar: async ({ request, locals }) => {
     const formData = await request.formData();
     const email = formData.get('email');
@@ -10,7 +11,6 @@ export const actions = {
       return fail(400, { error: 'Faltan credenciales', email });
     }
 
-    // 1. Iniciamos sesión en Supabase
     const { error } = await locals.supabase.auth.signInWithPassword({
       email,
       password
@@ -20,13 +20,9 @@ export const actions = {
       return fail(400, { error: 'Correo o contraseña incorrectos', email });
     }
 
-    // 2. ¡EL TRUCO MAESTRO DE SUPABASE SSR!:
-    // Forzamos al cliente a leer la sesión recién creada. Esto obliga
-    // inmediatamente a Supabase SSR a disparar el callback 'setAll' del hook,
-    // volcando y escribiendo físicamente las cookies en SvelteKit antes de retornar.
+    // Forzamos el volcado de cookies de Supabase SSR antes de retornar
     await locals.supabase.auth.getSession();
 
-    // 3. Retornamos éxito de manera limpia con el destino de redirección
     return { success: true, redirectTo: '/admin' };
   },
 
