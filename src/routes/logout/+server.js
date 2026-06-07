@@ -1,12 +1,38 @@
 import { redirect } from '@sveltejs/kit';
 
-export const POST = async ({ locals }) => {
-  // Destruimos la sesión activa en el servidor
+/**
+ * Lógica unificada para destruir la sesión local y del servidor.
+ */
+async function handleLogout({ locals, cookies }) {
+  // 1. Destrucción inmediata de la cookie en el navegador (Seguridad local primero)
+  cookies.delete('inmublia-auth-token', {
+    path: '/',
+    secure: true,
+    httpOnly: true,
+    sameSite: 'lax'
+  });
+
+  // 2. Intento controlado de invalidación en el servidor de Supabase
   if (locals.supabase) {
-    const { error } = await locals.supabase.auth.signOut();
-    if (error) console.error("Error destruyendo sesión:", error.message);
+    try {
+      // Envolvemos en try/catch para evitar que un token ya expirado 
+      // o un error de red con Supabase bloquee la salida del usuario.
+      await locals.supabase.auth.signOut();
+    } catch (err) {
+      console.warn("Aviso: No se pudo notificar la salida a Supabase (posible sesión ya expirada):", err);
+    }
   }
-  
-  // Redirigimos limpio a la página de login
+
+  // 3. Redirección limpia al login libre de estado anterior
   throw redirect(303, '/login');
+}
+
+// Soporte para peticiones seguras (ej. <form method="POST" action="/logout">)
+export const POST = async ({ locals, cookies }) => {
+  return await handleLogout({ locals, cookies });
+};
+
+// Soporte para acceso directo por URL o enlaces tradicionales (ej. <a href="/logout">)
+export const GET = async ({ locals, cookies }) => {
+  return await handleLogout({ locals, cookies });
 };
