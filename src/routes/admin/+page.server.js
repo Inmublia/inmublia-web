@@ -24,7 +24,7 @@ export async function load({ locals }) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
 
-    // 1. Buscamos al broker (Filtro seguro por el email autenticado en locals)
+    // 1.0 Buscamos al broker (Filtro seguro por el email autenticado en locals)
     const { data: broker, error: brokerError } = await supabaseAdmin
       .from('brokers')
       .select('*')
