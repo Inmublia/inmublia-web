@@ -1,4 +1,4 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 
 export const actions = {
   ingresar: async ({ request, locals }) => {
@@ -10,7 +10,7 @@ export const actions = {
       return fail(400, { error: 'Faltan credenciales', email });
     }
 
-    // El inicio de sesión se efectúa sobre locals.supabase, escribiendo las cookies automáticamente
+    // El inicio de sesión escribe las cookies de Supabase SSR de forma nativa
     const { error } = await locals.supabase.auth.signInWithPassword({
       email,
       password
@@ -20,7 +20,9 @@ export const actions = {
       return fail(400, { error: 'Correo o contraseña incorrectos', email });
     }
 
-    throw redirect(303, '/admin');
+    // EVITAMOS THROW REDIRECT: De esta forma aseguramos que SvelteKit y Cloudflare
+    // empaqueten y envíen las cookies de sesión al navegador de manera segura.
+    return { success: true, redirectTo: '/admin' };
   },
 
   recuperar: async ({ request, locals }) => {
