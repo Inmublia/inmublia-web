@@ -12,13 +12,13 @@ const getSupabaseAdmin = () => {
 };
 
 export async function load({ locals }) {
-  const user = locals.user;
+  const { user } = await locals.safeGetSession();
   if (!user) throw redirect(303, '/login');
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
 
-    // 1. Buscamos al broker
+    // 1. Buscamos al broker asignado por correo
     const { data: broker, error: brokerError } = await supabaseAdmin
       .from('brokers')
       .select('*')
@@ -26,18 +26,16 @@ export async function load({ locals }) {
       .single();
 
     if (brokerError || !broker) {
-      // SvelteKit maneja este redirect como una excepción especial bajo el capó
       throw redirect(303, '/login?error=broker-not-found');
     }
 
-    // 2. Traemos las propiedades cruzando la tabla de open_houses
+    // 2. Extracción relacional de propiedades y open_houses
     const { data: propiedades, error: propError } = await supabaseAdmin
       .from('propiedades')
-      .select('*, open_houses(id, event_date)') // Tu cruce mágico intacto
+      .select('*, open_houses(id, event_date)')
       .eq('broker_id', broker.id)
       .order('creado_en', { ascending: false });
 
-    // Si Supabase devuelve un error en la consulta (ej. tabla caída)
     if (propError) {
       console.error('Error de Supabase al consultar propiedades:', propError);
       throw error(500, {
@@ -52,13 +50,9 @@ export async function load({ locals }) {
     };
 
   } catch (err) {
-    // EL BLINDAJE ENTERPRISE:
-    // Si la excepción es una redirección (ej. login) o un error de SvelteKit, la dejamos pasar.
     if (isRedirect(err) || isHttpError(err)) {
       throw err;
     }
-
-    // Si es un error desconocido de infraestructura (Cloudflare Edge, red caída, etc)
     console.error('Error crítico no controlado en consola admin:', err);
     throw error(500, {
       message: 'Fallo de conectividad al intentar cargar el tablero de control.',
@@ -69,8 +63,7 @@ export async function load({ locals }) {
 
 export const actions = {
   eliminar: async ({ request, locals }) => {
-    // Tu acción queda exactamente igual, pero la aseguramos un poco
-    const user = locals.user;
+    const { user } = await locals.safeGetSession();
     if (!user) return fail(401, { error: 'No autorizado' });
 
     try {
