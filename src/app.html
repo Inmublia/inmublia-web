@@ -5,7 +5,12 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
 		
+		<!-- 1. Declaración explícita para navegadores modernos (PNG) -->
 		<link rel="icon" type="image/png" href="%sveltekit.assets%/favicon.png?v=3" />
+		
+		<!-- 2. Declaración explícita para evitar que busque el .ico por defecto (si lo mantienes) -->
+		<!-- Si eliminaste el .ico por completo, puedes omitir esta línea -->
+		<link rel="alternate icon" type="image/x-icon" href="%sveltekit.assets%/favicon.ico?v=3" />
 		
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
