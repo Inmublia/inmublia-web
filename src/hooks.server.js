@@ -1,55 +1,33 @@
 import { createServerClient } from '@supabase/ssr';
 import { redirect } from '@sveltejs/kit';
-import { env } from '$env/dynamic/public'; // Evita vacíos en compilación de Cloudflare
+import { env } from '$env/dynamic/public'; // Variables dinámicas de entorno
 
 export async function handle({ event, resolve }) {
-  const supabaseUrl = env.PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = env.PUBLIC_SUPABASE_ANON_KEY;
+  // Fallback robusto para leer variables tanto de SvelteKit como del entorno de Cloudflare Pages
+  const supabaseUrl = env.PUBLIC_SUPABASE_URL || event.platform?.env?.PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = env.PUBLIC_SUPABASE_ANON_KEY || event.platform?.env?.PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('🔥 [ERROR ENV]: Las variables de Supabase no están definidas en el entorno dinámico de Cloudflare.');
+    console.error('🔥 [ERROR ENV]: Las variables de Supabase no están definidas en hooks.server.js.');
   }
 
-  // Detectamos si el usuario final está bajo SSL real o proxy de Cloudflare (Flexible SSL)
-  const isHttps = event.url.protocol === 'https:' || event.request.headers.get('x-forwarded-proto') === 'https';
-
-  // 1. Instanciación oficial SSR con parser tolerante a fallos de Cloudflare
+  // 1. Instanciación oficial SSR utilizando las opciones exactas dictadas por Supabase SSR
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
-        // Método primario: Intentar usar el cargador nativo de SvelteKit
-        const svelteKitCookies = event.cookies.getAll();
-        if (svelteKitCookies && svelteKitCookies.length > 0) {
-          return svelteKitCookies;
-        }
-
-        // FALLBACK FAILSAFE: Si SvelteKit falla en el Edge, leemos la cabecera HTTP cruda directa
-        const rawCookieHeader = event.request.headers.get('cookie') || '';
-        const parsedCookies = [];
-        rawCookieHeader.split(';').forEach(cookieStr => {
-          const parts = cookieStr.split('=');
-          if (parts.length >= 2) {
-            const name = parts[0].trim();
-            const value = parts.slice(1).join('=').trim();
-            parsedCookies.push({ name, value });
-          }
-        });
-        return parsedCookies;
+        return event.cookies.getAll();
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          // Desestructuramos el dominio para evitar bloqueos en entornos de Cloudflare Pages
-          const { domain, ...cleanOptions } = options;
-          
+          // Dejamos que Supabase SSR calcule 'secure' y 'sameSite' de forma nativa.
+          // Solo nos aseguramos de que el path sea la raíz '/' para que sea accesible en todo el SaaS.
           event.cookies.set(name, value, { 
-            ...cleanOptions, 
-            path: '/',
-            secure: isHttps // Forzamos SSL si el usuario está en HTTPS (soluciona Flexible SSL)
+            ...options, 
+            path: '/' 
           });
         });
       }
-    },
-    fetch: event.fetch
+    }
   });
 
   // 2. Operador seguro de sesión certificado
@@ -62,8 +40,7 @@ export async function handle({ event, resolve }) {
       if (error) return { session: null, user: null };
 
       return { session, user };
-    } catch (err) {
-      console.error('🔥 Error en safeGetSession:', err);
+    } catch {
       return { session: null, user: null };
     }
   };
