@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 
 export async function load({ locals, setHeaders, url }) {
-  // 1. DESTRUCCIÓN DE CACHÉ (Solución al botón "Atrás")
+  // 1. DESTRUCCIÓN DE CACHÉ (Solución de seguridad al botón "Atrás")
   // Le ordenamos estrictamente al navegador que NUNCA guarde una copia local de las vistas de administración.
   setHeaders({
     'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
@@ -11,12 +11,12 @@ export async function load({ locals, setHeaders, url }) {
   });
 
   // 2. VALIDACIÓN DE SESIÓN ESTRICTA
-  // Dependiendo de cómo configuraste Supabase en tu hooks.server.js, el usuario suele vivir en locals.user
+  // Extraemos el usuario verificado de forma segura desde locals (hidratado por el hooks.server.js)
   const user = locals.user;
 
   // Si no hay usuario activo o el token expiró...
   if (!user) {
-    // Evitamos redirecciones en bucle si ya está en login (por seguridad)
+    // Evitamos redirecciones en bucle si ya está en login (redundancia de seguridad)
     if (url.pathname.startsWith('/login')) {
       return {};
     }
@@ -26,7 +26,7 @@ export async function load({ locals, setHeaders, url }) {
   }
 
   // 3. EXPOSICIÓN DE DATOS SEGUROS
-  // Retornamos el usuario para que cualquier +page.svelte dentro de /admin pueda usar data.user
+  // Retornamos el usuario para que cualquier +page.svelte o sub-loader dentro de /admin pueda usar data.user
   return {
     user
   };
