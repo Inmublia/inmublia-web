@@ -15,14 +15,32 @@ export async function handle({ event, resolve }) {
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
-        return event.cookies.getAll();
+        const svelteKitCookies = event.cookies.getAll();
+        if (svelteKitCookies && svelteKitCookies.length > 0) {
+          return svelteKitCookies;
+        }
+
+        // Failsafe: Parser manual de cookies en crudo si SvelteKit tiene lag de lectura en Edge
+        const rawCookieHeader = event.request.headers.get('cookie') || '';
+        const parsedCookies = [];
+        rawCookieHeader.split(';').forEach(cookieStr => {
+          const parts = cookieStr.split('=');
+          if (parts.length >= 2) {
+            const name = parts[0].trim();
+            const value = parts.slice(1).join('=').trim();
+            parsedCookies.push({ name, value });
+          }
+        });
+        return parsedCookies;
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          // Dejamos que Supabase SSR calcule 'secure' y 'sameSite' de forma nativa.
-          // Solo nos aseguramos de que el path sea la raíz '/' para que sea accesible en todo el SaaS.
+          // ⚠️ FIX DE SEGURIDAD CRÍTICO: Desestructuramos para ELIMINAR 'domain' de las opciones.
+          // Esto evita que el navegador rechace silenciosamente la cookie por Same-Origin Policy.
+          const { domain, ...cleanOptions } = options;
+          
           event.cookies.set(name, value, { 
-            ...options, 
+            ...cleanOptions, 
             path: '/' 
           });
         });
