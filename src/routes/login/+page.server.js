@@ -2,27 +2,28 @@ import { fail, redirect } from '@sveltejs/kit';
 
 export const actions = {
   ingresar: async ({ request, locals }) => {
+    console.log(`[🔍 DEBUG LOGIN] Iniciando acción 'ingresar'...`);
     const formData = await request.formData();
     const email = formData.get('email');
     const password = formData.get('password');
 
     if (!email || !password) {
-      return fail(400, { error: 'Faltan credenciales', email });
+      return fail(400, { error: 'Faltan credenciales' });
     }
 
-    // ELIMINADO: La recreación del cliente manual.
-    // Usamos el cliente ya hidratado por el hook.
+    console.log(`[🔍 DEBUG LOGIN] Disparando signInWithPassword para: ${email}`);
     const { error } = await locals.supabase.auth.signInWithPassword({
       email,
       password
     });
 
     if (error) {
-      return fail(400, { error: 'Correo o contraseña incorrectos', email });
+      console.error(`🔥 [ERROR signInWithPassword]:`, error.message);
+      return fail(400, { error: 'Correo o contraseña incorrectos' });
     }
 
-    // ELIMINADO: return { success: true } (Esto te causaba el cuelgue visual)
-    // SvelteKit EXIGE throw redirect para cambiar de página de inmediato.
+    console.log(`[🔍 DEBUG LOGIN] Credenciales correctas. Lanzando Redirect 303 a /admin...`);
+    // CRÍTICO: Esto es lo que manda al navegador a la consola
     throw redirect(303, '/admin');
   },
 
@@ -30,14 +31,13 @@ export const actions = {
     const formData = await request.formData();
     const email = formData.get('email');
 
-    if (!email) return fail(400, { error: 'Por favor, ingresa tu correo electrónico.' });
+    if (!email) return fail(400, { error: 'Falta correo.' });
 
     const { error } = await locals.supabase.auth.resetPasswordForEmail(email, {
       redirectTo: 'https://inmublia.com/recuperar-acceso',
     });
 
     if (error) return fail(400, { error: error.message });
-
-    return { success: true, message: 'Te hemos enviado un enlace al correo para recuperar tu contraseña.' };
+    return { success: true, message: 'Enlace enviado.' };
   }
 };
