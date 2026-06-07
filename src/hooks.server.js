@@ -3,7 +3,7 @@ import { redirect } from '@sveltejs/kit';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 export async function handle({ event, resolve }) {
-  // 1. Instanciación oficial SSR vinculada a cookies y optimizada para Cloudflare Edge
+  // 1. Instanciación oficial SSR con cookies dinámicas y fetch para Edge (Cloudflare)
   event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
     cookies: {
       getAll() {
@@ -11,22 +11,18 @@ export async function handle({ event, resolve }) {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          // Robustecemos los atributos de la cookie para producción en Edge
+          // Dejamos que SvelteKit controle dinámicamente el flag 'secure' según el entorno
           event.cookies.set(name, value, { 
             ...options, 
-            path: '/',
-            secure: true,
-            httpOnly: true,
-            sameSite: 'lax'
+            path: '/' 
           });
         });
       }
     },
-    // Vinculamos el fetch nativo de SvelteKit para optimizar la red en Cloudflare
     fetch: event.fetch
   });
 
-  // 2. Operador seguro de sesión certificado
+  // 2. Recuperador seguro de sesión
   event.locals.safeGetSession = async () => {
     try {
       const { data: { session } } = await event.locals.supabase.auth.getSession();
@@ -41,7 +37,7 @@ export async function handle({ event, resolve }) {
     }
   };
 
-  // 3. Barrera de seguridad para la consola de administración
+  // 3. Protección de rutas administrativas
   if (event.url.pathname.startsWith('/admin')) {
     const { user } = await event.locals.safeGetSession();
     
@@ -49,18 +45,17 @@ export async function handle({ event, resolve }) {
       throw redirect(303, '/login?motivo=inactividad');
     }
 
-    // ¡CORRECCIÓN CRÍTICA!: Guardamos el usuario validado para que tus páginas .server.js lo consuman
     event.locals.user = user;
   }
 
-  // 4. Resolvemos la petición inyectando filtros necesarios para serialización de Supabase
+  // 4. Resolver la petición
   const response = await resolve(event, {
     filterSerializedResponseHeaders(name) {
       return name === 'content-range' || name === 'x-supabase-api-version';
     }
   });
 
-  // 5. Cabeceras de protección indispensables para un entorno SaaS
+  // 5. Cabeceras de protección SaaS contra Clickjacking y Sniffing
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
