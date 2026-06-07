@@ -1,27 +1,50 @@
 import { createServerClient } from '@supabase/ssr';
 import { redirect } from '@sveltejs/kit';
-import { env } from '$env/dynamic/public'; // ¡MIGRACIÓN A ENTORNO DINÁMICO CRUCIAL EN CLOUDFLARE!
+import { env } from '$env/dynamic/public'; // Evita vacíos en compilación de Cloudflare
 
 export async function handle({ event, resolve }) {
   const supabaseUrl = env.PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = env.PUBLIC_SUPABASE_ANON_KEY;
 
-  // Validación de seguridad para depuración en tu consola de Cloudflare
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('⚠️ [Supabase SSR Warning]: Las variables dinámicas de Supabase no están definidas en Cloudflare.');
+    console.error('🔥 [ERROR ENV]: Las variables de Supabase no están definidas en el entorno dinámico de Cloudflare.');
   }
 
-  // 1. Instanciación oficial SSR vinculada a cookies y optimizada para Cloudflare Edge
+  // Detectamos si el usuario final está bajo SSL real o proxy de Cloudflare (Flexible SSL)
+  const isHttps = event.url.protocol === 'https:' || event.request.headers.get('x-forwarded-proto') === 'https';
+
+  // 1. Instanciación oficial SSR con parser tolerante a fallos de Cloudflare
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
-        return event.cookies.getAll();
+        // Método primario: Intentar usar el cargador nativo de SvelteKit
+        const svelteKitCookies = event.cookies.getAll();
+        if (svelteKitCookies && svelteKitCookies.length > 0) {
+          return svelteKitCookies;
+        }
+
+        // FALLBACK FAILSAFE: Si SvelteKit falla en el Edge, leemos la cabecera HTTP cruda directa
+        const rawCookieHeader = event.request.headers.get('cookie') || '';
+        const parsedCookies = [];
+        rawCookieHeader.split(';').forEach(cookieStr => {
+          const parts = cookieStr.split('=');
+          if (parts.length >= 2) {
+            const name = parts[0].trim();
+            const value = parts.slice(1).join('=').trim();
+            parsedCookies.push({ name, value });
+          }
+        });
+        return parsedCookies;
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
+          // Desestructuramos el dominio para evitar bloqueos en entornos de Cloudflare Pages
+          const { domain, ...cleanOptions } = options;
+          
           event.cookies.set(name, value, { 
-            ...options, 
-            path: '/' 
+            ...cleanOptions, 
+            path: '/',
+            secure: isHttps // Forzamos SSL si el usuario está en HTTPS (soluciona Flexible SSL)
           });
         });
       }
@@ -39,7 +62,8 @@ export async function handle({ event, resolve }) {
       if (error) return { session: null, user: null };
 
       return { session, user };
-    } catch {
+    } catch (err) {
+      console.error('🔥 Error en safeGetSession:', err);
       return { session: null, user: null };
     }
   };
