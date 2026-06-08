@@ -84,8 +84,8 @@
 
   // --- Lógica del Panel Lateral (Bitácora) ---
   function abrirPanel(lead) {
-    selectedLead = lead;
-    // Asegurarnos de que tenga el array de notas listo aunque venga vacío
+    // Forzamos clonación para romper la referencia y asegurar reactividad
+    selectedLead = { ...lead };
     if (!selectedLead.lead_notas) selectedLead.lead_notas = [];
     isPanelOpen = true;
   }
@@ -110,9 +110,9 @@
       creado_en: new Date().toISOString()
     };
     
+    // Mutación forzada para Svelte 5
     selectedLead.lead_notas = [nuevaNotaObj, ...selectedLead.lead_notas];
     
-    // Automatización inteligente: Si era nuevo, lo pasamos a contactado
     if (selectedLead.estado === 'nuevo') {
       actualizarEstadoLocalYBD(selectedLead.id, 'contactado');
       selectedLead.estado = 'contactado';
@@ -131,6 +131,12 @@
       if (response.ok) {
         nuevaNotaTexto = ''; // Limpiamos la caja
         await invalidateAll(); // Refrescar datos reales del servidor
+        
+        // Buscamos el lead actualizado en los datos frescos y recargamos el panel
+        const leadActualizado = data.leads.find(l => l.id === selectedLead.id);
+        if (leadActualizado) {
+          selectedLead = { ...leadActualizado };
+        }
       }
     } catch (err) {
       console.error("Error al guardar nota:", err);
@@ -220,7 +226,7 @@
                   ondragend={terminar}
                   class="bg-white p-5 rounded-xl border border-slate-200 cursor-pointer active:cursor-grabbing hover:border-blue-400 hover:shadow-md transition-all group relative"
                 >
-                  <button onclick={() => abrirPanel(lead)} class="absolute inset-0 w-full h-full z-0 cursor-pointer"></button>
+                  <button aria-label="Abrir detalles del lead" onclick={() => abrirPanel(lead)} class="absolute inset-0 w-full h-full z-0 cursor-pointer"></button>
 
                   <div class="flex items-start justify-between mb-4 relative z-10 pointer-events-none">
                     <div class="flex items-center gap-3">
@@ -231,7 +237,7 @@
                       </div>
                     </div>
                     
-                    <button onclick={(e) => { e.stopPropagation(); eliminarLead(lead.id); }} class="pointer-events-auto text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Descartar prospecto">
+                    <button aria-label="Eliminar lead" onclick={(e) => { e.stopPropagation(); eliminarLead(lead.id); }} class="pointer-events-auto text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Descartar prospecto">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                     </button>
                   </div>
@@ -295,7 +301,7 @@
               </span>
             </div>
           </div>
-          <button onclick={cerrarPanel} class="text-slate-400 hover:text-slate-700 p-2 rounded-full hover:bg-slate-100 transition-colors">
+          <button aria-label="Cerrar panel" onclick={cerrarPanel} class="text-slate-400 hover:text-slate-700 p-2 rounded-full hover:bg-slate-100 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
         </div>
