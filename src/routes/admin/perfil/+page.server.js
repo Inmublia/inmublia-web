@@ -1,24 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
-import { env as publicEnv } from '$env/dynamic/public';
-import { env as privateEnv } from '$env/dynamic/private';
-import { redirect, fail } from '@sveltejs/kit';
-
-// Usamos el cliente con privilegios de Administrador para saltar bloqueos de RLS al subir fotos
-const getSupabaseAdmin = () => {
-  return createClient(
-    publicEnv.PUBLIC_SUPABASE_URL,
-    privateEnv.SUPABASE_SERVICE_ROLE_KEY,
-    { auth: { persistSession: false } }
-  );
-};
+import { fail, redirect } from '@sveltejs/kit';
+import { PLANES_CONFIG } from '$lib/config/plans';
 
 export async function load({ locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
-  const supabaseAdmin = getSupabaseAdmin();
-
-  const { data: broker, error } = await supabaseAdmin
+  const { data: broker, error } = await locals.supabase
     .from('brokers')
     .select('*')
     .eq('email', user.email)
@@ -26,76 +13,99 @@ export async function load({ locals }) {
 
   if (error || !broker) throw redirect(303, '/login');
 
-  return { broker };
+  // Cargamos la matriz lógica del SaaS para saber qué templates tiene disponibles
+  const planConfig = PLANES_CONFIG[broker.plan_suscripcion] || PLANES_CONFIG['basico'];
+
+  return { broker, planConfig };
 }
 
 export const actions = {
+  // Acción Principal: Perfil, Imágenes y Templates
   updateProfile: async ({ request, locals }) => {
     const user = locals.user;
     if (!user) throw redirect(303, '/login');
 
-    const supabaseAdmin = getSupabaseAdmin();
     const formData = await request.formData();
     
     const nombre_comercial = formData.get('nombre_comercial')?.toString().trim();
     const whatsapp = formData.get('whatsapp')?.toString().trim().replace(/[^0-9]/g, '');
     const subdominio = formData.get('subdominio')?.toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
-    const webhook_url = formData.get('webhook_url')?.toString().trim() || null;
     const bio = formData.get('bio')?.toString().trim() || null;
     const instagram = formData.get('instagram')?.toString().trim() || null;
     const linkedin = formData.get('linkedin')?.toString().trim() || null;
+    const template_seleccionado = formData.get('template_seleccionado')?.toString().trim();
 
     if (!nombre_comercial || !whatsapp || !subdominio) {
-      // Usamos error 400 para que SvelteKit no censure el mensaje en producción
       return fail(400, { error: 'El nombre, WhatsApp y subdominio son obligatorios.' });
     }
 
-    // LÓGICA DE SUBIDA DE IMAGEN (Ahora con permisos de administrador)
-    const avatarFile = formData.get('avatar');
-    let avatar_url = undefined; 
+    // 1. Obtener datos actuales del broker para validar reglas de negocio SaaS
+    const { data: brokerActual } = await locals.supabase.from('brokers').select('id, plan_suscripcion').eq('email', user.email).single();
+    if (!brokerActual) return fail(403, { error: 'Perfil no autorizado.' });
 
-    if (avatarFile && avatarFile.size > 0 && avatarFile.name !== 'undefined') {
-      const fileExt = avatarFile.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      
-      const { data: uploadData, error: uploadError } = await supabaseAdmin
-        .storage
-        .from('agencias')
-        .upload(fileName, avatarFile, { upsert: true });
-
-      if (uploadError) {
-        console.error("Error subiendo foto:", uploadError);
-        return fail(400, { error: `Permiso denegado al subir foto: ${uploadError.message}` });
+    // Validar Template seleccionado contra el Plan del usuario
+    if (template_seleccionado) {
+      const planSaaS = PLANES_CONFIG[brokerActual.plan_suscripcion] || PLANES_CONFIG['basico'];
+      if (!planSaaS.templates_autorizados.includes(template_seleccionado)) {
+        return fail(403, { error: 'Tu nivel de suscripción no cubre la plantilla seleccionada.' });
       }
-
-      const { data: { publicUrl } } = supabaseAdmin.storage.from('agencias').getPublicUrl(fileName);
-      avatar_url = publicUrl;
     }
 
     const updatePayload = {
       nombre_comercial,
       whatsapp,
       subdominio,
-      webhook_url,
       bio,
       instagram,
-      linkedin
+      linkedin,
+      template_seleccionado: template_seleccionado || undefined
     };
 
-    if (avatar_url) updatePayload.avatar_url = avatar_url;
+    // 2. Subida Segura de Avatar al Storage
+    const avatarFile = formData.get('avatar');
+    if (avatarFile && avatarFile.size > 0 && avatarFile.name !== 'undefined') {
+      const fileExt = avatarFile.name.split('.').pop();
+      const fileName = `${brokerActual.id}-${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await locals.supabase
+        .storage
+        .from('agencias')
+        .upload(fileName, avatarFile, { upsert: true });
 
-    const { error: updateError } = await supabaseAdmin
-      .from('brokers')
-      .update(updatePayload)
-      .eq('email', user.email);
+      if (uploadError) return fail(400, { error: `No se pudo subir la foto: ${uploadError.message}` });
 
-    if (updateError) {
-      if (updateError.code === '23505') {
-        return fail(400, { error: 'Ese enlace personalizado ya está en uso. Elige otro.' });
-      }
-      return fail(400, { error: `Error guardando datos: ${updateError.message}` });
+      const { data: { publicUrl } } = locals.supabase.storage.from('agencias').getPublicUrl(fileName);
+      updatePayload.avatar_url = publicUrl;
     }
 
+    // 3. Persistir en Base de Datos
+    const { error: updateError } = await locals.supabase
+      .from('brokers')
+      .update(updatePayload)
+      .eq('id', brokerActual.id);
+
+    if (updateError) {
+      if (updateError.code === '23505') return fail(400, { error: 'Ese enlace (subdominio) ya está registrado.' });
+      return fail(500, { error: `Error guardando datos: ${updateError.message}` });
+    }
+
+    return { success: true };
+  },
+
+  // Acción Secundaria Independiente: Webhook
+  actualizarWebhook: async ({ request, locals }) => {
+    const user = locals.user;
+    if (!user) throw redirect(303, '/login');
+
+    const formData = await request.formData();
+    const webhook_url = formData.get('webhook_url')?.toString().trim() || null;
+
+    const { error } = await locals.supabase
+      .from('brokers')
+      .update({ webhook_url })
+      .eq('email', user.email);
+
+    if (error) return fail(500, { error: 'Error guardando webhook.' });
     return { success: true };
   }
 };
