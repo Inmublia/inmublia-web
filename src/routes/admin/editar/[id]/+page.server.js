@@ -1,4 +1,3 @@
-import { supabase } from '$lib/supabase';
 import { redirect, fail } from '@sveltejs/kit';
 
 export async function load({ params, locals }) {
@@ -6,7 +5,13 @@ export async function load({ params, locals }) {
   if (!user) throw redirect(303, '/login');
 
   const { id } = params;
-  const { data: propiedad } = await supabase.from('propiedades').select('*').eq('id', id).single();
+  
+  // USAMOS locals.supabase (aislado por petición) en lugar del cliente global
+  const { data: propiedad } = await locals.supabase
+    .from('propiedades')
+    .select('*')
+    .eq('id', id)
+    .single();
   
   if (!propiedad) throw redirect(303, '/admin');
   return { propiedad };
@@ -24,8 +29,9 @@ export const actions = {
     const parseNum = (val) => val ? parseFloat(val) : 0;
     const parseIntNum = (val) => val ? parseInt(val) : 0;
 
-    // NUEVO: Extraemos el enlace de video de YouTube/Vimeo
+    // Extraemos los enlaces multimedia
     const video_url = formData.get('video_url') || null;
+    const recorrido_3d_url = formData.get('recorrido_3d_url') || null; // 🔥 NUEVO: Captura de Matterport
 
     const actualizaciones = {
       titulo: formData.get('titulo'),
@@ -41,13 +47,21 @@ export const actions = {
       medio_bano: parseIntNum(formData.get('medio_bano')),
       estacionamientos: parseIntNum(formData.get('estacionamientos')),
       ubicacion: formData.get('ubicacion') || 'Ubicación Privada',
-      video_url: video_url // NUEVO: Se actualiza el enlace en la BD
+      video_url: video_url,
+      recorrido_3d_url: recorrido_3d_url // 🔥 NUEVO: Envío a la base de datos
     };
 
-    const { data: broker } = await supabase.from('brokers').select('id').eq('email', user.email).single();
+    // Validación segura de identidad del asesor
+    const { data: broker } = await locals.supabase
+      .from('brokers')
+      .select('id')
+      .eq('email', user.email)
+      .single();
+
+    if (!broker) return fail(403, { error: 'Perfil de asesor no encontrado.' });
 
     // ==========================================
-    // PROCESAMIENTO DE IMÁGENES
+    // PROCESAMIENTO DE IMÁGENES EN STORAGE SEGURO
     // ==========================================
     const imagen = formData.get('imagen'); 
     const galeriaArchivos = formData.getAll('galeria');
@@ -57,10 +71,15 @@ export const actions = {
       const fileExt = imagen.name.split('.').pop();
       const fileName = `${broker.id}/${Date.now()}-main-edit.${fileExt}`;
       const buffer = await imagen.arrayBuffer();
-      const { error: uploadError } = await supabase.storage.from('propiedades').upload(fileName, buffer, { contentType: imagen.type });
+      
+      const { error: uploadError } = await locals.supabase.storage
+        .from('propiedades')
+        .upload(fileName, buffer, { contentType: imagen.type });
       
       if (!uploadError) {
-        const { data: { publicUrl } } = supabase.storage.from('propiedades').getPublicUrl(fileName);
+        const { data: { publicUrl } } = locals.supabase.storage
+          .from('propiedades')
+          .getPublicUrl(fileName);
         actualizaciones.imagen_url = publicUrl;
       }
     }
@@ -73,10 +92,15 @@ export const actions = {
           const ext = file.name.split('.').pop();
           const gName = `${broker.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
           const gBuffer = await file.arrayBuffer();
-          const { error: gError } = await supabase.storage.from('propiedades').upload(gName, gBuffer, { contentType: file.type });
+          
+          const { error: gError } = await locals.supabase.storage
+            .from('propiedades')
+            .upload(gName, gBuffer, { contentType: file.type });
           
           if (!gError) {
-            const { data: { publicUrl } } = supabase.storage.from('propiedades').getPublicUrl(gName);
+            const { data: { publicUrl } } = locals.supabase.storage
+              .from('propiedades')
+              .getPublicUrl(gName);
             galeriaUrls.push(publicUrl);
           }
         }
@@ -89,15 +113,15 @@ export const actions = {
     // ==========================================
     // INSERCIÓN SEGURA (CANDADO DE BROKER ID)
     // ==========================================
-    const { data: updatedData, error } = await supabase
+    const { data: updatedData, error } = await locals.supabase
       .from('propiedades')
       .update(actualizaciones)
       .eq('id', id)
-      .eq('broker_id', broker.id) // Seguridad: El servidor solo actualiza si la casa es de este broker
+      .eq('broker_id', broker.id) // Seguridad: Verifica que la propiedad te pertenezca
       .select();
 
     if (error) return fail(500, { error: `Error SQL al actualizar: ${error.message}` });
-    if (!updatedData || updatedData.length === 0) return fail(500, { error: 'No se pudo actualizar. Verifica que la propiedad exista y te pertenezca.' });
+    if (!updatedData || updatedData.length === 0) return fail(500, { error: 'No se pudo actualizar. Verifica que la propiedad exista.' });
     
     throw redirect(303, '/admin');
   }
