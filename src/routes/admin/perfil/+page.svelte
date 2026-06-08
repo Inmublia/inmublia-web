@@ -6,21 +6,21 @@
   let broker = $state(data.broker || {});
   let planConfig = $derived(data.planConfig || { templates_autorizados: ['classic'] });
   
+  // SOLUCIÓN: Estado reactivo para el grupo de radio buttons
+  let selectedTemplate = $state(broker.template_seleccionado || 'classic');
+
   let savingProfile = $state(false);
-  let savingTemplate = $state(false);
   let showSuccess = $state(false);
-  let showTemplateSuccess = $state(false);
   let previewUrl = $state(null);
 
   let webhookUrl = $state(broker.webhook_url || '');
   let testingWebhook = $state(false);
   let webhookSuccess = $state(false);
 
-  // Catálogo SaaS
   const catalogoTemplates = [
     { id: 'classic', nombre: 'Classic Minimalist', desc: 'Diseño limpio y tradicional.', minPlan: 'basico' },
     { id: 'clean', nombre: 'Clean Base', desc: 'Estilo corporativo de alto contraste.', minPlan: 'basico' },
-    { id: 'modern', nombre: 'Modern Grid', desc: 'Estilo asimétrico con contacto fijo (Estilo Airbnb).', minPlan: 'pro' },
+    { id: 'modern', nombre: 'Modern Grid', desc: 'Estilo asimétrico con contacto fijo.', minPlan: 'pro' },
     { id: 'editorial', nombre: 'Editorial', desc: 'Enfoque en lectura y tipografía elegante.', minPlan: 'pro' },
     { id: 'luxury', nombre: 'Luxury Immersive', desc: 'Diseño premium de pantalla completa.', minPlan: 'elite' },
     { id: 'cinematic', nombre: 'Cinematic', desc: 'Video-first con navegación inmersiva.', minPlan: 'elite' }
@@ -99,10 +99,10 @@
       <div class="max-w-5xl mx-auto">
 
         {#if form?.error}
-           <div class="mb-6 bg-red-50 text-red-600 font-bold p-4 rounded-xl border border-red-100 text-sm animate-[fadeIn_0.3s_ease-out]">{form.error}</div>
+           <div class="mb-6 bg-red-50 text-red-600 font-bold p-4 rounded-xl border border-red-100 text-sm animate-[fadeIn_0.3s_ease-out]" role="alert">{form.error}</div>
         {/if}
         {#if showSuccess}
-          <div class="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-3 animate-[fadeIn_0.3s_ease-out]">
+          <div class="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-3 animate-[fadeIn_0.3s_ease-out]" role="alert">
             <div class="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
             </div>
@@ -204,10 +204,8 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {#each catalogoTemplates as template}
                     {@const autorizado = planConfig.templates_autorizados.includes(template.id)}
-                    {@const activo = broker.template_seleccionado === template.id}
-                    
-                    <label class="relative bg-white border rounded-xl p-4 flex flex-col justify-between cursor-pointer transition-all {activo ? 'border-indigo-600 ring-1 ring-indigo-600 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'} {!autorizado ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}">
-                      <input type="radio" name="template_seleccionado" value={template.id} checked={activo} disabled={!autorizado} class="hidden">
+                    {@const activo = selectedTemplate === template.id} <label class="relative bg-white border rounded-xl p-4 flex flex-col justify-between cursor-pointer transition-all {activo ? 'border-indigo-600 ring-1 ring-indigo-600 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'} {!autorizado ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}">
+                      <input type="radio" name="template_seleccionado" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
                       <div>
                         <div class="flex items-center justify-between mb-2">
                           <span class="font-bold text-sm {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
