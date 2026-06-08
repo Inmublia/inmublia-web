@@ -26,6 +26,15 @@
     return match ? match[1] : null;
   };
 
+  // 🛡️ PARSER INTELIGENTE: Limpia la URL de Matterport (PREMIUM FIX)
+  const obtenerIdMatterport = (url) => {
+    if (!url) return null;
+    const trimmed = url.trim();
+    if (/^[a-zA-Z0-9]{11}$/.test(trimmed)) return trimmed;
+    const match = trimmed.match(/(?:\/show\/\?m=|\/space\/|m=)([a-zA-Z0-9]{11})/);
+    return match ? match[1] : null;
+  };
+
   function descargarVCard() {
     const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${broker.nombre_comercial}\nORG:Inmublia Exclusivas\nTITLE:Asesor Inmobiliario\nTEL;TYPE=CELL:${broker.whatsapp}\nNOTE:Especialista en ${propiedad.ubicacion}\nURL:https://${broker.subdominio}.inmublia.com\nEND:VCARD`;
     const blob = new Blob([vcard], { type: 'text/vcard' });
@@ -220,21 +229,6 @@
         </div>
       {/if}
 
-      {#if propiedad.recorrido_3d_url}
-        <div class="mb-16">
-          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Experiencia Inmersiva 3D</h2>
-          <div class="relative w-full pb-[56.25%] h-0 rounded-sm overflow-hidden shadow-xl border border-slate-100 bg-black">
-            <iframe 
-              title="Recorrido Virtual Matterport"
-              src={propiedad.recorrido_3d_url} 
-              class="absolute top-0 left-0 w-full h-full border-0"
-              allowfullscreen 
-              allow="xr-spatial-tracking">
-            </iframe>
-          </div>
-        </div>
-      {/if}
-
       <div class="flex flex-wrap justify-center gap-x-12 gap-y-8 py-8 border-y {isNight ? 'border-slate-800' : 'border-slate-200'} mb-16">
         <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.recamaras || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">Recámaras</p></div>
         <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden sm:block"></div>
@@ -254,12 +248,33 @@
         </div>
       </div>
 
-      {#if propiedad.video_url && obtenerIdYouTube(propiedad.video_url)}
-        <div class="mb-16">
-          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Recorrido en Video</h2>
-          <div class="relative w-full aspect-video rounded-sm overflow-hidden shadow-xl {isNight ? 'bg-slate-800' : 'bg-slate-100'}">
-            <iframe class="absolute top-0 left-0 w-full h-full" src="https://www.youtube.com/embed/{obtenerIdYouTube(propiedad.video_url)}?autoplay=0&controls=1&rel=0&modestbranding=1" title="Video de la propiedad" frameborder="0" allowfullscreen></iframe>
-          </div>
+      {#if (propiedad.recorrido_3d_url && obtenerIdMatterport(propiedad.recorrido_3d_url)) || (propiedad.video_url && obtenerIdYouTube(propiedad.video_url))}
+        <div class="mb-24 space-y-12">
+          
+          {#if propiedad.recorrido_3d_url && obtenerIdMatterport(propiedad.recorrido_3d_url)}
+            <div>
+              <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Experiencia Inmersiva 3D</h2>
+              <div class="relative w-full pb-[56.25%] h-0 rounded-sm overflow-hidden shadow-xl border border-slate-100 bg-black">
+                <iframe 
+                  title="Recorrido Virtual Matterport"
+                  src="https://my.matterport.com/show/?m={obtenerIdMatterport(propiedad.recorrido_3d_url)}" 
+                  class="absolute top-0 left-0 w-full h-full border-0"
+                  allowfullscreen 
+                  allow="xr-spatial-tracking">
+                </iframe>
+              </div>
+            </div>
+          {/if}
+
+          {#if propiedad.video_url && obtenerIdYouTube(propiedad.video_url)}
+            <div>
+              <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Recorrido en Video</h2>
+              <div class="relative w-full aspect-video rounded-sm overflow-hidden shadow-xl {isNight ? 'bg-slate-800' : 'bg-slate-100'}">
+                <iframe class="absolute top-0 left-0 w-full h-full" src="https://www.youtube.com/embed/{obtenerIdYouTube(propiedad.video_url)}?autoplay=0&controls=1&rel=0&modestbranding=1" title="Video de la propiedad" frameborder="0" allowfullscreen></iframe>
+              </div>
+            </div>
+          {/if}
+
         </div>
       {/if}
 
