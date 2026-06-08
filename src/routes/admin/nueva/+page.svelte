@@ -23,7 +23,7 @@
 <div class="min-h-screen bg-slate-50 flex flex-col">
   <header class="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
     <div class="flex items-center">
-      <a href="/admin" class="text-slate-400 hover:text-blue-600 transition-colors mr-4 bg-slate-100 hover:bg-blue-50 p-2 rounded-lg" title="Volver al inicio">
+      <a href="/admin" class="text-slate-400 hover:text-blue-600 transition-colors mr-4 bg-slate-100 hover:bg-blue-50 p-2 rounded-lg" aria-label="Volver al inicio">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
       </a>
       <h1 class="text-xl font-black text-slate-900">Crear Nueva Propiedad</h1>
@@ -48,8 +48,8 @@
             <p class="text-[11px] text-indigo-700 font-medium">Si la ocultas, quedará en "Pre-Mercado". Ideal para lanzarla en un Open House antes de hacerla pública.</p>
           </div>
           
-          <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
-            <input type="checkbox" name="is_oculta" class="sr-only peer" bind:checked={isOculta}>
+          <label class="relative inline-flex items-center cursor-pointer flex-shrink-0" for="is_oculta">
+            <input type="checkbox" id="is_oculta" name="is_oculta" class="sr-only peer" bind:checked={isOculta}>
             <div class="w-14 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
             <span class="ml-3 text-xs font-bold {isOculta ? 'text-indigo-600' : 'text-slate-500 uppercase tracking-widest'}">
               {isOculta ? 'Oculta (Pre-Mercado)' : 'Pública'}
@@ -83,7 +83,7 @@
               {#if galeriaPreviews.length > 0}
                 <div class="mt-4 grid grid-cols-4 gap-2 w-full">
                   {#each galeriaPreviews as preview, index}
-                    <div class="aspect-square rounded-lg overflow-hidden bg-slate-100"><img src={preview} alt="Miniatura {index}" class="w-full h-full object-cover"/></div>
+                    <div class="aspect-square rounded-lg overflow-hidden bg-slate-100"><img src={preview} alt="Miniatura de la galería {index + 1}" class="w-full h-full object-cover"/></div>
                   {/each}
                 </div>
               {/if}
@@ -150,9 +150,14 @@
               <textarea id="descripcion" name="descripcion" rows="5" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3"></textarea>
             </div>
 
-            <div class="col-span-2 sm:col-span-4">
+            <div class="col-span-2 sm:col-span-2">
               <label for="video_url" class="block text-xs font-bold text-slate-500 uppercase mb-2">Enlace de Video Recorrido (YouTube / Vimeo)</label>
               <input id="video_url" type="url" name="video_url" placeholder="Ej. https://www.youtube.com/watch?v=..." class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-100">
+            </div>
+
+            <div class="col-span-2 sm:col-span-2">
+              <label for="recorrido_3d_url" class="block text-[11px] font-bold text-indigo-600 uppercase tracking-widest mb-2">Enlace Recorrido 3D (Matterport)</label>
+              <input id="recorrido_3d_url" type="url" name="recorrido_3d_url" placeholder="Ej. https://my.matterport.com/show/?m=..." class="w-full bg-indigo-50/30 border border-indigo-100 rounded-lg p-3 focus:ring-2 focus:ring-indigo-300">
             </div>
 
           </div>
