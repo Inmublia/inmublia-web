@@ -1,26 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
-import { env as publicEnv } from '$env/dynamic/public';
-import { env as privateEnv } from '$env/dynamic/private';
 import { redirect, fail } from '@sveltejs/kit';
-
-// Cliente de Servidor Confiable (Bypasa RLS y es compatible con Cloudflare Pages)
-const getSupabaseAdmin = () => {
-  return createClient(
-    publicEnv.PUBLIC_SUPABASE_URL,
-    privateEnv.SUPABASE_SERVICE_ROLE_KEY,
-    { auth: { persistSession: false } }
-  );
-};
 
 export const actions = {
   crear: async ({ request, locals }) => {
+    // 1. Verificación de identidad a través de la sesión de Edge SSR
     const user = locals.user;
     if (!user) throw redirect(303, '/login');
 
-    const supabaseAdmin = getSupabaseAdmin();
     const formData = await request.formData();
     
-    // 1. Extraemos datos generales
+    // 2. Extraemos datos generales
     const titulo = formData.get('titulo');
     const precio = formData.get('precio');
     const descripcion = formData.get('descripcion');
@@ -28,11 +16,11 @@ export const actions = {
     const tipo = formData.get('tipo');
     const destacada = formData.get('destacada') === 'on';
     
-    // NUEVO: Extraemos la visibilidad y definimos el estatus
+    // Visibilidad y estatus
     const is_oculta = formData.get('is_oculta') === 'on';
     const estatus = is_oculta ? 'Pre-Mercado' : 'Activa';
     
-    // Extraemos campos de ficha técnica
+    // Ficha técnica
     const m2_terreno = formData.get('m2_terreno') || 0;
     const m2_construccion = formData.get('m2_construccion') || 0;
     const recamaras = formData.get('recamaras') || 0;
@@ -41,8 +29,9 @@ export const actions = {
     const estacionamientos = formData.get('estacionamientos') || 0;
     const ubicacion = formData.get('ubicacion') || 'Guadalajara, Jalisco';
     
-    // Extraemos el enlace del video
+    // Enlaces multimedia
     const video_url = formData.get('video_url') || null;
+    const recorrido_3d_url = formData.get('recorrido_3d_url') || null; // 🔥 NUEVO: Recorrido 3D
 
     // Imágenes
     const imagen = formData.get('imagen'); 
@@ -52,29 +41,46 @@ export const actions = {
       return fail(400, { error: 'Faltan campos obligatorios o la foto de portada.' });
     }
 
-    const { data: broker } = await supabaseAdmin.from('brokers').select('id').eq('email', user.email).single();
-    if (!broker) return fail(400, { error: 'Agencia no encontrada.' });
+    // Buscamos el ID real del broker
+    const { data: broker } = await locals.supabase
+      .from('brokers')
+      .select('id')
+      .eq('email', user.email)
+      .single();
 
-    // 2. SUBIR PORTADA
+    if (!broker) return fail(400, { error: 'Perfil de agencia no encontrado.' });
+
+    // 3. SUBIR PORTADA
     const fileExt = imagen.name.split('.').pop();
     const fileName = `${broker.id}/${Date.now()}-main.${fileExt}`;
     const buffer = await imagen.arrayBuffer();
     
-    const { error: uploadError } = await supabaseAdmin.storage.from('propiedades').upload(fileName, buffer, { contentType: imagen.type });
+    const { error: uploadError } = await locals.supabase.storage
+      .from('propiedades')
+      .upload(fileName, buffer, { contentType: imagen.type });
+    
     if (uploadError) return fail(500, { error: `Error en portada: ${uploadError.message}` });
-    const { data: { publicUrl: portadaUrl } } = supabaseAdmin.storage.from('propiedades').getPublicUrl(fileName);
+    
+    const { data: { publicUrl: portadaUrl } } = locals.supabase.storage
+      .from('propiedades')
+      .getPublicUrl(fileName);
 
-    // 3. SUBIR GALERÍA MÚLTIPLE (Bucle)
+    // 4. SUBIR GALERÍA MÚLTIPLE (Bucle)
     let galeriaUrls = [];
     for (const file of galeriaArchivos) {
       if (file && file.size > 0) {
         const ext = file.name.split('.').pop();
         const gName = `${broker.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
         const gBuffer = await file.arrayBuffer();
-        const { error: gError } = await supabaseAdmin.storage.from('propiedades').upload(gName, gBuffer, { contentType: file.type });
+        
+        const { error: gError } = await locals.supabase.storage
+          .from('propiedades')
+          .upload(gName, gBuffer, { contentType: file.type });
         
         if (!gError) {
-          const { data: { publicUrl } } = supabaseAdmin.storage.from('propiedades').getPublicUrl(gName);
+          const { data: { publicUrl } } = locals.supabase.storage
+            .from('propiedades')
+            .getPublicUrl(gName);
           galeriaUrls.push(publicUrl);
         }
       }
@@ -82,16 +88,16 @@ export const actions = {
 
     const slug = titulo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
-    // 4. INSERTAR TODO A LA BASE DE DATOS
-    // 🔥 FIX: Limpieza agresiva de strings numéricos antes del parseFloat
+    // 5. INSERTAR TODO A LA BASE DE DATOS
     const cleanNumber = (val) => {
         if (!val) return 0;
-        // Quita símbolo de dólar, comas, letras y espacios. Solo deja números y el punto decimal.
         const cleaned = String(val).replace(/[^0-9.]/g, ''); 
         return parseFloat(cleaned) || 0;
     };
 
-    const { error: insertError } = await supabaseAdmin.from('propiedades').insert({
+    const { error: insertError } = await locals.supabase
+      .from('propiedades')
+      .insert({
         broker_id: broker.id,
         titulo, 
         slug, 
@@ -101,19 +107,21 @@ export const actions = {
         descripcion, 
         ubicacion,
         estatus,
-        precio: cleanNumber(precio), // LIMPIO
-        m2_terreno: cleanNumber(m2_terreno), // LIMPIO
-        m2_construccion: cleanNumber(m2_construccion), // LIMPIO
+        precio: cleanNumber(precio), 
+        m2_terreno: cleanNumber(m2_terreno), 
+        m2_construccion: cleanNumber(m2_construccion), 
         recamaras: parseInt(recamaras) || 0,
-        banos: cleanNumber(banos), // LIMPIO (puede ser 1.5)
+        banos: cleanNumber(banos), 
         medio_bano: parseInt(medio_bano) || 0,
         estacionamientos: parseInt(estacionamientos) || 0,
         imagen_url: portadaUrl,
         galeria_urls: galeriaUrls, 
-        video_url 
+        video_url,
+        recorrido_3d_url // 🔥 NUEVO: Persistimos el enlace 3D en Supabase
       });
 
     if (insertError) return fail(500, { error: `Error SQL: ${insertError.message}` });
+    
     throw redirect(303, '/admin');
   }
 };
