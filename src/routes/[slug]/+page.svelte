@@ -26,6 +26,15 @@
     return match ? match[1] : null;
   };
 
+  // 🛡️ PARSER INTELIGENTE: Extrae el ID de Matterport de cualquier formato para evitar fallos de conexión
+  const obtenerIdMatterport = (url) => {
+    if (!url) return null;
+    const trimmed = url.trim();
+    if (/^[a-zA-Z0-9]{11}$/.test(trimmed)) return trimmed;
+    const match = trimmed.match(/(?:\/show\/\?m=|\/space\/|m=)([a-zA-Z0-9]{11})/);
+    return match ? match[1] : null;
+  };
+
   function descargarVCard() {
     const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${broker.nombre_comercial}\nORG:Inmublia Exclusivas\nTITLE:Asesor Inmobiliario\nTEL;TYPE=CELL:${broker.whatsapp}\nNOTE:Especialista en ${propiedad.ubicacion}\nURL:https://${broker.subdominio}.inmublia.com\nEND:VCARD`;
     const blob = new Blob([vcard], { type: 'text/vcard' });
@@ -181,7 +190,7 @@
       </div>
     </div>
 
-    <div class="max-w-[1000px] mx-auto px-6 pt-12 pb-16">
+    <div class="max-w-[1000px] mx-auto px-6 pt-12">
       
       {#if propiedad.galeria_urls && propiedad.galeria_urls.length > 0}
         <div class="mb-16">
@@ -197,17 +206,17 @@
           {:else}
             <div class="grid grid-cols-1 md:grid-cols-4 gap-3 auto-rows-[200px] md:auto-rows-[250px]">
               <div class="md:col-span-2 md:row-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(1)}>
-                <img src={propiedad.galeria_urls[0]} alt="Vista Principal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
+                <img src={propiedad.galeria_urls[0]} alt="Vista Principal de la Galería" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
               </div>
               {#if propiedad.galeria_urls[1]}
                 <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(2)}>
-                  <img src={propiedad.galeria_urls[1]} alt="Vista Secundaria" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
+                  <img src={propiedad.galeria_urls[1]} alt="Vista Secundaria de la Galería" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
                   <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
                 </div>
               {/if}
               <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(3 % allPhotos.length)}>
-                <img src={propiedad.galeria_urls[2] || propiedad.imagen_url} alt="Tercera Vista" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
+                <img src={propiedad.galeria_urls[2] || propiedad.imagen_url} alt="Tercera Vista de la Galería" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
                 <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <span class="text-white font-bold uppercase tracking-[0.2em] text-xs flex items-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
@@ -217,21 +226,6 @@
               </div>
             </div>
           {/if}
-        </div>
-      {/if}
-
-      {#if propiedad.recorrido_3d_url}
-        <div class="mb-16">
-          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Experiencia Inmersiva 3D</h2>
-          <div class="relative w-full pb-[56.25%] h-0 rounded-sm overflow-hidden shadow-xl border border-slate-100 bg-black">
-            <iframe 
-              title="Recorrido Virtual Matterport"
-              src={propiedad.recorrido_3d_url} 
-              class="absolute top-0 left-0 w-full h-full border-0"
-              allowfullscreen 
-              allow="xr-spatial-tracking">
-            </iframe>
-          </div>
         </div>
       {/if}
 
@@ -254,19 +248,40 @@
         </div>
       </div>
 
-      {#if propiedad.video_url && obtenerIdYouTube(propiedad.video_url)}
-        <div class="mb-16">
-          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Recorrido en Video</h2>
-          <div class="relative w-full aspect-video rounded-sm overflow-hidden shadow-xl {isNight ? 'bg-slate-800' : 'bg-slate-100'}">
-            <iframe class="absolute top-0 left-0 w-full h-full" src="https://www.youtube.com/embed/{obtenerIdYouTube(propiedad.video_url)}?autoplay=0&controls=1&rel=0&modestbranding=1" title="Video de la propiedad" frameborder="0" allowfullscreen></iframe>
-          </div>
+      {#if (propiedad.recorrido_3d_url && obtenerIdMatterport(propiedad.recorrido_3d_url)) || (propiedad.video_url && obtenerIdYouTube(propiedad.video_url))}
+        <div class="mb-16 space-y-16">
+          
+          {#if propiedad.recorrido_3d_url && obtenerIdMatterport(propiedad.recorrido_3d_url)}
+            <div>
+              <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Experiencia Inmersiva 3D</h2>
+              <div class="relative w-full pb-[56.25%] h-0 rounded-sm overflow-hidden shadow-xl border border-slate-100 bg-black">
+                <iframe 
+                  title="Recorrido Virtual Matterport de la propiedad"
+                  src="https://my.matterport.com/show/?m={obtenerIdMatterport(propiedad.recorrido_3d_url)}" 
+                  class="absolute top-0 left-0 w-full h-full border-0"
+                  allowfullscreen 
+                  allow="xr-spatial-tracking">
+                </iframe>
+              </div>
+            </div>
+          {/if}
+
+          {#if propiedad.video_url && obtenerIdYouTube(propiedad.video_url)}
+            <div>
+              <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Recorrido en Video</h2>
+              <div class="relative w-full aspect-video rounded-sm overflow-hidden shadow-xl {isNight ? 'bg-slate-800' : 'bg-slate-100'}">
+                <iframe class="absolute top-0 left-0 w-full h-full" src="https://www.youtube.com/embed/{obtenerIdYouTube(propiedad.video_url)}?autoplay=0&controls=1&rel=0&modestbranding=1" title="Video de recorrido de la propiedad" frameborder="0" allowfullscreen></iframe>
+              </div>
+            </div>
+          {/if}
+
         </div>
       {/if}
 
       <div class="mb-24">
         <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">El Entorno</h2>
         <div class="w-full h-[500px] {isNight ? 'bg-slate-800' : 'bg-slate-100'} overflow-hidden relative rounded-sm shadow-inner">
-          <iframe width="100%" height="100%" frameborder="0" style="border:0;" src="https://maps.google.com/maps?q={encodeURIComponent(propiedad.ubicacion || 'Guadalajara, Jalisco')}&t=m&z=15&output=embed&iwloc=near" title="Mapa de ubicación" allowfullscreen></iframe>
+          <iframe width="100%" height="100%" frameborder="0" style="border:0;" src="https://maps.google.com/maps?q={encodeURIComponent(propiedad.ubicacion || 'Guadalajara, Jalisco')}&t=m&z=15&output=embed&iwloc=near" title="Mapa de ubicación de la zona" allowfullscreen></iframe>
         </div>
       </div>
 
@@ -276,9 +291,9 @@
           <div class="{isNight ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} border rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
             <div class="w-20 h-20 bg-slate-900 rounded-full mb-4 overflow-hidden shadow-md">
               {#if broker.avatar_url}
-                <img src={broker.avatar_url} alt="Foto del Asesor" class="w-full h-full object-cover">
+                <img src={broker.avatar_url} alt="Foto de perfil del Asesor" class="w-full h-full object-cover">
               {:else}
-                <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=0f172a&color=fff" alt="Avatar" class="w-full h-full object-cover">
+                <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=0f172a&color=fff" alt="Avatar por defecto del Asesor" class="w-full h-full object-cover">
               {/if}
             </div>
             <h3 class="text-xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{broker.nombre_comercial}</h3>
@@ -287,7 +302,7 @@
               <p class="text-xs text-slate-500 italic mb-6">"{broker.bio}"</p>
             {/if}
             
-            <button onclick={descargarVCard} aria-label="Descargar tarjeta de contacto" class="inline-flex items-center gap-2 px-6 py-3 {isNight ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-900 hover:bg-slate-800'} text-white text-[10px] font-bold uppercase tracking-widest rounded-full transition-colors shadow-sm w-full justify-center">
+            <button onclick={descargarVCard} aria-label="Descargar tarjeta de contacto digital vCard" class="inline-flex items-center gap-2 px-6 py-3 {isNight ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-900 hover:bg-slate-800'} text-white text-[10px] font-bold uppercase tracking-widest rounded-full transition-colors shadow-sm w-full justify-center">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
               Guardar Contacto
             </button>
