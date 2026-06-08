@@ -18,9 +18,12 @@
 
   // Catálogo SaaS
   const catalogoTemplates = [
-    { id: 'classic', nombre: 'Classic Minimalist', desc: 'Diseño limpio y tradicional enfocado en texto y listados rápidos.', minPlan: 'basico' },
-    { id: 'modern', nombre: 'Modern Grid', desc: 'Mosaicos dinámicos y transiciones fluidas optimizadas para agencias medianas.', minPlan: 'pro' },
-    { id: 'luxury', nombre: 'Luxury Immersive', desc: 'Diseño premium inmersivo ideal para propiedades exclusivas.', minPlan: 'elite' }
+    { id: 'classic', nombre: 'Classic Minimalist', desc: 'Diseño limpio y tradicional.', minPlan: 'basico' },
+    { id: 'clean', nombre: 'Clean Base', desc: 'Estilo corporativo de alto contraste.', minPlan: 'basico' },
+    { id: 'modern', nombre: 'Modern Grid', desc: 'Estilo asimétrico con contacto fijo (Estilo Airbnb).', minPlan: 'pro' },
+    { id: 'editorial', nombre: 'Editorial', desc: 'Enfoque en lectura y tipografía elegante.', minPlan: 'pro' },
+    { id: 'luxury', nombre: 'Luxury Immersive', desc: 'Diseño premium de pantalla completa.', minPlan: 'elite' },
+    { id: 'cinematic', nombre: 'Cinematic', desc: 'Video-first con navegación inmersiva.', minPlan: 'elite' }
   ];
 
   function handleFileSelect(event) {
