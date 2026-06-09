@@ -33,7 +33,7 @@ export const actions = {
     const instagram = formData.get('instagram')?.toString().trim() || null;
     const linkedin = formData.get('linkedin')?.toString().trim() || null;
     
-    // FIX MAESTRO: Captura del nombre nativo del input HTML
+    // Captura estricta
     const template_seleccionado = formData.get('template_seleccionado')?.toString().trim();
 
     if (!nombre_comercial || !whatsapp || !subdominio) {
@@ -64,8 +64,10 @@ export const actions = {
       linkedin
     };
 
+    // 🔥 FIX SAAS: Tu esquema tiene ambas columnas. Actualizamos las dos para no fallar.
     if (template_seleccionado) {
       updatePayload.template_seleccionado = template_seleccionado;
+      updatePayload.template = template_seleccionado; 
     }
 
     const avatarFile = formData.get('avatar');
@@ -84,14 +86,20 @@ export const actions = {
       updatePayload.avatar_url = publicUrl;
     }
 
-    const { error: updateError } = await locals.supabase
+    // Usamos .select() para obligar a Postgres a devolver el registro y confirmar actualización
+    const { data: checkUpdate, error: updateError } = await locals.supabase
       .from('brokers')
       .update(updatePayload)
-      .eq('id', brokerActual.id);
+      .eq('id', brokerActual.id)
+      .select();
 
     if (updateError) {
       if (updateError.code === '23505') return fail(400, { error: 'El subdominio ya existe.' });
       return fail(500, { error: `Error Base de Datos: ${updateError.message}` });
+    }
+
+    if (!checkUpdate || checkUpdate.length === 0) {
+      return fail(500, { error: 'La actualización no tuvo efecto en la base de datos.' });
     }
 
     return { success: true };
