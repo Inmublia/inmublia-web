@@ -21,7 +21,7 @@ export const load = async ({ locals }) => {
     .order('creado_en', { ascending: false });
 
   if (leadsError) {
-    console.error('🔥 Error al cargar leads desde Supabase:', leadsError.message);
+    console.error('🔥 Error al cargar leads:', leadsError.message);
   }
 
   const leadsProcesados = (leads || []).map(lead => {
@@ -77,7 +77,6 @@ export const actions = {
   },
 
   guardarNota: async ({ request, locals }) => {
-    // 1. Verificación de Autenticación SSR Svelte 5
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
     const { data: broker } = await locals.supabase.from('brokers').select('id').eq('email', locals.user.email).single();
@@ -89,7 +88,6 @@ export const actions = {
 
     if (!contenido || !contenido.trim()) return fail(400, { error: 'Nota vacía' });
 
-    // 2. Verificamos que el lead pertenezca al broker
     const { data: lead, error: checkError } = await locals.supabase
       .from('leads')
       .select('id, estado')
@@ -99,22 +97,23 @@ export const actions = {
 
     if (checkError || !lead) return fail(403, { error: 'No autorizado para este lead' });
 
-    // 3. INSERCIÓN PURA: Con el SQL anterior ejecutado, esto funcionará al 100%
+    // 🔥 EL FIX MAESTRO BASADO EN TU ESQUEMA DB 🔥
+    // En tu esquema, lead_notas.broker_id referencia a auth.users(id), no a brokers(id).
+    // Usamos locals.user.id para satisfacer tu llave foránea y destruir el Error 500.
     const { error: notaError } = await locals.supabase
       .from('lead_notas')
       .insert({ 
         lead_id: leadId, 
-        broker_id: broker.id, 
+        broker_id: locals.user.id, 
         contenido: contenido.trim(), 
         tipo: 'nota' 
       });
 
     if (notaError) {
-       console.error("🔥 Fallo RLS devuelto por Supabase:", notaError.message);
+       console.error("🔥 Error Supabase Notas:", notaError);
        return fail(500, { error: `Supabase Error: ${notaError.message}` });
     }
 
-    // 4. Automatización del CRM
     if (lead.estado === 'nuevo') {
       await locals.supabase
         .from('leads')
