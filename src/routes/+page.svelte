@@ -224,13 +224,13 @@
     </main>
   {/snippet}
 
-{#if plantillaActiva === 'modern'}
-  {@render modern()}
-{:else if plantillaActiva === 'luxury'}
-  {@render luxury()}
-{:else}
-  {@render classic()}
-{/if}
+  {#if plantillaActiva === 'modern'}
+    {@render modern()}
+  {:else if plantillaActiva === 'luxury'}
+    {@render luxury()}
+  {:else}
+    {@render classic()}
+  {/if}
 
 {:else}
   <main class="min-h-screen bg-white font-sans selection:bg-blue-600 selection:text-white">
