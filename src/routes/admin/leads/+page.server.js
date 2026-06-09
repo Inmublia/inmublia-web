@@ -10,6 +10,7 @@ export const load = async ({ locals }) => {
     .single();
 
   if (brokerError || !broker) {
+    console.error('🔥 Error al consultar perfil de broker:', brokerError?.message);
     return { broker: null, leads: [] };
   }
 
@@ -19,18 +20,26 @@ export const load = async ({ locals }) => {
     .eq('broker_id', broker.id)
     .order('creado_en', { ascending: false });
 
+  if (leadsError) {
+    console.error('🔥 Error al cargar leads desde Supabase:', leadsError.message);
+  }
+
   const leadsProcesados = (leads || []).map(lead => {
     const notas = lead.lead_notas || [];
     const notasOrdenadas = [...notas].sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime());
     return { ...lead, lead_notas: notasOrdenadas };
   });
 
-  return { broker, leads: leadsProcesados };
+  return {
+    broker,
+    leads: leadsProcesados
+  };
 };
 
 export const actions = {
   actualizar: async ({ request, locals }) => {
     if (!locals.user) return fail(401, { error: 'No autorizado' });
+
     const { data: broker } = await locals.supabase.from('brokers').select('id').eq('email', locals.user.email).single();
     if (!broker) return fail(403, { error: 'Perfil no encontrado' });
 
@@ -38,25 +47,37 @@ export const actions = {
     const id = formData.get('id');
     const estado = formData.get('estado');
 
-    const { error } = await locals.supabase.from('leads').update({ estado }).eq('id', id).eq('broker_id', broker.id);
+    const { error } = await locals.supabase
+      .from('leads')
+      .update({ estado })
+      .eq('id', id)
+      .eq('broker_id', broker.id);
+
     if (error) return fail(500, { error: 'Fallo al mover' });
     return { success: true };
   },
 
   eliminar: async ({ request, locals }) => {
     if (!locals.user) return fail(401, { error: 'No autorizado' });
+
     const { data: broker } = await locals.supabase.from('brokers').select('id').eq('email', locals.user.email).single();
     if (!broker) return fail(403, { error: 'Perfil no encontrado' });
 
     const formData = await request.formData();
     const id = formData.get('id');
 
-    const { error } = await locals.supabase.from('leads').delete().eq('id', id).eq('broker_id', broker.id);
+    const { error } = await locals.supabase
+      .from('leads')
+      .delete()
+      .eq('id', id)
+      .eq('broker_id', broker.id);
+
     if (error) return fail(500, { error: 'Fallo al eliminar' });
     return { success: true };
   },
 
   guardarNota: async ({ request, locals }) => {
+    // 1. Verificación de Autenticación SSR Svelte 5
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
     const { data: broker } = await locals.supabase.from('brokers').select('id').eq('email', locals.user.email).single();
@@ -68,8 +89,17 @@ export const actions = {
 
     if (!contenido || !contenido.trim()) return fail(400, { error: 'Nota vacía' });
 
-    // FIX MAESTRO DE BASE DE DATOS: 
-    // Añadido 'broker_id: broker.id' que satisface la Foreign Key "lead_notas_broker_id_fkey"
+    // 2. Verificamos que el lead pertenezca al broker
+    const { data: lead, error: checkError } = await locals.supabase
+      .from('leads')
+      .select('id, estado')
+      .eq('id', leadId)
+      .eq('broker_id', broker.id)
+      .maybeSingle();
+
+    if (checkError || !lead) return fail(403, { error: 'No autorizado para este lead' });
+
+    // 3. INSERCIÓN PURA: Con el SQL anterior ejecutado, esto funcionará al 100%
     const { error: notaError } = await locals.supabase
       .from('lead_notas')
       .insert({ 
@@ -80,12 +110,17 @@ export const actions = {
       });
 
     if (notaError) {
+       console.error("🔥 Fallo RLS devuelto por Supabase:", notaError.message);
        return fail(500, { error: `Supabase Error: ${notaError.message}` });
     }
 
-    const { data: lead } = await locals.supabase.from('leads').select('estado').eq('id', leadId).single();
-    if (lead && lead.estado === 'nuevo') {
-      await locals.supabase.from('leads').update({ estado: 'contactado' }).eq('id', leadId);
+    // 4. Automatización del CRM
+    if (lead.estado === 'nuevo') {
+      await locals.supabase
+        .from('leads')
+        .update({ estado: 'contactado' })
+        .eq('id', leadId)
+        .eq('broker_id', broker.id);
     }
 
     return { success: true };
