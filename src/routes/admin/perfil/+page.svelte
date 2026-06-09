@@ -114,7 +114,6 @@
               return async ({ update, result }) => {
                 savingProfile = false;
                 
-                // 🔍 INTERCEPTOR DE ERRORES SVELTEKIT: Atrapa caídas silenciosas
                 if (result.type === 'failure') {
                   alert("❌ Rechazo de Validación: " + (result.data?.error || JSON.stringify(result.data)));
                 } else if (result.type === 'error') {
@@ -206,6 +205,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  
                   <input type="hidden" name="template_seleccionado" value={selectedTemplate}>
                   
                   {#each catalogoTemplates as template}
@@ -224,7 +224,7 @@
                       </div>
 
                       <label class="p-4 flex flex-col justify-between flex-1 cursor-pointer {activo ? 'bg-indigo-50/20' : ''} {!autorizado ? 'cursor-not-allowed' : ''}">
-                        <input type="radio" name="template_seleccionado" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
+                        <input type="radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
                         <div>
                           <div class="flex items-center justify-between mb-2">
                             <span class="font-bold text-sm {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
