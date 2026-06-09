@@ -69,7 +69,6 @@ export const actions = {
         updatePayload.template = template_seleccionado; 
       }
 
-      // 🔍 AISLAMIENTO DE STORAGE (Aquí puede estar el error de las imágenes)
       const avatarFile = formData.get('avatar');
       if (avatarFile && avatarFile.size > 0 && avatarFile.name !== 'undefined') {
         const fileExt = avatarFile.name.split('.').pop();
@@ -80,14 +79,12 @@ export const actions = {
           .from('agencias')
           .upload(fileName, avatarFile, { upsert: true });
 
-        // Si falla aquí, tu bucket 'agencias' no existe o tiene el RLS cerrado para INSERT/UPDATE.
         if (uploadError) return fail(400, { error: `FALLO EN STORAGE (Imágenes): ${uploadError.message}` });
 
         const { data: { publicUrl } } = locals.supabase.storage.from('agencias').getPublicUrl(fileName);
         updatePayload.avatar_url = publicUrl;
       }
 
-      // 🔍 AISLAMIENTO DE BASE DE DATOS
       const { data: checkUpdate, error: updateError } = await locals.supabase
         .from('brokers')
         .update(updatePayload)
@@ -105,7 +102,6 @@ export const actions = {
       return { success: true };
 
     } catch (err) {
-      // Capturamos cualquier crash del servidor Node/Edge
       console.error("🔥 CRASH DEL SERVIDOR:", err);
       return fail(500, { error: `CRASH CRÍTICO: ${err.message}` });
     }
