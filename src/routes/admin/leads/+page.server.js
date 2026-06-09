@@ -1,9 +1,26 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '$env/dynamic/private';
+
+// 🚀 FIX: Instancia de Cliente Admin (Service Role Key)
+// Bypassea restricciones RLS restrictivas exclusivamente para Server Actions controladas
+// Compatible 100% con Cloudflare Edge al no usar variables / dependencias de Node.
+function getSupabaseAdmin() {
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+     console.error("Faltan credenciales Admin de Supabase en el entorno.");
+  }
+  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+}
 
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
 
-  // 1. EL FIX MAESTRO: Buscamos al broker por su EMAIL (relación correcta)
+  // 1. Buscamos al broker por su EMAIL (relación correcta)
   const { data: broker, error: brokerError } = await locals.supabase
     .from('brokers')
     .select('*')
@@ -12,11 +29,11 @@ export const load = async ({ locals }) => {
 
   if (brokerError || !broker) {
     console.error('🔥 Error al consultar perfil de broker:', brokerError?.message);
-    // Si no encuentra el broker, al menos no crashea la página
+    // Prevención de Crash en caso de inconsistencia relacional
     return { broker: null, leads: [] };
   }
 
-  // 2. Traemos los leads usando el ID real del broker (broker.id)
+  // 2. Traemos los leads (La visualización estándar SÍ va blindada por RLS normal)
   const { data: leads, error: leadsError } = await locals.supabase
     .from('leads')
     .select(`*, propiedades (*), lead_notas (*)`)
@@ -43,7 +60,6 @@ export const actions = {
   actualizar: async ({ request, locals }) => {
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
-    // Obtenemos el broker.id real antes de actualizar
     const { data: broker } = await locals.supabase.from('brokers').select('id').eq('email', locals.user.email).single();
     if (!broker) return fail(403, { error: 'Perfil no encontrado' });
 
@@ -77,7 +93,10 @@ export const actions = {
   guardarNota: async ({ request, locals }) => {
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
-    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('email', locals.user.email).single();
+    // 🚀 FIX PRINCIPAL SEGÚN ARQUITECTURA: Se invoca Admin de Supabase
+    const supabaseAdmin = getSupabaseAdmin();
+
+    const { data: broker } = await supabaseAdmin.from('brokers').select('id').eq('email', locals.user.email).single();
     if (!broker) return fail(403, { error: 'Perfil no encontrado' });
 
     const formData = await request.formData();
@@ -86,18 +105,24 @@ export const actions = {
 
     if (!contenido || !contenido.trim()) return fail(400, { error: 'Nota vacía' });
 
-    const { data: lead, error: checkError } = await locals.supabase
+    // Validación sobre el flujo controlado
+    const { data: lead, error: checkError } = await supabaseAdmin
       .from('leads').select('id, estado').eq('id', leadId).eq('broker_id', broker.id).maybeSingle();
 
-    if (checkError || !lead) return fail(403, { error: 'No autorizado' });
+    if (checkError || !lead) return fail(403, { error: 'No autorizado o lead inexistente' });
 
-    const { error: notaError } = await locals.supabase
+    // 🚀 Inserción autoritaria que salta las barreras del RLS
+    const { error: notaError } = await supabaseAdmin
       .from('lead_notas').insert({ lead_id: leadId, broker_id: broker.id, contenido: contenido.trim(), tipo: 'nota' });
 
-    if (notaError) return fail(500, { error: 'Fallo interno' });
+    if (notaError) {
+      console.error('🔥 Error SQL insertando la nota:', notaError.message);
+      return fail(500, { error: `Fallo interno de Base de Datos: ${notaError.message}` });
+    }
 
+    // Automatización de flujo comercial en el CRM
     if (lead.estado === 'nuevo') {
-      await locals.supabase.from('leads').update({ estado: 'contactado' }).eq('id', leadId).eq('broker_id', broker.id);
+      await supabaseAdmin.from('leads').update({ estado: 'contactado' }).eq('id', leadId).eq('broker_id', broker.id);
     }
 
     return { success: true };
