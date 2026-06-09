@@ -1,6 +1,6 @@
 <script>
   import { invalidateAll } from '$app/navigation';
-  import { enhance } from '$app/forms';
+  import { enhance, deserialize } from '$app/forms';
   
   let { data } = $props();
   let broker = $derived(data.broker || {});
@@ -22,6 +22,14 @@
       (l.propiedades?.titulo && l.propiedades.titulo.toLowerCase().includes(searchQuery.toLowerCase()))
     )
   );
+
+  // 🚀 FIX: Runa para Sincronizar el Server (`data.leads`) al Board (`leads`)
+  // Esto previene que invalidateAll() rompa tu render sin pisar la acción visual de arrastrar.
+  $effect(() => {
+    if (data.leads && !draggedLeadId) {
+      leads = data.leads;
+    }
+  });
 
   const columnas = [
     { id: 'nuevo', titulo: 'Nuevos Prospectos', color: 'bg-slate-100 text-slate-700' },
@@ -76,15 +84,16 @@
     formData.append('id', leadId);
     formData.append('estado', nuevoEstado);
 
+    // 🚀 FIX: Cabecera obligatoria en llamadas manuales
     fetch('?/actualizar', {
       method: 'POST',
-      body: formData
+      body: formData,
+      headers: { 'x-sveltekit-action': 'true' }
     }).catch(err => console.error("Error guardando estado:", err));
   }
 
   // --- Lógica del Panel Lateral (Bitácora) ---
   function abrirPanel(lead) {
-    // Forzamos clonación para romper la referencia y asegurar reactividad
     selectedLead = { ...lead };
     if (!selectedLead.lead_notas) selectedLead.lead_notas = [];
     isPanelOpen = true;
@@ -102,7 +111,7 @@
     guardandoNota = true;
     const notaTemp = nuevaNotaTexto.trim();
     
-    // 1. Actualización Optimista del UI
+    // Mutación optimista purista en Svelte 5
     const nuevaNotaObj = {
       id: 'temp-' + Date.now(),
       contenido: notaTemp,
@@ -110,7 +119,6 @@
       creado_en: new Date().toISOString()
     };
     
-    // Mutación forzada para Svelte 5
     selectedLead.lead_notas = [nuevaNotaObj, ...selectedLead.lead_notas];
     
     if (selectedLead.estado === 'nuevo') {
@@ -118,29 +126,37 @@
       selectedLead.estado = 'contactado';
     }
 
-    // 2. Enviar a BD
     const formData = new FormData();
     formData.append('lead_id', selectedLead.id);
     formData.append('contenido', notaTemp);
     
     try {
+      // 🚀 FIX: Agregar interceptor "x-sveltekit-action" 
       const response = await fetch('?/guardarNota', {
         method: 'POST',
-        body: formData
+        body: formData,
+        headers: { 'x-sveltekit-action': 'true' }
       });
-      if (response.ok) {
-        nuevaNotaTexto = ''; // Limpiamos la caja
-        await invalidateAll(); // Refrescar datos reales del servidor
+      
+      // 🚀 FIX: Procesamiento de SvelteKit Forms
+      const result = deserialize(await response.text());
+      
+      if (result.type === 'success') {
+        nuevaNotaTexto = ''; 
+        await invalidateAll(); 
         
-        // Buscamos el lead actualizado en los datos frescos y recargamos el panel
         const leadActualizado = data.leads.find(l => l.id === selectedLead.id);
         if (leadActualizado) {
           selectedLead = { ...leadActualizado };
         }
+      } else {
+        // En caso de que falle de nuevo la API, capturaremos este payload correctamente
+        console.error("Falló la acción en servidor:", result);
+        alert(result?.data?.error || 'Falló la sincronización con el CRM.');
       }
     } catch (err) {
-      console.error("Error al guardar nota:", err);
-      alert('Error guardando la nota.');
+      console.error("Error al postear nota:", err);
+      alert('Error de red al guardar la nota.');
     } finally {
       guardandoNota = false;
     }
@@ -151,7 +167,11 @@
       leads = leads.filter(l => l.id !== id);
       const formData = new FormData();
       formData.append('id', id);
-      fetch('?/eliminar', { method: 'POST', body: formData });
+      fetch('?/eliminar', { 
+        method: 'POST', 
+        body: formData,
+        headers: { 'x-sveltekit-action': 'true' }
+      });
     }
   }
 </script>
