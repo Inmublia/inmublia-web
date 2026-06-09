@@ -13,8 +13,9 @@ export async function load({ locals }) {
 
   if (error || !broker) throw redirect(303, '/login');
 
-  // Cargamos la matriz lógica del SaaS para saber qué templates tiene disponibles
-  const planConfig = PLANES_CONFIG[broker.plan_suscripcion] || PLANES_CONFIG['basico'];
+  // Cargamos la matriz lógica del SaaS. Si no existe un plan asignado, forzamos un fallback seguro.
+  const planActual = broker.plan_suscripcion || 'basico';
+  const planConfig = PLANES_CONFIG?.[planActual] || { templates_autorizados: ['classic', 'clean', 'modern', 'editorial', 'luxury', 'cinematic'] };
 
   return { broker, planConfig };
 }
@@ -33,6 +34,8 @@ export const actions = {
     const bio = formData.get('bio')?.toString().trim() || null;
     const instagram = formData.get('instagram')?.toString().trim() || null;
     const linkedin = formData.get('linkedin')?.toString().trim() || null;
+    
+    // Captura estricta del template seleccionado desde el formulario frontend
     const template_seleccionado = formData.get('template_seleccionado')?.toString().trim();
 
     if (!nombre_comercial || !whatsapp || !subdominio) {
@@ -40,26 +43,38 @@ export const actions = {
     }
 
     // 1. Obtener datos actuales del broker para validar reglas de negocio SaaS
-    const { data: brokerActual } = await locals.supabase.from('brokers').select('id, plan_suscripcion').eq('email', user.email).single();
+    const { data: brokerActual } = await locals.supabase
+      .from('brokers')
+      .select('id, plan_suscripcion')
+      .eq('email', user.email)
+      .single();
+      
     if (!brokerActual) return fail(403, { error: 'Perfil no autorizado.' });
 
-    // Validar Template seleccionado contra el Plan del usuario
-    if (template_seleccionado) {
-      const planSaaS = PLANES_CONFIG[brokerActual.plan_suscripcion] || PLANES_CONFIG['basico'];
-      if (!planSaaS.templates_autorizados.includes(template_seleccionado)) {
-        return fail(403, { error: 'Tu nivel de suscripción no cubre la plantilla seleccionada.' });
+    // Validar Template seleccionado contra el Plan del usuario (Blindado)
+    if (template_seleccionado && PLANES_CONFIG) {
+      const planSaaS = PLANES_CONFIG[brokerActual.plan_suscripcion || 'basico'];
+      if (planSaaS && planSaaS.templates_autorizados && !planSaaS.templates_autorizados.includes(template_seleccionado)) {
+        return fail(403, { error: `Tu nivel de suscripción (${brokerActual.plan_suscripcion}) no cubre la plantilla: ${template_seleccionado}` });
       }
     }
 
+    // Construcción del Payload
     const updatePayload = {
       nombre_comercial,
       whatsapp,
       subdominio,
       bio,
       instagram,
-      linkedin,
-      template_seleccionado: template_seleccionado || undefined
+      linkedin
     };
+
+    // 🛡️ FIX QUIRÚRGICO: Inyección forzada a la base de datos
+    // Aseguramos que la BD reciba la orden de actualización, cubriendo ambos posibles nombres de columna.
+    if (template_seleccionado) {
+      updatePayload.template_seleccionado = template_seleccionado;
+      updatePayload.template = template_seleccionado; // Retrocompatibilidad por si tu esquema original usa "template"
+    }
 
     // 2. Subida Segura de Avatar al Storage
     const avatarFile = formData.get('avatar');
@@ -86,7 +101,7 @@ export const actions = {
 
     if (updateError) {
       if (updateError.code === '23505') return fail(400, { error: 'Ese enlace (subdominio) ya está registrado.' });
-      return fail(500, { error: `Error guardando datos: ${updateError.message}` });
+      return fail(500, { error: `Error guardando datos en DB: ${updateError.message}` });
     }
 
     return { success: true };
@@ -105,7 +120,7 @@ export const actions = {
       .update({ webhook_url })
       .eq('email', user.email);
 
-    if (error) return fail(500, { error: 'Error guardando webhook.' });
+    if (error) return fail(500, { error: `Error guardando webhook: ${error.message}` });
     return { success: true };
   }
 };
