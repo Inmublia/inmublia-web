@@ -1,13 +1,13 @@
 <script>
   import { invalidateAll } from '$app/navigation';
-  import { enhance, deserialize } from '$app/forms';
+  import { enhance } from '$app/forms';
   
   let { data } = $props();
   let broker = $derived(data.broker || {});
   
-  // Estado local para UI instantánea (Tablero Kanban)
+  // Svelte 5: El estado inicial reactivo
   let leads = $state(data.leads || []);
-  let draggedLeadId = null;
+  let draggedLeadId = $state(null);
 
   // Estados del Panel Lateral
   let selectedLead = $state(null);
@@ -23,12 +23,10 @@
     )
   );
 
-  // 🚀 FIX: Runa para Sincronizar el Server (`data.leads`) al Board (`leads`)
-  // Esto previene que invalidateAll() rompa tu render sin pisar la acción visual de arrastrar.
+  // 1. FIX SVELTE 5 REACTIVITY: Esto intercepta los reflejos limpios de la base de datos 
+  // tras el success de invalidateAll/use:enhance en el background.
   $effect(() => {
-    if (data.leads && !draggedLeadId) {
-      leads = data.leads;
-    }
+    leads = data.leads || [];
   });
 
   const columnas = [
@@ -73,23 +71,28 @@
   }
 
   function actualizarEstadoLocalYBD(leadId, nuevoEstado) {
-    // 1. UI Instantánea
+    // 1. UI Optimista (Instantánea sin latencia)
     leads = leads.map(lead => {
       if (lead.id === leadId) return { ...lead, estado: nuevoEstado };
       return lead;
     });
 
-    // 2. Base de Datos en segundo plano
     const formData = new FormData();
     formData.append('id', leadId);
     formData.append('estado', nuevoEstado);
-
-    // 🚀 FIX: Cabecera obligatoria en llamadas manuales
+    
+    // Header Maestro Injectado. Sin x-sveltekit-action un form call vía fetch detona una redirección / error tonto
     fetch('?/actualizar', {
       method: 'POST',
       body: formData,
-      headers: { 'x-sveltekit-action': 'true' }
-    }).catch(err => console.error("Error guardando estado:", err));
+      headers: {
+        'x-sveltekit-action': 'true',
+        'accept': 'application/json'
+      }
+    }).catch(err => {
+      console.error("Error guardando estado:", err);
+      alert('Falló la sincronización con el CRM.');
+    });
   }
 
   // --- Lógica del Panel Lateral (Bitácora) ---
@@ -104,14 +107,14 @@
     setTimeout(() => { selectedLead = null; nuevaNotaTexto = ''; }, 300);
   }
 
-  async function guardarNota(e) {
-    e.preventDefault();
-    if (!nuevaNotaTexto.trim() || guardandoNota) return;
+  // Sustituimos fetch nativo por el manejador de `use:enhance` puro
+  function manejadorNota({ formData, cancel }) {
+    const notaTemp = formData.get('contenido').trim();
+    if (!notaTemp || guardandoNota) { cancel(); return; }
     
     guardandoNota = true;
-    const notaTemp = nuevaNotaTexto.trim();
     
-    // Mutación optimista purista en Svelte 5
+    // UI Optimista de Escritura de la UI
     const nuevaNotaObj = {
       id: 'temp-' + Date.now(),
       contenido: notaTemp,
@@ -126,51 +129,33 @@
       selectedLead.estado = 'contactado';
     }
 
-    const formData = new FormData();
-    formData.append('lead_id', selectedLead.id);
-    formData.append('contenido', notaTemp);
-    
-    try {
-      // 🚀 FIX: Agregar interceptor "x-sveltekit-action" 
-      const response = await fetch('?/guardarNota', {
-        method: 'POST',
-        body: formData,
-        headers: { 'x-sveltekit-action': 'true' }
-      });
-      
-      // 🚀 FIX: Procesamiento de SvelteKit Forms
-      const result = deserialize(await response.text());
-      
+    return async ({ result, update }) => {
+      guardandoNota = false;
       if (result.type === 'success') {
         nuevaNotaTexto = ''; 
-        await invalidateAll(); 
+        // Actualiza el store `data` sin recargar la página subyacente de forma agresiva
+        await update(); 
         
+         // Reforzamos el panel con la respuesta fresca de servidor devuelta de BD
         const leadActualizado = data.leads.find(l => l.id === selectedLead.id);
         if (leadActualizado) {
-          selectedLead = { ...leadActualizado };
+          selectedLead = { ...leadActualizado, lead_notas: [...leadActualizado.lead_notas] };
         }
       } else {
-        // En caso de que falle de nuevo la API, capturaremos este payload correctamente
-        console.error("Falló la acción en servidor:", result);
-        alert(result?.data?.error || 'Falló la sincronización con el CRM.');
+        console.error("Fallo RLS en servidor:", result);
+        alert('Falló la sincronización con el CRM.');
       }
-    } catch (err) {
-      console.error("Error al postear nota:", err);
-      alert('Error de red al guardar la nota.');
-    } finally {
-      guardandoNota = false;
-    }
+    };
   }
 
-  async function eliminarLead(id) {
+  function eliminarLead(id) {
     if (confirm('¿Eliminar este prospecto permanentemente?')) {
       leads = leads.filter(l => l.id !== id);
       const formData = new FormData();
       formData.append('id', id);
       fetch('?/eliminar', { 
-        method: 'POST', 
-        body: formData,
-        headers: { 'x-sveltekit-action': 'true' }
+        method: 'POST', body: formData, 
+        headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' } 
       });
     }
   }
@@ -365,8 +350,10 @@
         </div>
 
         <div class="p-6 bg-white border-t border-slate-100 shrink-0">
-          <form onsubmit={guardarNota} class="flex flex-col gap-3">
+          <form method="POST" action="?/guardarNota" use:enhance={manejadorNota} class="flex flex-col gap-3">
+            <input type="hidden" name="lead_id" value={selectedLead.id} />
             <textarea 
+              name="contenido"
               bind:value={nuevaNotaTexto} 
               placeholder="Escribe un resumen de la llamada o siguiente paso..." 
               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none min-h-[100px]"
@@ -391,5 +378,6 @@
         </div>
       {/if}
     </div>
+
   </main>
 </div>
