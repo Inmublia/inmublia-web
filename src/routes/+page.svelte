@@ -1,11 +1,27 @@
 <script>
+  import { page } from '$app/stores'; // Importación nativa de SvelteKit para leer la URL
   let { data } = $props();
   let propiedades = $derived(data.propiedades);
   let broker = $derived(data.broker);
 
-  // Cerebro SaaS: Determina qué plantilla usar para el catálogo
-  let plantillaActiva = $derived(broker?.template_seleccionado || 'classic');
+  // 1. SVELTE 5: Detectamos si el administrador está probando un diseño
+  let previewMode = $derived($page.url.searchParams.get('preview'));
+
+  // 2. CEREBRO SAAS: Si hay preview, lo mostramos. Si no, mostramos el que está guardado en la BD.
+  let plantillaActiva = $derived(previewMode || broker?.template_seleccionado || 'classic');
 </script>
+
+{#if previewMode}
+  <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-slate-900/90 backdrop-blur-md border border-slate-700 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-4 animate-[fadeIn_0.3s_ease-out]">
+    <span class="relative flex h-3 w-3">
+      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+      <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+    </span>
+    <p class="text-xs font-bold tracking-widest uppercase">Modo Vista Previa: <span class="text-amber-400">{previewMode}</span></p>
+    <div class="w-px h-4 bg-slate-700 mx-2"></div>
+    <p class="text-[10px] text-slate-300 font-medium">Tus clientes aún ven el diseño original.</p>
+  </div>
+{/if}
 
 {#if broker}
   {#if broker.whatsapp}
