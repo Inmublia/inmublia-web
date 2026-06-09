@@ -92,8 +92,11 @@
       <div class="max-w-5xl mx-auto">
 
         {#if form?.error}
-           <div class="mb-6 bg-red-50 text-red-600 font-bold p-4 rounded-xl border border-red-100 text-sm animate-[fadeIn_0.3s_ease-out]" role="alert">{form.error}</div>
+           <div class="mb-6 bg-red-100 text-red-800 font-bold p-6 rounded-xl border-2 border-red-300 text-sm whitespace-pre-wrap shadow-lg" role="alert">
+             ⚠️ DIAGNÓSTICO DEL SERVIDOR:<br>{form.error}
+           </div>
         {/if}
+        
         {#if showSuccess}
           <div class="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-3 animate-[fadeIn_0.3s_ease-out]" role="alert">
             <div class="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
@@ -110,8 +113,17 @@
               savingProfile = true;
               return async ({ update, result }) => {
                 savingProfile = false;
-                if (result.type === 'failure') alert(result.data?.error || "Error al guardar perfil.");
-                else if (result.type === 'success') { showSuccess = true; setTimeout(() => showSuccess = false, 4000); await invalidateAll(); }
+                
+                // 🔍 INTERCEPTOR DE ERRORES SVELTEKIT: Atrapa caídas silenciosas
+                if (result.type === 'failure') {
+                  alert("❌ Rechazo de Validación: " + (result.data?.error || JSON.stringify(result.data)));
+                } else if (result.type === 'error') {
+                  alert("🔥 Caída Crítica del Servidor (500): " + result.error.message + "\nRevisa la consola (F12) o los logs de Cloudflare.");
+                } else if (result.type === 'success') { 
+                  showSuccess = true; 
+                  setTimeout(() => showSuccess = false, 4000); 
+                  await invalidateAll(); 
+                }
                 update({ reset: false });
               };
             }}>
@@ -159,7 +171,7 @@
 
               <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
                 <div class="flex items-center gap-3 mb-6">
-                  <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                  <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
                   <h3 class="text-lg font-black text-slate-900">Presencia Digital</h3>
                 </div>
 
@@ -194,6 +206,8 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <input type="hidden" name="template_seleccionado" value={selectedTemplate}>
+                  
                   {#each catalogoTemplates as template}
                     {@const autorizado = planConfig.templates_autorizados.includes(template.id)}
                     {@const activo = selectedTemplate === template.id}
@@ -233,7 +247,7 @@
               <div class="mt-8 flex justify-end">
                 <button type="submit" disabled={savingProfile} class="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white font-bold py-4 px-10 rounded-2xl shadow-xl flex items-center gap-3 transition-all border border-slate-700 w-full sm:w-auto">
                   {#if savingProfile}
-                    <span class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Guardando cambios...
+                    <span class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Guardando...
                   {:else}
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg> Guardar Configuración
                   {/if}
@@ -257,31 +271,6 @@
               </div>
               <a href="#" class="block w-full text-center bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl transition-colors border border-slate-200 text-sm shadow-sm relative z-10">Gestionar Facturación</a>
             </div>
-
-            <form method="POST" action="?/actualizarWebhook" use:enhance={() => { return async ({ update }) => { update({ reset: false }); alert("Webhook guardado correctamente."); }; }}>
-              <div class="bg-[#111827] text-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
-                <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white opacity-5 blur-2xl pointer-events-none"></div>
-                <div class="flex items-center justify-between mb-4 relative z-10">
-                  <h3 class="text-lg font-black tracking-tight">Webhook (API)</h3>
-                  <span class="text-[8px] font-black uppercase tracking-widest bg-amber-500/20 text-amber-400 px-2 py-1 rounded border border-amber-500/30">Pro / Elite</span>
-                </div>
-                <p class="text-[11px] text-slate-400 font-medium leading-relaxed mb-6 relative z-10">Conecta tu inventario con tu CRM externo. Recibe leads al instante.</p>
-                <div class="space-y-4 relative z-10">
-                  <div>
-                    <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2">URL del Endpoint</label>
-                    <input type="url" name="webhook_url" bind:value={webhookUrl} class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all">
-                  </div>
-                  <div class="flex gap-2">
-                    <button type="button" onclick={probarWebhook} disabled={testingWebhook} class="flex-1 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-colors border border-white/10 text-[11px]">
-                      {#if testingWebhook} Probando... {:else if webhookSuccess} <span class="text-emerald-400">Exitosa</span> {:else} Probar {/if}
-                    </button>
-                    <button type="submit" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-3 rounded-xl transition-colors border border-transparent shadow-sm text-[11px]">
-                      Guardar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </form>
           </div>
         </div>
       </div>
