@@ -1,13 +1,10 @@
 <script>
-  import { page } from '$app/stores'; // Importación nativa de SvelteKit para leer la URL
+  import { page } from '$app/stores';
   let { data } = $props();
   let propiedades = $derived(data.propiedades);
   let broker = $derived(data.broker);
 
-  // 1. SVELTE 5: Detectamos si el administrador está probando un diseño
   let previewMode = $derived($page.url.searchParams.get('preview'));
-
-  // 2. CEREBRO SAAS: Si hay preview, lo mostramos. Si no, mostramos el que está guardado en la BD.
   let plantillaActiva = $derived(previewMode || broker?.template_seleccionado || 'classic');
 </script>
 
@@ -59,16 +56,6 @@
         </div>
       </div>
 
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {#each ['Casas', 'Departamentos', 'Terrenos', 'Preventas'] as cat}
-            <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6 text-center hover:border-blue-500 hover:shadow-md cursor-pointer transition-all">
-              <h3 class="font-bold text-slate-800">{cat}</h3>
-            </div>
-          {/each}
-        </div>
-      </div>
-
       <div class="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
         <h2 class="text-3xl font-black text-slate-900 tracking-tight mb-8">Propiedades Destacadas</h2>
         <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -103,12 +90,46 @@
             <div>
               <h3 class="text-2xl font-bold">{broker.nombre_comercial}</h3>
               <p class="text-blue-400 font-medium mb-2">{broker.bio || 'Especialista en Bienes Raíces'}</p>
-              <div class="flex gap-4 mt-2">
-                {#if broker.instagram}<a href={broker.instagram} target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-white transition-colors text-sm font-medium">Instagram</a>{/if}
-                {#if broker.linkedin}<a href={broker.linkedin} target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-white transition-colors text-sm font-medium">LinkedIn</a>{/if}
-              </div>
             </div>
           </div>
+        </div>
+      </div>
+    </main>
+  {/snippet}
+
+  {#snippet clean()}
+    <main class="min-h-screen bg-white font-sans text-slate-900">
+      <nav class="border-b border-slate-900 py-6 px-8 flex justify-between items-center bg-white sticky top-0 z-40">
+        <div class="flex items-center gap-4">
+          {#if broker.avatar_url}
+            <div class="w-12 h-12 bg-black overflow-hidden"><img src={broker.avatar_url} alt="Logo" class="w-full h-full object-cover"></div>
+          {/if}
+          <h1 class="text-2xl font-black uppercase tracking-tighter">{broker.nombre_comercial}</h1>
+        </div>
+        <a href="#catalogo" class="text-sm font-bold border-b-2 border-slate-900 pb-1 uppercase tracking-widest hover:text-blue-600 hover:border-blue-600 transition-colors">Portafolio</a>
+      </nav>
+
+      <div class="max-w-7xl mx-auto px-8 py-20 border-b border-slate-200">
+        <p class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Agencia Inmobiliaria</p>
+        <h2 class="text-5xl md:text-7xl font-black tracking-tighter leading-tight max-w-4xl">{broker.bio || 'Propiedades excepcionales, gestión implacable.'}</h2>
+      </div>
+
+      <div id="catalogo" class="max-w-7xl mx-auto px-8 py-20">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-16">
+          {#each propiedades as propiedad}
+            <a href="/{propiedad.slug}" class="group block">
+              <div class="aspect-[4/3] bg-slate-100 overflow-hidden mb-6 border border-slate-200">
+                <img src={propiedad.imagen_url} alt={propiedad.titulo} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out">
+              </div>
+              <div class="flex justify-between items-start">
+                <div class="pr-6">
+                  <h3 class="text-xl font-bold uppercase tracking-tight mb-2 group-hover:text-blue-600 transition-colors">{propiedad.titulo}</h3>
+                  <p class="text-sm text-slate-500 uppercase tracking-widest">{propiedad.ubicacion}</p>
+                </div>
+                <p class="text-xl font-black">${new Intl.NumberFormat('es-MX').format(propiedad.precio)}</p>
+              </div>
+            </a>
+          {/each}
         </div>
       </div>
     </main>
@@ -118,25 +139,18 @@
     <main class="min-h-screen bg-white font-sans">
       <nav class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 py-4 px-6 flex justify-between items-center">
         <div class="flex items-center gap-3">
-          {#if broker.avatar_url}
-            <img src={broker.avatar_url} alt="Logo" class="w-10 h-10 rounded-full object-cover shadow-sm">
-          {/if}
+          {#if broker.avatar_url}<img src={broker.avatar_url} alt="Logo" class="w-10 h-10 rounded-full object-cover shadow-sm">{/if}
           <span class="text-xl font-black text-slate-900 tracking-tight">{broker.nombre_comercial}</span>
-        </div>
-        <div class="hidden md:flex gap-6">
-          <a href="#" class="text-sm font-bold text-slate-500 hover:text-rose-500 transition-colors">Comprar</a>
-          <a href="#" class="text-sm font-bold text-slate-500 hover:text-rose-500 transition-colors">Rentar</a>
         </div>
       </nav>
 
       <div class="max-w-5xl mx-auto px-6 py-12">
         <div class="bg-white rounded-full shadow-lg border border-slate-200 p-2 flex flex-col md:flex-row items-center gap-2">
           <div class="flex-1 w-full px-6 py-3 border-b md:border-b-0 md:border-r border-slate-200">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ubicación</p>
-            <input type="text" placeholder="Busca una ciudad o zona" class="w-full text-slate-900 font-bold focus:outline-none placeholder:text-slate-300">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Búsqueda rápida</p>
+            <input type="text" placeholder="Ciudad o colonia" class="w-full text-slate-900 font-bold focus:outline-none placeholder:text-slate-300">
           </div>
           <button class="w-full md:w-auto bg-rose-500 hover:bg-rose-600 text-white font-bold px-8 py-4 rounded-full transition-colors flex items-center justify-center gap-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
             Explorar
           </button>
         </div>
@@ -148,9 +162,6 @@
             <a href="/{propiedad.slug}" class="group block">
               <div class="relative aspect-[4/3] rounded-3xl overflow-hidden mb-4 bg-slate-100">
                 <img src={propiedad.imagen_url} alt={propiedad.titulo} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-                <button class="absolute top-4 right-4 p-2 bg-white/50 backdrop-blur-md rounded-full text-slate-700 hover:text-rose-500 hover:bg-white transition-colors" aria-label="Guardar">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
-                </button>
               </div>
               <div class="flex justify-between items-start">
                 <div>
@@ -167,8 +178,35 @@
 
       <footer class="bg-slate-50 border-t border-slate-200 mt-20 py-12 text-center">
         <p class="text-slate-500 font-medium">{broker.nombre_comercial} &copy; 2026</p>
-        <p class="text-xs text-slate-400 mt-2">{broker.bio}</p>
       </footer>
+    </main>
+  {/snippet}
+
+  {#snippet editorial()}
+    <main class="min-h-screen bg-[#FDFBF7] font-serif text-[#2C2C2C]">
+      <header class="max-w-5xl mx-auto px-6 pt-20 pb-12 border-b border-[#2C2C2C]/10 text-center">
+        <p class="text-xs font-sans tracking-[0.2em] uppercase text-[#2C2C2C]/50 mb-6">Firma Inmobiliaria</p>
+        <h1 class="text-5xl md:text-7xl font-normal tracking-tight mb-8 leading-tight">{broker.nombre_comercial}</h1>
+        {#if broker.avatar_url}
+          <img src={broker.avatar_url} alt="Director" class="w-20 h-20 rounded-full object-cover mx-auto shadow-md mb-6 grayscale hover:grayscale-0 transition-all duration-500">
+        {/if}
+        <p class="max-w-2xl mx-auto text-lg font-light italic leading-relaxed text-[#2C2C2C]/80">"{broker.bio || 'La curaduría perfecta de espacios para habitar.'}"</p>
+      </header>
+
+      <div class="max-w-7xl mx-auto px-6 py-20">
+        <div class="columns-1 md:columns-2 lg:columns-3 gap-8 space-y-8">
+          {#each propiedades as propiedad}
+            <a href="/{propiedad.slug}" class="group block break-inside-avoid bg-white p-4 shadow-sm hover:shadow-xl transition-all duration-500 border border-[#2C2C2C]/5">
+              <div class="overflow-hidden mb-6">
+                <img src={propiedad.imagen_url} alt={propiedad.titulo} class="w-full object-cover group-hover:scale-[1.02] transition-transform duration-700">
+              </div>
+              <p class="text-[10px] font-sans font-bold tracking-[0.2em] uppercase text-[#2C2C2C]/50 mb-2">{propiedad.ubicacion}</p>
+              <h3 class="text-2xl font-normal leading-snug mb-4">{propiedad.titulo}</h3>
+              <p class="text-lg italic text-[#2C2C2C]/80">${new Intl.NumberFormat('es-MX').format(propiedad.precio)}</p>
+            </a>
+          {/each}
+        </div>
+      </div>
     </main>
   {/snippet}
 
@@ -176,10 +214,6 @@
     <main class="min-h-screen bg-[#0a0a0a] font-serif text-slate-200 selection:bg-amber-900 selection:text-white">
       <nav class="absolute top-0 w-full z-40 py-8 px-8 flex justify-between items-center border-b border-white/10">
         <span class="text-2xl font-light tracking-[0.2em] text-white uppercase">{broker.nombre_comercial}</span>
-        <div class="hidden md:flex gap-12">
-          <a href="#" class="text-xs tracking-[0.15em] text-white/70 hover:text-white uppercase transition-colors">Exclusivas</a>
-          <a href="#" class="text-xs tracking-[0.15em] text-white/70 hover:text-white uppercase transition-colors">Contacto</a>
-        </div>
       </nav>
 
       <div class="relative h-screen w-full flex items-center justify-center overflow-hidden">
@@ -188,9 +222,6 @@
         <div class="relative z-20 text-center px-4 max-w-4xl mx-auto mt-20">
           <p class="text-amber-500/80 text-sm tracking-[0.3em] uppercase mb-6">Colección Privada</p>
           <h1 class="text-5xl md:text-7xl font-light text-white leading-tight mb-8">Arquitectura que <br><span class="italic font-serif text-white/90">trasciende el tiempo.</span></h1>
-          <button class="border border-white/30 hover:bg-white hover:text-black text-white px-10 py-4 text-xs tracking-[0.2em] uppercase transition-all duration-500">
-            Descubrir el portafolio
-          </button>
         </div>
       </div>
 
@@ -204,33 +235,75 @@
               <span class="text-amber-500/80 text-xs tracking-[0.3em] uppercase mb-4">{propiedad.ubicacion}</span>
               <h2 class="text-3xl md:text-5xl font-light text-white mb-6 max-w-2xl leading-tight">{propiedad.titulo}</h2>
               <p class="text-xl text-white/70 font-light tracking-widest">${new Intl.NumberFormat('es-MX').format(propiedad.precio)}</p>
-              
-              <div class="mt-8 flex items-center gap-6 opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-100">
-                <span class="border-b border-amber-500 text-amber-500 pb-1 text-xs tracking-[0.2em] uppercase">Ver Detalles</span>
-              </div>
             </div>
             <div class="absolute inset-0 bg-gradient-to-r {index % 2 === 0 ? 'from-[#0a0a0a] via-[#0a0a0a]/80 to-transparent' : 'from-transparent via-[#0a0a0a]/80 to-[#0a0a0a]'} z-10"></div>
           </a>
         {/each}
       </div>
-
-      <footer class="border-t border-white/10 py-24 text-center">
-        <div class="w-16 h-16 rounded-full overflow-hidden mx-auto mb-6">
-          {#if broker.avatar_url} <img src={broker.avatar_url} alt="Asesor" class="w-full h-full object-cover"> {/if}
-        </div>
-        <p class="text-2xl font-light text-white mb-2">{broker.nombre_comercial}</p>
-        <p class="text-xs text-white/50 tracking-[0.2em] uppercase">{broker.bio}</p>
-      </footer>
     </main>
   {/snippet}
 
-  {#if plantillaActiva === 'modern'}
-    {@render modern()}
-  {:else if plantillaActiva === 'luxury'}
-    {@render luxury()}
-  {:else}
-    {@render classic()}
-  {/if}
+  {#snippet cinematic()}
+    <main class="min-h-screen bg-black font-sans text-white">
+      <nav class="fixed top-0 w-full z-50 py-6 px-10 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+        <h1 class="text-xl font-bold tracking-widest uppercase drop-shadow-md">{broker.nombre_comercial}</h1>
+        {#if broker.avatar_url}
+          <img src={broker.avatar_url} alt="Logo" class="w-12 h-12 rounded-full object-cover shadow-2xl border border-white/20">
+        {/if}
+      </nav>
+
+      <div class="flex flex-col snap-y snap-mandatory h-screen overflow-y-scroll scroll-smooth">
+        
+        <div class="snap-start w-full h-screen relative flex items-center justify-center shrink-0">
+          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20 z-10"></div>
+          <img src={propiedades[0]?.imagen_url || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750'} class="absolute inset-0 w-full h-full object-cover opacity-80" alt="Cinematic Hero">
+          <div class="relative z-20 text-center">
+            <h2 class="text-6xl md:text-8xl font-black uppercase tracking-tighter mix-blend-overlay opacity-90">{broker.nombre_comercial}</h2>
+            <p class="mt-4 text-sm tracking-[0.4em] uppercase text-white/70">Portafolio Inmobiliario</p>
+            <div class="mt-16 animate-bounce">
+              <svg class="w-6 h-6 mx-auto text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+            </div>
+          </div>
+        </div>
+
+        {#each propiedades as propiedad}
+          <div class="snap-start w-full h-screen relative flex items-end shrink-0 group">
+            <div class="absolute inset-0 bg-black z-0">
+              <img src={propiedad.imagen_url} alt={propiedad.titulo} class="w-full h-full object-cover opacity-50 group-hover:opacity-80 transition-opacity duration-1000">
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent z-10 pointer-events-none"></div>
+            
+            <div class="relative z-20 w-full max-w-7xl mx-auto px-10 pb-24 md:pb-32 flex flex-col md:flex-row md:items-end justify-between gap-8">
+              <div class="max-w-3xl">
+                <p class="text-blue-500 font-bold tracking-[0.2em] uppercase text-xs mb-4">{propiedad.ubicacion}</p>
+                <h3 class="text-4xl md:text-6xl font-black leading-tight mb-4 drop-shadow-lg">{propiedad.titulo}</h3>
+                <p class="text-2xl font-light text-white/90">${new Intl.NumberFormat('es-MX').format(propiedad.precio)}</p>
+              </div>
+              
+              <a href="/{propiedad.slug}" class="bg-white/10 hover:bg-white text-white hover:text-black backdrop-blur-md border border-white/20 font-bold py-4 px-10 rounded-full transition-all duration-300 backdrop-saturate-150 uppercase tracking-widest text-xs text-center shrink-0">
+                Adentrarse
+              </a>
+            </div>
+          </div>
+        {/each}
+        
+      </div>
+    </main>
+  {/snippet}
+
+{#if plantillaActiva === 'modern'}
+  {@render modern()}
+{:else if plantillaActiva === 'luxury'}
+  {@render luxury()}
+{:else if plantillaActiva === 'clean'}
+  {@render clean()}
+{:else if plantillaActiva === 'editorial'}
+  {@render editorial()}
+{:else if plantillaActiva === 'cinematic'}
+  {@render cinematic()}
+{:else}
+  {@render classic()}
+{/if}
 
 {:else}
   <main class="min-h-screen bg-white font-sans selection:bg-blue-600 selection:text-white">
@@ -274,40 +347,6 @@
           <a href="#planes" class="bg-slate-900 hover:bg-blue-600 text-white font-bold py-4 px-10 rounded-full transition-all duration-300 text-lg shadow-xl shadow-slate-900/20">
             Comenzar mi Agencia
           </a>
-        </div>
-      </div>
-    </div>
-
-    <div id="soluciones" class="bg-white py-24 border-t border-slate-100">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-16">
-          <h2 class="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Todo lo que tu agencia necesita para escalar</h2>
-        </div>
-
-        <div class="grid md:grid-cols-3 gap-8">
-          <div class="p-8 rounded-3xl bg-slate-50 border border-slate-100 hover:border-blue-200 hover:shadow-xl transition-all">
-            <div class="w-14 h-14 bg-white rounded-xl flex items-center justify-center text-blue-600 mb-6 shadow-sm border border-slate-100">
-              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
-            </div>
-            <h3 class="text-xl font-bold text-slate-900 mb-3">Tu Marca y Dominio</h3>
-            <p class="text-slate-600 leading-relaxed">Conecta tu propio dominio (ej. tuagencia.com). Protegemos tu marca con certificados de seguridad SSL automáticos y un diseño premium exclusivo para ti.</p>
-          </div>
-
-          <div class="p-8 rounded-3xl bg-slate-50 border border-slate-100 hover:border-blue-200 hover:shadow-xl transition-all">
-            <div class="w-14 h-14 bg-white rounded-xl flex items-center justify-center text-blue-600 mb-6 shadow-sm border border-slate-100">
-              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>
-            </div>
-            <h3 class="text-xl font-bold text-slate-900 mb-3">Consola Administrativa</h3>
-            <p class="text-slate-600 leading-relaxed">Un panel de control privado y fácil de usar. Gestiona tu inventario, sube fotografías de alta calidad y actualiza precios en tiempo real sin tocar código.</p>
-          </div>
-
-          <div class="p-8 rounded-3xl bg-slate-50 border border-slate-100 hover:border-blue-200 hover:shadow-xl transition-all">
-            <div class="w-14 h-14 bg-white rounded-xl flex items-center justify-center text-blue-600 mb-6 shadow-sm border border-slate-100">
-              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
-            </div>
-            <h3 class="text-xl font-bold text-slate-900 mb-3">Landing Pages por Propiedad</h3>
-            <p class="text-slate-600 leading-relaxed">Cada casa que subes genera automáticamente una página optimizada para ventas y SEO. Perfectas para compartir en WhatsApp o lanzar campañas en Facebook.</p>
-          </div>
         </div>
       </div>
     </div>
