@@ -6,7 +6,6 @@
   let broker = $state(data.broker || {});
   let planConfig = $derived(data.planConfig || { templates_autorizados: ['classic'] });
   
-  // Estado reactivo maestro para la UI
   let selectedTemplate = $state(broker.template_seleccionado || 'classic');
 
   let savingProfile = $state(false);
@@ -195,8 +194,6 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <input type="hidden" name="template_seleccionado" value={selectedTemplate}>
-                  
                   {#each catalogoTemplates as template}
                     {@const autorizado = planConfig.templates_autorizados.includes(template.id)}
                     {@const activo = selectedTemplate === template.id}
@@ -213,7 +210,7 @@
                       </div>
 
                       <label class="p-4 flex flex-col justify-between flex-1 cursor-pointer {activo ? 'bg-indigo-50/20' : ''} {!autorizado ? 'cursor-not-allowed' : ''}">
-                        <input type="radio" bind:group={selectedTemplate} value={template.id} name="template_radio" disabled={!autorizado} class="hidden">
+                        <input type="radio" name="template_seleccionado" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
                         <div>
                           <div class="flex items-center justify-between mb-2">
                             <span class="font-bold text-sm {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
