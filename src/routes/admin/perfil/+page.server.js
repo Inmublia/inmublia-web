@@ -33,7 +33,7 @@ export const actions = {
     const instagram = formData.get('instagram')?.toString().trim() || null;
     const linkedin = formData.get('linkedin')?.toString().trim() || null;
     
-    // Captura exacta con el nombre correcto de la tabla y UI
+    // FIX MAESTRO: Captura del nombre nativo del input HTML
     const template_seleccionado = formData.get('template_seleccionado')?.toString().trim();
 
     if (!nombre_comercial || !whatsapp || !subdominio) {
@@ -48,7 +48,6 @@ export const actions = {
       
     if (!brokerActual) return fail(403, { error: 'Perfil no autorizado.' });
 
-    // Validar Template seleccionado contra el Plan del usuario
     if (template_seleccionado && PLANES_CONFIG) {
       const planSaaS = PLANES_CONFIG[brokerActual.plan_suscripcion || 'basico'];
       if (planSaaS && planSaaS.templates_autorizados && !planSaaS.templates_autorizados.includes(template_seleccionado)) {
@@ -65,7 +64,6 @@ export const actions = {
       linkedin
     };
 
-    // Si viene la orden de template, la añadimos al payload
     if (template_seleccionado) {
       updatePayload.template_seleccionado = template_seleccionado;
     }
@@ -86,7 +84,6 @@ export const actions = {
       updatePayload.avatar_url = publicUrl;
     }
 
-    // Actualización a la BD
     const { error: updateError } = await locals.supabase
       .from('brokers')
       .update(updatePayload)
@@ -94,8 +91,7 @@ export const actions = {
 
     if (updateError) {
       if (updateError.code === '23505') return fail(400, { error: 'El subdominio ya existe.' });
-      // Retornamos el error exacto que dé el ENUM si no coincide
-      return fail(500, { error: `Error Base de Datos: ${updateError.message} Detalles: ${updateError.details || ''}` });
+      return fail(500, { error: `Error Base de Datos: ${updateError.message}` });
     }
 
     return { success: true };
