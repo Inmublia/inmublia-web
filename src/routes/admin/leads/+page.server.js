@@ -3,9 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 
-// 1. FIX ARQUITECTÓNICO: Instanciamos el Service Role para saltar Row Level Security (RLS) 
-// en las tablas de relaciones maestras como `lead_notas` que originó tu error "500 silencioso".
-const getSupabaseAdmin = () => createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+// FIX ARQUITECTÓNICO CLOUDFLARE: Deshabilitar sesiones internas en el cliente admin para evitar bloqueos Edge
+const getSupabaseAdmin = () => createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false
+  }
+});
 
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
@@ -80,7 +85,6 @@ export const actions = {
   guardarNota: async ({ request, locals }) => {
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
-    // Obtenemos admin client para saltar todas las restricciones RLS al guardar la nota
     const supabaseAdmin = getSupabaseAdmin();
 
     const { data: broker } = await locals.supabase.from('brokers').select('id').eq('email', locals.user.email).single();
@@ -92,19 +96,18 @@ export const actions = {
 
     if (!contenido || !contenido.trim()) return fail(400, { error: 'Nota vacía' });
 
-    // Verificación de seguridad estándar antes de saltar los RLS
     const { data: lead, error: checkError } = await locals.supabase
       .from('leads').select('id, estado').eq('id', leadId).eq('broker_id', broker.id).maybeSingle();
 
     if (checkError || !lead) return fail(403, { error: 'No autorizado' });
 
-    // 2. Aquí el Master Fix: 'supabaseAdmin' inyecta en la BD evadiendo bloqueos
     const { error: notaError } = await supabaseAdmin
       .from('lead_notas').insert({ lead_id: leadId, broker_id: broker.id, contenido: contenido.trim(), tipo: 'nota' });
 
     if (notaError) {
-       console.error("Fallo RLS en Admin:", notaError.message);
-       return fail(500, { error: 'Fallo interno' });
+       console.error("Fallo Supabase Admin:", notaError);
+       // Enviamos el mensaje crudo al Frontend
+       return fail(500, { error: `Supabase Error: ${notaError.message}` });
     }
 
     if (lead.estado === 'nuevo') {
