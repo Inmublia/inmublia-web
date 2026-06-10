@@ -10,7 +10,7 @@
   let isBrochure = $derived($page.url.searchParams.get('brochure') === 'true');
   let enviando = $state(false);
 
-  // FIX SINTAXIS JS: Variables válidas para los Píxeles
+  // INYECCIÓN DE PÍXELES CON EVENTO DE VISUALIZACIÓN DE PRODUCTO
   const START_SCR = '<scr'+'ipt>';
   const END_SCR = '</scr'+'ipt>';
 
