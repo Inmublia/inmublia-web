@@ -14,10 +14,19 @@
 
   let generandoPDF = $state(false);
 
+  // Micro-interacción: Formateador de moneda premium
+  const formatter = new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    maximumFractionDigits: 0
+  });
+
+  // --- LÓGICA DE TIEMPO PARA OPEN HOUSE ---
   function getOpenHouseStatus(openHouse) {
     if (!openHouse || !openHouse.event_date || !openHouse.time_end) return 'none';
     
     const now = new Date();
+    // Construimos la fecha y hora exacta de fin del evento
     const eventEndString = `${openHouse.event_date}T${openHouse.time_end}`;
     const eventEnd = new Date(eventEndString);
 
@@ -107,147 +116,174 @@
   }
 </script>
 
-<main class="flex-1 flex flex-col h-screen overflow-hidden">
-  <header class="h-24 bg-white border-b border-slate-200 flex items-center justify-between px-10 shrink-0">
-    <h1 class="text-2xl font-black text-slate-900 tracking-tight">Propiedades Activas</h1>
+<main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+  <header class="h-24 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-10 shrink-0 sticky top-0 z-20">
+    <div>
+      <h1 class="text-2xl font-black text-slate-900 tracking-tight">Inventario Maestro</h1>
+      <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestión de activos inmobiliarios</p>
+    </div>
+    
     <div class="flex items-center gap-4">
       {#if broker}
-        <a href="https://{broker.subdominio}.inmublia.com" target="_blank" class="hidden sm:flex text-slate-500 hover:text-blue-600 font-bold items-center gap-2 transition-colors px-5 py-2.5 rounded-full hover:bg-blue-50 text-sm border border-transparent hover:border-blue-100">
-          Ver catálogo web
+        <a href="https://{broker.subdominio}.inmublia.com" target="_blank" class="hidden sm:flex text-slate-500 hover:text-indigo-600 font-bold items-center gap-2 transition-colors px-5 py-2.5 rounded-xl hover:bg-indigo-50 text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+          Ver Portal Público
         </a>
       {/if}
-      <a href="/admin/open-house/nueva" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-full shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2 text-sm">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+      <a href="/admin/open-house/nueva" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-3 px-6 rounded-2xl transition-all flex items-center gap-2 text-sm shadow-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
         Crear Open House
       </a>
-      <a href="/admin/nueva" class="bg-slate-900 hover:bg-blue-600 text-white font-bold py-2.5 px-6 rounded-full shadow-lg shadow-slate-900/20 transition-all flex items-center gap-2 text-sm">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-        Crear Propiedad
+      <a href="/admin/nueva" class="bg-slate-900 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-2xl shadow-xl shadow-slate-900/10 transition-all flex items-center gap-2 text-sm active:scale-95">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+        Nueva Propiedad
       </a>
     </div>
   </header>
 
-  <div class="p-10 flex-1 overflow-auto">
-    {#if broker}
-      <div class="flex flex-col lg:flex-row gap-8 mb-10">
-        <div class="flex-1 bg-white rounded-2xl p-2 shadow-sm border border-slate-200 flex items-center px-4">
-          <svg class="w-5 h-5 text-slate-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-          <input type="text" bind:value={searchQuery} placeholder="Buscar por título o colonia..." class="w-full bg-transparent border-none focus:outline-none text-slate-900 py-3 placeholder:text-slate-400">
-        </div>
-        <div class="flex gap-4">
-          <div class="bg-white rounded-2xl px-6 py-4 shadow-sm border border-slate-200 min-w-[150px]">
-            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Inventario</h3>
-            <p class="text-2xl font-black text-slate-900">{totalPropiedades}</p>
+  <div class="p-10 flex-1 overflow-auto animate-[fadeIn_0.5s_ease-out]">
+    <div class="max-w-7xl mx-auto">
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 flex items-center justify-between group hover:border-indigo-200 transition-all">
+          <div>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Unidades</p>
+            <p class="text-4xl font-black text-slate-900 tracking-tighter">{totalPropiedades}</p>
+          </div>
+          <div class="w-14 h-14 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
           </div>
         </div>
       </div>
 
-      {#if propiedadesFiltradas.length === 0}
-        <div class="bg-white rounded-3xl shadow-sm border border-slate-200 p-16 text-center">
-          <p class="text-slate-500 font-medium">No se encontraron propiedades.</p>
+      <div class="bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-slate-200 overflow-hidden relative">
+        <div class="p-8 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="relative flex-1 max-w-md">
+            <svg class="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="text" bind:value={searchQuery} placeholder="Buscar por título o colonia..." class="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-all placeholder:text-slate-400">
+          </div>
         </div>
-      {:else}
-        <div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden">
-          <table class="w-full divide-y divide-slate-100 table-fixed">
-            <thead class="bg-slate-50/50">
-              <tr>
-                <th scope="col" class="w-[35%] px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Inmueble</th>
-                <th scope="col" class="w-[15%] px-4 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valor</th>
-                <th scope="col" class="w-[20%] px-4 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Estatus / Eventos</th>
-                <th scope="col" class="w-[30%] px-8 py-5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gestión</th>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse table-fixed">
+            <thead>
+              <tr class="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] bg-white border-b border-slate-100">
+                <th class="w-[35%] px-8 py-5">Propiedad</th>
+                <th class="w-[15%] px-8 py-5">Precio Mercado</th>
+                <th class="w-[20%] px-8 py-5 text-center">Estatus / Eventos</th>
+                <th class="w-[30%] px-8 py-5 text-right">Gestión Rápida</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-50">
-              {#each propiedadesFiltradas as propiedad}
-                <tr class="hover:bg-slate-50/80 transition-colors group">
-                  <td class="px-8 py-6 truncate">
-                    <div class="flex items-center gap-6">
-                      <div class="h-16 w-24 shrink-0 rounded-xl overflow-hidden bg-slate-100 shadow-sm relative group-hover:shadow-md transition-all">
-                        <img class="h-full w-full object-cover" src={propiedad.imagen_url} alt={propiedad.titulo}>
-                      </div>
-                      <div class="truncate">
-                        <div class="text-sm font-bold text-slate-900 mb-1 flex items-center gap-2 truncate">
-                          <span class="truncate">{propiedad.titulo}</span>
-                          {#if propiedad.destacada}
-                            <span class="bg-amber-100 text-amber-700 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full font-black shrink-0">VIP</span>
-                          {/if}
-                        </div>
-                        <div class="text-xs text-slate-500 font-mono tracking-tight truncate">/{propiedad.slug}</div>
-                      </div>
-                    </div>
-                  </td>
-                  
-                  <td class="px-4 py-6 truncate">
-                    <div class="text-sm font-black text-slate-900">${new Intl.NumberFormat('es-MX').format(propiedad.precio)}</div>
-                    <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1">{propiedad.operacion}</div>
-                  </td>
-                  
-                  <td class="px-4 py-6 whitespace-nowrap">
-                    <div class="flex items-center gap-2 h-full">
-                      {#if propiedad.estatus === 'Pre-Mercado'}
-                        <span class="px-3 py-1.5 inline-flex text-[10px] font-bold uppercase tracking-widest rounded-full border shadow-sm bg-indigo-50 text-indigo-700 border-indigo-200">
-                          Pre-Mercado
-                        </span>
-                      {:else}
-                        <span class="px-3 py-1.5 inline-flex text-[10px] font-bold uppercase tracking-widest rounded-full border shadow-sm bg-emerald-50 text-emerald-700 border-emerald-200">
-                          Activa
-                        </span>
-                      {/if}
-
-                      {#if propiedad.open_houses && propiedad.open_houses.length > 0}
-                        {@const ohStatus = getOpenHouseStatus(propiedad.open_houses[0])}
-                        
-                        {#if ohStatus === 'active'}
-                          <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm" title="Ir al Dashboard del Evento">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            OH
-                          </a>
-                        {:else}
-                          <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors border border-slate-200" title="Ver Histórico del Open House">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
-                            OH
-                          </a>
-                        {/if}
-                      {/if}
-                    </div>
-                  </td>
-                  
-                  <td class="px-8 py-6">
-                    <div class="flex gap-2 justify-end items-center">
-                      <button onclick={() => descargarFicha(propiedad)} disabled={generandoPDF} class="text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 p-2.5 rounded-lg transition-colors disabled:opacity-50 border border-transparent hover:border-emerald-100" title="Descargar Ficha PDF">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                      </button>
-                      
-                      <button onclick={() => window.open(`/${propiedad.slug}?brochure=true`, '_blank')} class="text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 p-2.5 rounded-lg transition-colors border border-amber-200" title="Smart Brochure">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                      </button>
-                      
-                      <button onclick={() => abrirQR(propiedad.slug, propiedad.titulo)} class="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg transition-colors border border-transparent hover:border-slate-200" title="Generar Código QR">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
-                      </button>
-                      
-                      <button onclick={() => copiarEnlace(propiedad.slug)} class="text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg transition-colors border border-transparent hover:border-slate-200" title="Copiar Enlace">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
-                      </button>
-                      
-                      <a href="/admin/editar/{propiedad.id}" class="text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 p-2.5 rounded-lg transition-colors border border-transparent hover:border-blue-100" title="Editar">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                      </a>
-                      
-                      <form method="POST" action="?/eliminar" use:enhance onsubmit={() => confirm('¿Borrar esta propiedad?')} class="inline-flex m-0">
-                        <input type="hidden" name="id" value={propiedad.id}>
-                        <button type="submit" class="text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 p-2.5 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Eliminar">
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
-                      </form>
-                    </div>
+              {#if propiedadesFiltradas.length === 0}
+                <tr>
+                  <td colspan="4" class="px-8 py-16 text-center text-slate-500 font-medium">
+                    No se encontraron propiedades.
                   </td>
                 </tr>
-              {/each}
+              {:else}
+                {#each propiedadesFiltradas as propiedad}
+                  <tr class="group hover:bg-slate-50/80 transition-all duration-300">
+                    <td class="px-8 py-6 truncate">
+                      <div class="flex items-center gap-5">
+                        <div class="h-16 w-20 rounded-2xl overflow-hidden bg-slate-200 shrink-0 shadow-inner group-hover:scale-105 transition-transform">
+                          <img src={propiedad.imagen_url} alt="" class="w-full h-full object-cover">
+                        </div>
+                        <div class="truncate">
+                          <div class="text-sm font-black text-slate-900 leading-tight mb-1 group-hover:text-indigo-600 transition-colors flex items-center gap-2 truncate">
+                            <span class="truncate">{propiedad.titulo}</span>
+                            {#if propiedad.destacada}
+                              <span class="bg-amber-100 text-amber-700 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full font-black shrink-0 shadow-sm">VIP</span>
+                            {/if}
+                          </div>
+                          <p class="text-xs text-slate-400 flex items-center gap-1 font-medium italic truncate">
+                            <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            {propiedad.ubicacion}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td class="px-8 py-6 truncate">
+                      <p class="text-lg font-black text-slate-900 tracking-tighter">{formatter.format(propiedad.precio)}</p>
+                      <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{propiedad.operacion}</p>
+                    </td>
+
+                    <td class="px-8 py-6 text-center whitespace-nowrap">
+                      <div class="flex items-center justify-center gap-2 h-full">
+                        {#if propiedad.estatus === 'Pre-Mercado'}
+                          <span class="px-3 py-1.5 inline-flex text-[10px] font-bold uppercase tracking-widest rounded-full border shadow-sm bg-indigo-50 text-indigo-700 border-indigo-200">
+                            Pre-Mercado
+                          </span>
+                        {:else}
+                          <span class="px-3 py-1.5 inline-flex text-[10px] font-bold uppercase tracking-widest rounded-full border shadow-sm bg-emerald-50 text-emerald-700 border-emerald-200">
+                            Activa
+                          </span>
+                        {/if}
+
+                        {#if propiedad.open_houses && propiedad.open_houses.length > 0}
+                          {@const ohStatus = getOpenHouseStatus(propiedad.open_houses[0])}
+                          
+                          {#if ohStatus === 'active'}
+                            <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm" title="Ir al Dashboard del Evento">
+                              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                              OH
+                            </a>
+                          {:else}
+                            <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors border border-slate-200" title="Ver Histórico del Open House">
+                              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                              OH
+                            </a>
+                          {/if}
+                        {/if}
+                      </div>
+                    </td>
+
+                    <td class="px-8 py-6">
+                      <div class="flex justify-end gap-2 items-center">
+                        <button onclick={() => descargarFicha(propiedad)} disabled={generandoPDF} class="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all hover:shadow-sm disabled:opacity-50" title="Descargar Ficha PDF">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        </button>
+                        
+                        <button onclick={() => window.open(`/${propiedad.slug}?brochure=true`, '_blank')} class="p-2.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all hover:shadow-sm" title="Smart Brochure">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        </button>
+                        
+                        <button onclick={() => abrirQR(propiedad.slug, propiedad.titulo)} class="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all hover:shadow-sm" title="Generar Código QR">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
+                        </button>
+                        
+                        <button onclick={() => copiarEnlace(propiedad.slug)} class="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all hover:shadow-sm" title="Copiar Enlace">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        </button>
+
+                        <a href="/admin/editar/{propiedad.id}" class="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all hover:shadow-sm" title="Editar">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </a>
+
+                        <form method="POST" action="?/eliminar" use:enhance class="inline-block">
+                          <input type="hidden" name="id" value={propiedad.id}>
+                          <button type="submit" class="p-2.5 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all hover:shadow-sm" onclick="return confirm('¿Borrar propiedad permanentemente?')">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                {/each}
+              {/if}
             </tbody>
           </table>
         </div>
-      {/if}
-    {/if}
+      </div>
+
+    </div>
   </div>
 </main>
+
+<style>
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
