@@ -157,198 +157,196 @@
   </div>
 {/if}
 
-{#if broker.template === 'luxury'}
-  <main class="min-h-screen {isNight ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'} font-sans pb-32 transition-colors duration-1000">
-    
-    <nav class="absolute top-0 w-full z-40 bg-gradient-to-b from-black/50 to-transparent">
-      <div class="max-w-[1400px] mx-auto px-6 h-28 flex justify-between items-center border-b border-white/10">
-        <span class="text-sm md:text-base font-bold uppercase tracking-[0.2em] text-white drop-shadow-md">{broker.nombre_comercial}</span>
-        
-        {#if isBrochure}
-          <span class="bg-white/20 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full border border-white/30">Smart Brochure</span>
-        {:else}
-          <a href="https://{broker.subdominio}.inmublia.com" class="text-white font-medium text-xs uppercase tracking-[0.15em] hover:text-white/70 transition-colors">Catálogo Exclusivo</a>
-        {/if}
-      </div>
-    </nav>
-
-    <div class="relative w-full h-[85vh] min-h-[500px] bg-black cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(0)}>
-      <img src={propiedad.imagen_url} alt={propiedad.titulo} class="w-full h-full object-cover {isNight ? 'opacity-60' : 'opacity-80'} hover:opacity-90 transition-opacity" />
-      <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none"></div>
+<main class="min-h-screen {isNight ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'} font-sans pb-32 transition-colors duration-1000">
+  
+  <nav class="absolute top-0 w-full z-40 bg-gradient-to-b from-black/50 to-transparent">
+    <div class="max-w-[1400px] mx-auto px-6 h-28 flex justify-between items-center border-b border-white/10">
+      <span class="text-sm md:text-base font-bold uppercase tracking-[0.2em] text-white drop-shadow-md">{broker.nombre_comercial}</span>
       
-      <div class="absolute bottom-0 w-full pointer-events-none">
-        <div class="max-w-[1000px] mx-auto px-6 pb-24 text-center">
-          <div class="inline-flex items-center gap-3 mb-6">
-            <span class="text-white text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] border border-white/30 px-6 py-2 rounded-sm">{propiedad.operacion}</span>
-            {#if propiedad.destacada}
-               <span class="text-amber-300 text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] border border-amber-300/30 px-6 py-2 rounded-sm">Signature</span>
-            {/if}
-          </div>
-          <h1 class="text-4xl md:text-6xl font-light text-white tracking-tight leading-tight drop-shadow-lg mb-4">{propiedad.titulo}</h1>
-          <p class="text-2xl font-light text-white/90 tracking-wide">{formatearPrecio(propiedad.precio)}</p>
+      {#if isBrochure}
+        <span class="bg-white/20 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full border border-white/30">Smart Brochure</span>
+      {:else}
+        <a href="https://{broker.subdominio}.inmublia.com" class="text-white font-medium text-xs uppercase tracking-[0.15em] hover:text-white/70 transition-colors">Catálogo Exclusivo</a>
+      {/if}
+    </div>
+  </nav>
+
+  <div class="relative w-full h-[85vh] min-h-[500px] bg-black cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(0)}>
+    <img src={propiedad.imagen_url} alt={propiedad.titulo} class="w-full h-full object-cover {isNight ? 'opacity-60' : 'opacity-80'} hover:opacity-90 transition-opacity" />
+    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none"></div>
+    
+    <div class="absolute bottom-0 w-full pointer-events-none">
+      <div class="max-w-[1000px] mx-auto px-6 pb-24 text-center">
+        <div class="inline-flex items-center gap-3 mb-6">
+          <span class="text-white text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] border border-white/30 px-6 py-2 rounded-sm">{propiedad.operacion}</span>
+          {#if propiedad.destacada}
+             <span class="text-amber-300 text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] border border-amber-300/30 px-6 py-2 rounded-sm">Signature</span>
+          {/if}
         </div>
+        <h1 class="text-4xl md:text-6xl font-light text-white tracking-tight leading-tight drop-shadow-lg mb-4">{propiedad.titulo}</h1>
+        <p class="text-2xl font-light text-white/90 tracking-wide">{formatearPrecio(propiedad.precio)}</p>
       </div>
     </div>
+  </div>
 
-    <div class="max-w-[1000px] mx-auto px-6 pt-12 pb-16">
-      
-      {#if propiedad.galeria_urls && propiedad.galeria_urls.length > 0}
-        <div class="mb-16">
-          {#if isBrochure}
-            <div class="flex flex-col gap-10 md:gap-16">
-              {#each propiedad.galeria_urls as foto, idx}
-                <div class="w-full rounded-sm overflow-hidden shadow-xl {isNight ? 'bg-slate-800 shadow-black/50' : 'bg-slate-100 shadow-slate-200/50'} relative group cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(idx + 1)}>
-                  <img src={foto} alt="Detalle de la propiedad {idx + 1}" class="w-full h-auto max-h-[80vh] object-cover transition-transform duration-700 ease-out group-hover:scale-[1.02]" loading="lazy">
-                  <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors"></div>
-                </div>
-              {/each}
+  <div class="max-w-[1000px] mx-auto px-6 pt-12 pb-16">
+    
+    {#if propiedad.galeria_urls && propiedad.galeria_urls.length > 0}
+      <div class="mb-16">
+        {#if isBrochure}
+          <div class="flex flex-col gap-10 md:gap-16">
+            {#each propiedad.galeria_urls as foto, idx}
+              <div class="w-full rounded-sm overflow-hidden shadow-xl {isNight ? 'bg-slate-800 shadow-black/50' : 'bg-slate-100 shadow-slate-200/50'} relative group cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(idx + 1)}>
+                <img src={foto} alt="Detalle de la propiedad {idx + 1}" class="w-full h-auto max-h-[80vh] object-cover transition-transform duration-700 ease-out group-hover:scale-[1.02]" loading="lazy">
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors"></div>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 auto-rows-[200px] md:auto-rows-[250px]">
+            <div class="md:col-span-2 md:row-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(1)}>
+              <img src={propiedad.galeria_urls[0]} alt="Vista Principal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
+              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
             </div>
-          {:else}
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 auto-rows-[200px] md:auto-rows-[250px]">
-              <div class="md:col-span-2 md:row-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(1)}>
-                <img src={propiedad.galeria_urls[0]} alt="Vista Principal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
+            {#if propiedad.galeria_urls[1]}
+              <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(2)}>
+                <img src={propiedad.galeria_urls[1]} alt="Vista Secundaria" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
               </div>
-              {#if propiedad.galeria_urls[1]}
-                <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(2)}>
-                  <img src={propiedad.galeria_urls[1]} alt="Vista Secundaria" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
-                  <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
-                </div>
-              {/if}
-              <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(3 % allPhotos.length)}>
-                <img src={propiedad.galeria_urls[2] || propiedad.imagen_url} alt="Tercera Vista" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
-                <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <span class="text-white font-bold uppercase tracking-[0.2em] text-xs flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                     Ver las {allPhotos.length} Fotos
-                  </span>
-                </div>
-              </div>
-            </div>
-          {/if}
-        </div>
-      {/if}
-
-      <div class="flex flex-wrap justify-center gap-x-12 gap-y-8 py-8 border-y {isNight ? 'border-slate-800' : 'border-slate-200'} mb-16">
-        <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.recamaras || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">Recámaras</p></div>
-        <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden sm:block"></div>
-        <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.banos || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">Baños</p></div>
-        <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden sm:block"></div>
-        <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.m2_construccion || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">M² Inter</p></div>
-        <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden sm:block"></div>
-        <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.m2_terreno || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">M² Terreno</p></div>
-        <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden lg:block"></div>
-        <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.estacionamientos || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">Autos</p></div>
-      </div>
-
-      <div class="mb-16">
-        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">La Residencia</h2>
-        <div class="prose prose-lg max-w-none font-light leading-relaxed whitespace-pre-line text-center md:text-left mx-auto {isNight ? 'text-slate-300' : 'text-slate-600'}">
-          {propiedad.descripcion}
-        </div>
-      </div>
-
-      {#if (propiedad.recorrido_3d_url && obtenerIdMatterport(propiedad.recorrido_3d_url)) || (propiedad.video_url && obtenerIdYouTube(propiedad.video_url))}
-        <div class="mb-24 space-y-12">
-          
-          {#if propiedad.recorrido_3d_url && obtenerIdMatterport(propiedad.recorrido_3d_url)}
-            <div>
-              <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Experiencia Inmersiva 3D</h2>
-              <div class="relative w-full pb-[56.25%] h-0 rounded-sm overflow-hidden shadow-xl border border-slate-100 bg-black">
-                <iframe 
-                  title="Recorrido Virtual Matterport"
-                  src="https://my.matterport.com/show/?m={obtenerIdMatterport(propiedad.recorrido_3d_url)}" 
-                  class="absolute top-0 left-0 w-full h-full border-0"
-                  allowfullscreen 
-                  allow="xr-spatial-tracking">
-                </iframe>
-              </div>
-            </div>
-          {/if}
-
-          {#if propiedad.video_url && obtenerIdYouTube(propiedad.video_url)}
-            <div>
-              <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Recorrido en Video</h2>
-              <div class="relative w-full aspect-video rounded-sm overflow-hidden shadow-xl {isNight ? 'bg-slate-800' : 'bg-slate-100'}">
-                <iframe class="absolute top-0 left-0 w-full h-full" src="https://www.youtube.com/embed/{obtenerIdYouTube(propiedad.video_url)}?autoplay=0&controls=1&rel=0&modestbranding=1" title="Video de la propiedad" frameborder="0" allowfullscreen></iframe>
-              </div>
-            </div>
-          {/if}
-
-        </div>
-      {/if}
-
-      <div class="mb-24">
-        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">El Entorno</h2>
-        <div class="w-full h-[500px] {isNight ? 'bg-slate-800' : 'bg-slate-100'} overflow-hidden relative rounded-sm shadow-inner">
-          <iframe width="100%" height="100%" frameborder="0" style="border:0;" src="https://maps.google.com/maps?q={encodeURIComponent(propiedad.ubicacion || 'Guadalajara, Jalisco')}&t=m&z=15&output=embed&iwloc=near" title="Mapa de ubicación" allowfullscreen></iframe>
-        </div>
-      </div>
-
-      {#if !isBrochure}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-24">
-          
-          <div class="{isNight ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} border rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
-            <div class="w-20 h-20 bg-slate-900 rounded-full mb-4 overflow-hidden shadow-md">
-              {#if broker.avatar_url}
-                <img src={broker.avatar_url} alt="Foto del Asesor" class="w-full h-full object-cover">
-              {:else}
-                <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=0f172a&color=fff" alt="Avatar" class="w-full h-full object-cover">
-              {/if}
-            </div>
-            <h3 class="text-xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{broker.nombre_comercial}</h3>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2 mb-2">Asesoría Inmobiliaria</p>
-            {#if broker.bio}
-              <p class="text-xs text-slate-500 italic mb-6">"{broker.bio}"</p>
             {/if}
-            
-            <button onclick={descargarVCard} aria-label="Descargar tarjeta de contacto" class="inline-flex items-center gap-2 px-6 py-3 {isNight ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-900 hover:bg-slate-800'} text-white text-[10px] font-bold uppercase tracking-widest rounded-full transition-colors shadow-sm w-full justify-center">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-              Guardar Contacto
-            </button>
+            <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(3 % allPhotos.length)}>
+              <img src={propiedad.galeria_urls[2] || propiedad.imagen_url} alt="Tercera Vista" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
+              <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span class="text-white font-bold uppercase tracking-[0.2em] text-xs flex items-center gap-2">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                   Ver las {allPhotos.length} Fotos
+                </span>
+              </div>
+            </div>
           </div>
+        {/if}
+      </div>
+    {/if}
 
-          <div class="{isNight ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-8 shadow-sm flex flex-col justify-center">
-            <h2 class="text-xl font-light {isNight ? 'text-white' : 'text-slate-900'} mb-2">Agendar Recorrido</h2>
-            <p class="text-slate-400 text-xs mb-6">Deje sus datos y el asesor le contactará.</p>
-            
-            {#if form?.success}
-              <div class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold p-4 rounded-xl text-sm text-center" role="alert">
-                Solicitud enviada con éxito. El asesor se comunicará pronto.
-              </div>
-            {:else if form?.error}
-              <div class="mb-4 bg-red-50 text-red-700 font-bold p-3 rounded-lg text-sm border border-red-200 text-center" role="alert">
-                {form.error}
-              </div>
-            {/if}
-
-            <form method="POST" action="?/contacto" use:enhance={() => { enviando = true; return async ({ update }) => { enviando = false; update({ reset: form?.success }); }; }} class="space-y-4">
-              <input type="hidden" name="propiedad_id" value={propiedad.id}>
-              <input type="hidden" name="broker_id" value={broker.id}>
-              <input type="hidden" name="propiedad_titulo" value={propiedad.titulo}>
-              
-              <div>
-                <label for="nombre" class="sr-only">Nombre completo</label>
-                <input type="text" id="nombre" name="nombre" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nombre completo">
-              </div>
-              <div>
-                <label for="correo" class="sr-only">Correo electrónico</label>
-                <input type="email" id="correo" name="correo" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Correo electrónico">
-              </div>
-              <div>
-                <label for="telefono" class="sr-only">Teléfono móvil</label>
-                <input type="tel" id="telefono" name="telefono" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Teléfono móvil">
-              </div>
-              
-              <button type="submit" disabled={enviando} class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-sm transition-all disabled:opacity-50">
-                {enviando ? 'Enviando...' : 'Solicitar Información'}
-              </button>
-            </form>
-          </div>
-
-        </div>
-      {/if}
-
+    <div class="flex flex-wrap justify-center gap-x-12 gap-y-8 py-8 border-y {isNight ? 'border-slate-800' : 'border-slate-200'} mb-16">
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.recamaras || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">Recámaras</p></div>
+      <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden sm:block"></div>
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.banos || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">Baños</p></div>
+      <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden sm:block"></div>
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.m2_construccion || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">M² Inter</p></div>
+      <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden sm:block"></div>
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.m2_terreno || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">M² Terreno</p></div>
+      <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden lg:block"></div>
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.estacionamientos || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">Autos</p></div>
     </div>
-  </main>
-{/if}
+
+    <div class="mb-16">
+      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">La Residencia</h2>
+      <div class="prose prose-lg max-w-none font-light leading-relaxed whitespace-pre-line text-center md:text-left mx-auto {isNight ? 'text-slate-300' : 'text-slate-600'}">
+        {propiedad.descripcion}
+      </div>
+    </div>
+
+    {#if (propiedad.recorrido_3d_url && obtenerIdMatterport(propiedad.recorrido_3d_url)) || (propiedad.video_url && obtenerIdYouTube(propiedad.video_url))}
+      <div class="mb-24 space-y-12">
+        
+        {#if propiedad.recorrido_3d_url && obtenerIdMatterport(propiedad.recorrido_3d_url)}
+          <div>
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Experiencia Inmersiva 3D</h2>
+            <div class="relative w-full pb-[56.25%] h-0 rounded-sm overflow-hidden shadow-xl border border-slate-100 bg-black">
+              <iframe 
+                title="Recorrido Virtual Matterport"
+                src="https://my.matterport.com/show/?m={obtenerIdMatterport(propiedad.recorrido_3d_url)}" 
+                class="absolute top-0 left-0 w-full h-full border-0"
+                allowfullscreen 
+                allow="xr-spatial-tracking">
+              </iframe>
+            </div>
+          </div>
+        {/if}
+
+        {#if propiedad.video_url && obtenerIdYouTube(propiedad.video_url)}
+          <div>
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Recorrido en Video</h2>
+            <div class="relative w-full aspect-video rounded-sm overflow-hidden shadow-xl {isNight ? 'bg-slate-800' : 'bg-slate-100'}">
+              <iframe class="absolute top-0 left-0 w-full h-full" src="https://www.youtube.com/embed/{obtenerIdYouTube(propiedad.video_url)}?autoplay=0&controls=1&rel=0&modestbranding=1" title="Video de la propiedad" frameborder="0" allowfullscreen></iframe>
+            </div>
+          </div>
+        {/if}
+
+      </div>
+    {/if}
+
+    <div class="mb-24">
+      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">El Entorno</h2>
+      <div class="w-full h-[500px] {isNight ? 'bg-slate-800' : 'bg-slate-100'} overflow-hidden relative rounded-sm shadow-inner">
+        <iframe width="100%" height="100%" frameborder="0" style="border:0;" src="https://maps.google.com/maps?q={encodeURIComponent(propiedad.ubicacion || 'Guadalajara, Jalisco')}&t=m&z=15&output=embed&iwloc=near" title="Mapa de ubicación" allowfullscreen></iframe>
+      </div>
+    </div>
+
+    {#if !isBrochure}
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-24">
+        
+        <div class="{isNight ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} border rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
+          <div class="w-20 h-20 bg-slate-900 rounded-full mb-4 overflow-hidden shadow-md">
+            {#if broker.avatar_url}
+              <img src={broker.avatar_url} alt="Foto del Asesor" class="w-full h-full object-cover">
+            {:else}
+              <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=0f172a&color=fff" alt="Avatar" class="w-full h-full object-cover">
+            {/if}
+          </div>
+          <h3 class="text-xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{broker.nombre_comercial}</h3>
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2 mb-2">Asesoría Inmobiliaria</p>
+          {#if broker.bio}
+            <p class="text-xs text-slate-500 italic mb-6">"{broker.bio}"</p>
+          {/if}
+          
+          <button onclick={descargarVCard} aria-label="Descargar tarjeta de contacto" class="inline-flex items-center gap-2 px-6 py-3 {isNight ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-900 hover:bg-slate-800'} text-white text-[10px] font-bold uppercase tracking-widest rounded-full transition-colors shadow-sm w-full justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Guardar Contacto
+          </button>
+        </div>
+
+        <div class="{isNight ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-8 shadow-sm flex flex-col justify-center">
+          <h2 class="text-xl font-light {isNight ? 'text-white' : 'text-slate-900'} mb-2">Agendar Recorrido</h2>
+          <p class="text-slate-400 text-xs mb-6">Deje sus datos y el asesor le contactará.</p>
+          
+          {#if form?.success}
+            <div class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold p-4 rounded-xl text-sm text-center" role="alert">
+              Solicitud enviada con éxito. El asesor se comunicará pronto.
+            </div>
+          {:else if form?.error}
+            <div class="mb-4 bg-red-50 text-red-700 font-bold p-3 rounded-lg text-sm border border-red-200 text-center" role="alert">
+              {form.error}
+            </div>
+          {/if}
+
+          <form method="POST" action="?/contacto" use:enhance={() => { enviando = true; return async ({ update }) => { enviando = false; update({ reset: form?.success }); }; }} class="space-y-4">
+            <input type="hidden" name="propiedad_id" value={propiedad.id}>
+            <input type="hidden" name="broker_id" value={broker.id}>
+            <input type="hidden" name="propiedad_titulo" value={propiedad.titulo}>
+            
+            <div>
+              <label for="nombre" class="sr-only">Nombre completo</label>
+              <input type="text" id="nombre" name="nombre" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nombre completo">
+            </div>
+            <div>
+              <label for="correo" class="sr-only">Correo electrónico</label>
+              <input type="email" id="correo" name="correo" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Correo electrónico">
+            </div>
+            <div>
+              <label for="telefono" class="sr-only">Teléfono móvil</label>
+              <input type="tel" id="telefono" name="telefono" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Teléfono móvil">
+            </div>
+            
+            <button type="submit" disabled={enviando} class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-sm transition-all disabled:opacity-50">
+              {enviando ? 'Enviando...' : 'Solicitar Información'}
+            </button>
+          </form>
+        </div>
+
+      </div>
+    {/if}
+
+  </div>
+</main>
