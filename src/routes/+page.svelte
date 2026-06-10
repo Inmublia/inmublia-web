@@ -7,12 +7,12 @@
   let previewMode = $derived($page.url.searchParams.get('preview'));
   let plantillaActiva = $derived(previewMode || broker?.template_seleccionado || 'classic');
 
-  // INYECCIÓN SEGURA DE PÍXELES (SaaS Performance)
-  const SCR = '<scr'+'ipt>';
-  const /SCR = '</scr'+'ipt>';
+  // FIX SINTAXIS JS: Variables válidas para los Píxeles
+  const START_SCR = '<scr'+'ipt>';
+  const END_SCR = '</scr'+'ipt>';
 
   let metaPixel = $derived(broker?.pixel_fb ? `
-    ${SCR}
+    ${START_SCR}
       !function(f,b,e,v,n,t,s)
       {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
       n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -23,28 +23,28 @@
       'https://connect.facebook.net/en_US/fbevents.js');
       fbq('init', '${broker.pixel_fb}');
       fbq('track', 'PageView');
-    ${/SCR}
+    ${END_SCR}
     <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=${broker.pixel_fb}&ev=PageView&noscript=1"/></noscript>
   ` : '');
 
   let googlePixel = $derived(broker?.pixel_google ? `
     <script async src="https://www.googletagmanager.com/gtag/js?id=${broker.pixel_google}"><\/script>
-    ${SCR}
+    ${START_SCR}
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', '${broker.pixel_google}');
-    ${/SCR}
+    ${END_SCR}
   ` : '');
 
   let tiktokPixel = $derived(broker?.pixel_tiktok ? `
-    ${SCR}
+    ${START_SCR}
       !function (w, d, t) {
         w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};
         ttq.load('${broker.pixel_tiktok}');
         ttq.page();
       }(window, document, 'ttq');
-    ${/SCR}
+    ${END_SCR}
   ` : '');
 </script>
 
