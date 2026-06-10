@@ -3,6 +3,7 @@
   import imageCompression from 'browser-image-compression';
 
   let { form, data } = $props();
+  // El backend inyecta los créditos restantes
   let creditosIA = $state(data.creditos_ia ?? 0);
   
   let loading = $state(false);
@@ -104,13 +105,11 @@
   function aplicarAlFormulario() {
     if (inputTitulo && textoGeneradoFicha.titulo) inputTitulo.value = textoGeneradoFicha.titulo;
     if (inputDescripcion && textoGeneradoFicha.descripcion) inputDescripcion.value = textoGeneradoFicha.descripcion;
-    // Hacemos scroll suave hacia la sección 3
     document.getElementById('seccion-oficial').scrollIntoView({ behavior: 'smooth' });
   }
 
   function copiarAlPortapapeles(texto) {
     navigator.clipboard.writeText(texto);
-    // Microinteracción nativa (sin librerías extras)
     alert("¡Copiado al portapapeles!");
   }
 </script>
@@ -259,53 +258,60 @@
         </section>
 
         <section class="mt-16 relative">
-          <div class="bg-[#0A0A0A] rounded-[2.5rem] p-8 sm:p-12 relative overflow-hidden ring-1 ring-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+          <div class="bg-slate-900 bg-gradient-to-br from-slate-900 to-slate-800 rounded-[2.5rem] p-8 sm:p-12 relative overflow-hidden ring-1 ring-slate-700 shadow-2xl">
             
-            <div class="absolute -top-24 -right-24 w-96 h-96 bg-indigo-500/20 blur-[100px] rounded-full pointer-events-none"></div>
+            <div class="absolute -top-24 -right-24 w-96 h-96 bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none"></div>
             <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-fuchsia-500/10 blur-[100px] rounded-full pointer-events-none"></div>
 
             <div class="relative z-10">
-              <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6 border-b border-white/10 pb-8">
-                <div>
-                  <div class="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full mb-4">
-                    <span class="flex h-2 w-2 relative">
+              
+              <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-8 border-b border-slate-700 pb-8">
+                <div class="flex-1">
+                  <h2 class="text-3xl font-black text-white tracking-tight flex items-center gap-3">
+                    Estudio Creativo IA Inmublia
+                    <span class="flex h-2.5 w-2.5 relative mt-1">
                       <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                     </span>
-                    <span class="text-[10px] font-bold text-white/80 uppercase tracking-widest">Motor Generativo V4</span>
-                  </div>
-                  <h2 class="text-3xl font-black text-white tracking-tight">Estudio Creativo IA</h2>
-                  <p class="text-sm text-white/50 mt-2 font-medium max-w-xl leading-relaxed">
+                  </h2>
+                  <p class="text-sm text-slate-400 mt-2 font-medium max-w-xl leading-relaxed">
                     Transforma los datos estructurales en una campaña de marketing completa. Genera la ficha editorial, mensajes de WhatsApp y guiones para video en milisegundos.
                   </p>
                 </div>
 
-                <div class="flex flex-col items-end gap-3 w-full lg:w-auto shrink-0">
-                  <div class="inline-flex items-center gap-1.5 px-4 py-1.5 bg-white/5 rounded-full border border-white/10 text-xs font-bold text-white/80 shadow-inner">
-                    <svg class="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                    {creditosIA} {creditosIA === 1 ? 'Crédito Restante' : 'Créditos Restantes'}
-                  </div>
-
-                  <div class="flex items-center gap-3 w-full sm:w-auto">
-                    <select bind:value={tonoIA} class="bg-[#1A1A1A] text-white border border-white/10 text-sm font-bold rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner cursor-pointer appearance-none pr-10 relative bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6%209l6%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_0.75rem_center] bg-[length:1.2em_1.2em]">
-                      <option value="lujo">Tono Premium / Elegante</option>
-                      <option value="familiar">Tono Familiar / Cálido</option>
-                      <option value="inversionista">Tono Analítico / ROI</option>
-                    </select>
+                <div class="flex flex-col items-center lg:items-end gap-4 w-full lg:w-auto shrink-0">
+                  <div class="flex flex-col sm:flex-row items-end gap-3 w-full sm:w-auto">
+                    <div class="flex flex-col gap-1 w-full sm:w-auto">
+                      <label for="tono-ia" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Tono de Redacción</label>
+                      <select id="tono-ia" bind:value={tonoIA} class="bg-slate-800 text-white border border-slate-700 text-sm font-bold rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner cursor-pointer appearance-none pr-10 relative bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6%209l6%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_0.75rem_center] bg-[length:1.2em_1.2em]">
+                        <option value="lujo">Premium / Elegante</option>
+                        <option value="familiar">Familiar / Cálido</option>
+                        <option value="inversionista">Analítico / ROI</option>
+                      </select>
+                    </div>
                     
-                    <button type="button" onclick={generarCampañaIA} disabled={generandoIA} class="relative overflow-hidden group bg-white text-black font-black px-8 py-3.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.1)]">
-                      {#if generandoIA}
-                        <div class="flex items-center gap-2">
-                          <svg class="animate-spin w-4 h-4 text-black" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                          Procesando...
-                        </div>
-                      {:else}
-                        <span class="relative z-10 flex items-center gap-2">
-                          ✨ Crear Magia
-                        </span>
-                        <div class="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent group-hover:animate-[shimmer_1.5s_infinite] z-0"></div>
-                      {/if}
-                    </button>
+                    <div class="w-full sm:w-auto mt-4 sm:mt-0">
+                      <div class="hidden sm:block h-[18px]"></div> 
+                      <button type="button" onclick={generarCampañaIA} disabled={generandoIA} class="w-full sm:w-auto relative overflow-hidden group bg-white text-slate-900 font-black px-8 py-3.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.1)] flex items-center justify-center">
+                        {#if generandoIA}
+                          <div class="flex items-center justify-center gap-2">
+                            <svg class="animate-spin w-4 h-4 text-slate-900" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            Procesando...
+                          </div>
+                        {:else}
+                          <span class="relative z-10 flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            Generar Contenido
+                          </span>
+                          <div class="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-slate-900/10 to-transparent group-hover:animate-[shimmer_1.5s_infinite] z-0"></div>
+                        {/if}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div class="inline-flex items-center justify-center gap-2 px-6 py-2 bg-slate-800/80 rounded-full border border-slate-600 text-sm font-bold text-white shadow-inner mt-2">
+                    <svg class="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    {creditosIA} {creditosIA === 1 ? 'Crédito Disponible' : 'Créditos Disponibles'}
                   </div>
                 </div>
               </div>
@@ -313,7 +319,7 @@
               {#if iaEjecutada}
                 <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6 animate-[fadeIn_0.5s_ease-out]">
                   
-                  <div class="lg:col-span-2 bg-[#141414] border border-white/5 rounded-2xl p-6 shadow-inner flex flex-col">
+                  <div class="lg:col-span-2 bg-slate-800/50 border border-slate-700 rounded-2xl p-6 shadow-inner flex flex-col">
                     <div class="flex items-center justify-between mb-6">
                       <h4 class="text-sm font-bold text-white/90 uppercase tracking-widest flex items-center gap-2">
                         <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
@@ -328,23 +334,23 @@
                     
                     <div class="flex-1 space-y-6">
                       <div>
-                        <p class="text-[10px] text-white/40 uppercase tracking-widest mb-2">Título SEO</p>
+                        <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-2">Título SEO</p>
                         {#if generandoIA && !textoGeneradoFicha.titulo}
-                          <div class="h-8 bg-white/5 rounded-lg animate-pulse w-3/4"></div>
+                          <div class="h-8 bg-slate-700 rounded-lg animate-pulse w-3/4"></div>
                         {:else}
                           <p class="text-xl font-black text-white">{textoGeneradoFicha.titulo}</p>
                         {/if}
                       </div>
                       <div>
-                        <p class="text-[10px] text-white/40 uppercase tracking-widest mb-2">Descripción Persuasiva</p>
+                        <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-2">Descripción Persuasiva</p>
                         {#if generandoIA && !textoGeneradoFicha.descripcion}
                           <div class="space-y-2">
-                            <div class="h-4 bg-white/5 rounded w-full animate-pulse"></div>
-                            <div class="h-4 bg-white/5 rounded w-full animate-pulse"></div>
-                            <div class="h-4 bg-white/5 rounded w-5/6 animate-pulse"></div>
+                            <div class="h-4 bg-slate-700 rounded w-full animate-pulse"></div>
+                            <div class="h-4 bg-slate-700 rounded w-full animate-pulse"></div>
+                            <div class="h-4 bg-slate-700 rounded w-5/6 animate-pulse"></div>
                           </div>
                         {:else}
-                          <p class="text-sm text-white/70 leading-relaxed whitespace-pre-line font-light">{textoGeneradoFicha.descripcion}</p>
+                          <p class="text-sm text-slate-300 leading-relaxed whitespace-pre-line font-light">{textoGeneradoFicha.descripcion}</p>
                         {/if}
                       </div>
                     </div>
@@ -352,42 +358,42 @@
 
                   <div class="flex flex-col gap-6">
                     
-                    <div class="bg-[#141414] border border-white/5 rounded-2xl p-6 shadow-inner flex-1 flex flex-col relative group">
+                    <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 shadow-inner flex-1 flex flex-col relative group">
                       <div class="flex items-center justify-between mb-4">
                         <h4 class="text-xs font-bold text-white/90 uppercase tracking-widest flex items-center gap-2">
                           <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
                           Campaña WA
                         </h4>
                         {#if !generandoIA && textoGeneradoWhatsapp}
-                          <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-white hover:text-emerald-400 transition-colors p-1" aria-label="Copiar" title="Copiar al portapapeles">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                          <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-slate-400 hover:text-emerald-400 transition-colors p-1" aria-label="Copiar" title="Copiar al portapapeles">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3-3"></path></svg>
                           </button>
                         {/if}
                       </div>
-                      <div class="text-xs text-emerald-100/70 whitespace-pre-line leading-relaxed font-light">
+                      <div class="text-xs text-slate-300 whitespace-pre-line leading-relaxed font-light">
                         {#if generandoIA && !textoGeneradoWhatsapp}
-                           <div class="space-y-2 mt-2"><div class="h-3 bg-white/5 rounded w-full animate-pulse"></div><div class="h-3 bg-white/5 rounded w-full animate-pulse"></div><div class="h-3 bg-white/5 rounded w-2/3 animate-pulse"></div></div>
+                           <div class="space-y-2 mt-2"><div class="h-3 bg-slate-700 rounded w-full animate-pulse"></div><div class="h-3 bg-slate-700 rounded w-full animate-pulse"></div><div class="h-3 bg-slate-700 rounded w-2/3 animate-pulse"></div></div>
                         {:else}
                           {textoGeneradoWhatsapp}
                         {/if}
                       </div>
                     </div>
 
-                    <div class="bg-[#141414] border border-white/5 rounded-2xl p-6 shadow-inner flex-1 flex flex-col relative group">
+                    <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 shadow-inner flex-1 flex flex-col relative group">
                       <div class="flex items-center justify-between mb-4">
                         <h4 class="text-xs font-bold text-white/90 uppercase tracking-widest flex items-center gap-2">
                           <svg class="w-4 h-4 text-rose-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 2.22-1.15 4.39-2.92 5.75-1.84 1.4-4.29 1.83-6.6 1.4-2.18-.4-4.14-1.74-5.26-3.66-1.16-1.99-1.37-4.46-.57-6.57.82-2.18 2.67-3.9 4.88-4.57 1.59-.48 3.32-.46 4.88.08v4.06c-.84-.27-1.78-.34-2.65-.13-.88.21-1.67.75-2.18 1.48-.52.75-.71 1.72-.5 2.6.21.88.75 1.67 1.48 2.18.75.52 1.72.71 2.6.5 1.25-.29 2.21-1.36 2.45-2.62.06-.32.07-.65.07-.98V.02z"/></svg>
                           Guion Video
                         </h4>
                         {#if !generandoIA && textoGeneradoTiktok}
-                          <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoTiktok)} class="text-white hover:text-rose-400 transition-colors p-1" aria-label="Copiar" title="Copiar al portapapeles">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                          <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoTiktok)} class="text-slate-400 hover:text-rose-400 transition-colors p-1" aria-label="Copiar" title="Copiar al portapapeles">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3-3"></path></svg>
                           </button>
                         {/if}
                       </div>
-                      <div class="text-xs text-rose-100/70 whitespace-pre-line leading-relaxed font-light">
+                      <div class="text-xs text-slate-300 whitespace-pre-line leading-relaxed font-light">
                         {#if generandoIA && !textoGeneradoTiktok}
-                           <div class="space-y-2 mt-2"><div class="h-3 bg-white/5 rounded w-full animate-pulse"></div><div class="h-3 bg-white/5 rounded w-full animate-pulse"></div><div class="h-3 bg-white/5 rounded w-2/3 animate-pulse"></div></div>
+                           <div class="space-y-2 mt-2"><div class="h-3 bg-slate-700 rounded w-full animate-pulse"></div><div class="h-3 bg-slate-700 rounded w-full animate-pulse"></div><div class="h-3 bg-slate-700 rounded w-2/3 animate-pulse"></div></div>
                         {:else}
                           {textoGeneradoTiktok}
                         {/if}
@@ -403,7 +409,7 @@
         <section id="seccion-oficial" class="space-y-6 pt-12 border-t border-slate-200">
           <div class="border-b border-slate-100 pb-4">
             <h2 class="text-xl font-black text-slate-900 tracking-tight">3. Publicación Oficial</h2>
-            <p class="text-sm text-slate-500 mt-1">Revisa y ajusta los textos finales que verán tus clientes.</p>
+            <p class="text-sm text-slate-500 mt-1 font-medium">Revisa y ajusta los textos finales que verán tus clientes.</p>
           </div>
 
           <div>
@@ -448,7 +454,7 @@
     100% { transform: translateX(100%); }
   }
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
   }
 </style>
