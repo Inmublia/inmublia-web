@@ -16,6 +16,10 @@
   let testingWebhook = $state(false);
   let webhookSuccess = $state(false);
 
+  const planActual = broker.plan_suscripcion || 'basico';
+  const isPro = planActual === 'pro' || planActual === 'elite';
+  const isElite = planActual === 'elite';
+
   const catalogoTemplates = [
     { id: 'classic', nombre: 'Classic Minimalist', desc: 'Diseño limpio y tradicional.', minPlan: 'basico' },
     { id: 'clean', nombre: 'Clean Base', desc: 'Estilo corporativo de alto contraste.', minPlan: 'basico' },
@@ -93,7 +97,7 @@
 
         {#if form?.error}
            <div class="mb-6 bg-red-100 text-red-800 font-bold p-6 rounded-xl border-2 border-red-300 text-sm whitespace-pre-wrap shadow-lg" role="alert">
-             ⚠️ DIAGNÓSTICO DEL SERVIDOR:<br>{form.error}
+             ⚠️ DIAGNÓSTICO: {form.error}
            </div>
         {/if}
         
@@ -113,19 +117,13 @@
               savingProfile = true;
               return async ({ update, result }) => {
                 savingProfile = false;
-                
-                if (result.type === 'failure') {
-                  alert("❌ Rechazo de Validación: " + (result.data?.error || JSON.stringify(result.data)));
-                } else if (result.type === 'error') {
-                  alert("🔥 Caída Crítica del Servidor (500): " + result.error.message + "\nRevisa la consola (F12) o los logs de Cloudflare.");
-                } else if (result.type === 'success') { 
-                  showSuccess = true; 
-                  setTimeout(() => showSuccess = false, 4000); 
-                  await invalidateAll(); 
-                }
+                if (result.type === 'failure') alert("❌ Validación: " + (result.data?.error || "Error"));
+                else if (result.type === 'error') alert("🔥 Caída Servidor: " + result.error.message);
+                else if (result.type === 'success') { showSuccess = true; setTimeout(() => showSuccess = false, 4000); await invalidateAll(); }
                 update({ reset: false });
               };
             }}>
+              
               <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
                 <div class="flex items-center gap-3 mb-6">
                   <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
@@ -170,8 +168,8 @@
 
               <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
                 <div class="flex items-center gap-3 mb-6">
-                  <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
-                  <h3 class="text-lg font-black text-slate-900">Presencia Digital</h3>
+                  <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                  <h3 class="text-lg font-black text-slate-900">Redes y Dominio</h3>
                 </div>
 
                 <div class="space-y-6">
@@ -184,13 +182,66 @@
                   </div>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
+                      <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Facebook URL</label>
+                      <input type="url" name="facebook" bind:value={broker.facebook} placeholder="https://facebook.com/..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 outline-none">
+                    </div>
+                    <div>
                       <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Instagram URL</label>
-                      <input type="url" name="instagram" bind:value={broker.instagram} class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none">
+                      <input type="url" name="instagram" bind:value={broker.instagram} placeholder="https://instagram.com/..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 outline-none">
+                    </div>
+                    <div>
+                      <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">TikTok URL</label>
+                      <input type="url" name="tiktok" bind:value={broker.tiktok} placeholder="https://tiktok.com/@..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 outline-none">
                     </div>
                     <div>
                       <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">LinkedIn URL</label>
-                      <input type="url" name="linkedin" bind:value={broker.linkedin} class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none">
+                      <input type="url" name="linkedin" bind:value={broker.linkedin} placeholder="https://linkedin.com/in/..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 outline-none">
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
+                <div class="flex items-center gap-3 mb-6">
+                  <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                  <div>
+                    <h3 class="text-lg font-black text-slate-900">Marketing & Tracking</h3>
+                    <p class="text-[11px] font-medium text-slate-500">Mide visitas y crea audiencias de retargeting para tus anuncios.</p>
+                  </div>
+                </div>
+
+                <div class="space-y-4">
+                  <div class="p-4 rounded-xl border {isPro ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-70'}">
+                    <div class="flex justify-between items-center mb-2">
+                      <label class="text-xs font-bold text-slate-700 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
+                        Meta Pixel ID (Facebook/Instagram)
+                      </label>
+                      {#if !isPro} <span class="text-[9px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md">🔒 Plan Pro</span> {/if}
+                    </div>
+                    <input type="text" name="pixel_fb" bind:value={broker.pixel_fb} disabled={!isPro} placeholder={isPro ? "Ej. 10456789012345" : "Requiere mejora de plan"} class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed">
+                  </div>
+
+                  <div class="p-4 rounded-xl border {isPro ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-70'}">
+                    <div class="flex justify-between items-center mb-2">
+                      <label class="text-xs font-bold text-slate-700 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                        Google Analytics ID (GA4)
+                      </label>
+                      {#if !isPro} <span class="text-[9px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md">🔒 Plan Pro</span> {/if}
+                    </div>
+                    <input type="text" name="pixel_google" bind:value={broker.pixel_google} disabled={!isPro} placeholder={isPro ? "Ej. G-ABC123XYZ" : "Requiere mejora de plan"} class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed">
+                  </div>
+
+                  <div class="p-4 rounded-xl border {isElite ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-70'}">
+                    <div class="flex justify-between items-center mb-2">
+                      <label class="text-xs font-bold text-slate-700 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 2.22-1.15 4.39-2.92 5.75-1.84 1.4-4.29 1.83-6.6 1.4-2.18-.4-4.14-1.74-5.26-3.66-1.16-1.99-1.37-4.46-.57-6.57.82-2.18 2.67-3.9 4.88-4.57 1.59-.48 3.32-.46 4.88.08v4.06c-.84-.27-1.78-.34-2.65-.13-.88.21-1.67.75-2.18 1.48-.52.75-.71 1.72-.5 2.6.21.88.75 1.67 1.48 2.18.75.52 1.72.71 2.6.5 1.25-.29 2.21-1.36 2.45-2.62.06-.32.07-.65.07-.98V.02z"/></svg>
+                        TikTok Pixel ID
+                      </label>
+                      {#if !isElite} <span class="text-[9px] font-bold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-md">🔒 Plan Elite</span> {/if}
+                    </div>
+                    <input type="text" name="pixel_tiktok" bind:value={broker.pixel_tiktok} disabled={!isElite} placeholder={isElite ? "Ej. CB1234567890" : "Exclusivo Plan Elite"} class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed">
                   </div>
                 </div>
               </div>
@@ -205,26 +256,19 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  
                   <input type="hidden" name="template_seleccionado" value={selectedTemplate}>
-                  
                   {#each catalogoTemplates as template}
                     {@const autorizado = planConfig.templates_autorizados.includes(template.id)}
                     {@const activo = selectedTemplate === template.id}
-                    
                     <div class="relative bg-white border rounded-xl flex flex-col overflow-hidden transition-all {activo ? 'border-indigo-600 ring-1 ring-indigo-600' : 'border-slate-200 hover:border-slate-300'} {!autorizado ? 'opacity-60 bg-slate-50' : ''}">
-                      
                       <div class="h-20 bg-slate-100 border-b border-slate-200 flex items-center justify-center relative group">
                         <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        
                         <a href="https://{broker.subdominio}.inmublia.com/?preview={template.id}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center gap-2 text-white font-bold text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:text-amber-400">
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                           Ver Preview
                         </a>
                       </div>
-
                       <label class="p-4 flex flex-col justify-between flex-1 cursor-pointer {activo ? 'bg-indigo-50/20' : ''} {!autorizado ? 'cursor-not-allowed' : ''}">
-                        <input type="radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
+                        <input type="radio" name="template_radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
                         <div>
                           <div class="flex items-center justify-between mb-2">
                             <span class="font-bold text-sm {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
@@ -271,6 +315,31 @@
               </div>
               <a href="#" class="block w-full text-center bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl transition-colors border border-slate-200 text-sm shadow-sm relative z-10">Gestionar Facturación</a>
             </div>
+
+            <form method="POST" action="?/actualizarWebhook" use:enhance={() => { return async ({ update }) => { update({ reset: false }); alert("Webhook guardado correctamente."); }; }}>
+              <div class="bg-[#111827] text-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white opacity-5 blur-2xl pointer-events-none"></div>
+                <div class="flex items-center justify-between mb-4 relative z-10">
+                  <h3 class="text-lg font-black tracking-tight">Webhook (API)</h3>
+                  <span class="text-[8px] font-black uppercase tracking-widest bg-amber-500/20 text-amber-400 px-2 py-1 rounded border border-amber-500/30">Pro / Elite</span>
+                </div>
+                <p class="text-[11px] text-slate-400 font-medium leading-relaxed mb-6 relative z-10">Conecta tu inventario con tu CRM externo. Recibe leads al instante.</p>
+                <div class="space-y-4 relative z-10">
+                  <div>
+                    <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2">URL del Endpoint</label>
+                    <input type="url" name="webhook_url" bind:value={webhookUrl} class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all">
+                  </div>
+                  <div class="flex gap-2">
+                    <button type="button" onclick={probarWebhook} disabled={testingWebhook} class="flex-1 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-colors border border-white/10 text-[11px]">
+                      {#if testingWebhook} Probando... {:else if webhookSuccess} <span class="text-emerald-400">Exitosa</span> {:else} Probar {/if}
+                    </button>
+                    <button type="submit" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-3 rounded-xl transition-colors border border-transparent shadow-sm text-[11px]">
+                      Guardar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
       </div>
