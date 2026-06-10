@@ -7,7 +7,11 @@
   let propiedad = $derived(data.propiedad);
   let broker = $derived(data.broker);
 
-  let isBrochure = $derived($page.url.searchParams.get('brochure') === 'true');
+  // 🔥 CANDADO DE NEGOCIO: Validamos el Plan para el Smart Brochure
+  let urlPideBrochure = $derived($page.url.searchParams.get('brochure') === 'true');
+  let tienePlanPremium = $derived(broker?.plan_suscripcion === 'pro' || broker?.plan_suscripcion === 'elite');
+  let isBrochure = $derived(urlPideBrochure && tienePlanPremium);
+
   let enviando = $state(false);
 
   // INYECCIÓN DE PÍXELES CON EVENTO DE VISUALIZACIÓN DE PRODUCTO
