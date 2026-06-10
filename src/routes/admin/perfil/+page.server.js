@@ -31,8 +31,12 @@ export const actions = {
       const whatsapp = formData.get('whatsapp')?.toString().trim().replace(/[^0-9]/g, '');
       const subdominio = formData.get('subdominio')?.toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
       const bio = formData.get('bio')?.toString().trim() || null;
+      
+      // Nuevas Redes Sociales
+      const facebook = formData.get('facebook')?.toString().trim() || null;
       const instagram = formData.get('instagram')?.toString().trim() || null;
       const linkedin = formData.get('linkedin')?.toString().trim() || null;
+      const tiktok = formData.get('tiktok')?.toString().trim() || null;
       
       const template_seleccionado = formData.get('template_seleccionado')?.toString().trim();
 
@@ -56,13 +60,22 @@ export const actions = {
       }
 
       const updatePayload = {
-        nombre_comercial,
-        whatsapp,
-        subdominio,
-        bio,
-        instagram,
-        linkedin
+        nombre_comercial, whatsapp, subdominio, bio,
+        facebook, instagram, linkedin, tiktok
       };
+
+      // 🛡️ REGLA DE NEGOCIO SAAS PARA PÍXELES
+      const plan = brokerActual.plan_suscripcion || 'basico';
+      const isPro = plan === 'pro' || plan === 'elite';
+      const isElite = plan === 'elite';
+
+      if (isPro) {
+        updatePayload.pixel_fb = formData.get('pixel_fb')?.toString().trim() || null;
+        updatePayload.pixel_google = formData.get('pixel_google')?.toString().trim() || null;
+      }
+      if (isElite) {
+        updatePayload.pixel_tiktok = formData.get('pixel_tiktok')?.toString().trim() || null;
+      }
 
       if (template_seleccionado) {
         updatePayload.template_seleccionado = template_seleccionado;
@@ -75,28 +88,24 @@ export const actions = {
         const fileName = `${brokerActual.id}-${Date.now()}.${fileExt}`;
         
         const { error: uploadError } = await locals.supabase
-          .storage
-          .from('agencias')
-          .upload(fileName, avatarFile, { upsert: true });
+          .storage.from('agencias').upload(fileName, avatarFile, { upsert: true });
 
-        if (uploadError) return fail(400, { error: `FALLO EN STORAGE (Imágenes): ${uploadError.message}` });
+        if (uploadError) return fail(400, { error: `FALLO EN STORAGE: ${uploadError.message}` });
 
         const { data: { publicUrl } } = locals.supabase.storage.from('agencias').getPublicUrl(fileName);
         updatePayload.avatar_url = publicUrl;
       }
 
       const { data: checkUpdate, error: updateError } = await locals.supabase
-        .from('brokers')
-        .update(updatePayload)
-        .eq('id', brokerActual.id)
-        .select();
+        .from('brokers').update(updatePayload).eq('id', brokerActual.id).select();
 
       if (updateError) {
-        return fail(500, { error: `FALLO EN BD (Update Profile): ${updateError.message}` });
+        if (updateError.code === '23505') return fail(400, { error: 'El subdominio ya existe.' });
+        return fail(500, { error: `FALLO EN BD: ${updateError.message}` });
       }
 
       if (!checkUpdate || checkUpdate.length === 0) {
-        return fail(500, { error: 'Fallo silencioso: La actualización no se reflejó en la base de datos.' });
+        return fail(500, { error: 'Fallo silencioso: La actualización no se reflejó.' });
       }
 
       return { success: true };
@@ -114,11 +123,7 @@ export const actions = {
     const formData = await request.formData();
     const webhook_url = formData.get('webhook_url')?.toString().trim() || null;
 
-    const { error } = await locals.supabase
-      .from('brokers')
-      .update({ webhook_url })
-      .eq('email', user.email);
-
+    const { error } = await locals.supabase.from('brokers').update({ webhook_url }).eq('email', user.email);
     if (error) return fail(500, { error: `Error webhook: ${error.message}` });
     return { success: true };
   }
