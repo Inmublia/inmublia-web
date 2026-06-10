@@ -1,5 +1,9 @@
 <script>
   import { page } from '$app/stores';
+  
+  // 🔥 FORZAMOS A VITE A EMPAQUETAR EL VIDEO DESDE src/lib/
+  import videoFondo from '$lib/luxury.mp4'; 
+  
   let { data } = $props();
   let propiedades = $derived(data.propiedades);
   let broker = $derived(data.broker);
@@ -52,6 +56,7 @@
   {#if metaPixel} {@html metaPixel} {/if}
   {#if googlePixel} {@html googlePixel} {/if}
   {#if tiktokPixel} {@html tiktokPixel} {/if}
+  <link rel="preload" as="video" href={videoFondo} type="video/mp4" />
 </svelte:head>
 
 {#snippet socialLinks(b)}
@@ -355,8 +360,8 @@
         
         <div class="snap-start w-full h-screen relative flex items-center justify-center shrink-0 overflow-hidden">
           <div class="absolute inset-0 bg-black z-0">
-            <video autoplay loop muted playsinline class="absolute inset-0 w-full h-full object-cover opacity-90" poster="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2000&auto=format&fit=crop">
-              <source src="/luxury.mp4" type="video/mp4">
+            <video autoplay loop muted playsinline preload="auto" class="absolute inset-0 w-full h-full object-cover opacity-90" poster="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2000&auto=format&fit=crop">
+              <source src={videoFondo} type="video/mp4">
             </video>
           </div>
           <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20 z-10 pointer-events-none"></div>
