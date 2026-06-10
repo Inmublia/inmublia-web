@@ -97,9 +97,6 @@ export const actions = {
 
     if (checkError || !lead) return fail(403, { error: 'No autorizado para este lead' });
 
-    // 🔥 EL FIX MAESTRO BASADO EN TU ESQUEMA DB 🔥
-    // En tu esquema, lead_notas.broker_id referencia a auth.users(id), no a brokers(id).
-    // Usamos locals.user.id para satisfacer tu llave foránea y destruir el Error 500.
     const { error: notaError } = await locals.supabase
       .from('lead_notas')
       .insert({ 
