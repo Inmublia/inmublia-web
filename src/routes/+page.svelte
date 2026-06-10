@@ -357,7 +357,7 @@
           <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/20 z-10 pointer-events-none"></div>
           
           <video autoplay loop muted playsinline class="absolute inset-0 w-full h-full object-cover opacity-90" poster="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2000&auto=format&fit=crop">
-            <source src="https://cdn.coverr.co/videos/coverr-a-beautiful-modern-home-5423/1080p.mp4" type="video/mp4">
+             <source src="https://cdn.pixabay.com/video/2020/02/17/32574-392942475_large.mp4" type="video/mp4">
           </video>
           
           <div class="relative z-20 text-center flex flex-col items-center">
