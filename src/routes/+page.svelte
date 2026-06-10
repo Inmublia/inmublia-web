@@ -355,10 +355,10 @@
         
         <div class="snap-start w-full h-screen relative flex items-center justify-center shrink-0 overflow-hidden">
           <div class="absolute inset-0 bg-black z-0">
-            <iframe src="https://player.vimeo.com/video/416041071?background=1&autoplay=1&loop=1&byline=0&title=0" 
-                    class="absolute top-1/2 left-1/2 w-[150vw] h-[150vh] -translate-x-1/2 -translate-y-1/2 opacity-70 pointer-events-none" 
-                    frameborder="0" allow="autoplay; fullscreen" allowfullscreen>
-            </iframe>
+           <iframe src="https://player.vimeo.com/video/148751763?background=1&autoplay=1&loop=1&byline=0&title=0" 
+        class="absolute top-1/2 left-1/2 w-[150vw] h-[150vh] -translate-x-1/2 -translate-y-1/2 opacity-70 pointer-events-none" 
+        frameborder="0" allow="autoplay; fullscreen" allowfullscreen>
+         </iframe>
           </div>
           <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20 z-10 pointer-events-none"></div>
           
