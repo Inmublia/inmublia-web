@@ -23,17 +23,31 @@
     )
   );
 
-  // 1. FIX SVELTE 5 REACTIVITY: Esto intercepta los reflejos limpios de la base de datos 
-  // tras el success de invalidateAll/use:enhance en el background.
   $effect(() => {
     leads = data.leads || [];
   });
 
+  // 🔥 EL NUEVO FUNNEL DE VENTAS (6 Etapas Inmobiliarias)
   const columnas = [
-    { id: 'nuevo', titulo: 'Nuevos Prospectos', color: 'bg-slate-100 text-slate-700' },
-    { id: 'contactado', titulo: 'Contactados / Negociación', color: 'bg-blue-50 text-blue-700' },
-    { id: 'cerrado', titulo: 'Cerrados / Descartados', color: 'bg-emerald-50 text-emerald-700' }
+    { id: 'nuevo', titulo: 'Nuevos', color: 'bg-slate-100 text-slate-700' },
+    { id: 'contactado', titulo: 'Contactados', color: 'bg-blue-50 text-blue-700' },
+    { id: 'visita', titulo: 'Citas / Visitas', color: 'bg-amber-50 text-amber-700' },
+    { id: 'negociacion', titulo: 'Negociación', color: 'bg-purple-50 text-purple-700' },
+    { id: 'cerrado', titulo: 'Ganados', color: 'bg-emerald-50 text-emerald-700' },
+    { id: 'descartado', titulo: 'Perdidos', color: 'bg-rose-50 text-rose-700' }
   ];
+
+  function getBadgeColor(estado) {
+    const colors = {
+      'nuevo': 'bg-slate-200 text-slate-700',
+      'contactado': 'bg-blue-100 text-blue-700',
+      'visita': 'bg-amber-100 text-amber-700',
+      'negociacion': 'bg-purple-100 text-purple-700',
+      'cerrado': 'bg-emerald-100 text-emerald-700',
+      'descartado': 'bg-rose-100 text-rose-700'
+    };
+    return colors[estado] || 'bg-slate-200 text-slate-700';
+  }
 
   function timeAgo(dateString) {
     if (!dateString) return 'Desconocido';
@@ -71,7 +85,7 @@
   }
 
   function actualizarEstadoLocalYBD(leadId, nuevoEstado) {
-    // 1. UI Optimista (Instantánea sin latencia)
+    // UI Optimista
     leads = leads.map(lead => {
       if (lead.id === leadId) return { ...lead, estado: nuevoEstado };
       return lead;
@@ -81,7 +95,6 @@
     formData.append('id', leadId);
     formData.append('estado', nuevoEstado);
     
-    // Header Maestro Injectado. Sin x-sveltekit-action un form call vía fetch detona una redirección / error tonto
     fetch('?/actualizar', {
       method: 'POST',
       body: formData,
@@ -107,14 +120,12 @@
     setTimeout(() => { selectedLead = null; nuevaNotaTexto = ''; }, 300);
   }
 
-  // Sustituimos fetch nativo por el manejador de `use:enhance` puro
   function manejadorNota({ formData, cancel }) {
     const notaTemp = formData.get('contenido').trim();
     if (!notaTemp || guardandoNota) { cancel(); return; }
     
     guardandoNota = true;
     
-    // UI Optimista de Escritura de la UI
     const nuevaNotaObj = {
       id: 'temp-' + Date.now(),
       contenido: notaTemp,
@@ -124,6 +135,7 @@
     
     selectedLead.lead_notas = [nuevaNotaObj, ...selectedLead.lead_notas];
     
+    // Auto-mover si es nuevo
     if (selectedLead.estado === 'nuevo') {
       actualizarEstadoLocalYBD(selectedLead.id, 'contactado');
       selectedLead.estado = 'contactado';
@@ -133,17 +145,15 @@
       guardandoNota = false;
       if (result.type === 'success') {
         nuevaNotaTexto = ''; 
-        // Actualiza el store `data` sin recargar la página subyacente de forma agresiva
         await update(); 
         
-         // Reforzamos el panel con la respuesta fresca de servidor devuelta de BD
         const leadActualizado = data.leads.find(l => l.id === selectedLead.id);
         if (leadActualizado) {
           selectedLead = { ...leadActualizado, lead_notas: [...leadActualizado.lead_notas] };
         }
       } else {
         console.error("Fallo RLS en servidor:", result);
-        alert('Falló la sincronización con el CRM.');
+        alert(`Fallo en servidor: ${result.data?.error || 'Revisa tu conexión'}`);
       }
     };
   }
@@ -231,7 +241,7 @@
                   ondragend={terminar}
                   class="bg-white p-5 rounded-xl border border-slate-200 cursor-pointer active:cursor-grabbing hover:border-blue-400 hover:shadow-md transition-all group relative"
                 >
-                  <button aria-label="Abrir detalles del lead" onclick={() => abrirPanel(lead)} class="absolute inset-0 w-full h-full z-0 cursor-pointer"></button>
+                  <button onclick={() => abrirPanel(lead)} class="absolute inset-0 w-full h-full z-0 cursor-pointer"></button>
 
                   <div class="flex items-start justify-between mb-4 relative z-10 pointer-events-none">
                     <div class="flex items-center gap-3">
@@ -301,7 +311,7 @@
             <img src="https://ui-avatars.com/api/?name={selectedLead.nombre}&background=0f172a&color=fff" alt="Avatar" class="w-10 h-10 rounded-full shadow-sm">
             <div>
               <h2 class="text-lg font-black text-slate-900 leading-tight">{selectedLead.nombre}</h2>
-              <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md {selectedLead.estado === 'nuevo' ? 'bg-slate-200 text-slate-700' : selectedLead.estado === 'contactado' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'} mt-1 inline-block">
+              <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md {getBadgeColor(selectedLead.estado)} mt-1 inline-block">
                 {selectedLead.estado}
               </span>
             </div>
