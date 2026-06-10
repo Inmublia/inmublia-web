@@ -13,23 +13,21 @@
   );
 
   let generandoPDF = $state(false);
+  
+  // 🔥 ESTADO DEL MODAL DE UPSELL
+  let showUpsellModal = $state(false);
 
-  // Micro-interacción: Formateador de moneda premium
   const formatter = new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN',
     maximumFractionDigits: 0
   });
 
-  // --- LÓGICA DE TIEMPO PARA OPEN HOUSE ---
   function getOpenHouseStatus(openHouse) {
     if (!openHouse || !openHouse.event_date || !openHouse.time_end) return 'none';
-    
     const now = new Date();
-    // Construimos la fecha y hora exacta de fin del evento
     const eventEndString = `${openHouse.event_date}T${openHouse.time_end}`;
     const eventEnd = new Date(eventEndString);
-
     return now > eventEnd ? 'archived' : 'active';
   }
 
@@ -105,7 +103,7 @@
               document.body.removeChild(a);
               window.URL.revokeObjectURL(url);
             } catch (e) {
-              alert('La seguridad del navegador bloqueó la descarga directa. Haz clic derecho en el QR y selecciona "Guardar imagen como..."');
+              alert('La seguridad bloqueó la descarga. Haz clic derecho y "Guardar imagen como..."');
             }
           }
         <\/script>
@@ -113,6 +111,18 @@
       </html>
     `);
     win.document.close();
+  }
+
+  // 🔥 CANDADO DE UPSELL PARA EL BROCHURE
+  function intentarAbrirBrochure(slug) {
+    const plan = broker?.plan_suscripcion || 'basico';
+    if (plan === 'pro' || plan === 'elite') {
+      // Si pagó, le abrimos la magia
+      window.open(`/${slug}?brochure=true`, '_blank');
+    } else {
+      // Si es básico, le vendemos el plan
+      showUpsellModal = true;
+    }
   }
 </script>
 
@@ -245,7 +255,7 @@
                           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         </button>
                         
-                        <button onclick={() => window.open(`/${propiedad.slug}?brochure=true`, '_blank')} class="p-2.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all hover:shadow-sm" title="Smart Brochure">
+                        <button onclick={() => intentarAbrirBrochure(propiedad.slug)} class="p-2.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all hover:shadow-sm" title="Smart Brochure">
                           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                         </button>
                         
@@ -280,6 +290,34 @@
     </div>
   </div>
 </main>
+
+{#if showUpsellModal}
+  <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]" onclick={() => showUpsellModal = false}>
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all" onclick={e => e.stopPropagation()}>
+      <div class="bg-gradient-to-br from-amber-400 to-orange-500 p-8 text-white text-center relative overflow-hidden">
+         <div class="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-2xl -mr-10 -mt-10"></div>
+         <svg class="w-12 h-12 mx-auto mb-4 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+         <h3 class="text-2xl font-black tracking-tight relative z-10">Eleva tus Presentaciones</h3>
+      </div>
+      <div class="p-8">
+        <p class="text-slate-600 text-sm leading-relaxed mb-6 font-medium text-center">
+          El <strong>Smart Brochure</strong> elimina las distracciones de tu catálogo y envuelve a tu cliente en una experiencia inmersiva, diseñada puramente para cerrar ventas más rápido.
+        </p>
+        <div class="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-8 shadow-sm">
+          <p class="text-[11px] font-bold text-amber-800 text-center uppercase tracking-widest">✨ Función exclusiva de planes Pro y Elite</p>
+        </div>
+        <div class="flex flex-col gap-3">
+          <a href="/admin/perfil" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl text-center transition-colors text-sm shadow-md">
+            Mejorar mi Plan
+          </a>
+          <button onclick={() => showUpsellModal = false} class="w-full bg-white text-slate-400 hover:text-slate-800 font-bold py-3.5 rounded-xl text-center transition-colors text-sm">
+            Quizás más tarde
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   @keyframes fadeIn {
