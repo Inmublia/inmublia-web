@@ -355,10 +355,9 @@
         
         <div class="snap-start w-full h-screen relative flex items-center justify-center shrink-0 overflow-hidden">
           <div class="absolute inset-0 bg-black z-0">
-           <iframe src="https://player.vimeo.com/video/148751763?background=1&autoplay=1&loop=1&byline=0&title=0" 
-        class="absolute top-1/2 left-1/2 w-[150vw] h-[150vh] -translate-x-1/2 -translate-y-1/2 opacity-70 pointer-events-none" 
-        frameborder="0" allow="autoplay; fullscreen" allowfullscreen>
-         </iframe>
+            <video autoplay loop muted playsinline class="absolute inset-0 w-full h-full object-cover opacity-90" poster="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2000&auto=format&fit=crop">
+              <source src="https://cdn.pixabay.com/video/2020/02/17/32574-392942475_large.mp4" type="video/mp4">
+            </video>
           </div>
           <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20 z-10 pointer-events-none"></div>
           
