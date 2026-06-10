@@ -1,19 +1,20 @@
 <script>
   import { enhance } from '$app/forms';
+  // 1. Importamos el motor de compresión
+  import imageCompression from 'browser-image-compression';
+
   let { form } = $props();
   let loading = $state(false);
   
   let imagePreview = $state(null);
   let galeriaPreviews = $state([]);
-  let isOculta = $state(false); // Estado para el interruptor de pre-mercado
+  let isOculta = $state(false);
 
-  // Preview de Foto Principal
   function handleImageChange(event) {
     const file = event.target.files[0];
     imagePreview = file ? URL.createObjectURL(file) : null;
   }
 
-  // Preview de Galería Múltiple
   function handleGaleriaChange(event) {
     const files = event.target.files;
     galeriaPreviews = Array.from(files).map(file => URL.createObjectURL(file));
@@ -37,7 +38,45 @@
         <div class="mb-8 bg-red-50 text-red-600 font-bold p-4 rounded-xl text-sm border border-red-100">{form.error}</div>
       {/if}
 
-      <form method="POST" action="?/crear" enctype="multipart/form-data" use:enhance={() => { loading = true; return async ({ update }) => { loading = false; update(); }; }} class="space-y-10">
+      <form method="POST" action="?/crear" enctype="multipart/form-data" use:enhance={async ({ formData }) => { 
+        loading = true; 
+        
+        // 🛡️ MOTOR DE COMPRESIÓN DE ALTA DEFINICIÓN
+        try {
+          const options = {
+            maxSizeMB: 0.3, // Mantiene el peso por debajo de 300KB
+            maxWidthOrHeight: 1920, // 1080p/Full HD para no perder nitidez
+            useWebWorker: true,
+            initialQuality: 0.8
+          };
+
+          // Comprimir Foto Principal
+          const imagenPrincipal = formData.get('imagen');
+          if (imagenPrincipal && imagenPrincipal.size > 0) {
+            const compressedMain = await imageCompression(imagenPrincipal, options);
+            formData.set('imagen', compressedMain, compressedMain.name);
+          }
+
+          // Comprimir Galería
+          const galeriaArchivos = formData.getAll('galeria');
+          if (galeriaArchivos.length > 0 && galeriaArchivos[0].size > 0) {
+            formData.delete('galeria'); // Borramos las pesadas
+            for (let i = 0; i < galeriaArchivos.length; i++) {
+              if (galeriaArchivos[i].size > 0) {
+                const compressedGal = await imageCompression(galeriaArchivos[i], options);
+                formData.append('galeria', compressedGal, compressedGal.name);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error comprimiendo imágenes (Subiendo originales como respaldo):", error);
+        }
+
+        return async ({ update }) => { 
+          loading = false; 
+          update(); 
+        }; 
+      }} class="space-y-10">
         
         <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
@@ -159,7 +198,6 @@
               <label for="recorrido_3d_url" class="block text-[11px] font-bold text-indigo-600 uppercase tracking-widest mb-2">Enlace Recorrido 3D (Matterport)</label>
               <input id="recorrido_3d_url" type="url" name="recorrido_3d_url" placeholder="Ej. https://my.matterport.com/show/?m=..." class="w-full bg-indigo-50/30 border border-indigo-100 rounded-lg p-3 focus:ring-2 focus:ring-indigo-300">
             </div>
-
           </div>
         </div>
 
@@ -167,7 +205,7 @@
           <a href="/admin" class="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold py-3 px-6 rounded-xl mr-4">Cancelar</a>
           <button type="submit" disabled={loading} class="bg-slate-900 text-white font-bold py-3 px-8 rounded-xl disabled:bg-slate-400">
             {#if loading}
-               Subiendo datos...
+               Comprimiendo y subiendo...
             {:else}
                {isOculta ? 'Guardar en Pre-Mercado' : 'Publicar Propiedad'}
             {/if}
