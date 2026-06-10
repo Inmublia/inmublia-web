@@ -360,7 +360,7 @@
         
         <div class="snap-start w-full h-screen relative flex items-center justify-center shrink-0 overflow-hidden">
           <div class="absolute inset-0 bg-black z-0">
-            <video autoplay loop muted playsinline preload="auto" class="absolute inset-0 w-full h-full object-cover opacity-90" poster="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2000&auto=format&fit=crop">
+            <video autoplay muted playsinline preload="auto" class="absolute inset-0 w-full h-full object-cover opacity-90">
               <source src={videoFondo} type="video/mp4">
             </video>
           </div>
