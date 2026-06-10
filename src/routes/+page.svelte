@@ -354,10 +354,14 @@
       <div class="flex flex-col snap-y snap-mandatory h-screen overflow-y-scroll scroll-smooth">
         
         <div class="snap-start w-full h-screen relative flex items-center justify-center shrink-0">
-          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20 z-10"></div>
-          <img src={propiedades[0]?.imagen_url || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750'} class="absolute inset-0 w-full h-full object-cover opacity-80" alt="Cinematic Hero">
+          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/20 z-10 pointer-events-none"></div>
+          
+          <video autoplay loop muted playsinline class="absolute inset-0 w-full h-full object-cover opacity-90">
+            <source src="https://assets.mixkit.co/videos/preview/mixkit-modern-architecture-of-a-luxury-house-41133-large.mp4" type="video/mp4">
+          </video>
+          
           <div class="relative z-20 text-center flex flex-col items-center">
-            <h2 class="text-6xl md:text-8xl font-black uppercase tracking-tighter mix-blend-overlay opacity-90">{broker.nombre_comercial}</h2>
+            <h2 class="text-6xl md:text-8xl font-black uppercase tracking-tighter mix-blend-overlay opacity-90 drop-shadow-2xl">{broker.nombre_comercial}</h2>
             <div class="mt-16 animate-bounce">
               <svg class="w-6 h-6 mx-auto text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
             </div>
