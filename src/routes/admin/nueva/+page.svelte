@@ -127,7 +127,7 @@
     <div class="w-full max-w-[900px] mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-10">
       
       {#if form?.error}
-        <div class="mb-8 bg-red-50 text-red-600 font-semibold p-4 rounded-xl text-sm border border-red-100">{form.error}</div>
+        <div class="mb-8 bg-red-50 text-red-600 font-semibold p-4 rounded-xl text-sm border border-red-100 animate-[fadeIn_0.3s_ease-out]">{form.error}</div>
       {/if}
 
       <form method="POST" action="?/crear" enctype="multipart/form-data" use:enhance={async ({ formData }) => { 
@@ -175,18 +175,28 @@
           <div class="grid grid-cols-1 gap-y-6 gap-x-6 sm:grid-cols-2">
             <div>
               <label for="operacion" class="block text-xs font-semibold text-slate-500 mb-1.5">Operación</label>
-              <select bind:this={selectOperacion} id="operacion" name="operacion" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm cursor-pointer">
-                <option value="Venta">Venta</option>
-                <option value="Renta">Renta</option>
-              </select>
+              <div class="relative w-full">
+                <select bind:this={selectOperacion} id="operacion" name="operacion" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm cursor-pointer appearance-none">
+                  <option value="Venta">Venta</option>
+                  <option value="Renta">Renta</option>
+                </select>
+                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
             </div>
             <div>
               <label for="tipo" class="block text-xs font-semibold text-slate-500 mb-1.5">Tipo de Inmueble</label>
-              <select bind:this={selectTipo} id="tipo" name="tipo" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm cursor-pointer">
-                <option value="Casa">Casa</option>
-                <option value="Departamento">Departamento</option>
-                <option value="Terreno">Terreno</option>
-              </select>
+              <div class="relative w-full">
+                <select bind:this={selectTipo} id="tipo" name="tipo" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm cursor-pointer appearance-none">
+                  <option value="Casa">Casa</option>
+                  <option value="Departamento">Departamento</option>
+                  <option value="Terreno">Terreno</option>
+                </select>
+                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
             </div>
 
             <div class="sm:col-span-2">
@@ -200,17 +210,17 @@
             </div>
 
             <div class="col-span-2 grid grid-cols-3 sm:grid-cols-6 gap-4">
-              <div><label for="recamaras" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Recámaras</label><input bind:this={inputRecamaras} id="recamaras" type="number" name="recamaras" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm"></div>
-              <div><label for="banos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Baños</label><input id="banos" type="number" name="banos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm"></div>
-              <div><label for="medio_bano" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">1/2 Baños</label><input id="medio_bano" type="number" name="medio_bano" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm"></div>
-              <div><label for="estacionamientos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Autos</label><input id="estacionamientos" type="number" name="estacionamientos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm"></div>
-              <div><label for="m2_terreno" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">M² Terreno</label><input id="m2_terreno" type="number" name="m2_terreno" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm"></div>
-              <div><label for="m2_construccion" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">M² Interiores</label><input id="m2_construccion" type="number" name="m2_construccion" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm"></div>
+              <div><label for="recamaras" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Recámaras</label><input bind:this={inputRecamaras} id="recamaras" type="number" name="recamaras" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+              <div><label for="banos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Baños</label><input id="banos" type="number" name="banos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+              <div><label for="medio_bano" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">1/2 Baños</label><input id="medio_bano" type="number" name="medio_bano" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+              <div><label for="estacionamientos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Autos</label><input id="estacionamientos" type="number" name="estacionamientos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+              <div><label for="m2_terreno" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Terreno</label><input id="m2_terreno" type="number" name="m2_terreno" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+              <div><label for="m2_construccion" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Interiores</label><input id="m2_construccion" type="number" name="m2_construccion" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
             </div>
 
             <div class="sm:col-span-2 pt-2">
               <label for="imagen_principal" class="block text-xs font-semibold text-slate-500 mb-1.5">Fotografía Principal (Hero)</label>
-              <div class="flex justify-center px-6 pt-5 pb-6 border-2 border-slate-200 border-dashed rounded-xl hover:border-slate-400 bg-slate-50 transition-colors relative overflow-hidden group h-48 cursor-pointer">
+              <div class="flex justify-center px-6 pt-5 pb-6 border-2 border-slate-200 border-dashed rounded-xl hover:border-slate-400 bg-slate-50 transition-colors relative overflow-hidden group h-48 cursor-pointer shadow-inner">
                 {#if imagePreview}
                   <img src={imagePreview} alt="Vista previa" class="absolute inset-0 w-full h-full object-cover z-10" />
                   <div class="absolute inset-0 bg-black/10 z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -227,7 +237,7 @@
 
             <div class="sm:col-span-2">
               <label for="galeria_input" class="block text-xs font-semibold text-slate-500 mb-1.5">Galería Secundaria (1 a 15 fotos)</label>
-              <div class="flex flex-col items-center justify-center p-6 border-2 border-slate-200 border-dashed rounded-xl hover:border-slate-400 bg-slate-50 transition-colors relative cursor-pointer min-h-[120px]">
+              <div class="flex flex-col items-center justify-center p-6 border-2 border-slate-200 border-dashed rounded-xl hover:border-slate-400 bg-slate-50 transition-colors relative cursor-pointer min-h-[120px] shadow-inner">
                 <div class="text-center z-10 relative">
                   <span class="text-slate-700 font-semibold bg-white px-4 py-2 rounded-md shadow-sm border border-slate-200 text-xs hover:bg-slate-50 transition-colors">Seleccionar Fotos Adicionales</span>
                 </div>
@@ -256,74 +266,84 @@
         </section>
 
         <section class="relative">
-          <div class="bg-slate-900 rounded-2xl p-6 sm:p-8 relative overflow-hidden shadow-lg border border-slate-800">
+          <div class="bg-slate-800 rounded-[2rem] p-6 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
             
             <div class="absolute -top-32 -right-32 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none"></div>
 
-            <div class="relative z-10 flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+            <div class="relative z-10">
               
-              <div class="flex-1">
-                <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-                  Estudio Creativo IA
-                  <span class="flex h-2 w-2 relative mt-0.5">
+              <div class="flex flex-col items-center w-full mb-8">
+                <h2 class="text-2xl font-black text-white tracking-tight flex items-center justify-center gap-2.5">
+                  Estudio Creativo IA Inmublia
+                  <span class="flex h-2.5 w-2.5 relative mt-0.5">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                   </span>
                 </h2>
-                <p class="text-sm text-slate-400 mt-2 leading-relaxed max-w-md">
-                  Autogenera la descripción comercial, mensajes estructurados para WhatsApp y guiones para redes sociales basándote en los datos de la propiedad.
+                <p class="text-sm text-slate-400 mt-4 leading-relaxed max-w-2xl text-justify font-medium">
+                  Autogenera la descripción comercial, mensajes estructurados para WhatsApp y guiones para redes sociales basándote en los datos de la Sección 1.
                 </p>
               </div>
 
-              <div class="bg-slate-800/80 border border-slate-700/50 backdrop-blur-md rounded-xl p-2 flex flex-col sm:flex-row items-center gap-3 shrink-0 w-full sm:w-auto">
+              <div class="flex flex-col sm:flex-row items-end justify-center gap-4 sm:gap-6 w-full max-w-3xl mx-auto bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-4 shadow-inner">
                 
-                <div class="flex items-center gap-2 pl-3 w-full sm:w-auto justify-between sm:justify-start">
-                  <label for="tono-ia" class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Tono:</label>
-                  <select id="tono-ia" bind:value={tonoIA} class="bg-transparent text-white text-sm font-semibold outline-none cursor-pointer pr-6 py-1 focus:ring-0 appearance-none relative bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%206l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_center]">
-                    <option value="lujo" class="bg-slate-800">Premium / Elegante</option>
-                    <option value="familiar" class="bg-slate-800">Familiar / Cálido</option>
-                    <option value="inversionista" class="bg-slate-800">Analítico / ROI</option>
-                  </select>
+                <div class="flex flex-col items-center gap-2 w-full sm:w-1/3">
+                  <label for="tono-ia" class="text-[10px] font-bold text-slate-300 uppercase tracking-widest text-center w-full">Tono de Redacción</label>
+                  <div class="relative w-full">
+                    <select id="tono-ia" bind:value={tonoIA} class="w-full bg-slate-800 text-white border border-slate-600 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner cursor-pointer appearance-none pr-10">
+                      <option value="lujo">Premium / Elegante</option>
+                      <option value="familiar">Familiar / Cálido</option>
+                      <option value="inversionista">Analítico / ROI</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                      <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                  </div>
                 </div>
 
-                <div class="w-full h-px sm:w-px sm:h-6 bg-slate-700"></div>
-
-                <div class="flex items-center gap-1.5 px-2 text-xs font-semibold text-slate-300 w-full sm:w-auto justify-center">
-                  <svg class="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                  {creditosIA} {creditosIA === 1 ? 'Crédito' : 'Créditos'}
+                <div class="flex items-center justify-center w-full sm:w-1/3 pb-1">
+                  <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-800 border border-slate-600/80 rounded-full text-xs font-bold text-slate-200 shadow-inner">
+                    <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    {creditosIA} {creditosIA === 1 ? 'Crédito' : 'Créditos'}
+                  </div>
                 </div>
 
-                <button type="button" onclick={generarCampañaIA} disabled={generandoIA} class="w-full sm:w-auto bg-white text-slate-900 font-bold px-5 py-2 rounded-lg transition-colors hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm shadow-sm">
-                  {#if generandoIA}
-                    <svg class="animate-spin w-4 h-4 text-slate-900" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    Procesando...
-                  {:else}
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                    Generar Contenido
-                  {/if}
-                </button>
+                <div class="w-full sm:w-1/3 flex flex-col items-center">
+                  <div class="h-[18px] mb-2 hidden sm:block"></div> 
+                  <button type="button" onclick={generarCampañaIA} disabled={generandoIA} class="w-full relative overflow-hidden group bg-white text-slate-900 font-bold px-6 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 flex items-center justify-center gap-2 text-sm shadow-sm active:scale-95">
+                    {#if generandoIA}
+                      <svg class="animate-spin w-4 h-4 text-slate-900" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                      Procesando...
+                    {:else}
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                      Generar Contenido
+                    {/if}
+                  </button>
+                </div>
               </div>
+
             </div>
 
             {#if iaEjecutada}
-              <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4 animate-[fadeIn_0.4s_ease-out]">
+              <div class="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-5 animate-[fadeIn_0.4s_ease-out] relative z-10">
                 
-                <div class="lg:col-span-2 bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 flex flex-col">
-                  <div class="flex items-center justify-between mb-4">
-                    <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
-                      <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                <div class="lg:col-span-2 bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col">
+                  <div class="flex items-center justify-between mb-5">
+                    <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-2">
+                      <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2 2 0 00-.586-1.414l-4.5-4.5A2 2 0 0012.586 3H12"></path></svg>
                       Ficha Editorial
                     </h4>
                     {#if !generandoIA && textoGeneradoFicha.titulo}
-                      <button type="button" onclick={aplicarAlFormulario} class="text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white px-3 py-1.5 rounded transition-colors">
+                      <button type="button" onclick={aplicarAlFormulario} class="text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600/50">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                         Usar en Publicación
                       </button>
                     {/if}
                   </div>
                   
-                  <div class="flex-1 space-y-4">
+                  <div class="flex-1 space-y-5">
                     <div>
-                      <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Título</p>
+                      <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5">Título</p>
                       {#if generandoIA && !textoGeneradoFicha.titulo}
                         <div class="h-6 bg-slate-700/50 rounded animate-pulse w-3/4"></div>
                       {:else}
@@ -331,9 +351,9 @@
                       {/if}
                     </div>
                     <div>
-                      <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Descripción</p>
+                      <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5">Descripción</p>
                       {#if generandoIA && !textoGeneradoFicha.descripcion}
-                        <div class="space-y-1.5">
+                        <div class="space-y-2">
                           <div class="h-3.5 bg-slate-700/50 rounded w-full animate-pulse"></div>
                           <div class="h-3.5 bg-slate-700/50 rounded w-full animate-pulse"></div>
                           <div class="h-3.5 bg-slate-700/50 rounded w-4/5 animate-pulse"></div>
@@ -345,16 +365,16 @@
                   </div>
                 </div>
 
-                <div class="flex flex-col gap-4">
+                <div class="flex flex-col gap-5">
                   <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 flex-1 flex flex-col">
                     <div class="flex items-center justify-between mb-3">
-                      <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-                        Campaña WhatsApp
+                      <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-2">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                        WhatsApp
                       </h4>
                       {#if !generandoIA && textoGeneradoWhatsapp}
                         <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-slate-400 hover:text-white transition-colors" title="Copiar">
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                         </button>
                       {/if}
                     </div>
@@ -369,13 +389,13 @@
 
                   <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 flex-1 flex flex-col">
                     <div class="flex items-center justify-between mb-3">
-                      <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                      <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-2">
+                        <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                         Guion Video
                       </h4>
                       {#if !generandoIA && textoGeneradoTiktok}
                         <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoTiktok)} class="text-slate-400 hover:text-white transition-colors" title="Copiar">
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                         </button>
                       {/if}
                     </div>
@@ -394,7 +414,7 @@
         </section>
 
         <section id="seccion-oficial" class="space-y-6 pt-10 border-t border-slate-100">
-          <div class="border-b border-slate-100 pb-3">
+          <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
             <h2 class="text-xl font-bold text-slate-900 tracking-tight">3. Publicación Oficial</h2>
           </div>
 
@@ -408,12 +428,12 @@
             <textarea bind:this={inputDescripcion} id="descripcion" name="descripcion" rows="6" class="w-full bg-white border border-slate-200 rounded-lg p-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-slate-900 text-slate-800 leading-relaxed resize-y placeholder:text-slate-300" placeholder="Escribe aquí los detalles de la propiedad o usa el Estudio Creativo IA para redactar..."></textarea>
           </div>
 
-          <div class="flex items-start mt-4 p-5 bg-slate-50/50 rounded-xl border border-slate-200">
+          <div class="flex items-start mt-4 p-5 bg-slate-50/50 rounded-xl border border-slate-200 shadow-inner">
             <div class="flex items-center h-5 mt-0.5">
               <input type="checkbox" id="destacada" name="destacada" class="w-4 h-4 text-slate-900 rounded cursor-pointer border border-slate-300 focus:ring-slate-900">
             </div>
-            <div class="ml-3">
-              <label for="destacada" class="text-sm font-semibold text-slate-900 cursor-pointer">Insignia VIP (Propiedad Destacada)</label>
+            <div class="ml-3 flex-1">
+              <label for="destacada" class="text-sm font-semibold text-slate-900 cursor-pointer">VIP / Signature (Propiedad Destacada)</label>
               <p class="text-xs text-slate-500 mt-1 leading-relaxed">Resalta este inmueble en tu catálogo público como una exclusiva de alto valor.</p>
             </div>
           </div>
@@ -421,7 +441,7 @@
 
         <div class="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-100">
           <a href="/admin" class="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold py-2.5 px-6 rounded-lg transition-colors text-sm text-center">Cancelar</a>
-          <button type="submit" disabled={loading} class="bg-slate-900 text-white font-bold py-2.5 px-8 rounded-lg disabled:opacity-50 shadow-sm hover:bg-slate-800 transition-all flex items-center justify-center gap-2 text-sm">
+          <button type="submit" disabled={loading} class="bg-slate-900 text-white font-bold py-2.5 px-8 rounded-lg disabled:opacity-50 shadow-sm hover:bg-slate-800 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-95">
             {#if loading}
               <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                Procesando...
