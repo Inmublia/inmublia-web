@@ -6,7 +6,78 @@
 
   let previewMode = $derived($page.url.searchParams.get('preview'));
   let plantillaActiva = $derived(previewMode || broker?.template_seleccionado || 'classic');
+
+  // INYECCIÓN SEGURA DE PÍXELES (SaaS Performance)
+  const SCR = '<scr'+'ipt>';
+  const /SCR = '</scr'+'ipt>';
+
+  let metaPixel = $derived(broker?.pixel_fb ? `
+    ${SCR}
+      !function(f,b,e,v,n,t,s)
+      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+      n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t,s)}(window, document,'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '${broker.pixel_fb}');
+      fbq('track', 'PageView');
+    ${/SCR}
+    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=${broker.pixel_fb}&ev=PageView&noscript=1"/></noscript>
+  ` : '');
+
+  let googlePixel = $derived(broker?.pixel_google ? `
+    <script async src="https://www.googletagmanager.com/gtag/js?id=${broker.pixel_google}"><\/script>
+    ${SCR}
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '${broker.pixel_google}');
+    ${/SCR}
+  ` : '');
+
+  let tiktokPixel = $derived(broker?.pixel_tiktok ? `
+    ${SCR}
+      !function (w, d, t) {
+        w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};
+        ttq.load('${broker.pixel_tiktok}');
+        ttq.page();
+      }(window, document, 'ttq');
+    ${/SCR}
+  ` : '');
 </script>
+
+<svelte:head>
+  {#if metaPixel} {@html metaPixel} {/if}
+  {#if googlePixel} {@html googlePixel} {/if}
+  {#if tiktokPixel} {@html tiktokPixel} {/if}
+</svelte:head>
+
+{#snippet socialLinks(b)}
+  <div class="flex items-center justify-center gap-5 mt-4">
+    {#if b.facebook}
+      <a href={b.facebook} target="_blank" class="text-current hover:opacity-60 transition-opacity" aria-label="Facebook">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
+      </a>
+    {/if}
+    {#if b.instagram}
+      <a href={b.instagram} target="_blank" class="text-current hover:opacity-60 transition-opacity" aria-label="Instagram">
+         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+      </a>
+    {/if}
+    {#if b.linkedin}
+      <a href={b.linkedin} target="_blank" class="text-current hover:opacity-60 transition-opacity" aria-label="LinkedIn">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+      </a>
+    {/if}
+    {#if b.tiktok}
+      <a href={b.tiktok} target="_blank" class="text-current hover:opacity-60 transition-opacity" aria-label="TikTok">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 2.22-1.15 4.39-2.92 5.75-1.84 1.4-4.29 1.83-6.6 1.4-2.18-.4-4.14-1.74-5.26-3.66-1.16-1.99-1.37-4.46-.57-6.57.82-2.18 2.67-3.9 4.88-4.57 1.59-.48 3.32-.46 4.88.08v4.06c-.84-.27-1.78-.34-2.65-.13-.88.21-1.67.75-2.18 1.48-.52.75-.71 1.72-.5 2.6.21.88.75 1.67 1.48 2.18.75.52 1.72.71 2.6.5 1.25-.29 2.21-1.36 2.45-2.62.06-.32.07-.65.07-.98V.02z"/></svg>
+      </a>
+    {/if}
+  </div>
+{/snippet}
 
 {#if previewMode}
   <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-slate-900/90 backdrop-blur-md border border-slate-700 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-4 animate-[fadeIn_0.3s_ease-out]">
@@ -90,6 +161,7 @@
             <div>
               <h3 class="text-2xl font-bold">{broker.nombre_comercial}</h3>
               <p class="text-blue-400 font-medium mb-2">{broker.bio || 'Especialista en Bienes Raíces'}</p>
+              {@render socialLinks(broker)}
             </div>
           </div>
         </div>
@@ -112,6 +184,7 @@
       <div class="max-w-7xl mx-auto px-8 py-20 border-b border-slate-200">
         <p class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Agencia Inmobiliaria</p>
         <h2 class="text-5xl md:text-7xl font-black tracking-tighter leading-tight max-w-4xl">{broker.bio || 'Propiedades excepcionales, gestión implacable.'}</h2>
+        <div class="mt-8 flex justify-start">{@render socialLinks(broker)}</div>
       </div>
 
       <div id="catalogo" class="max-w-7xl mx-auto px-8 py-20">
@@ -176,8 +249,9 @@
         </div>
       </div>
 
-      <footer class="bg-slate-50 border-t border-slate-200 mt-20 py-12 text-center">
-        <p class="text-slate-500 font-medium">{broker.nombre_comercial} &copy; 2026</p>
+      <footer class="bg-slate-50 border-t border-slate-200 mt-20 py-12 text-center flex flex-col items-center">
+        <p class="text-slate-500 font-medium mb-4">{broker.nombre_comercial} © 2026</p>
+        <div class="text-slate-500">{@render socialLinks(broker)}</div>
       </footer>
     </main>
   {/snippet}
@@ -190,6 +264,7 @@
         {#if broker.avatar_url}
           <img src={broker.avatar_url} alt="Director" class="w-20 h-20 rounded-full object-cover mx-auto shadow-md mb-6 grayscale hover:grayscale-0 transition-all duration-500">
         {/if}
+        <div class="mb-6 flex justify-center">{@render socialLinks(broker)}</div>
         <p class="max-w-2xl mx-auto text-lg font-light italic leading-relaxed text-[#2C2C2C]/80">"{broker.bio || 'La curaduría perfecta de espacios para habitar.'}"</p>
       </header>
 
@@ -240,6 +315,11 @@
           </a>
         {/each}
       </div>
+
+      <footer class="border-t border-white/10 py-16 flex flex-col items-center">
+        <p class="text-xl font-light text-white mb-6">{broker.nombre_comercial}</p>
+        <div class="text-white/60">{@render socialLinks(broker)}</div>
+      </footer>
     </main>
   {/snippet}
 
@@ -257,9 +337,9 @@
         <div class="snap-start w-full h-screen relative flex items-center justify-center shrink-0">
           <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20 z-10"></div>
           <img src={propiedades[0]?.imagen_url || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750'} class="absolute inset-0 w-full h-full object-cover opacity-80" alt="Cinematic Hero">
-          <div class="relative z-20 text-center">
+          <div class="relative z-20 text-center flex flex-col items-center">
             <h2 class="text-6xl md:text-8xl font-black uppercase tracking-tighter mix-blend-overlay opacity-90">{broker.nombre_comercial}</h2>
-            <p class="mt-4 text-sm tracking-[0.4em] uppercase text-white/70">Portafolio Inmobiliario</p>
+            <div class="mt-8 text-white/80">{@render socialLinks(broker)}</div>
             <div class="mt-16 animate-bounce">
               <svg class="w-6 h-6 mx-auto text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
             </div>
