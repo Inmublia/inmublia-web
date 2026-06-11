@@ -107,8 +107,8 @@ export const actions = {
       });
 
     if (notaError) {
-       console.error("🔥 Error Supabase Notas:", notaError);
-       return fail(500, { error: `Supabase Error: ${notaError.message}` });
+      console.error("🔥 Error Supabase Notas:", notaError);
+      return fail(500, { error: `Supabase Error: ${notaError.message}` });
     }
 
     if (lead.estado === 'nuevo') {
