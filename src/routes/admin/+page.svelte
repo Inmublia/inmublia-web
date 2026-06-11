@@ -15,13 +15,20 @@
     Pencil, 
     Trash2, 
     EyeOff,
-    CheckCircle2
+    CheckCircle2,
+    BadgeDollarSign,
+    TrendingUp
   } from 'lucide-svelte';
   
   let { data } = $props();
   let broker = $derived(data.broker);
   let propiedades = $derived(data.propiedades || []);
+  
+  // 🔥 MÉTRICAS INTELIGENTES
   let totalPropiedades = $derived(propiedades.length);
+  let valorPortafolio = $derived(propiedades.reduce((acc, p) => acc + (Number(p.precio) || 0), 0));
+  let activasCount = $derived(propiedades.filter(p => p.estatus !== 'Pre-Mercado').length);
+  let preMercadoCount = $derived(propiedades.filter(p => p.estatus === 'Pre-Mercado').length);
 
   let searchQuery = $state('');
   let propiedadesFiltradas = $derived(
@@ -29,8 +36,6 @@
   );
 
   let generandoPDF = $state(false);
-  
-  // 🔥 ESTADO DEL MODAL DE UPSELL
   let showUpsellModal = $state(false);
 
   const formatter = new Intl.NumberFormat('es-MX', {
@@ -131,7 +136,6 @@
     win.document.close();
   }
 
-  // 🔥 CANDADO DE UPSELL PARA EL BROCHURE
   function intentarAbrirBrochure(slug) {
     const plan = broker?.plan_suscripcion || 'basico';
     if (plan === 'pro' || plan === 'elite') {
@@ -142,196 +146,245 @@
   }
 </script>
 
-<main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-muted/30 text-foreground font-sans">
-  <header class="h-20 bg-background/80 backdrop-blur-md border-b border-border flex items-center justify-between px-6 sm:px-10 shrink-0 sticky top-0 z-20">
-    <div>
-      <h1 class="text-xl font-bold tracking-tight">Inventario Maestro</h1>
-      <p class="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mt-0.5">Gestión de activos inmobiliarios</p>
-    </div>
-    
-    <div class="flex items-center gap-3">
-      {#if broker}
-        <a href="https://{broker.subdominio}.inmublia.com" target="_blank" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-transparent bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground h-9 px-4 gap-2">
-          <ExternalLink class="w-4 h-4" />
-          Ver Portal
+<div class="min-h-screen bg-slate-50 flex flex-col font-sans">
+  
+  <header class="bg-zinc-950 text-white pt-8 pb-32 px-6 sm:px-10 shrink-0 relative overflow-hidden">
+    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
+
+    <div class="max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div>
+        <h1 class="text-3xl font-bold tracking-tight text-zinc-50">Inventario Maestro</h1>
+        <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
+          <Building2 class="w-4 h-4" />
+          Consola de Gestión Inmublia
+        </p>
+      </div>
+      
+      <div class="flex items-center gap-3">
+        {#if broker}
+          <a href="https://{broker.subdominio}.inmublia.com" target="_blank" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 hover:text-white h-11 px-5 gap-2 backdrop-blur-sm">
+            <ExternalLink class="w-4 h-4" />
+            Ver Portal Público
+          </a>
+        {/if}
+        <a href="/admin/open-house/nueva" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-indigo-100 h-11 px-5 gap-2 backdrop-blur-sm">
+          <CalendarPlus class="w-4 h-4" />
+          Open House
         </a>
-      {/if}
-      <a href="/admin/open-house/nueva" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 gap-2">
-        <CalendarPlus class="w-4 h-4" />
-        Open House
-      </a>
-      <a href="/admin/nueva" class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 gap-2 shadow-sm">
-        <Plus class="w-4 h-4" />
-        Nueva Propiedad
-      </a>
+        <a href="/admin/nueva" class="inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] transform active:scale-95">
+          <Plus class="w-4 h-4" />
+          Nueva Propiedad
+        </a>
+      </div>
     </div>
   </header>
 
-  <div class="p-6 sm:p-10 flex-1 overflow-auto animate-in fade-in duration-500">
-    <div class="max-w-7xl mx-auto">
+  <main class="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-10 -mt-20 relative z-20 pb-20">
+    
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-background p-6 rounded-xl border border-border shadow-sm flex items-center justify-between group hover:border-primary/50 transition-colors">
-          <div>
-            <p class="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">Total Unidades</p>
-            <p class="text-3xl font-bold tracking-tight">{totalPropiedades}</p>
+      <div class="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Valor de Portafolio</p>
+          <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+            <BadgeDollarSign class="w-4 h-4" />
           </div>
-          <div class="w-12 h-12 bg-muted rounded-lg flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-            <Building2 class="w-6 h-6" />
+        </div>
+        <p class="text-2xl font-black text-slate-900 tracking-tight truncate">{formatter.format(valorPortafolio)}</p>
+      </div>
+
+      <div class="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Unidades</p>
+          <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+            <Building2 class="w-4 h-4" />
           </div>
+        </div>
+        <p class="text-3xl font-black text-slate-900 tracking-tight">{totalPropiedades}</p>
+      </div>
+
+      <div class="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Públicas</p>
+          <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+            <CheckCircle2 class="w-4 h-4" />
+          </div>
+        </div>
+        <div class="flex items-end gap-2">
+          <p class="text-3xl font-black text-slate-900 tracking-tight">{activasCount}</p>
+          <p class="text-xs text-slate-400 font-medium mb-1">En mercado</p>
         </div>
       </div>
 
-      <div class="bg-background rounded-xl shadow-sm border border-border overflow-hidden relative">
-        <div class="p-4 sm:p-6 border-b border-border bg-muted/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="relative flex-1 max-w-md">
-            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input type="text" bind:value={searchQuery} placeholder="Buscar por título o colonia..." class="flex h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all">
+      <div class="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Pre-Mercado</p>
+          <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
+            <EyeOff class="w-4 h-4" />
           </div>
         </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse table-fixed min-w-[800px]">
-            <thead>
-              <tr class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-background border-b border-border">
-                <th class="w-[40%] px-6 py-4">Propiedad</th>
-                <th class="w-[20%] px-6 py-4">Precio Mercado</th>
-                <th class="w-[15%] px-6 py-4 text-center">Estatus</th>
-                <th class="w-[25%] px-6 py-4 text-right">Gestión</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-border">
-              {#if propiedadesFiltradas.length === 0}
-                <tr>
-                  <td colspan="4" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">
-                    No se encontraron propiedades en tu inventario.
-                  </td>
-                </tr>
-              {:else}
-                {#each propiedadesFiltradas as propiedad}
-                  <tr class="group hover:bg-muted/30 transition-colors">
-                    <td class="px-6 py-4">
-                      <div class="flex items-center gap-4">
-                        <div class="h-12 w-16 rounded-md overflow-hidden bg-muted shrink-0 border border-border group-hover:border-primary/30 transition-colors">
-                          <img src={propiedad.imagen_url} alt="Portada" class="w-full h-full object-cover">
-                        </div>
-                        <div class="truncate">
-                          <div class="text-sm font-semibold text-foreground leading-tight mb-1 flex items-center gap-2 truncate">
-                            <span class="truncate">{propiedad.titulo}</span>
-                            {#if propiedad.destacada}
-                              <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[8px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80 uppercase tracking-widest shrink-0">VIP</span>
-                            {/if}
-                          </div>
-                          <p class="text-xs text-muted-foreground flex items-center gap-1.5 truncate">
-                            <MapPin class="w-3 h-3 shrink-0" />
-                            <span class="truncate">{propiedad.ubicacion}</span>
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td class="px-6 py-4 truncate">
-                      <p class="text-sm font-bold text-foreground">{formatter.format(propiedad.precio)}</p>
-                      <p class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mt-0.5">{propiedad.operacion}</p>
-                    </td>
-
-                    <td class="px-6 py-4 text-center whitespace-nowrap">
-                      <div class="flex flex-col items-center justify-center gap-1.5 h-full">
-                        {#if propiedad.estatus === 'Pre-Mercado'}
-                          <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[9px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground uppercase tracking-widest bg-muted border-border">
-                            <EyeOff class="w-3 h-3 mr-1" />
-                            Oculta
-                          </span>
-                        {:else}
-                          <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[9px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-emerald-700 bg-emerald-50 border-emerald-200 uppercase tracking-widest">
-                            <CheckCircle2 class="w-3 h-3 mr-1" />
-                            Activa
-                          </span>
-                        {/if}
-
-                        {#if propiedad.open_houses && propiedad.open_houses.length > 0}
-                          {@const ohStatus = getOpenHouseStatus(propiedad.open_houses[0])}
-                          {#if ohStatus === 'active'}
-                            <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center rounded-md border px-2 py-0.5 text-[9px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80 uppercase tracking-widest" title="Dashboard Evento">
-                              Open House
-                            </a>
-                          {:else}
-                            <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center rounded-md border px-2 py-0.5 text-[9px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-muted-foreground border-border hover:bg-muted uppercase tracking-widest" title="Ver Histórico">
-                              Histórico OH
-                            </a>
-                          {/if}
-                        {/if}
-                      </div>
-                    </td>
-
-                    <td class="px-6 py-4">
-                      <div class="flex justify-end gap-1 items-center">
-                        <button onclick={() => descargarFicha(propiedad)} disabled={generandoPDF} class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-muted hover:text-foreground h-9 w-9 text-muted-foreground" title="Descargar Ficha PDF">
-                          {#if generandoPDF}
-                            <Loader2 class="w-4 h-4 animate-spin" />
-                          {:else}
-                            <DownloadCloud class="w-4 h-4" />
-                          {/if}
-                        </button>
-                        
-                        <button onclick={() => intentarAbrirBrochure(propiedad.slug)} class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-amber-100 hover:text-amber-700 h-9 w-9 text-amber-500" title="Smart Brochure">
-                          <Sparkles class="w-4 h-4" />
-                        </button>
-                        
-                        <button onclick={() => abrirQR(propiedad.slug, propiedad.titulo)} class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-muted hover:text-foreground h-9 w-9 text-muted-foreground" title="Generar QR">
-                          <QrCode class="w-4 h-4" />
-                        </button>
-                        
-                        <button onclick={() => copiarEnlace(propiedad.slug)} class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-muted hover:text-foreground h-9 w-9 text-muted-foreground" title="Copiar Enlace">
-                          <Link2 class="w-4 h-4" />
-                        </button>
-
-                        <a href="/admin/editar/{propiedad.id}" class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-muted hover:text-foreground h-9 w-9 text-muted-foreground" title="Editar">
-                          <Pencil class="w-4 h-4" />
-                        </a>
-
-                        <form method="POST" action="?/eliminar" use:enhance class="inline-block m-0 p-0">
-                          <input type="hidden" name="id" value={propiedad.id}>
-                          <button type="button" class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-destructive/10 hover:text-destructive h-9 w-9 text-muted-foreground" onclick={(e) => { if(confirm('¿Borrar propiedad permanentemente?')) e.target.closest('form').submit(); }} title="Eliminar">
-                            <Trash2 class="w-4 h-4" />
-                          </button>
-                        </form>
-                      </div>
-                    </td>
-                  </tr>
-                {/each}
-              {/if}
-            </tbody>
-          </table>
+        <div class="flex items-end gap-2">
+          <p class="text-3xl font-black text-slate-900 tracking-tight">{preMercadoCount}</p>
+          <p class="text-xs text-slate-400 font-medium mb-1">Ocultas</p>
         </div>
       </div>
 
     </div>
-  </div>
-</main>
+
+    <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 overflow-hidden relative">
+      
+      <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="relative flex-1 max-w-md">
+          <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input type="text" bind:value={searchQuery} placeholder="Buscar por título o colonia..." class="flex h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 py-2 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm">
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse table-fixed min-w-[900px]">
+          <thead>
+            <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-white border-b border-slate-100">
+              <th class="w-[40%] px-6 py-4">Activo Inmobiliario</th>
+              <th class="w-[20%] px-6 py-4">Valor</th>
+              <th class="w-[15%] px-6 py-4 text-center">Estatus</th>
+              <th class="w-[25%] px-6 py-4 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100/80">
+            {#if propiedadesFiltradas.length === 0}
+              <tr>
+                <td colspan="4" class="px-6 py-16 text-center text-slate-500 text-sm font-medium">
+                  <div class="flex flex-col items-center justify-center gap-3">
+                    <Search class="w-8 h-8 text-slate-300" />
+                    No se encontraron propiedades.
+                  </div>
+                </td>
+              </tr>
+            {:else}
+              {#each propiedadesFiltradas as propiedad}
+                <tr class="group hover:bg-slate-50/60 transition-colors">
+                  <td class="px-6 py-5">
+                    <div class="flex items-center gap-4">
+                      <div class="h-14 w-20 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200/60 shadow-sm group-hover:border-indigo-200 transition-colors">
+                        <img src={propiedad.imagen_url} alt="Portada" class="w-full h-full object-cover">
+                      </div>
+                      <div class="truncate">
+                        <div class="text-sm font-bold text-slate-900 leading-tight mb-1 flex items-center gap-2 truncate">
+                          <span class="truncate">{propiedad.titulo}</span>
+                          {#if propiedad.destacada}
+                            <span class="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-sm shrink-0">VIP</span>
+                          {/if}
+                        </div>
+                        <p class="text-xs text-slate-500 flex items-center gap-1.5 truncate font-medium">
+                          <MapPin class="w-3 h-3 shrink-0 text-slate-400" />
+                          <span class="truncate">{propiedad.ubicacion}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td class="px-6 py-5 truncate">
+                    <p class="text-sm font-black text-slate-900">{formatter.format(propiedad.precio)}</p>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                      <TrendingUp class="w-3 h-3" />
+                      {propiedad.operacion}
+                    </p>
+                  </td>
+
+                  <td class="px-6 py-5 text-center whitespace-nowrap">
+                    <div class="flex flex-col items-center justify-center gap-2 h-full">
+                      {#if propiedad.estatus === 'Pre-Mercado'}
+                        <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1 text-[9px] font-bold text-slate-600 uppercase tracking-widest shadow-sm">
+                          <EyeOff class="w-3 h-3 mr-1.5 text-slate-400" />
+                          Oculta
+                        </span>
+                      {:else}
+                        <span class="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[9px] font-bold text-emerald-700 uppercase tracking-widest shadow-sm">
+                          <CheckCircle2 class="w-3 h-3 mr-1.5 text-emerald-500" />
+                          Pública
+                        </span>
+                      {/if}
+
+                      {#if propiedad.open_houses && propiedad.open_houses.length > 0}
+                        {@const ohStatus = getOpenHouseStatus(propiedad.open_houses[0])}
+                        {#if ohStatus === 'active'}
+                          <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[9px] font-bold text-indigo-700 hover:bg-indigo-100 transition-colors uppercase tracking-widest" title="Dashboard Evento">
+                            <CalendarPlus class="w-3 h-3 mr-1" /> Open House
+                          </a>
+                        {:else}
+                          <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-50 transition-colors uppercase tracking-widest" title="Ver Histórico">
+                            Histórico OH
+                          </a>
+                        {/if}
+                      {/if}
+                    </div>
+                  </td>
+
+                  <td class="px-6 py-5">
+                    <div class="flex justify-end gap-1.5 items-center">
+                      <button onclick={() => descargarFicha(propiedad)} disabled={generandoPDF} class="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50" title="Descargar PDF">
+                        <DownloadCloud class="w-4 h-4 {generandoPDF ? 'animate-pulse' : ''}" />
+                      </button>
+                      
+                      <button onclick={() => intentarAbrirBrochure(propiedad.slug)} class="p-2 text-amber-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Smart Brochure">
+                        <Sparkles class="w-4 h-4" />
+                      </button>
+                      
+                      <button onclick={() => abrirQR(propiedad.slug, propiedad.titulo)} class="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors" title="Generar QR">
+                        <QrCode class="w-4 h-4" />
+                      </button>
+                      
+                      <button onclick={() => copiarEnlace(propiedad.slug)} class="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors" title="Copiar Enlace">
+                        <Link2 class="w-4 h-4" />
+                      </button>
+
+                      <div class="w-px h-5 bg-slate-200 mx-1"></div>
+
+                      <a href="/admin/editar/{propiedad.id}" class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar">
+                        <Pencil class="w-4 h-4" />
+                      </a>
+
+                      <form method="POST" action="?/eliminar" use:enhance class="inline-block m-0 p-0">
+                        <input type="hidden" name="id" value={propiedad.id}>
+                        <button type="button" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" onclick={(e) => { if(confirm('¿Borrar propiedad permanentemente?')) e.target.closest('form').submit(); }} title="Eliminar">
+                          <Trash2 class="w-4 h-4" />
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              {/each}
+            {/if}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
 
 {#if showUpsellModal}
-  <div class="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200" onclick={() => showUpsellModal = false}>
-    <div class="bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200" onclick={e => e.stopPropagation()}>
-      <div class="p-6 text-center border-b border-zinc-800 relative overflow-hidden">
-         <div class="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
-         <Sparkles class="w-10 h-10 mx-auto mb-3 text-amber-500 relative z-10" />
-         <h3 class="text-xl font-bold tracking-tight text-zinc-50 relative z-10">Eleva tus Presentaciones</h3>
+  <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]" onclick={() => showUpsellModal = false}>
+    <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden transform transition-all border border-slate-200" onclick={e => e.stopPropagation()}>
+      <div class="bg-slate-900 p-8 text-center relative overflow-hidden">
+         <div class="absolute top-0 right-0 w-40 h-40 bg-amber-500/20 rounded-full blur-3xl -mr-10 -mt-10"></div>
+         <Sparkles class="w-10 h-10 mx-auto mb-4 text-amber-400 relative z-10" />
+         <h3 class="text-xl font-bold tracking-tight text-white relative z-10">Smart Brochure</h3>
       </div>
-      <div class="p-6">
-        <p class="text-zinc-400 text-sm leading-relaxed mb-6 font-medium text-center">
-          El <strong class="text-zinc-200">Smart Brochure</strong> elimina las distracciones de tu catálogo y envuelve a tu cliente en una experiencia inmersiva, diseñada puramente para cerrar ventas más rápido.
+      <div class="p-8">
+        <p class="text-slate-600 text-sm leading-relaxed mb-6 font-medium text-center">
+          Elimina las distracciones de tu catálogo y envuelve a tu cliente en una experiencia inmersiva, diseñada puramente para cerrar ventas más rápido.
         </p>
-        <div class="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 mb-8">
-          <p class="text-[10px] font-bold text-amber-500 text-center uppercase tracking-widest flex items-center justify-center gap-1.5">
-            <Sparkles class="w-3 h-3" /> Función de planes Pro y Elite
+        <div class="bg-amber-50 border border-amber-200/60 rounded-xl p-3 mb-8">
+          <p class="text-[10px] font-bold text-amber-600 text-center uppercase tracking-widest flex items-center justify-center gap-1.5">
+            <Sparkles class="w-3 h-3" /> Exclusivo Planes Pro y Elite
           </p>
         </div>
-        <div class="flex flex-col gap-2.5">
-          <a href="/admin/perfil" class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 w-full">
+        <div class="flex flex-col gap-3">
+          <a href="/admin/perfil" class="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl text-center hover:bg-slate-800 transition-all text-sm shadow-md active:scale-95">
             Mejorar mi Plan
           </a>
-          <button onclick={() => showUpsellModal = false} class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-zinc-800 bg-transparent hover:bg-zinc-900 text-zinc-400 h-10 px-4 w-full">
+          <button onclick={() => showUpsellModal = false} class="w-full bg-white text-slate-500 font-bold py-3.5 rounded-xl text-center border border-slate-200 hover:bg-slate-50 transition-all text-sm">
             Quizás más tarde
           </button>
         </div>
@@ -339,3 +392,10 @@
     </div>
   </div>
 {/if}
+
+<style>
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
