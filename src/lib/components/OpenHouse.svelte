@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { enhance } from 'form';
+  import { enhance } from '$app/forms';
   import { 
     ArrowLeft, 
     QrCode, 
