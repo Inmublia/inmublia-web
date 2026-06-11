@@ -3,7 +3,8 @@
   import { ShieldCheck, Mail, KeyRound, Loader2, AlertCircle, Info, ArrowRight } from 'lucide-svelte';
   
   let { form } = $props();
-  const motivo = $page.url.searchParams.get('motivo');
+  // Solución Svelte 5 SSR:
+  let motivo = $derived($page.url.searchParams.get('motivo'));
   let cargando = $state(false);
 </script>
 
@@ -68,7 +69,6 @@
       <div class="space-y-1.5 group">
         <div class="flex items-center justify-between px-1">
            <label for="password" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 transition-colors group-focus-within:text-indigo-400">Llave Criptográfica</label>
-           <button type="button" class="text-[10px] font-bold text-zinc-500 hover:text-white transition-colors">¿Olvidaste tu llave?</button>
         </div>
         <div class="relative">
           <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
@@ -90,7 +90,6 @@
           {/if}
         </button>
       </div>
-
     </form>
 
     <div class="mt-10 pt-8 border-t border-white/5 text-center">
@@ -101,13 +100,11 @@
         </a>
       </p>
     </div>
-
   </div>
 
   <footer class="mt-8 text-center px-6 relative z-10">
     <p class="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">&copy; 2026 Inmublia Technologies. Secured Platform.</p>
   </footer>
-
 </div>
 
 <style>
