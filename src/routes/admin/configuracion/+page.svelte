@@ -45,15 +45,15 @@
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-slate-50 font-sans text-slate-900">
   
-  <header class="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center px-6 sm:px-10 shrink-0 sticky top-0 z-20 shadow-sm">
+ <header class="h-20 bg-zinc-950 border-b border-zinc-800 flex items-center px-6 sm:px-10 shrink-0 sticky top-0 z-20 shadow-xl shadow-zinc-900/10">
     <div class="flex items-center gap-4">
-      <div class="p-2.5 bg-slate-900 rounded-xl text-white shadow-sm border border-slate-800">
-        <LayoutTemplate class="w-5 h-5" />
+      <div class="p-2.5 bg-zinc-900 rounded-xl text-white shadow-sm border border-zinc-800">
+        <LayoutTemplate class="w-5 h-5 text-indigo-400" />
       </div>
       <div>
-        <h1 class="text-xl font-black tracking-tight text-slate-900">Identidad del Portal</h1>
-        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
-          <ShieldCheck class="w-3 h-3 text-emerald-500" /> Nivel de acceso: <span class="text-slate-600">{broker.plan_suscripcion}</span>
+        <h1 class="text-xl font-black tracking-tight text-white">Identidad del Portal</h1>
+        <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
+          <ShieldCheck class="w-3 h-3 text-emerald-500" /> Nivel de acceso: <span class="text-zinc-300 uppercase">{broker.plan_suscripcion}</span>
         </p>
       </div>
     </div>
