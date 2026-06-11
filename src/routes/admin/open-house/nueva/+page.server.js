@@ -3,7 +3,6 @@ import { env as publicEnv } from '$env/dynamic/public';
 import { env as privateEnv } from '$env/dynamic/private';
 import { redirect, fail } from '@sveltejs/kit';
 
-// Cliente de Servidor Confiable (Bypasa RLS y es compatible con Cloudflare Pages)
 const getSupabaseAdmin = () => {
   return createClient(
     publicEnv.PUBLIC_SUPABASE_URL,
@@ -18,7 +17,6 @@ export async function load({ locals }) {
 
   const supabaseAdmin = getSupabaseAdmin();
 
-  // 1. Buscamos al broker logeado
   const { data: broker, error: brokerError } = await supabaseAdmin
     .from('brokers')
     .select('*')
@@ -29,7 +27,6 @@ export async function load({ locals }) {
     throw redirect(303, '/login?error=broker-not-found');
   }
 
-  // 2. Traemos las propiedades del broker para llenar el menú <select>
   const { data: propiedades } = await supabaseAdmin
     .from('propiedades')
     .select('id, titulo, operacion')
@@ -49,7 +46,6 @@ export const actions = {
 
     const supabaseAdmin = getSupabaseAdmin();
 
-    // Validamos al broker de nuevo por seguridad
     const { data: broker } = await supabaseAdmin
       .from('brokers')
       .select('id')
@@ -60,7 +56,6 @@ export const actions = {
 
     const formData = await request.formData();
     
-    // Extraemos todos los datos del formulario
     const propiedad_id = formData.get('propiedad_id');
     const title = formData.get('title');
     const event_date = formData.get('date');
@@ -70,18 +65,16 @@ export const actions = {
     const benefit = formData.get('benefit');
     const description = formData.get('description');
 
-    // Validamos campos mínimos obligatorios
     if (!propiedad_id || !title || !event_date || !time_start || !time_end || !description) {
       return fail(400, { error: 'Faltan campos obligatorios' });
     }
 
-    // Insertamos el nuevo Open House en la base de datos
     const { data: nuevoEvento, error: insertError } = await supabaseAdmin
       .from('open_houses')
       .insert([
         {
           broker_id: broker.id,
-          propiedad_id: propiedad_id === 'test' ? null : propiedad_id, // Soporte para la opción de demo
+          propiedad_id: propiedad_id === 'test' ? null : propiedad_id, 
           title,
           event_date,
           time_start,
@@ -99,7 +92,7 @@ export const actions = {
       return fail(500, { error: 'Error en la base de datos al guardar el evento.' });
     }
 
-    // Redirigimos inmediatamente al panel de control de este nuevo evento
+    // Redirige al Dashboard de este evento en específico
     throw redirect(303, `/admin/open-house/${nuevoEvento.id}`);
   }
 };
