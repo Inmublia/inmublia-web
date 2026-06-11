@@ -43,13 +43,22 @@ export const actions = {
     const propiedad_id = formData.get('propiedad_id');
     const broker_id = formData.get('broker_id');
     const propiedad_titulo = formData.get('propiedad_titulo');
+    
+    // 🔥 Atrapamos la atribución real desde el motor del Frontend
+    const origen_lead = formData.get('origen_lead')?.toString().trim() || 'Tráfico Directo';
 
     if (!nombre || !correo || !telefono || !propiedad_id || !broker_id) {
       return fail(400, { error: 'Por favor, llena todos los campos obligatorios del formulario.' });
     }
 
+    // Inyectamos el origen en el objeto de inserción
     const leadData = {
-      nombre, correo, telefono, propiedad_id, broker_id,
+      nombre, 
+      correo, 
+      telefono, 
+      propiedad_id, 
+      broker_id,
+      origen: origen_lead,
       estado: 'nuevo',
       creado_en: new Date().toISOString()
     };
@@ -74,7 +83,13 @@ export const actions = {
           fuente: "Inmublia SaaS",
           evento: "nuevo_prospecto",
           propiedad_interes: propiedad_titulo,
-          prospecto: { nombre, correo, telefono, registro: leadData.creado_en }
+          prospecto: { 
+            nombre, 
+            correo, 
+            telefono, 
+            origen: origen_lead, // Enviamos también el origen al CRM del broker
+            registro: leadData.creado_en 
+          }
         })
       }).catch(err => console.error("Error silencioso al disparar el webhook universal:", err));
     }
