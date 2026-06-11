@@ -1,6 +1,19 @@
 <script>
   import { invalidateAll } from '$app/navigation';
   import { enhance } from '$app/forms';
+  import { 
+    Search, 
+    X, 
+    Phone, 
+    Mail, 
+    Home, 
+    Send, 
+    Trash2, 
+    Clock, 
+    UserCircle,
+    GripVertical,
+    MessageSquareQuote
+  } from 'lucide-svelte';
   
   let { data } = $props();
   let broker = $derived(data.broker || {});
@@ -12,6 +25,7 @@
   let isPanelOpen = $state(false);
   let nuevaNotaTexto = $state('');
   let guardandoNota = $state(false);
+  let submitBtn = $state(null);
   
   let searchQuery = $state('');
   let leadsFiltrados = $derived(
@@ -26,24 +40,17 @@
   });
 
   const columnas = [
-    { id: 'nuevo', titulo: 'Nuevos', color: 'bg-slate-100 text-slate-700' },
-    { id: 'contactado', titulo: 'Contactados', color: 'bg-blue-50 text-blue-700' },
-    { id: 'visita', titulo: 'Citas / Visitas', color: 'bg-amber-50 text-amber-700' },
-    { id: 'negociacion', titulo: 'Negociación', color: 'bg-purple-50 text-purple-700' },
-    { id: 'cerrado', titulo: 'Ganados', color: 'bg-emerald-50 text-emerald-700' },
-    { id: 'descartado', titulo: 'Perdidos', color: 'bg-rose-50 text-rose-700' }
+    { id: 'nuevo', titulo: 'Nuevos', dot: 'bg-zinc-400', badge: 'bg-zinc-800 text-zinc-300 border-zinc-700' },
+    { id: 'contactado', titulo: 'Contactados', dot: 'bg-blue-500', badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+    { id: 'visita', titulo: 'Citas / Visitas', dot: 'bg-amber-500', badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+    { id: 'negociacion', titulo: 'Negociación', dot: 'bg-purple-500', badge: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+    { id: 'cerrado', titulo: 'Ganados', dot: 'bg-emerald-500', badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+    { id: 'descartado', titulo: 'Perdidos', dot: 'bg-rose-500', badge: 'bg-rose-500/10 text-rose-400 border-rose-500/20' }
   ];
 
   function getBadgeColor(estado) {
-    const colors = {
-      'nuevo': 'bg-slate-200 text-slate-700',
-      'contactado': 'bg-blue-100 text-blue-700',
-      'visita': 'bg-amber-100 text-amber-700',
-      'negociacion': 'bg-purple-100 text-purple-700',
-      'cerrado': 'bg-emerald-100 text-emerald-700',
-      'descartado': 'bg-rose-100 text-rose-700'
-    };
-    return colors[estado] || 'bg-slate-200 text-slate-700';
+    const col = columnas.find(c => c.id === estado);
+    return col ? col.badge : 'bg-zinc-800 text-zinc-300 border-zinc-700';
   }
 
   function timeAgo(dateString) {
@@ -61,11 +68,12 @@
   function arrancar(event, id) {
     draggedLeadId = id;
     event.dataTransfer.effectAllowed = 'move';
-    setTimeout(() => event.target.classList.add('opacity-40'), 0);
+    // Ocultar sutilmente la tarjeta original mientras se arrastra
+    setTimeout(() => event.target.classList.add('opacity-30'), 0);
   }
 
   function terminar(event) {
-    event.target.classList.remove('opacity-40');
+    event.target.classList.remove('opacity-30');
   }
 
   function permitirSoltar(event) {
@@ -161,88 +169,111 @@
       });
     }
   }
+
+  // Atajo de teclado (Cmd+Enter o Ctrl+Enter)
+  function handleKeyDown(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (nuevaNotaTexto.trim() && submitBtn) {
+        submitBtn.click();
+      }
+    }
+  }
 </script>
 
-<main class="flex-1 flex flex-col h-screen overflow-hidden relative">
-  <header class="h-24 bg-white border-b border-slate-200 flex items-center justify-between px-10 shrink-0">
-    <h1 class="text-2xl font-black text-slate-900 tracking-tight">Gestión de Interesados</h1>
-  </header>
-
-  <div class="p-10 flex-1 overflow-auto">
-    <div class="flex flex-col lg:flex-row gap-8 mb-10">
-      <div class="flex-1 bg-white rounded-2xl p-2 shadow-sm border border-slate-200 flex items-center px-4">
-        <svg class="w-5 h-5 text-slate-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-        <input type="text" bind:value={searchQuery} placeholder="Buscar prospecto por nombre o propiedad..." class="w-full bg-transparent border-none focus:outline-none text-slate-900 py-3 placeholder:text-slate-400">
-      </div>
+<main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-zinc-950 font-sans text-zinc-50">
+  
+  <header class="h-20 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800 flex items-center justify-between px-6 sm:px-10 shrink-0 sticky top-0 z-20">
+    <div class="flex items-center gap-3">
+      <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+        <MessageSquareQuote class="w-5 h-5 text-indigo-400" />
+        Centro de Operaciones
+      </h1>
     </div>
 
-    <div class="flex gap-6 overflow-x-auto pb-8 items-start min-h-[600px]">
+    <div class="relative w-full max-w-md hidden sm:block">
+      <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+      <input type="text" bind:value={searchQuery} placeholder="Buscar prospecto o propiedad..." class="w-full bg-zinc-900 border border-zinc-800 rounded-full pl-10 pr-4 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all shadow-inner">
+    </div>
+  </header>
+
+  <div class="p-6 sm:p-10 flex-1 overflow-auto animate-in fade-in duration-500">
+    <div class="relative w-full mb-6 sm:hidden">
+      <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+      <input type="text" bind:value={searchQuery} placeholder="Buscar prospecto..." class="w-full bg-zinc-900 border border-zinc-800 rounded-full pl-10 pr-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 shadow-inner">
+    </div>
+
+    <div class="flex gap-6 overflow-x-auto pb-8 items-start min-h-[70vh] scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+      
       {#each columnas as columna}
         <div 
-          class="flex-shrink-0 w-[340px] bg-white rounded-2xl p-4 flex flex-col min-h-[500px] border border-slate-200 shadow-sm"
+          class="flex-shrink-0 w-[340px] bg-zinc-900/40 rounded-2xl p-4 flex flex-col min-h-[500px] border border-zinc-800/50 shadow-inner"
           ondragover={permitirSoltar}
           ondrop={(e) => soltar(e, columna.id)}
         >
-          <div class="flex items-center justify-between mb-6 px-2 border-b border-slate-100 pb-4">
-            <h2 class="text-[11px] font-bold uppercase tracking-widest text-slate-500">{columna.titulo}</h2>
-            <span class="text-xs font-bold {columna.color} px-2.5 py-1 rounded-full">
+          <div class="flex items-center justify-between mb-5 px-1 border-b border-zinc-800/50 pb-3">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full {columna.dot}"></span>
+              {columna.titulo}
+            </h2>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
               {leadsFiltrados.filter(l => l.estado === columna.id).length}
             </span>
           </div>
 
-          <div class="flex-1 flex flex-col gap-4">
+          <div class="flex-1 flex flex-col gap-3">
             {#each leadsFiltrados.filter(l => l.estado === columna.id) as lead (lead.id)}
               <div 
                 draggable="true"
                 ondragstart={(e) => arrancar(e, lead.id)}
                 ondragend={terminar}
-                class="bg-white p-5 rounded-xl border border-slate-200 cursor-pointer active:cursor-grabbing hover:border-blue-400 hover:shadow-md transition-all group relative"
+                class="bg-zinc-900 p-4 rounded-xl border border-zinc-800 cursor-pointer active:cursor-grabbing hover:border-indigo-500/50 hover:shadow-[0_0_15px_rgba(99,102,241,0.1)] transition-all group relative"
               >
                 <button onclick={() => abrirPanel(lead)} class="absolute inset-0 w-full h-full z-0 cursor-pointer"></button>
 
-                <div class="flex items-start justify-between mb-4 relative z-10 pointer-events-none">
+                <div class="flex items-start justify-between mb-3 relative z-10 pointer-events-none">
                   <div class="flex items-center gap-3">
-                    <img src="https://ui-avatars.com/api/?name={lead.nombre}&background=0f172a&color=fff" alt="Avatar" class="w-9 h-9 rounded-full shadow-sm">
+                    <img src="https://ui-avatars.com/api/?name={lead.nombre}&background=18181b&color=fff" alt="Avatar" class="w-8 h-8 rounded-full shadow-sm ring-1 ring-zinc-700">
                     <div>
-                      <h3 class="text-sm font-black text-slate-900">{lead.nombre}</h3>
-                      <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">{timeAgo(lead.creado_en)}</p>
+                      <h3 class="text-sm font-bold text-zinc-100 leading-none mb-1">{lead.nombre}</h3>
+                      <p class="text-[10px] font-medium text-zinc-500 flex items-center gap-1">
+                        <Clock class="w-3 h-3" />
+                        {timeAgo(lead.creado_en)}
+                      </p>
                     </div>
                   </div>
                   
-                  <button aria-label="Eliminar lead" onclick={(e) => { e.stopPropagation(); eliminarLead(lead.id); }} class="pointer-events-auto text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Descartar prospecto">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                  <button aria-label="Eliminar lead" onclick={(e) => { e.stopPropagation(); eliminarLead(lead.id); }} class="pointer-events-auto text-zinc-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-800 p-1.5 rounded-md">
+                    <Trash2 class="w-3.5 h-3.5" />
                   </button>
                 </div>
                 
-                <div class="bg-slate-50 p-3 rounded-lg mb-4 border border-slate-100 relative z-10 pointer-events-none">
-                  <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Interés en</p>
-                  <p class="text-xs text-slate-900 font-bold truncate">
-                    {lead.propiedades?.titulo || 'Propiedad Privada'}
+                <div class="bg-zinc-950/50 p-3 rounded-lg mb-4 border border-zinc-800/80 relative z-10 pointer-events-none">
+                  <p class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                    <Home class="w-3 h-3" /> Propiedad de Interés
                   </p>
-                  {#if lead.correo}
-                    <p class="text-[10px] text-slate-500 font-medium mt-2 flex items-center gap-1 truncate">
-                      <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                      {lead.correo}
-                    </p>
-                  {/if}
+                  <p class="text-xs text-zinc-200 font-medium truncate">
+                    {lead.propiedades?.titulo || 'Inventario Privado'}
+                  </p>
                 </div>
                 
                 <a 
-                  href="https://wa.me/{lead.telefono ? lead.telefono.replace(/\D/g, '') : ''}?text={encodeURIComponent('Hola ' + lead.nombre.split(' ')[0] + ', soy tu asesor de Inmublia. Recibí tu solicitud por la propiedad: ' + (lead.propiedades?.titulo || 'Propiedad Privada') + '. ¿En qué te puedo ayudar?')}" 
+                  href="https://wa.me/{lead.telefono ? lead.telefono.replace(/\D/g, '') : ''}?text={encodeURIComponent('Hola ' + lead.nombre.split(' ')[0] + ', soy tu asesor de Inmublia. Recibí tu solicitud por la propiedad: ' + (lead.propiedades?.titulo || 'Inventario Privado') + '. ¿En qué te puedo ayudar?')}" 
                   target="_blank"
                   rel="noopener noreferrer"
                   onclick={(e) => e.stopPropagation()}
-                  class="relative z-10 flex items-center justify-center gap-2 w-full py-2.5 bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] text-xs font-bold uppercase tracking-widest rounded-lg transition-colors border border-[#25D366]/20"
+                  class="relative z-10 flex items-center justify-center gap-2 w-full py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors border border-emerald-500/20"
                 >
                   <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-                  WhatsApp
+                  Contactar
                 </a>
               </div>
             {/each}
             
             {#if leadsFiltrados.filter(l => l.estado === columna.id).length === 0}
-              <div class="flex-1 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 min-h-[100px]">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest text-center">Soltar tarjeta aquí</p>
+              <div class="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-zinc-800 rounded-xl bg-zinc-900/30 min-h-[120px] opacity-50">
+                <GripVertical class="w-6 h-6 text-zinc-600 mb-2" />
+                <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest text-center">Soltar aquí</p>
               </div>
             {/if}
           </div>
@@ -253,92 +284,98 @@
 
   {#if isPanelOpen}
     <div 
-      class="absolute inset-0 bg-slate-900/20 backdrop-blur-sm z-40 transition-opacity"
+      class="absolute inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity animate-in fade-in"
       onclick={cerrarPanel}
     ></div>
   {/if}
 
   <div 
-    class="absolute top-0 right-0 h-full w-full sm:w-[450px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out border-l border-slate-200 flex flex-col {isPanelOpen ? 'translate-x-0' : 'translate-x-full'}"
+    class="absolute top-0 right-0 h-full w-full sm:w-[480px] bg-zinc-950 shadow-2xl z-50 transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] border-l border-zinc-800 flex flex-col {isPanelOpen ? 'translate-x-0' : 'translate-x-full'}"
   >
     {#if selectedLead}
-      <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
+      <div class="px-6 py-5 border-b border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-900/50">
         <div class="flex items-center gap-4">
-          <img src="https://ui-avatars.com/api/?name={selectedLead.nombre}&background=0f172a&color=fff" alt="Avatar" class="w-10 h-10 rounded-full shadow-sm">
+          <img src="https://ui-avatars.com/api/?name={selectedLead.nombre}&background=18181b&color=fff" alt="Avatar" class="w-12 h-12 rounded-full shadow-md ring-2 ring-zinc-800">
           <div>
-            <h2 class="text-lg font-black text-slate-900 leading-tight">{selectedLead.nombre}</h2>
-            <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md {getBadgeColor(selectedLead.estado)} mt-1 inline-block">
+            <h2 class="text-lg font-bold text-zinc-50 leading-tight">{selectedLead.nombre}</h2>
+            <span class="text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-md border {getBadgeColor(selectedLead.estado)} mt-1.5 inline-block">
               {selectedLead.estado}
             </span>
           </div>
         </div>
-        <button aria-label="Cerrar panel" onclick={cerrarPanel} class="text-slate-400 hover:text-slate-700 p-2 rounded-full hover:bg-slate-100 transition-colors">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        <button aria-label="Cerrar panel" onclick={cerrarPanel} class="text-zinc-500 hover:text-zinc-100 p-2 rounded-full hover:bg-zinc-800 transition-colors">
+          <X class="w-5 h-5" />
         </button>
       </div>
 
-      <div class="px-6 py-4 border-b border-slate-100 shrink-0 bg-white grid grid-cols-2 gap-4">
+      <div class="px-6 py-5 border-b border-zinc-800 shrink-0 bg-zinc-950 grid grid-cols-2 gap-6">
         <div>
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Teléfono</p>
-          <p class="text-sm font-bold text-slate-700">{selectedLead.telefono || 'N/A'}</p>
+          <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><Phone class="w-3 h-3" /> Teléfono</p>
+          <p class="text-sm font-semibold text-zinc-200">{selectedLead.telefono || 'No registrado'}</p>
         </div>
         <div>
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Interés</p>
-          <p class="text-sm font-bold text-slate-700 truncate" title={selectedLead.propiedades?.titulo}>{selectedLead.propiedades?.titulo || 'Desconocido'}</p>
+          <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><Mail class="w-3 h-3" /> Correo</p>
+          <p class="text-sm font-semibold text-zinc-200 truncate" title={selectedLead.correo}>{selectedLead.correo || 'No registrado'}</p>
         </div>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-6 bg-slate-50/50 flex flex-col gap-6">
+      <div class="flex-1 overflow-y-auto p-6 bg-zinc-950 flex flex-col gap-6 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+        <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2 mb-2">Historial de Actividad</h3>
+        
         {#if selectedLead.lead_notas && selectedLead.lead_notas.length > 0}
-          {#each selectedLead.lead_notas as nota}
-            <div class="relative pl-6">
-              <div class="absolute left-0 top-1 bottom-[-24px] w-px bg-slate-200 last:hidden"></div>
-              <div class="absolute left-[-4px] top-1.5 w-2 h-2 rounded-full bg-blue-500 ring-4 ring-slate-50"></div>
-              
-              <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <p class="text-sm text-slate-700 font-medium whitespace-pre-wrap">{nota.contenido}</p>
-                <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-50">
-                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{nota.tipo === 'nota' ? 'Nota Interna' : 'Evento'}</span>
-                  <span class="text-xs text-slate-400">{timeAgo(nota.creado_en)}</span>
+          <div class="flex flex-col gap-4">
+            {#each selectedLead.lead_notas as nota}
+              <div class="relative pl-6">
+                <div class="absolute left-0 top-1 bottom-[-20px] w-px bg-zinc-800 last:hidden"></div>
+                <div class="absolute left-[-4px] top-1.5 w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-zinc-950"></div>
+                
+                <div class="bg-zinc-900 p-4 rounded-xl border border-zinc-800 shadow-sm">
+                  <p class="text-sm text-zinc-300 font-medium whitespace-pre-wrap leading-relaxed">{nota.contenido}</p>
+                  <div class="flex justify-between items-center mt-3 pt-3 border-t border-zinc-800/50">
+                    <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{nota.tipo === 'nota' ? 'Nota Interna' : 'Evento'}</span>
+                    <span class="text-[10px] font-medium text-zinc-500 flex items-center gap-1"><Clock class="w-3 h-3" /> {timeAgo(nota.creado_en)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          {/each}
+            {/each}
+          </div>
         {:else}
-          <div class="flex-1 flex flex-col items-center justify-center text-center px-4 opacity-50">
-            <svg class="w-12 h-12 text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-            <p class="text-sm font-bold text-slate-500">No hay historial</p>
-            <p class="text-xs text-slate-400 mt-1">Agrega una nota para comenzar a trackear este lead.</p>
+          <div class="flex-1 flex flex-col items-center justify-center text-center px-4 opacity-40">
+            <UserCircle class="w-12 h-12 text-zinc-600 mb-3" />
+            <p class="text-sm font-bold text-zinc-400">Sin historial</p>
+            <p class="text-xs text-zinc-500 mt-1">Escribe tu primera nota abajo para comenzar.</p>
           </div>
         {/if}
       </div>
 
-      <div class="p-6 bg-white border-t border-slate-100 shrink-0">
-        <form method="POST" action="?/guardarNota" use:enhance={manejadorNota} class="flex flex-col gap-3">
+      <div class="p-6 bg-zinc-900 border-t border-zinc-800 shrink-0">
+        <form method="POST" action="?/guardarNota" use:enhance={manejadorNota} class="flex flex-col gap-3 relative">
           <input type="hidden" name="lead_id" value={selectedLead.id} />
+          
           <textarea 
             name="contenido"
             bind:value={nuevaNotaTexto} 
-            placeholder="Escribe un resumen de la llamada o siguiente paso..." 
-            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none min-h-[100px]"
+            onkeydown={handleKeyDown}
+            placeholder="Resumen de llamada... (Cmd + Enter para guardar)" 
+            class="w-full bg-zinc-950 border border-zinc-700 rounded-xl pl-4 pr-12 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none min-h-[80px] shadow-inner"
             required
           ></textarea>
-          <div class="flex justify-between items-center">
-            <p class="text-[10px] text-slate-400 font-medium">* Al guardar, el lead avanzará en el funnel.</p>
-            <button 
-              type="submit" 
-              disabled={guardandoNota || !nuevaNotaTexto.trim()}
-              class="bg-slate-900 hover:bg-blue-600 disabled:opacity-50 text-white font-bold py-2 px-5 rounded-lg text-xs transition-colors flex items-center gap-2"
-            >
-              {#if guardandoNota}
-                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              {:else}
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-              {/if}
-              Guardar Nota
-            </button>
-          </div>
+          
+          <button 
+            type="submit" 
+            bind:this={submitBtn}
+            disabled={guardandoNota || !nuevaNotaTexto.trim()}
+            class="absolute bottom-3 right-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white p-2 rounded-lg transition-colors flex items-center justify-center shadow-md active:scale-95"
+            title="Guardar Nota (Cmd/Ctrl + Enter)"
+          >
+            {#if guardandoNota}
+              <Loader2 class="w-4 h-4 animate-spin" />
+            {:else}
+              <Send class="w-4 h-4" />
+            {/if}
+          </button>
         </form>
+        <p class="text-[9px] text-zinc-500 font-medium mt-3 text-center">* Al registrar interacción, el prospecto avanza a "Contactado".</p>
       </div>
     {/if}
   </div>
