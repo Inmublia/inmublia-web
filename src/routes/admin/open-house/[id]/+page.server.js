@@ -17,7 +17,6 @@ export async function load({ params, locals }) {
 
   const supabaseAdmin = getSupabaseAdmin();
 
-  // Validamos que el Open House pertenezca al broker logeado
   const { data: oh, error: ohError } = await supabaseAdmin
     .from('open_houses')
     .select('*, propiedades(*), brokers(*)')
@@ -27,7 +26,6 @@ export async function load({ params, locals }) {
   if (ohError || !oh) throw error(404, 'Evento no encontrado.');
   if (oh.brokers?.email !== user.email) throw error(403, 'No autorizado.');
 
-  // Jalamos la lista completa de interesados registrados
   const { data: attendees } = await supabaseAdmin
     .from('open_house_attendees')
     .select('*')
@@ -55,7 +53,6 @@ export async function load({ params, locals }) {
 }
 
 export const actions = {
-  // Acción para hacer Check-In manual desde la lista del Admin
   checkin: async ({ request }) => {
     const supabaseAdmin = getSupabaseAdmin();
     const formData = await request.formData();
@@ -70,7 +67,6 @@ export const actions = {
     return { success: true };
   },
 
-  // Acción para admitir a alguien desde la lista de espera al cupo oficial
   admitir: async ({ request }) => {
     const supabaseAdmin = getSupabaseAdmin();
     const formData = await request.formData();
@@ -85,7 +81,6 @@ export const actions = {
     return { success: true };
   },
 
-  // Acción NUEVA: Actualizar fechas, horas y aforo del evento
   updateSettings: async ({ request, locals }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
