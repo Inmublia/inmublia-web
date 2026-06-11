@@ -1,17 +1,17 @@
 <script>
-  import { Building2, Sparkles } from 'lucide-svelte';
+  import { Sparkles } from 'lucide-svelte';
 </script>
 
 <main class="min-h-screen bg-slate-50 font-sans selection:bg-indigo-600 selection:text-white">
   <nav class="fixed w-full z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200 shadow-sm">
     <div class="max-w-[1400px] mx-auto px-6 sm:px-10">
+      
       <div class="flex justify-between items-center h-20">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 bg-zinc-950 rounded-lg flex items-center justify-center">
-             <Building2 class="w-5 h-5 text-white" />
-          </div>
-          <span class="text-2xl font-black text-slate-900 tracking-tighter">Inmublia.</span>
+          <img src="/logo.png" alt="Inmublia Icon" class="h-10 w-auto">
+          <span class="text-2xl font-black text-slate-900 tracking-tighter">Inmublia</span>
         </div>
+        
         <div class="hidden md:flex items-center space-x-8">
           <a href="#soluciones" class="text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">Soluciones SaaS</a>
           <div class="h-4 w-px bg-slate-200"></div>
@@ -21,6 +21,7 @@
           </a>
         </div>
       </div>
+      
     </div>
   </nav>
 
