@@ -2,6 +2,20 @@
   import { page } from '$app/stores';
   import { enhance } from '$app/forms';
   import { onMount } from 'svelte';
+  import { 
+    X, 
+    ChevronLeft, 
+    ChevronRight, 
+    MessageCircle, 
+    Download, 
+    Facebook, 
+    Instagram, 
+    Linkedin, 
+    Globe, 
+    CheckCircle2, 
+    AlertCircle,
+    LayoutGrid
+  } from 'lucide-svelte';
 
   let { data, form } = $props();
   let propiedad = $derived(data.propiedad);
@@ -173,63 +187,63 @@
 </svelte:head>
 
 {#snippet socialLinks(b)}
-  <div class="flex items-center justify-center gap-6 mb-6">
+  <div class="flex items-center justify-center gap-5 mb-6">
     {#if b.facebook}
       <a href={b.facebook} target="_blank" class="{isNight ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition-colors" aria-label="Facebook">
-        <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
+        <Facebook class="w-6 h-6" />
       </a>
     {/if}
     {#if b.instagram}
       <a href={b.instagram} target="_blank" class="{isNight ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition-colors" aria-label="Instagram">
-         <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+        <Instagram class="w-6 h-6" />
       </a>
     {/if}
     {#if b.linkedin}
       <a href={b.linkedin} target="_blank" class="{isNight ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition-colors" aria-label="LinkedIn">
-        <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+        <Linkedin class="w-6 h-6" />
       </a>
     {/if}
     {#if b.tiktok}
       <a href={b.tiktok} target="_blank" class="{isNight ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition-colors" aria-label="TikTok">
-        <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 2.22-1.15 4.39-2.92 5.75-1.84 1.4-4.29 1.83-6.6 1.4-2.18-.4-4.14-1.74-5.26-3.66-1.16-1.99-1.37-4.46-.57-6.57.82-2.18 2.67-3.9 4.88-4.57 1.59-.48 3.32-.46 4.88.08v4.06c-.84-.27-1.78-.34-2.65-.13-.88.21-1.67.75-2.18 1.48-.52.75-.71 1.72-.5 2.6.21.88.75 1.67 1.48 2.18.75.52 1.72.71 2.6.5 1.25-.29 2.21-1.36 2.45-2.62.06-.32.07-.65.07-.98V.02z"/></svg>
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 2.22-1.15 4.39-2.92 5.75-1.84 1.4-4.29 1.83-6.6 1.4-2.18-.4-4.14-1.74-5.26-3.66-1.16-1.99-1.37-4.46-.57-6.57.82-2.18 2.67-3.9 4.88-4.57 1.59-.48 3.32-.46 4.88.08v4.06c-.84-.27-1.78-.34-2.65-.13-.88.21-1.67.75-2.18 1.48-.52.75-.71 1.72-.5 2.6.21.88.75 1.67 1.48 2.18.75.52 1.72.71 2.6.5 1.25-.29 2.21-1.36 2.45-2.62.06-.32.07-.65.07-.98V.02z"/></svg>
       </a>
     {/if}
   </div>
 {/snippet}
 
 {#if isGalleryOpen}
-  <div class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex items-center justify-center" role="dialog" aria-modal="true" tabindex="-1" onclick={closeGallery}>
+  <div class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-200" role="dialog" aria-modal="true" tabindex="-1" onclick={closeGallery}>
     <button aria-label="Cerrar galería" class="absolute top-6 right-6 text-white/70 hover:text-white bg-black/50 hover:bg-white/10 p-3 rounded-full transition-all z-[210]" onclick={closeGallery}>
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      <X class="w-6 h-6" />
     </button>
-    <button aria-label="Imagen anterior" class="absolute left-6 text-white/70 hover:text-white bg-black/50 hover:bg-white/10 p-4 rounded-full transition-all z-[210]" onclick={prevImage}>
-      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+    <button aria-label="Imagen anterior" class="absolute left-4 sm:left-10 text-white/70 hover:text-white bg-black/50 hover:bg-white/10 p-3 sm:p-4 rounded-full transition-all z-[210]" onclick={prevImage}>
+      <ChevronLeft class="w-8 h-8" />
     </button>
     <div class="relative max-w-7xl max-h-[90vh] px-16 flex items-center justify-center w-full h-full" role="document" tabindex="0" onclick={(e) => e.stopPropagation()}>
       <img src={allPhotos[currentImageIndex]} alt="Vista {currentImageIndex + 1} de {allPhotos.length}" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-300">
-      <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-white text-xs font-bold tracking-widest uppercase backdrop-blur-md">
+      <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-white text-xs font-semibold tracking-widest uppercase backdrop-blur-md">
         {currentImageIndex + 1} / {allPhotos.length}
       </div>
     </div>
-    <button aria-label="Siguiente imagen" class="absolute right-6 text-white/70 hover:text-white bg-black/50 hover:bg-white/10 p-4 rounded-full transition-all z-[210]" onclick={nextImage}>
-      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+    <button aria-label="Siguiente imagen" class="absolute right-4 sm:right-10 text-white/70 hover:text-white bg-black/50 hover:bg-white/10 p-3 sm:p-4 rounded-full transition-all z-[210]" onclick={nextImage}>
+      <ChevronRight class="w-8 h-8" />
     </button>
   </div>
 {/if}
 
 {#if !isBrochure}
   <a href="https://wa.me/{broker.whatsapp}?text=Hola,%20me%20interesa%20agendar%20un%20recorrido%20para:%20{propiedad.titulo}" target="_blank" class="fixed bottom-8 right-8 md:bottom-28 md:right-8 bg-[#25D366] text-white p-4 rounded-full shadow-[0_10px_40px_rgba(37,211,102,0.5)] hover:scale-110 hover:-translate-y-2 transition-all duration-300 z-[100] flex items-center justify-center group" aria-label="Contactar por WhatsApp">
-    <svg class="w-9 h-9" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+    <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
   </a>
 
-  <div class="fixed bottom-0 left-0 w-full z-50 bg-white/90 backdrop-blur-xl border-t border-slate-200 py-3 px-6 md:px-12 transform translate-y-0 shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
+  <div class="fixed bottom-0 left-0 w-full z-50 bg-background/90 backdrop-blur-xl border-t border-border py-3 px-6 md:px-12 transform translate-y-0 shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
     <div class="max-w-[1400px] mx-auto flex items-center justify-between">
       <div>
-        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">{propiedad.operacion}</p>
-        <p class="text-base md:text-xl font-black text-slate-900 leading-none mt-1">{formatearPrecio(propiedad.precio)}</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{propiedad.operacion}</p>
+        <p class="text-base md:text-xl font-bold text-foreground leading-none mt-1">{formatearPrecio(propiedad.precio)}</p>
       </div>
       <div class="flex items-center gap-4">
-        <div class="w-10 h-10 rounded-full bg-slate-900 overflow-hidden shadow-sm shrink-0 border border-slate-200">
+        <div class="w-10 h-10 rounded-full bg-muted overflow-hidden shadow-sm shrink-0 border border-border">
           {#if broker.avatar_url}
             <img src={broker.avatar_url} alt="Asesor" class="w-full h-full object-cover">
           {:else}
@@ -237,41 +251,48 @@
           {/if}
         </div>
         <div class="hidden sm:block text-right">
-          <p class="text-xs font-bold text-slate-900 uppercase">{broker.nombre_comercial}</p>
-          <p class="text-[9px] text-slate-500 uppercase tracking-widest">Asesor Privado</p>
+          <p class="text-xs font-semibold text-foreground uppercase">{broker.nombre_comercial}</p>
+          <p class="text-[9px] text-muted-foreground uppercase tracking-widest">Asesor Privado</p>
         </div>
       </div>
     </div>
   </div>
 {/if}
 
-<main class="min-h-screen {isNight ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'} font-sans pb-32 transition-colors duration-1000">
+<main class="min-h-screen {isNight ? 'bg-zinc-950 text-zinc-50' : 'bg-background text-foreground'} font-sans pb-32 transition-colors duration-1000">
   
-  <nav class="absolute top-0 w-full z-40 bg-gradient-to-b from-black/50 to-transparent">
+  <nav class="absolute top-0 w-full z-40 bg-gradient-to-b from-black/60 to-transparent">
     <div class="max-w-[1400px] mx-auto px-6 h-28 flex justify-between items-center border-b border-white/10">
       <span class="text-sm md:text-base font-bold uppercase tracking-[0.2em] text-white drop-shadow-md">{broker.nombre_comercial}</span>
       
       {#if isBrochure}
-        <span class="bg-white/20 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full border border-white/30">Smart Brochure</span>
+        <span class="bg-white/10 backdrop-blur-md text-white text-[10px] font-semibold uppercase tracking-widest px-4 py-2 rounded-full border border-white/20 shadow-sm flex items-center gap-1.5">
+          <Sparkles class="w-3.5 h-3.5" />
+          Smart Brochure
+        </span>
       {:else}
-        <a href="https://{broker.subdominio}.inmublia.com" class="text-white font-medium text-xs uppercase tracking-[0.15em] hover:text-white/70 transition-colors">Catálogo Exclusivo</a>
+        <a href="https://{broker.subdominio}.inmublia.com" class="text-white/90 font-medium text-xs uppercase tracking-[0.15em] hover:text-white transition-colors flex items-center gap-2">
+          Catálogo Exclusivo
+        </a>
       {/if}
     </div>
   </nav>
 
-  <div class="relative w-full h-[85vh] min-h-[500px] bg-black cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(0)}>
-    <img src={propiedad.imagen_url} alt={propiedad.titulo} class="w-full h-full object-cover {isNight ? 'opacity-60' : 'opacity-80'} hover:opacity-90 transition-opacity" />
-    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none"></div>
+  <div class="relative w-full h-[85vh] min-h-[500px] bg-black cursor-pointer overflow-hidden" role="button" tabindex="0" onclick={() => openGallery(0)}>
+    <img src={propiedad.imagen_url} alt={propiedad.titulo} class="w-full h-full object-cover {isNight ? 'opacity-50' : 'opacity-70'} hover:scale-105 transition-all duration-[2s] ease-out" />
+    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none"></div>
     
     <div class="absolute bottom-0 w-full pointer-events-none">
       <div class="max-w-[1000px] mx-auto px-6 pb-24 text-center">
-        <div class="inline-flex items-center gap-3 mb-6">
-          <span class="text-white text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] border border-white/30 px-6 py-2 rounded-sm">{propiedad.operacion}</span>
+        <div class="inline-flex items-center justify-center gap-3 mb-6 flex-wrap">
+          <span class="text-white text-[10px] md:text-xs font-semibold uppercase tracking-[0.2em] border border-white/30 px-6 py-2 rounded-full backdrop-blur-sm bg-white/5">{propiedad.operacion}</span>
           {#if propiedad.destacada}
-             <span class="text-amber-300 text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] border border-amber-300/30 px-6 py-2 rounded-sm">Signature</span>
+             <span class="text-amber-300 text-[10px] md:text-xs font-semibold uppercase tracking-[0.2em] border border-amber-300/30 px-6 py-2 rounded-full backdrop-blur-sm bg-amber-500/10 flex items-center gap-1.5">
+               <Sparkles class="w-3.5 h-3.5" /> Signature
+             </span>
           {/if}
         </div>
-        <h1 class="text-4xl md:text-6xl font-light text-white tracking-tight leading-tight drop-shadow-lg mb-4">{propiedad.titulo}</h1>
+        <h1 class="text-4xl md:text-6xl font-semibold text-white tracking-tight leading-tight drop-shadow-lg mb-4 max-w-4xl mx-auto">{propiedad.titulo}</h1>
         <p class="text-2xl font-light text-white/90 tracking-wide">{formatearPrecio(propiedad.precio)}</p>
       </div>
     </div>
@@ -284,7 +305,7 @@
         {#if isBrochure}
           <div class="flex flex-col gap-10 md:gap-16">
             {#each propiedad.galeria_urls as foto, idx}
-              <div class="w-full rounded-sm overflow-hidden shadow-xl {isNight ? 'bg-slate-800 shadow-black/50' : 'bg-slate-100 shadow-slate-200/50'} relative group cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(idx + 1)}>
+              <div class="w-full rounded-2xl overflow-hidden shadow-xl {isNight ? 'bg-zinc-900 shadow-black/50 border border-zinc-800' : 'bg-muted border border-border'} relative group cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(idx + 1)}>
                 <img src={foto} alt="Detalle de la propiedad {idx + 1}" class="w-full h-auto max-h-[80vh] object-cover transition-transform duration-700 ease-out group-hover:scale-[1.02]" loading="lazy">
                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors"></div>
               </div>
@@ -292,21 +313,21 @@
           </div>
         {:else}
           <div class="grid grid-cols-1 md:grid-cols-4 gap-3 auto-rows-[200px] md:auto-rows-[250px]">
-            <div class="md:col-span-2 md:row-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(1)}>
+            <div class="md:col-span-2 md:row-span-2 relative overflow-hidden group rounded-xl {isNight ? 'bg-zinc-900' : 'bg-muted'} cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(1)}>
               <img src={propiedad.galeria_urls[0]} alt="Vista Principal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
               <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
             </div>
             {#if propiedad.galeria_urls[1]}
-              <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(2)}>
+              <div class="md:col-span-2 relative overflow-hidden group rounded-xl {isNight ? 'bg-zinc-900' : 'bg-muted'} cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(2)}>
                 <img src={propiedad.galeria_urls[1]} alt="Vista Secundaria" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
               </div>
             {/if}
-            <div class="md:col-span-2 relative overflow-hidden group rounded-sm bg-slate-800 cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(3 % allPhotos.length)}>
+            <div class="md:col-span-2 relative overflow-hidden group rounded-xl {isNight ? 'bg-zinc-900' : 'bg-muted'} cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(3 % allPhotos.length)}>
               <img src={propiedad.galeria_urls[2] || propiedad.imagen_url} alt="Tercera Vista" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
-              <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <span class="text-white font-bold uppercase tracking-[0.2em] text-xs flex items-center gap-2">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+              <div class="absolute inset-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+                <span class="text-white font-semibold uppercase tracking-[0.2em] text-xs flex items-center gap-2 px-6 py-3 border border-white/30 rounded-full">
+                  <LayoutGrid class="w-4 h-4" />
                    Ver las {allPhotos.length} Fotos
                 </span>
               </div>
@@ -316,21 +337,21 @@
       </div>
     {/if}
 
-    <div class="flex flex-wrap justify-center gap-x-12 gap-y-8 py-8 border-y {isNight ? 'border-slate-800' : 'border-slate-200'} mb-16">
-      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.recamaras || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">Recámaras</p></div>
-      <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden sm:block"></div>
-      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.banos || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">Baños</p></div>
-      <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden sm:block"></div>
-      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.m2_construccion || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">M² Inter</p></div>
-      <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden sm:block"></div>
-      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.m2_terreno || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">M² Terreno</p></div>
-      <div class="w-px {isNight ? 'bg-slate-800' : 'bg-slate-200'} hidden lg:block"></div>
-      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{propiedad.estacionamientos || '-'}</p><p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">Autos</p></div>
+    <div class="flex flex-wrap justify-center gap-x-12 gap-y-8 py-8 border-y {isNight ? 'border-zinc-800' : 'border-border'} mb-16">
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-foreground'}">{propiedad.recamaras || '-'}</p><p class="text-[9px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mt-2">Recámaras</p></div>
+      <div class="w-px {isNight ? 'bg-zinc-800' : 'bg-border'} hidden sm:block"></div>
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-foreground'}">{propiedad.banos || '-'}</p><p class="text-[9px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mt-2">Baños</p></div>
+      <div class="w-px {isNight ? 'bg-zinc-800' : 'bg-border'} hidden sm:block"></div>
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-foreground'}">{propiedad.m2_construccion || '-'}</p><p class="text-[9px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mt-2">M² Inter</p></div>
+      <div class="w-px {isNight ? 'bg-zinc-800' : 'bg-border'} hidden sm:block"></div>
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-foreground'}">{propiedad.m2_terreno || '-'}</p><p class="text-[9px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mt-2">M² Terreno</p></div>
+      <div class="w-px {isNight ? 'bg-zinc-800' : 'bg-border'} hidden lg:block"></div>
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-foreground'}">{propiedad.estacionamientos || '-'}</p><p class="text-[9px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mt-2">Autos</p></div>
     </div>
 
     <div class="mb-16">
-      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">La Residencia</h2>
-      <div class="prose prose-lg max-w-none font-light leading-relaxed whitespace-pre-line text-center md:text-left mx-auto {isNight ? 'text-slate-300' : 'text-slate-600'}">
+      <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-[0.2em] mb-6 text-center">La Residencia</h2>
+      <div class="prose prose-lg max-w-none font-light leading-relaxed whitespace-pre-line text-center md:text-left mx-auto {isNight ? 'text-zinc-300' : 'text-muted-foreground'}">
         {propiedad.descripcion}
       </div>
     </div>
@@ -340,8 +361,8 @@
         
         {#if propiedad.recorrido_3d_url && obtenerIdMatterport(propiedad.recorrido_3d_url)}
           <div>
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Experiencia Inmersiva 3D</h2>
-            <div class="relative w-full pb-[56.25%] h-0 rounded-sm overflow-hidden shadow-xl border border-slate-100 bg-black">
+            <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-[0.2em] mb-6 text-center">Experiencia Inmersiva 3D</h2>
+            <div class="relative w-full pb-[56.25%] h-0 rounded-2xl overflow-hidden shadow-2xl border border-border bg-black">
               <iframe 
                 title="Recorrido Virtual Matterport"
                 src="https://my.matterport.com/show/?m={obtenerIdMatterport(propiedad.recorrido_3d_url)}" 
@@ -355,8 +376,8 @@
 
         {#if propiedad.video_url && obtenerIdYouTube(propiedad.video_url)}
           <div>
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">Recorrido en Video</h2>
-            <div class="relative w-full aspect-video rounded-sm overflow-hidden shadow-xl {isNight ? 'bg-slate-800' : 'bg-slate-100'}">
+            <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-[0.2em] mb-6 text-center">Recorrido en Video</h2>
+            <div class="relative w-full aspect-video rounded-2xl overflow-hidden shadow-2xl {isNight ? 'bg-zinc-900 border border-zinc-800' : 'bg-muted border border-border'}">
               <iframe class="absolute top-0 left-0 w-full h-full" src="https://www.youtube.com/embed/{obtenerIdYouTube(propiedad.video_url)}?autoplay=0&controls=1&rel=0&modestbranding=1" title="Video de la propiedad" frameborder="0" allowfullscreen></iframe>
             </div>
           </div>
@@ -366,8 +387,8 @@
     {/if}
 
     <div class="mb-24">
-      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6 text-center">El Entorno</h2>
-      <div class="w-full h-[500px] {isNight ? 'bg-slate-800' : 'bg-slate-100'} overflow-hidden relative rounded-sm shadow-inner">
+      <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-[0.2em] mb-6 text-center">El Entorno</h2>
+      <div class="w-full h-[400px] md:h-[500px] {isNight ? 'bg-zinc-900 border border-zinc-800' : 'bg-muted border border-border'} overflow-hidden relative rounded-2xl shadow-inner">
         <iframe width="100%" height="100%" frameborder="0" style="border:0;" src="https://maps.google.com/maps?q={encodeURIComponent(propiedad.ubicacion || 'Guadalajara, Jalisco')}&t=m&z=15&output=embed&iwloc=near" title="Mapa de ubicación" allowfullscreen></iframe>
       </div>
     </div>
@@ -375,38 +396,40 @@
     {#if !isBrochure}
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-24">
         
-        <div class="{isNight ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} border rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
-          <div class="w-20 h-20 bg-slate-900 rounded-full mb-4 overflow-hidden shadow-md">
+        <div class="{isNight ? 'bg-zinc-900/50 border-zinc-800' : 'bg-background border-border'} border rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
+          <div class="w-24 h-24 bg-muted rounded-full mb-5 overflow-hidden shadow-md border-2 {isNight ? 'border-zinc-800' : 'border-background'}">
             {#if broker.avatar_url}
               <img src={broker.avatar_url} alt="Foto del Asesor" class="w-full h-full object-cover">
             {:else}
               <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=0f172a&color=fff" alt="Avatar" class="w-full h-full object-cover">
             {/if}
           </div>
-          <h3 class="text-xl font-light {isNight ? 'text-white' : 'text-slate-900'}">{broker.nombre_comercial}</h3>
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2 mb-2">Asesoría Inmobiliaria</p>
+          <h3 class="text-2xl font-semibold tracking-tight {isNight ? 'text-zinc-100' : 'text-foreground'}">{broker.nombre_comercial}</h3>
+          <p class="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mt-2 mb-3">Asesoría Inmobiliaria</p>
           {#if broker.bio}
-            <p class="text-xs text-slate-500 italic mb-6">"{broker.bio}"</p>
+            <p class="text-sm text-muted-foreground italic mb-6 max-w-sm">"{broker.bio}"</p>
           {/if}
 
           {@render socialLinks(broker)}
           
-          <button onclick={descargarVCard} aria-label="Descargar tarjeta de contacto" class="inline-flex items-center gap-2 px-6 py-3 {isNight ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-900 hover:bg-slate-800'} text-white text-[10px] font-bold uppercase tracking-widest rounded-full transition-colors shadow-sm w-full justify-center mt-4">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          <button onclick={descargarVCard} aria-label="Descargar tarjeta de contacto" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-[10px] font-bold uppercase tracking-widest ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 {isNight ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-100' : 'bg-primary hover:bg-primary/90 text-primary-foreground'} h-11 px-8 w-full shadow-sm mt-2">
+            <Download class="w-4 h-4" />
             Guardar Contacto
           </button>
         </div>
 
-        <div class="{isNight ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-8 shadow-sm flex flex-col justify-center">
-          <h2 class="text-xl font-light {isNight ? 'text-white' : 'text-slate-900'} mb-2">Agendar Recorrido</h2>
-          <p class="text-slate-400 text-xs mb-6">Deje sus datos y el asesor le contactará.</p>
+        <div class="{isNight ? 'bg-zinc-900 border-zinc-800' : 'bg-muted/30 border-border'} border rounded-3xl p-8 shadow-sm flex flex-col justify-center">
+          <h2 class="text-2xl font-semibold tracking-tight {isNight ? 'text-zinc-100' : 'text-foreground'} mb-2">Agendar Recorrido</h2>
+          <p class="text-muted-foreground text-sm mb-8">Deje sus datos y el asesor le contactará a la brevedad.</p>
           
           {#if form?.success}
-            <div class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold p-4 rounded-xl text-sm text-center" role="alert">
-              Solicitud enviada con éxito. El asesor se comunicará pronto.
+            <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium p-4 rounded-xl text-sm text-center flex items-center justify-center gap-2 mb-6" role="alert">
+              <CheckCircle2 class="w-4 h-4" />
+              Solicitud enviada con éxito.
             </div>
           {:else if form?.error}
-            <div class="mb-4 bg-red-50 text-red-700 font-bold p-3 rounded-lg text-sm border border-red-200 text-center" role="alert">
+            <div class="mb-6 bg-destructive/10 text-destructive font-medium p-4 rounded-xl text-sm border border-destructive/20 text-center flex items-center justify-center gap-2" role="alert">
+              <AlertCircle class="w-4 h-4" />
               {form.error}
             </div>
           {/if}
@@ -418,19 +441,23 @@
             
             <div>
               <label for="nombre" class="sr-only">Nombre completo</label>
-              <input type="text" id="nombre" name="nombre" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nombre completo">
+              <input type="text" id="nombre" name="nombre" required class="flex h-11 w-full rounded-lg border {isNight ? 'border-zinc-800 bg-zinc-950/50' : 'border-input bg-background'} px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Nombre completo">
             </div>
             <div>
               <label for="correo" class="sr-only">Correo electrónico</label>
-              <input type="email" id="correo" name="correo" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Correo electrónico">
+              <input type="email" id="correo" name="correo" required class="flex h-11 w-full rounded-lg border {isNight ? 'border-zinc-800 bg-zinc-950/50' : 'border-input bg-background'} px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Correo electrónico">
             </div>
             <div>
               <label for="telefono" class="sr-only">Teléfono móvil</label>
-              <input type="tel" id="telefono" name="telefono" required class="w-full {isNight ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Teléfono móvil">
+              <input type="tel" id="telefono" name="telefono" required class="flex h-11 w-full rounded-lg border {isNight ? 'border-zinc-800 bg-zinc-950/50' : 'border-input bg-background'} px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Teléfono móvil">
             </div>
             
-            <button type="submit" disabled={enviando} class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-sm transition-all disabled:opacity-50">
-              {enviando ? 'Enviando...' : 'Solicitar Información'}
+            <button type="submit" disabled={enviando} class="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-8 w-full mt-2 shadow-sm">
+              {#if enviando}
+                 Procesando...
+              {:else}
+                 Solicitar Información
+              {/if}
             </button>
           </form>
         </div>
