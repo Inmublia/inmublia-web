@@ -38,6 +38,11 @@
       Prospectos (CRM)
     </a>
 
+   <a href="/admin/directorio" class="flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold transition-all {rutaActual.includes('/admin/directorio') ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 border border-transparent'}">
+  <Target class="w-4 h-4 {rutaActual.includes('/admin/directorio') ? 'text-indigo-400' : 'text-zinc-500'}" />
+  Bóveda & Matchmaking
+   </a>
+
     <a href="/admin/reportes" class="flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold transition-all {rutaActual.includes('/admin/reportes') ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 border border-transparent'}">
       <TrendingUp class="w-4 h-4 {rutaActual.includes('/admin/reportes') ? 'text-indigo-400' : 'text-zinc-500'}" />
       Inteligencia & Finanzas
