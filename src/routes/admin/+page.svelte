@@ -2,29 +2,15 @@
   import { enhance } from '$app/forms';
   import { generarFichaPDF } from '$lib/utils/pdf'; 
   import { 
-    Building2, 
-    ExternalLink, 
-    CalendarPlus, 
-    Plus, 
-    Search, 
-    MapPin, 
-    DownloadCloud, 
-    Sparkles, 
-    QrCode, 
-    Link2, 
-    Pencil, 
-    Trash2, 
-    EyeOff,
-    CheckCircle2,
-    BadgeDollarSign,
-    TrendingUp
+    Building2, ExternalLink, CalendarPlus, Plus, Search, 
+    MapPin, DownloadCloud, Sparkles, QrCode, Link2, 
+    Pencil, Trash2, EyeOff, CheckCircle2, BadgeDollarSign, TrendingUp
   } from 'lucide-svelte';
   
   let { data } = $props();
   let broker = $derived(data.broker);
   let propiedades = $derived(data.propiedades || []);
   
-  // 🔥 MÉTRICAS INTELIGENTES
   let totalPropiedades = $derived(propiedades.length);
   let valorPortafolio = $derived(propiedades.reduce((acc, p) => acc + (Number(p.precio) || 0), 0));
   let activasCount = $derived(propiedades.filter(p => p.estatus !== 'Pre-Mercado').length);
@@ -38,35 +24,24 @@
   let generandoPDF = $state(false);
   let showUpsellModal = $state(false);
 
-  const formatter = new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    maximumFractionDigits: 0
-  });
+  const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 
   function getOpenHouseStatus(openHouse) {
     if (!openHouse || !openHouse.event_date || !openHouse.time_end) return 'none';
     const now = new Date();
     const eventEndString = `${openHouse.event_date}T${openHouse.time_end}`;
-    const eventEnd = new Date(eventEndString);
-    return now > eventEnd ? 'archived' : 'active';
+    return now > new Date(eventEndString) ? 'archived' : 'active';
   }
 
   async function descargarFicha(propiedad) {
     generandoPDF = true;
-    try {
-      await generarFichaPDF(propiedad, broker);
-    } catch (error) {
-      console.error('Error al generar PDF:', error);
-      alert('Hubo un problema al generar el archivo. Intenta de nuevo.');
-    } finally {
-      generandoPDF = false;
-    }
+    try { await generarFichaPDF(propiedad, broker); } 
+    catch (error) { alert('Hubo un problema al generar el archivo. Intenta de nuevo.'); } 
+    finally { generandoPDF = false; }
   }
 
   function copiarEnlace(slug) {
-    const url = `https://${broker.subdominio}.inmublia.com/${slug}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(`https://${broker.subdominio}.inmublia.com/${slug}`);
     alert('Enlace copiado al portapapeles');
   }
 
@@ -85,29 +60,21 @@
         <style>
           @page { size: auto; margin: 0mm; }
           body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui, sans-serif; background-color: #f4f4f5; margin: 0; padding: 20px; text-align: center; }
-          h2 { color: #09090b; margin-bottom: 8px; font-size: 24px; font-weight: 700; letter-spacing: -0.025em; }
+          h2 { color: #09090b; margin-bottom: 8px; font-size: 24px; font-weight: 700; }
           p { color: #71717a; margin-top: 0; margin-bottom: 32px; font-size: 14px; }
-          .qr-card { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); border: 1px solid #e4e4e7; }
+          .qr-card { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e4e4e7; }
           img { max-width: 400px; width: 100%; border-radius: 12px; }
           .botones { margin-top: 40px; display: flex; gap: 12px; }
-          button { padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 14px; }
+          button { padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; }
           .btn-imprimir { background: #09090b; color: white; border: none; }
-          .btn-imprimir:hover { background: #27272a; }
           .btn-guardar { background: white; color: #09090b; border: 1px solid #e4e4e7; }
-          .btn-guardar:hover { background: #f4f4f5; }
-          @media print {
-            body { background-color: white; justify-content: flex-start; padding-top: 40px; }
-            .botones { display: none; }
-            .qr-card { box-shadow: none; padding: 0; border: none; }
-          }
+          @media print { body { background-color: white; justify-content: flex-start; padding-top: 40px; } .botones { display: none; } .qr-card { box-shadow: none; padding: 0; border: none; } }
         </style>
       </head>
       <body>
         <h2>${titulo}</h2>
         <p>Escanea para acceder a la ficha técnica</p>
-        <div class="qr-card">
-          <img src="${qrApiUrl}" alt="Código QR"/>
-        </div>
+        <div class="qr-card"><img src="${qrApiUrl}" alt="Código QR"/></div>
         <div class="botones">
           <button class="btn-imprimir" onclick="window.print()">Imprimir QR</button>
           <button class="btn-guardar" onclick="descargar()">Guardar Imagen</button>
@@ -126,7 +93,7 @@
               document.body.removeChild(a);
               window.URL.revokeObjectURL(url);
             } catch (e) {
-              alert('La seguridad del navegador bloqueó la descarga. Haz clic derecho en el QR y selecciona "Guardar imagen como..."');
+              alert('La seguridad bloqueó la descarga. Haz clic derecho en el QR y selecciona "Guardar imagen como..."');
             }
           }
         <\/script>
@@ -138,53 +105,46 @@
 
   function intentarAbrirBrochure(slug) {
     const plan = broker?.plan_suscripcion || 'basico';
-    if (plan === 'pro' || plan === 'elite') {
-      window.open(`/${slug}?brochure=true`, '_blank');
-    } else {
-      showUpsellModal = true;
-    }
+    if (plan === 'pro' || plan === 'elite') window.open(`/${slug}?brochure=true`, '_blank');
+    else showUpsellModal = true;
   }
 </script>
 
-<div class="min-h-screen bg-slate-50 flex flex-col font-sans">
+<div class="bg-slate-50 font-sans pb-12">
   
-  <header class="bg-zinc-950 text-white pt-8 pb-32 px-6 sm:px-10 shrink-0 relative overflow-hidden">
+  <header class="bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
     <div class="max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
       <div>
         <h1 class="text-3xl font-bold tracking-tight text-zinc-50">Inventario Maestro</h1>
         <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
-          <Building2 class="w-4 h-4" />
-          Consola de Gestión Inmublia
+          <Building2 class="w-4 h-4" /> Consola de Gestión Inmublia
         </p>
       </div>
       
       <div class="flex items-center gap-3">
         {#if broker}
-          <a href="https://{broker.subdominio}.inmublia.com" target="_blank" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 hover:text-white h-11 px-5 gap-2 backdrop-blur-sm">
-            <ExternalLink class="w-4 h-4" />
-            Ver Portal Público
+          <a href="https://{broker.subdominio}.inmublia.com" target="_blank" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 hover:text-white h-11 px-5 gap-2 backdrop-blur-sm">
+            <ExternalLink class="w-4 h-4" /> Ver Portal Público
           </a>
         {/if}
-        <a href="/admin/open-house/nueva" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-indigo-100 h-11 px-5 gap-2 backdrop-blur-sm">
-          <CalendarPlus class="w-4 h-4" />
-          Open House
+        <a href="/admin/open-house/nueva" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-indigo-100 h-11 px-5 gap-2 backdrop-blur-sm">
+          <CalendarPlus class="w-4 h-4" /> Open House
         </a>
-        <a href="/admin/nueva" class="inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] transform active:scale-95">
-          <Plus class="w-4 h-4" />
-          Nueva Propiedad
+        <a href="/admin/nueva" class="inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95">
+          <Plus class="w-4 h-4" /> Nueva Propiedad
         </a>
       </div>
     </div>
   </header>
 
-  <main class="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-10 -mt-20 relative z-20 pb-8">
+  <main class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 -mt-16 relative z-20">
     
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       
-      <div class="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 flex flex-col justify-between">
-        <div class="flex items-center justify-between mb-4">
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:border-slate-300 transition-all">
+        <div class="flex items-center justify-between mb-3">
           <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Valor de Portafolio</p>
           <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
             <BadgeDollarSign class="w-4 h-4" />
@@ -193,8 +153,8 @@
         <p class="text-2xl font-black text-slate-900 tracking-tight truncate">{formatter.format(valorPortafolio)}</p>
       </div>
 
-      <div class="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 flex flex-col justify-between">
-        <div class="flex items-center justify-between mb-4">
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:border-slate-300 transition-all">
+        <div class="flex items-center justify-between mb-3">
           <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Unidades</p>
           <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
             <Building2 class="w-4 h-4" />
@@ -203,8 +163,8 @@
         <p class="text-3xl font-black text-slate-900 tracking-tight">{totalPropiedades}</p>
       </div>
 
-      <div class="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 flex flex-col justify-between">
-        <div class="flex items-center justify-between mb-4">
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:border-slate-300 transition-all">
+        <div class="flex items-center justify-between mb-3">
           <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Públicas</p>
           <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
             <CheckCircle2 class="w-4 h-4" />
@@ -216,8 +176,8 @@
         </div>
       </div>
 
-      <div class="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 flex flex-col justify-between">
-        <div class="flex items-center justify-between mb-4">
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:border-slate-300 transition-all">
+        <div class="flex items-center justify-between mb-3">
           <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Pre-Mercado</p>
           <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
             <EyeOff class="w-4 h-4" />
@@ -231,7 +191,7 @@
 
     </div>
 
-    <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 overflow-hidden relative">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
       
       <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="relative flex-1 max-w-md">
@@ -286,8 +246,7 @@
                   <td class="px-6 py-5 truncate">
                     <p class="text-sm font-black text-slate-900">{formatter.format(propiedad.precio)}</p>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 flex items-center gap-1">
-                      <TrendingUp class="w-3 h-3" />
-                      {propiedad.operacion}
+                      <TrendingUp class="w-3 h-3" /> {propiedad.operacion}
                     </p>
                   </td>
 
@@ -295,24 +254,22 @@
                     <div class="flex flex-col items-center justify-center gap-2 h-full">
                       {#if propiedad.estatus === 'Pre-Mercado'}
                         <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1 text-[9px] font-bold text-slate-600 uppercase tracking-widest shadow-sm">
-                          <EyeOff class="w-3 h-3 mr-1.5 text-slate-400" />
-                          Oculta
+                          <EyeOff class="w-3 h-3 mr-1.5 text-slate-400" /> Oculta
                         </span>
                       {:else}
                         <span class="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[9px] font-bold text-emerald-700 uppercase tracking-widest shadow-sm">
-                          <CheckCircle2 class="w-3 h-3 mr-1.5 text-emerald-500" />
-                          Pública
+                          <CheckCircle2 class="w-3 h-3 mr-1.5 text-emerald-500" /> Pública
                         </span>
                       {/if}
 
                       {#if propiedad.open_houses && propiedad.open_houses.length > 0}
                         {@const ohStatus = getOpenHouseStatus(propiedad.open_houses[0])}
                         {#if ohStatus === 'active'}
-                          <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[9px] font-bold text-indigo-700 hover:bg-indigo-100 transition-colors uppercase tracking-widest" title="Dashboard Evento">
+                          <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[9px] font-bold text-indigo-700 hover:bg-indigo-100 transition-colors uppercase tracking-widest">
                             <CalendarPlus class="w-3 h-3 mr-1" /> Open House
                           </a>
                         {:else}
-                          <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-50 transition-colors uppercase tracking-widest" title="Ver Histórico">
+                          <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-50 transition-colors uppercase tracking-widest">
                             Histórico OH
                           </a>
                         {/if}
@@ -392,10 +349,3 @@
     </div>
   </div>
 {/if}
-
-<style>
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-</style>
