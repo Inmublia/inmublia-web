@@ -2,10 +2,14 @@
   import { page } from '$app/stores';
   import videoFondo from '$lib/luxury.mp4'; 
   
-  // Importación de Plantillas (Componentes Aislados)
+  // IMPORTACIONES COMPLETAS Y CORRECTAS
   import Classic from '$lib/templates/Classic.svelte';
   import Luxury from '$lib/templates/Luxury.svelte';
-  // Importa aquí el resto de tus plantillas (Modern, Clean, Editorial, Cinematic) y la Landing general.
+  import Modern from '$lib/templates/Modern.svelte';
+  import Clean from '$lib/templates/Clean.svelte';
+  import Editorial from '$lib/templates/Editorial.svelte';
+  import Cinematic from '$lib/templates/Cinematic.svelte';
+  import LandingInmublia from '$lib/components/LandingInmublia.svelte';
   
   let { data } = $props();
   let propiedades = $derived(data.propiedades);
@@ -14,7 +18,7 @@
   let previewMode = $derived($page.url.searchParams.get('preview'));
   let plantillaActiva = $derived(previewMode || broker?.template_seleccionado || 'classic');
 
-  // INYECCIÓN DE PÍXELES (Lógica centralizada)
+  // INYECCIÓN DE PÍXELES
   const START_SCR = '<scr'+'ipt>';
   const END_SCR = '</scr'+'ipt>';
 
@@ -80,10 +84,18 @@
 
 {#if broker}
   {#if plantillaActiva === 'modern'}
-    {:else if plantillaActiva === 'luxury'}
+    <Modern {propiedades} {broker} />
+  {:else if plantillaActiva === 'luxury'}
     <Luxury {propiedades} {broker} />
+  {:else if plantillaActiva === 'clean'}
+    <Clean {propiedades} {broker} />
+  {:else if plantillaActiva === 'editorial'}
+    <Editorial {propiedades} {broker} />
+  {:else if plantillaActiva === 'cinematic'}
+    <Cinematic {propiedades} {broker} />
   {:else}
     <Classic {propiedades} {broker} />
   {/if}
 {:else}
-  {/if}
+  <LandingInmublia />
+{/if}
