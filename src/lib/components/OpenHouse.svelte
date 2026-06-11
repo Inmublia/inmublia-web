@@ -1,10 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { enhance } from '$app/forms';
+  import { enhance } from 'form';
   import { 
-    LayoutDashboard, 
-    FileText, 
-    Settings, 
     ArrowLeft, 
     QrCode, 
     Copy, 
@@ -19,7 +16,7 @@
     Check, 
     UserPlus,
     Building2,
-    CalendarClock
+    MessageSquareQuote
   } from 'lucide-svelte';
 
   let { event = {}, attendeesDb = [] } = $props();
@@ -50,7 +47,7 @@
 
   onMount(() => {
     updateStatus();
-    timer = setInterval(updateStatus, 60000); // Checa cada minuto
+    timer = setInterval(updateStatus, 60000);
   });
 
   onDestroy(() => clearInterval(timer));
@@ -90,58 +87,39 @@
   }
 </script>
 
-<div class="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans text-slate-900 selection:bg-indigo-100 animate-[fadeIn_0.3s_ease-out]">
+<main class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 font-sans text-slate-900 animate-[fadeIn_0.3s_ease-out]">
   
-  <aside class="w-64 bg-white hidden md:flex flex-col border-r border-slate-200 shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10">
-    <div class="h-20 flex items-center px-8 border-b border-slate-100">
-      <h1 class="font-black text-xl tracking-tight text-slate-900">Inmublia.</h1>
+  <header class="h-20 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800 flex items-center justify-between px-6 sm:px-10 shrink-0 sticky top-0 z-20 shadow-xl shadow-zinc-900/10">
+    <div class="flex items-center gap-4">
+      <a href="/admin" class="text-zinc-400 hover:text-white transition-colors bg-zinc-900 hover:bg-zinc-800 p-2 rounded-lg border border-zinc-800 shadow-sm" title="Volver al Inventario">
+        <ArrowLeft class="w-5 h-5" />
+      </a>
+      <div>
+        <h1 class="text-xl font-black text-white tracking-tight leading-none truncate max-w-[200px] sm:max-w-md">{event.title}</h1>
+        <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1 flex items-center gap-1.5">
+          <Building2 class="w-3 h-3 text-indigo-400" /> Dashboard Operativo
+        </p>
+      </div>
     </div>
-    <nav class="flex-1 p-6 space-y-1.5">
-      <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-3">Consola Operativa</p>
-      <a href="/admin" class="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-bold transition-colors">
-        <LayoutDashboard class="w-4 h-4" /> Inventario Real
-      </a>
-      <a href="/admin/leads" class="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-bold transition-colors">
-        <Users class="w-4 h-4" /> Prospectos (CRM)
-      </a>
-      <a href="/admin/perfil" class="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-bold transition-colors">
-        <Settings class="w-4 h-4" /> Configuración
-      </a>
-    </nav>
-  </aside>
 
-  <main class="flex-1 flex flex-col h-screen overflow-hidden">
+    <div class="flex items-center gap-4">
+      {#if eventStatus === 'live'}
+        <span class="px-3 py-1.5 rounded-md bg-red-500/10 text-red-400 font-bold text-[10px] uppercase tracking-widest border border-red-500/20 flex items-center gap-2 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+          <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> En Vivo
+        </span>
+      {:else if eventStatus === 'today'}
+        <span class="px-3 py-1.5 rounded-md bg-amber-500/10 text-amber-400 font-bold text-[10px] uppercase tracking-widest border border-amber-500/20 shadow-sm">Sucede Hoy</span>
+      {:else if eventStatus === 'upcoming'}
+        <span class="px-3 py-1.5 rounded-md bg-indigo-500/10 text-indigo-400 font-bold text-[10px] uppercase tracking-widest border border-indigo-500/20 shadow-sm">Próximo</span>
+      {:else}
+        <span class="px-3 py-1.5 rounded-md bg-zinc-800 text-zinc-400 font-bold text-[10px] uppercase tracking-widest border border-zinc-700 shadow-sm">Finalizado</span>
+      {/if}
+    </div>
+  </header>
+
+  <div class="p-6 sm:p-10 flex-1 overflow-auto">
     
-    <header class="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 sm:px-10 shrink-0 sticky top-0 z-20 shadow-sm">
-      <div class="flex items-center gap-4">
-        <a href="/admin" class="text-slate-400 hover:text-indigo-600 transition-colors bg-white hover:bg-indigo-50 p-2 rounded-lg border border-slate-200 shadow-sm" title="Volver al Inventario">
-          <ArrowLeft class="w-5 h-5" />
-        </a>
-        <div>
-          <h1 class="text-xl font-black text-slate-900 tracking-tight leading-none">{event.title}</h1>
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-1.5">
-            <Building2 class="w-3 h-3" /> Dashboard Operativo
-          </p>
-        </div>
-      </div>
-
-      <div class="flex items-center gap-4">
-        {#if eventStatus === 'live'}
-          <span class="px-3 py-1.5 rounded-md bg-red-50 text-red-600 font-bold text-[10px] uppercase tracking-widest border border-red-200 flex items-center gap-2 shadow-sm">
-            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> En Vivo
-          </span>
-        {:else if eventStatus === 'today'}
-          <span class="px-3 py-1.5 rounded-md bg-amber-50 text-amber-600 font-bold text-[10px] uppercase tracking-widest border border-amber-200 shadow-sm">Sucede Hoy</span>
-        {:else if eventStatus === 'upcoming'}
-          <span class="px-3 py-1.5 rounded-md bg-indigo-50 text-indigo-600 font-bold text-[10px] uppercase tracking-widest border border-indigo-200 shadow-sm">Próximo</span>
-        {:else}
-          <span class="px-3 py-1.5 rounded-md bg-slate-50 text-slate-500 font-bold text-[10px] uppercase tracking-widest border border-slate-200 shadow-sm">Finalizado</span>
-        {/if}
-      </div>
-    </header>
-
-    <div class="p-6 sm:p-10 flex-1 overflow-auto">
-      
+    <div class="max-w-[1400px] mx-auto">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between">
           <div class="flex items-center justify-between mb-4">
@@ -211,7 +189,6 @@
 
       {#if activeTab === 'overview'}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
           <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
              <h3 class="text-lg font-black text-slate-900 mb-2">Canales de Difusión Directa</h3>
              <p class="text-sm text-slate-500 font-medium mb-8">Utiliza estos enlaces para promover el evento exclusivo en tus redes.</p>
@@ -359,14 +336,14 @@
             <div class="flex flex-col gap-5">
               <div class="flex justify-between items-center border-b border-slate-100 pb-4">
                 <span class="text-sm text-slate-600 font-bold flex items-center gap-2"><Users class="w-4 h-4 text-slate-400" /> Ocupación del Aforo</span>
-                <span class="text-base font-black text-slate-900 bg-slate-50 px-3 py-1 rounded-md">{((attendees.length / event.maxCapacity) * 100).toFixed(0)}%</span>
+                <span class="text-base font-black text-slate-900 bg-slate-50 px-3 py-1 rounded-md border border-slate-200">{((attendees.length / event.maxCapacity) * 100).toFixed(0)}%</span>
               </div>
               <div class="flex justify-between items-center border-b border-slate-100 pb-4">
-                <span class="text-sm text-slate-600 font-bold flex items-center gap-2"><CheckSquare class="w-4 h-4 text-emerald-400" /> Show-Rate (Asistencia)</span>
-                <span class="text-base font-black text-slate-900 bg-emerald-50 text-emerald-700 px-3 py-1 rounded-md border border-emerald-200">{attendees.length > 0 ? ((attendees.filter(a => a.checked_in).length / attendees.length) * 100).toFixed(0) : 0}%</span>
+                <span class="text-sm text-slate-600 font-bold flex items-center gap-2"><CheckSquare class="w-4 h-4 text-emerald-500" /> Show-Rate (Asistencia)</span>
+                <span class="text-base font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-md border border-emerald-200">{attendees.length > 0 ? ((attendees.filter(a => a.checked_in).length / attendees.length) * 100).toFixed(0) : 0}%</span>
               </div>
               <div class="flex justify-between items-center pb-2">
-                <span class="text-sm text-slate-600 font-bold flex items-center gap-2"><Clock class="w-4 h-4 text-amber-400" /> Cuello de Botella</span>
+                <span class="text-sm text-slate-600 font-bold flex items-center gap-2"><Clock class="w-4 h-4 text-amber-500" /> Cuello de Botella</span>
                 <span class="text-base font-black text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-md">{attendees.filter(a => a.status === 'waitlist').length} leads en espera</span>
               </div>
             </div>
@@ -375,8 +352,8 @@
       {/if}
 
     </div>
-  </main>
-</div>
+  </div>
+</main>
 
 <style>
   @keyframes fadeIn {
