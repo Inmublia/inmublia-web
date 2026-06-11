@@ -82,13 +82,13 @@
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-slate-50 font-sans text-slate-900">
   
-  <header class="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center px-6 sm:px-10 shrink-0 sticky top-0 z-20 shadow-sm">
+<header class="h-20 bg-zinc-950 border-b border-zinc-800 flex items-center px-6 sm:px-10 shrink-0 sticky top-0 z-20 shadow-xl shadow-zinc-900/10">
     <div>
-      <h1 class="text-xl font-black tracking-tight text-slate-900 flex items-center gap-2">
-        <LineChart class="w-5 h-5 text-indigo-600" />
+      <h1 class="text-xl font-black tracking-tight text-white flex items-center gap-2">
+        <LineChart class="w-5 h-5 text-indigo-400" />
         Panel de Rendimiento
       </h1>
-      <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Métricas, Finanzas y Marketing</p>
+      <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">Métricas, Finanzas y Marketing</p>
     </div>
   </header>
 
