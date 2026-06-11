@@ -2,6 +2,7 @@
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import imageCompression from 'browser-image-compression';
+  import { LayoutTemplate, ShieldCheck } from 'lucide-svelte'; // Añadidos para el icono del header
 
   let { data, form } = $props();
   let broker = $state(data.broker || {});
@@ -55,11 +56,20 @@
   }
 </script>
 
-<main class="flex-1 flex flex-col h-screen overflow-hidden relative">
-  <header class="h-24 bg-white border-b border-slate-200 flex items-center px-10 shrink-0">
-    <div>
-      <h1 class="text-2xl font-black text-slate-900 tracking-tight">Configuración de Agencia</h1>
-      <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Ajustes de Plataforma y Perfil</p>
+<main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F8FAFC]">
+  
+  <header class="h-24 bg-zinc-950 border-b border-zinc-800 flex items-center px-10 shrink-0 shadow-xl shadow-zinc-900/10 z-10 relative">
+    <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none translate-x-1/4 -translate-y-1/2"></div>
+    <div class="flex items-center gap-4 relative z-10">
+      <div class="p-2.5 bg-zinc-900 rounded-xl text-white shadow-sm border border-zinc-800">
+        <LayoutTemplate class="w-5 h-5 text-indigo-400" />
+      </div>
+      <div>
+        <h1 class="text-xl font-black tracking-tight text-white">Configuración de Agencia</h1>
+        <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
+          <ShieldCheck class="w-3 h-3 text-emerald-500" /> Nivel de acceso: <span class="text-zinc-300 uppercase">{broker.plan_suscripcion || 'Básico'}</span>
+        </p>
+      </div>
     </div>
   </header>
 
@@ -281,8 +291,7 @@
                   <span class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Guardando...
                 {:else}
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg> Guardar Configuración
-                 color
-              {/if}
+                {/if}
               </button>
             </div>
           </form>
@@ -297,7 +306,7 @@
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
               </div>
               <div>
-                <h3 class="text-lg font-black text-slate-900 uppercase">Inmublia {broker.plan_suscripcion}</h3>
+                <h3 class="text-lg font-black text-slate-900 uppercase">Inmublia {broker.plan_suscripcion || 'Básico'}</h3>
                 <p class="text-[11px] font-bold text-emerald-600 tracking-wider">Membresía Activa</p>
               </div>
             </div>
