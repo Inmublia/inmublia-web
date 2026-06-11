@@ -1,11 +1,23 @@
-import { supabase } from '$lib/supabase';
 import { error, fail } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
+import { env as publicEnv } from '$env/dynamic/public';
+import { env as privateEnv } from '$env/dynamic/private';
+
+// Cliente de Servidor Confiable (Bypasa RLS para permitir ver propiedades "Pre-Mercado" vía enlace directo)
+const getSupabaseAdmin = () => {
+  return createClient(
+    publicEnv.PUBLIC_SUPABASE_URL,
+    privateEnv.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } }
+  );
+};
 
 export async function load({ params }) {
   const { slug } = params;
+  const supabaseAdmin = getSupabaseAdmin();
 
-  // 1. Buscamos la propiedad exacta por su slug amigable
-  const { data: propiedad, error: propError } = await supabase
+  // 1. Buscamos la propiedad exacta por su slug amigable en Modo Administrador
+  const { data: propiedad, error: propError } = await supabaseAdmin
     .from('propiedades')
     .select('*')
     .eq('slug', slug)
@@ -14,12 +26,12 @@ export async function load({ params }) {
   // Si la propiedad no existe o hubo un error, mandamos un 404 elegante
   if (propError || !propiedad) {
     throw error(404, {
-      message: 'La propiedad que buscas no está disponible o ha sido removida.'
+      message: 'La propiedad que buscas no está disponible, es privada o ha sido removida.'
     });
   }
 
   // 2. Extraemos el perfil completo del broker dueño de esta propiedad
-  const { data: broker, error: brokerError } = await supabase
+  const { data: broker, error: brokerError } = await supabaseAdmin
     .from('brokers')
     .select('*')
     .eq('id', propiedad.broker_id)
@@ -27,7 +39,7 @@ export async function load({ params }) {
 
   if (brokerError || !broker) {
     throw error(404, {
-      message: 'La agencia encargada de esta propiedad no se encuentra activa.'
+      message: 'La agencia encargada de esta propiedad no se encuentra activa en este momento.'
     });
   }
 
@@ -40,6 +52,7 @@ export async function load({ params }) {
 
 export const actions = {
   contacto: async ({ request }) => {
+    const supabaseAdmin = getSupabaseAdmin();
     const formData = await request.formData();
     
     const nombre = formData.get('nombre')?.toString().trim();
@@ -65,7 +78,7 @@ export const actions = {
     };
 
     // 1. Registro nativo en el CRM-Lite (Tabla de leads)
-    const { error: insertError } = await supabase
+    const { error: insertError } = await supabaseAdmin
       .from('leads')
       .insert([leadData]);
 
@@ -74,29 +87,35 @@ export const actions = {
     }
 
     // 2. Consulta de configuración para el Webhook Universal (Plan Elite)
-    const { data: brokerConfig } = await supabase
+    const { data: brokerConfig } = await supabaseAdmin
       .from('brokers')
       .select('webhook_url')
       .eq('id', broker_id)
       .single();
 
-    // 3. El Puente de Oro: Disparo asíncrono directo a plataformas externas (Zapier, HubSpot, Clientify, etc.)
+    // 3. El Puente de Oro: Disparo asíncrono directo a plataformas externas
     if (brokerConfig && brokerConfig.webhook_url) {
-      fetch(brokerConfig.webhook_url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fuente: "Inmublia SaaS",
-          evento: "nuevo_prospecto",
-          propiedad_interes: propiedad_titulo,
-          prospecto: {
-            nombre,
-            correo,
-            telefono,
-            registro: leadData.creado_en
-          }
-        })
-      }).catch(err => console.error("Error silencioso al disparar el webhook universal:", err));
+      try {
+        // Se añade 'await' para asegurar que Cloudflare Pages no mate la función antes del envío
+        await fetch(brokerConfig.webhook_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fuente: "Inmublia SaaS",
+            evento: "nuevo_prospecto",
+            propiedad_interes: propiedad_titulo,
+            prospecto: {
+              nombre,
+              correo,
+              telefono,
+              registro: leadData.creado_en
+            }
+          })
+        });
+      } catch (err) {
+        // Fallo silencioso del webhook: el lead ya está seguro en Supabase (CRM local)
+        console.error("Error de conectividad al disparar el webhook universal:", err);
+      }
     }
 
     return { success: true, message: 'La información ha sido enviada con éxito.' };
