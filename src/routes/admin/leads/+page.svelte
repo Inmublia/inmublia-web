@@ -183,17 +183,16 @@
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-slate-50 font-sans text-slate-900">
   
-  <header class="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 sm:px-10 shrink-0 sticky top-0 z-20 shadow-sm">
+ <header class="h-20 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between px-6 sm:px-10 shrink-0 sticky top-0 z-20 shadow-xl shadow-zinc-900/10">
     <div class="flex items-center gap-3">
-      <h1 class="text-xl font-black tracking-tight text-slate-900 flex items-center gap-2">
-        <MessageSquareQuote class="w-5 h-5 text-indigo-600" />
+      <h1 class="text-xl font-black tracking-tight text-white flex items-center gap-2">
+        <MessageSquareQuote class="w-5 h-5 text-indigo-400" />
         Gestión de Interesados
       </h1>
     </div>
-
     <div class="relative w-full max-w-md hidden sm:block">
-      <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-      <input type="text" bind:value={searchQuery} placeholder="Buscar prospecto o propiedad..." class="w-full bg-slate-100/50 border border-slate-200 rounded-full pl-10 pr-4 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white focus:border-indigo-400 transition-all shadow-inner">
+      <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+      <input type="text" bind:value={searchQuery} placeholder="Buscar prospecto o propiedad..." class="w-full bg-zinc-900 border border-zinc-800 rounded-full pl-10 pr-4 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all shadow-inner">
     </div>
   </header>
 
