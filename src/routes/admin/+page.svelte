@@ -148,7 +148,7 @@
 
 <div class="min-h-screen bg-slate-50 flex flex-col font-sans">
   
-  <header class="bg-zinc-950 text-white pt-8 pb-32 px-6 sm:px-10 shrink-0 relative overflow-hidden">
+  <header class="bg-zinc-950 text-white pt-8 pb-16 px-6 sm:px-10 shrink-0 relative overflow-hidden">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
     <div class="max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -179,11 +179,11 @@
     </div>
   </header>
 
-  <main class="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-10 -mt-20 relative z-20 pb-20">
+  <main class="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-10 py-8 relative z-20">
     
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       
-      <div class="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 flex flex-col justify-between">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
         <div class="flex items-center justify-between mb-4">
           <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Valor de Portafolio</p>
           <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
@@ -193,7 +193,7 @@
         <p class="text-2xl font-black text-slate-900 tracking-tight truncate">{formatter.format(valorPortafolio)}</p>
       </div>
 
-      <div class="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 flex flex-col justify-between">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
         <div class="flex items-center justify-between mb-4">
           <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Unidades</p>
           <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
@@ -203,7 +203,7 @@
         <p class="text-3xl font-black text-slate-900 tracking-tight">{totalPropiedades}</p>
       </div>
 
-      <div class="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 flex flex-col justify-between">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
         <div class="flex items-center justify-between mb-4">
           <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Públicas</p>
           <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
@@ -216,7 +216,7 @@
         </div>
       </div>
 
-      <div class="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 flex flex-col justify-between">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
         <div class="flex items-center justify-between mb-4">
           <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Pre-Mercado</p>
           <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
@@ -231,7 +231,7 @@
 
     </div>
 
-    <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100/50 overflow-hidden relative">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
       
       <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="relative flex-1 max-w-md">
