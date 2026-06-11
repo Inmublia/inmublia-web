@@ -6,15 +6,14 @@
     X, 
     ChevronLeft, 
     ChevronRight, 
-    MessageCircle, 
     Download, 
     Facebook, 
     Instagram, 
     Linkedin, 
-    Globe, 
     CheckCircle2, 
     AlertCircle,
-    LayoutGrid
+    LayoutGrid,
+    Sparkles 
   } from 'lucide-svelte';
 
   let { data, form } = $props();
@@ -189,22 +188,22 @@
 {#snippet socialLinks(b)}
   <div class="flex items-center justify-center gap-5 mb-6">
     {#if b.facebook}
-      <a href={b.facebook} target="_blank" class="{isNight ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition-colors" aria-label="Facebook">
+      <a href={b.facebook} target="_blank" class="{isNight ? 'text-zinc-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition-colors" aria-label="Facebook">
         <Facebook class="w-6 h-6" />
       </a>
     {/if}
     {#if b.instagram}
-      <a href={b.instagram} target="_blank" class="{isNight ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition-colors" aria-label="Instagram">
+      <a href={b.instagram} target="_blank" class="{isNight ? 'text-zinc-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition-colors" aria-label="Instagram">
         <Instagram class="w-6 h-6" />
       </a>
     {/if}
     {#if b.linkedin}
-      <a href={b.linkedin} target="_blank" class="{isNight ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition-colors" aria-label="LinkedIn">
+      <a href={b.linkedin} target="_blank" class="{isNight ? 'text-zinc-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition-colors" aria-label="LinkedIn">
         <Linkedin class="w-6 h-6" />
       </a>
     {/if}
     {#if b.tiktok}
-      <a href={b.tiktok} target="_blank" class="{isNight ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition-colors" aria-label="TikTok">
+      <a href={b.tiktok} target="_blank" class="{isNight ? 'text-zinc-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition-colors" aria-label="TikTok">
         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 2.22-1.15 4.39-2.92 5.75-1.84 1.4-4.29 1.83-6.6 1.4-2.18-.4-4.14-1.74-5.26-3.66-1.16-1.99-1.37-4.46-.57-6.57.82-2.18 2.67-3.9 4.88-4.57 1.59-.48 3.32-.46 4.88.08v4.06c-.84-.27-1.78-.34-2.65-.13-.88.21-1.67.75-2.18 1.48-.52.75-.71 1.72-.5 2.6.21.88.75 1.67 1.48 2.18.75.52 1.72.71 2.6.5 1.25-.29 2.21-1.36 2.45-2.62.06-.32.07-.65.07-.98V.02z"/></svg>
       </a>
     {/if}
@@ -212,21 +211,21 @@
 {/snippet}
 
 {#if isGalleryOpen}
-  <div class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-200" role="dialog" aria-modal="true" tabindex="-1" onclick={closeGallery}>
-    <button aria-label="Cerrar galería" class="absolute top-6 right-6 text-white/70 hover:text-white bg-black/50 hover:bg-white/10 p-3 rounded-full transition-all z-[210]" onclick={closeGallery}>
-      <X class="w-6 h-6" />
+  <div class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-200" role="dialog" aria-modal="true" tabindex="-1">
+    <button aria-label="Cerrar galería" class="absolute top-6 right-6 text-white/70 hover:text-white bg-black/50 hover:bg-white/10 p-3 rounded-full transition-all z-[210] cursor-pointer" onclick={closeGallery}>
+      <X class="w-6 h-6 pointer-events-none" />
     </button>
-    <button aria-label="Imagen anterior" class="absolute left-4 sm:left-10 text-white/70 hover:text-white bg-black/50 hover:bg-white/10 p-3 sm:p-4 rounded-full transition-all z-[210]" onclick={prevImage}>
-      <ChevronLeft class="w-8 h-8" />
+    <button aria-label="Imagen anterior" class="absolute left-4 sm:left-10 text-white/70 hover:text-white bg-black/50 hover:bg-white/10 p-3 sm:p-4 rounded-full transition-all z-[210] cursor-pointer" onclick={prevImage}>
+      <ChevronLeft class="w-8 h-8 pointer-events-none" />
     </button>
-    <div class="relative max-w-7xl max-h-[90vh] px-16 flex items-center justify-center w-full h-full" role="document" tabindex="0" onclick={(e) => e.stopPropagation()}>
-      <img src={allPhotos[currentImageIndex]} alt="Vista {currentImageIndex + 1} de {allPhotos.length}" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-300">
+    <div class="relative max-w-7xl max-h-[90vh] px-16 flex items-center justify-center w-full h-full" onclick={closeGallery}>
+      <img src={allPhotos[currentImageIndex]} alt="Vista {currentImageIndex + 1} de {allPhotos.length}" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-300" onclick={(e) => e.stopPropagation()}>
       <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-white text-xs font-semibold tracking-widest uppercase backdrop-blur-md">
         {currentImageIndex + 1} / {allPhotos.length}
       </div>
     </div>
-    <button aria-label="Siguiente imagen" class="absolute right-4 sm:right-10 text-white/70 hover:text-white bg-black/50 hover:bg-white/10 p-3 sm:p-4 rounded-full transition-all z-[210]" onclick={nextImage}>
-      <ChevronRight class="w-8 h-8" />
+    <button aria-label="Siguiente imagen" class="absolute right-4 sm:right-10 text-white/70 hover:text-white bg-black/50 hover:bg-white/10 p-3 sm:p-4 rounded-full transition-all z-[210] cursor-pointer" onclick={nextImage}>
+      <ChevronRight class="w-8 h-8 pointer-events-none" />
     </button>
   </div>
 {/if}
@@ -236,14 +235,14 @@
     <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
   </a>
 
-  <div class="fixed bottom-0 left-0 w-full z-50 bg-background/90 backdrop-blur-xl border-t border-border py-3 px-6 md:px-12 transform translate-y-0 shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
+  <div class="fixed bottom-0 left-0 w-full z-50 bg-background/90 backdrop-blur-xl border-t border-border py-3 px-6 md:px-12 transform translate-y-0 shadow-[0_-10px_30px_rgba(0,0,0,0.03)] {isNight ? 'bg-zinc-950/90 border-zinc-800' : 'bg-white/90 border-slate-200'}">
     <div class="max-w-[1400px] mx-auto flex items-center justify-between">
       <div>
-        <p class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{propiedad.operacion}</p>
-        <p class="text-base md:text-xl font-bold text-foreground leading-none mt-1">{formatearPrecio(propiedad.precio)}</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest {isNight ? 'text-zinc-500' : 'text-slate-500'}">{propiedad.operacion}</p>
+        <p class="text-base md:text-xl font-bold leading-none mt-1 {isNight ? 'text-zinc-100' : 'text-slate-900'}">{formatearPrecio(propiedad.precio)}</p>
       </div>
       <div class="flex items-center gap-4">
-        <div class="w-10 h-10 rounded-full bg-muted overflow-hidden shadow-sm shrink-0 border border-border">
+        <div class="w-10 h-10 rounded-full overflow-hidden shadow-sm shrink-0 border {isNight ? 'bg-zinc-900 border-zinc-800' : 'bg-slate-100 border-slate-200'}">
           {#if broker.avatar_url}
             <img src={broker.avatar_url} alt="Asesor" class="w-full h-full object-cover">
           {:else}
@@ -251,15 +250,15 @@
           {/if}
         </div>
         <div class="hidden sm:block text-right">
-          <p class="text-xs font-semibold text-foreground uppercase">{broker.nombre_comercial}</p>
-          <p class="text-[9px] text-muted-foreground uppercase tracking-widest">Asesor Privado</p>
+          <p class="text-xs font-semibold uppercase {isNight ? 'text-zinc-100' : 'text-slate-900'}">{broker.nombre_comercial}</p>
+          <p class="text-[9px] uppercase tracking-widest {isNight ? 'text-zinc-500' : 'text-slate-500'}">Asesor Privado</p>
         </div>
       </div>
     </div>
   </div>
 {/if}
 
-<main class="min-h-screen {isNight ? 'bg-zinc-950 text-zinc-50' : 'bg-background text-foreground'} font-sans pb-32 transition-colors duration-1000">
+<main class="min-h-screen {isNight ? 'bg-zinc-950 text-zinc-50' : 'bg-white text-slate-900'} font-sans pb-32 transition-colors duration-1000">
   
   <nav class="absolute top-0 w-full z-40 bg-gradient-to-b from-black/60 to-transparent">
     <div class="max-w-[1400px] mx-auto px-6 h-28 flex justify-between items-center border-b border-white/10">
@@ -279,7 +278,7 @@
   </nav>
 
   <div class="relative w-full h-[85vh] min-h-[500px] bg-black cursor-pointer overflow-hidden" role="button" tabindex="0" onclick={() => openGallery(0)}>
-    <img src={propiedad.imagen_url} alt={propiedad.titulo} class="w-full h-full object-cover {isNight ? 'opacity-50' : 'opacity-70'} hover:scale-105 transition-all duration-[2s] ease-out" />
+    <img src={propiedad.imagen_url} alt={propiedad.titulo} class="w-full h-full object-cover {isNight ? 'opacity-50' : 'opacity-70'} hover:scale-105 transition-all duration-[2s] ease-out pointer-events-none" />
     <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none"></div>
     
     <div class="absolute bottom-0 w-full pointer-events-none">
@@ -305,30 +304,29 @@
         {#if isBrochure}
           <div class="flex flex-col gap-10 md:gap-16">
             {#each propiedad.galeria_urls as foto, idx}
-              <div class="w-full rounded-2xl overflow-hidden shadow-xl {isNight ? 'bg-zinc-900 shadow-black/50 border border-zinc-800' : 'bg-muted border border-border'} relative group cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(idx + 1)}>
+              <div class="w-full rounded-2xl overflow-hidden shadow-xl {isNight ? 'bg-zinc-900 shadow-black/50 border border-zinc-800' : 'bg-slate-100 border border-slate-200'} relative group cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(idx + 1)}>
                 <img src={foto} alt="Detalle de la propiedad {idx + 1}" class="w-full h-auto max-h-[80vh] object-cover transition-transform duration-700 ease-out group-hover:scale-[1.02]" loading="lazy">
-                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors"></div>
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors pointer-events-none"></div>
               </div>
             {/each}
           </div>
         {:else}
           <div class="grid grid-cols-1 md:grid-cols-4 gap-3 auto-rows-[200px] md:auto-rows-[250px]">
-            <div class="md:col-span-2 md:row-span-2 relative overflow-hidden group rounded-xl {isNight ? 'bg-zinc-900' : 'bg-muted'} cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(1)}>
-              <img src={propiedad.galeria_urls[0]} alt="Vista Principal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
-              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+            <div class="md:col-span-2 md:row-span-2 relative overflow-hidden group rounded-xl {isNight ? 'bg-zinc-900' : 'bg-slate-100'} cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(1)}>
+              <img src={propiedad.galeria_urls[0]} alt="Vista Principal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''} pointer-events-none">
+              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none"></div>
             </div>
             {#if propiedad.galeria_urls[1]}
-              <div class="md:col-span-2 relative overflow-hidden group rounded-xl {isNight ? 'bg-zinc-900' : 'bg-muted'} cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(2)}>
-                <img src={propiedad.galeria_urls[1]} alt="Vista Secundaria" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
-                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+              <div class="md:col-span-2 relative overflow-hidden group rounded-xl {isNight ? 'bg-zinc-900' : 'bg-slate-100'} cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(2)}>
+                <img src={propiedad.galeria_urls[1]} alt="Vista Secundaria" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''} pointer-events-none">
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none"></div>
               </div>
             {/if}
-            <div class="md:col-span-2 relative overflow-hidden group rounded-xl {isNight ? 'bg-zinc-900' : 'bg-muted'} cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(3 % allPhotos.length)}>
-              <img src={propiedad.galeria_urls[2] || propiedad.imagen_url} alt="Tercera Vista" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''}">
-              <div class="absolute inset-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+            <div class="md:col-span-2 relative overflow-hidden group rounded-xl {isNight ? 'bg-zinc-900' : 'bg-slate-100'} cursor-pointer" role="button" tabindex="0" onclick={() => openGallery(3 % allPhotos.length)}>
+              <img src={propiedad.galeria_urls[2] || propiedad.imagen_url} alt="Tercera Vista" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out {isNight ? 'opacity-80' : ''} pointer-events-none">
+              <div class="absolute inset-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
                 <span class="text-white font-semibold uppercase tracking-[0.2em] text-xs flex items-center gap-2 px-6 py-3 border border-white/30 rounded-full">
-                  <LayoutGrid class="w-4 h-4" />
-                   Ver las {allPhotos.length} Fotos
+                  <LayoutGrid class="w-4 h-4" /> Ver las {allPhotos.length} Fotos
                 </span>
               </div>
             </div>
@@ -337,58 +335,49 @@
       </div>
     {/if}
 
-    <div class="flex flex-wrap justify-center gap-x-12 gap-y-8 py-8 border-y {isNight ? 'border-zinc-800' : 'border-border'} mb-16">
-      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-foreground'}">{propiedad.recamaras || '-'}</p><p class="text-[9px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mt-2">Recámaras</p></div>
-      <div class="w-px {isNight ? 'bg-zinc-800' : 'bg-border'} hidden sm:block"></div>
-      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-foreground'}">{propiedad.banos || '-'}</p><p class="text-[9px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mt-2">Baños</p></div>
-      <div class="w-px {isNight ? 'bg-zinc-800' : 'bg-border'} hidden sm:block"></div>
-      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-foreground'}">{propiedad.m2_construccion || '-'}</p><p class="text-[9px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mt-2">M² Inter</p></div>
-      <div class="w-px {isNight ? 'bg-zinc-800' : 'bg-border'} hidden sm:block"></div>
-      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-foreground'}">{propiedad.m2_terreno || '-'}</p><p class="text-[9px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mt-2">M² Terreno</p></div>
-      <div class="w-px {isNight ? 'bg-zinc-800' : 'bg-border'} hidden lg:block"></div>
-      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-foreground'}">{propiedad.estacionamientos || '-'}</p><p class="text-[9px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mt-2">Autos</p></div>
+    <div class="flex flex-wrap justify-center gap-x-12 gap-y-8 py-8 border-y {isNight ? 'border-zinc-800' : 'border-slate-200'} mb-16">
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-slate-900'}">{propiedad.recamaras || '-'}</p><p class="text-[9px] font-semibold uppercase tracking-[0.2em] mt-2 {isNight ? 'text-zinc-500' : 'text-slate-400'}">Recámaras</p></div>
+      <div class="w-px hidden sm:block {isNight ? 'bg-zinc-800' : 'bg-slate-200'}"></div>
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-slate-900'}">{propiedad.banos || '-'}</p><p class="text-[9px] font-semibold uppercase tracking-[0.2em] mt-2 {isNight ? 'text-zinc-500' : 'text-slate-400'}">Baños</p></div>
+      <div class="w-px hidden sm:block {isNight ? 'bg-zinc-800' : 'bg-slate-200'}"></div>
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-slate-900'}">{propiedad.m2_construccion || '-'}</p><p class="text-[9px] font-semibold uppercase tracking-[0.2em] mt-2 {isNight ? 'text-zinc-500' : 'text-slate-400'}">M² Inter</p></div>
+      <div class="w-px hidden sm:block {isNight ? 'bg-zinc-800' : 'bg-slate-200'}"></div>
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-slate-900'}">{propiedad.m2_terreno || '-'}</p><p class="text-[9px] font-semibold uppercase tracking-[0.2em] mt-2 {isNight ? 'text-zinc-500' : 'text-slate-400'}">M² Terreno</p></div>
+      <div class="w-px hidden lg:block {isNight ? 'bg-zinc-800' : 'bg-slate-200'}"></div>
+      <div class="text-center"><p class="text-3xl font-light {isNight ? 'text-zinc-100' : 'text-slate-900'}">{propiedad.estacionamientos || '-'}</p><p class="text-[9px] font-semibold uppercase tracking-[0.2em] mt-2 {isNight ? 'text-zinc-500' : 'text-slate-400'}">Autos</p></div>
     </div>
 
     <div class="mb-16">
-      <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-[0.2em] mb-6 text-center">La Residencia</h2>
-      <div class="prose prose-lg max-w-none font-light leading-relaxed whitespace-pre-line text-center md:text-left mx-auto {isNight ? 'text-zinc-300' : 'text-muted-foreground'}">
+      <h2 class="text-xs font-semibold uppercase tracking-[0.2em] mb-6 text-center {isNight ? 'text-zinc-500' : 'text-slate-400'}">La Residencia</h2>
+      <div class="prose prose-lg max-w-none font-light leading-relaxed whitespace-pre-line text-center md:text-left mx-auto {isNight ? 'text-zinc-300' : 'text-slate-600'}">
         {propiedad.descripcion}
       </div>
     </div>
 
     {#if (propiedad.recorrido_3d_url && obtenerIdMatterport(propiedad.recorrido_3d_url)) || (propiedad.video_url && obtenerIdYouTube(propiedad.video_url))}
       <div class="mb-24 space-y-12">
-        
         {#if propiedad.recorrido_3d_url && obtenerIdMatterport(propiedad.recorrido_3d_url)}
           <div>
-            <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-[0.2em] mb-6 text-center">Experiencia Inmersiva 3D</h2>
-            <div class="relative w-full pb-[56.25%] h-0 rounded-2xl overflow-hidden shadow-2xl border border-border bg-black">
-              <iframe 
-                title="Recorrido Virtual Matterport"
-                src="https://my.matterport.com/show/?m={obtenerIdMatterport(propiedad.recorrido_3d_url)}" 
-                class="absolute top-0 left-0 w-full h-full border-0"
-                allowfullscreen 
-                allow="xr-spatial-tracking">
-              </iframe>
+            <h2 class="text-xs font-semibold uppercase tracking-[0.2em] mb-6 text-center {isNight ? 'text-zinc-500' : 'text-slate-400'}">Experiencia Inmersiva 3D</h2>
+            <div class="relative w-full pb-[56.25%] h-0 rounded-2xl overflow-hidden shadow-2xl bg-black {isNight ? 'border border-zinc-800' : 'border border-slate-200'}">
+              <iframe title="Recorrido Virtual Matterport" src="https://my.matterport.com/show/?m={obtenerIdMatterport(propiedad.recorrido_3d_url)}" class="absolute top-0 left-0 w-full h-full border-0" allowfullscreen allow="xr-spatial-tracking"></iframe>
             </div>
           </div>
         {/if}
-
         {#if propiedad.video_url && obtenerIdYouTube(propiedad.video_url)}
           <div>
-            <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-[0.2em] mb-6 text-center">Recorrido en Video</h2>
-            <div class="relative w-full aspect-video rounded-2xl overflow-hidden shadow-2xl {isNight ? 'bg-zinc-900 border border-zinc-800' : 'bg-muted border border-border'}">
+            <h2 class="text-xs font-semibold uppercase tracking-[0.2em] mb-6 text-center {isNight ? 'text-zinc-500' : 'text-slate-400'}">Recorrido en Video</h2>
+            <div class="relative w-full aspect-video rounded-2xl overflow-hidden shadow-2xl {isNight ? 'bg-zinc-900 border border-zinc-800' : 'bg-slate-100 border border-slate-200'}">
               <iframe class="absolute top-0 left-0 w-full h-full" src="https://www.youtube.com/embed/{obtenerIdYouTube(propiedad.video_url)}?autoplay=0&controls=1&rel=0&modestbranding=1" title="Video de la propiedad" frameborder="0" allowfullscreen></iframe>
             </div>
           </div>
         {/if}
-
       </div>
     {/if}
 
     <div class="mb-24">
-      <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-[0.2em] mb-6 text-center">El Entorno</h2>
-      <div class="w-full h-[400px] md:h-[500px] {isNight ? 'bg-zinc-900 border border-zinc-800' : 'bg-muted border border-border'} overflow-hidden relative rounded-2xl shadow-inner">
+      <h2 class="text-xs font-semibold uppercase tracking-[0.2em] mb-6 text-center {isNight ? 'text-zinc-500' : 'text-slate-400'}">El Entorno</h2>
+      <div class="w-full h-[400px] md:h-[500px] overflow-hidden relative rounded-2xl shadow-inner {isNight ? 'bg-zinc-900 border border-zinc-800' : 'bg-slate-100 border border-slate-200'}">
         <iframe width="100%" height="100%" frameborder="0" style="border:0;" src="https://maps.google.com/maps?q={encodeURIComponent(propiedad.ubicacion || 'Guadalajara, Jalisco')}&t=m&z=15&output=embed&iwloc=near" title="Mapa de ubicación" allowfullscreen></iframe>
       </div>
     </div>
@@ -396,41 +385,38 @@
     {#if !isBrochure}
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-24">
         
-        <div class="{isNight ? 'bg-zinc-900/50 border-zinc-800' : 'bg-background border-border'} border rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
-          <div class="w-24 h-24 bg-muted rounded-full mb-5 overflow-hidden shadow-md border-2 {isNight ? 'border-zinc-800' : 'border-background'}">
+        <div class="border rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-sm {isNight ? 'bg-zinc-900/50 border-zinc-800' : 'bg-white border-slate-200'}">
+          <div class="w-24 h-24 rounded-full mb-5 overflow-hidden shadow-md border-2 {isNight ? 'bg-zinc-800 border-zinc-700' : 'bg-slate-100 border-white'}">
             {#if broker.avatar_url}
               <img src={broker.avatar_url} alt="Foto del Asesor" class="w-full h-full object-cover">
             {:else}
               <img src="https://ui-avatars.com/api/?name={broker.nombre_comercial}&background=0f172a&color=fff" alt="Avatar" class="w-full h-full object-cover">
             {/if}
           </div>
-          <h3 class="text-2xl font-semibold tracking-tight {isNight ? 'text-zinc-100' : 'text-foreground'}">{broker.nombre_comercial}</h3>
-          <p class="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mt-2 mb-3">Asesoría Inmobiliaria</p>
+          <h3 class="text-2xl font-semibold tracking-tight {isNight ? 'text-zinc-100' : 'text-slate-900'}">{broker.nombre_comercial}</h3>
+          <p class="text-[10px] font-semibold uppercase tracking-[0.2em] mt-2 mb-3 {isNight ? 'text-zinc-500' : 'text-slate-400'}">Asesoría Inmobiliaria</p>
           {#if broker.bio}
-            <p class="text-sm text-muted-foreground italic mb-6 max-w-sm">"{broker.bio}"</p>
+            <p class="text-sm italic mb-6 max-w-sm {isNight ? 'text-zinc-400' : 'text-slate-500'}">"{broker.bio}"</p>
           {/if}
 
           {@render socialLinks(broker)}
           
-          <button onclick={descargarVCard} aria-label="Descargar tarjeta de contacto" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-[10px] font-bold uppercase tracking-widest ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 {isNight ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-100' : 'bg-primary hover:bg-primary/90 text-primary-foreground'} h-11 px-8 w-full shadow-sm mt-2">
-            <Download class="w-4 h-4" />
-            Guardar Contacto
+          <button onclick={descargarVCard} aria-label="Descargar tarjeta de contacto" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-[10px] font-bold uppercase tracking-widest transition-colors h-11 px-8 w-full shadow-sm mt-2 {isNight ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-100' : 'bg-slate-900 hover:bg-slate-800 text-white'}">
+            <Download class="w-4 h-4" /> Guardar Contacto
           </button>
         </div>
 
-        <div class="{isNight ? 'bg-zinc-900 border-zinc-800' : 'bg-muted/30 border-border'} border rounded-3xl p-8 shadow-sm flex flex-col justify-center">
-          <h2 class="text-2xl font-semibold tracking-tight {isNight ? 'text-zinc-100' : 'text-foreground'} mb-2">Agendar Recorrido</h2>
-          <p class="text-muted-foreground text-sm mb-8">Deje sus datos y el asesor le contactará a la brevedad.</p>
+        <div class="border rounded-3xl p-8 shadow-sm flex flex-col justify-center {isNight ? 'bg-zinc-900 border-zinc-800' : 'bg-slate-50/50 border-slate-200'}">
+          <h2 class="text-2xl font-semibold tracking-tight mb-2 {isNight ? 'text-zinc-100' : 'text-slate-900'}">Agendar Recorrido</h2>
+          <p class="text-sm mb-8 {isNight ? 'text-zinc-400' : 'text-slate-500'}">Deje sus datos y el asesor le contactará a la brevedad.</p>
           
           {#if form?.success}
-            <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium p-4 rounded-xl text-sm text-center flex items-center justify-center gap-2 mb-6" role="alert">
-              <CheckCircle2 class="w-4 h-4" />
-              Solicitud enviada con éxito.
+            <div class="font-medium p-4 rounded-xl text-sm text-center flex items-center justify-center gap-2 mb-6 {isNight ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border border-emerald-100 text-emerald-700'}" role="alert">
+              <CheckCircle2 class="w-4 h-4" /> Solicitud enviada con éxito.
             </div>
           {:else if form?.error}
-            <div class="mb-6 bg-destructive/10 text-destructive font-medium p-4 rounded-xl text-sm border border-destructive/20 text-center flex items-center justify-center gap-2" role="alert">
-              <AlertCircle class="w-4 h-4" />
-              {form.error}
+            <div class="font-medium p-4 rounded-xl text-sm text-center flex items-center justify-center gap-2 mb-6 {isNight ? 'bg-red-500/10 border border-red-500/20 text-red-400' : 'bg-red-50 border border-red-100 text-red-700'}" role="alert">
+              <AlertCircle class="w-4 h-4" /> {form.error}
             </div>
           {/if}
 
@@ -441,18 +427,18 @@
             
             <div>
               <label for="nombre" class="sr-only">Nombre completo</label>
-              <input type="text" id="nombre" name="nombre" required class="flex h-11 w-full rounded-lg border {isNight ? 'border-zinc-800 bg-zinc-950/50' : 'border-input bg-background'} px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Nombre completo">
+              <input type="text" id="nombre" name="nombre" required class="flex h-11 w-full rounded-lg border px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 {isNight ? 'border-zinc-800 bg-zinc-950/50 text-white placeholder:text-zinc-600' : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400'}" placeholder="Nombre completo">
             </div>
             <div>
               <label for="correo" class="sr-only">Correo electrónico</label>
-              <input type="email" id="correo" name="correo" required class="flex h-11 w-full rounded-lg border {isNight ? 'border-zinc-800 bg-zinc-950/50' : 'border-input bg-background'} px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Correo electrónico">
+              <input type="email" id="correo" name="correo" required class="flex h-11 w-full rounded-lg border px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 {isNight ? 'border-zinc-800 bg-zinc-950/50 text-white placeholder:text-zinc-600' : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400'}" placeholder="Correo electrónico">
             </div>
             <div>
               <label for="telefono" class="sr-only">Teléfono móvil</label>
-              <input type="tel" id="telefono" name="telefono" required class="flex h-11 w-full rounded-lg border {isNight ? 'border-zinc-800 bg-zinc-950/50' : 'border-input bg-background'} px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Teléfono móvil">
+              <input type="tel" id="telefono" name="telefono" required class="flex h-11 w-full rounded-lg border px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 {isNight ? 'border-zinc-800 bg-zinc-950/50 text-white placeholder:text-zinc-600' : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400'}" placeholder="Teléfono móvil">
             </div>
             
-            <button type="submit" disabled={enviando} class="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-8 w-full mt-2 shadow-sm">
+            <button type="submit" disabled={enviando} class="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50 h-11 px-8 w-full mt-2 shadow-sm {isNight ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white'}">
               {#if enviando}
                  Procesando...
               {:else}
