@@ -1,54 +1,53 @@
 <script>
   import { page } from '$app/stores';
-  import { ArrowLeft, Home, Compass } from 'lucide-svelte';
+  import { ArrowLeft } from 'lucide-svelte';
+
+  // Navegación Inteligente: Detecta si la página se abrió en una pestaña nueva
+  function goBack() {
+    if (window.history.length > 2) {
+      window.history.back();
+    } else {
+      window.location.href = '/admin'; // Fallback seguro al Inventario
+    }
+  }
 </script>
 
-<div class="min-h-screen bg-zinc-950 flex flex-col items-center justify-center font-sans text-zinc-50 p-6 relative overflow-hidden">
+<div class="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center font-sans p-6 relative overflow-hidden">
   
-  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-white/[0.04] rounded-[100%] blur-[80px] pointer-events-none"></div>
 
-  <div class="relative z-10 text-center max-w-lg animate-[fadeIn_0.5s_ease-out]">
-    <div class="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-zinc-900 border border-zinc-800 shadow-2xl mb-8 ring-1 ring-zinc-800/50">
-      <Compass class="w-10 h-10 text-indigo-400" />
-    </div>
+  <div class="relative z-10 text-center max-w-2xl animate-[fadeIn_0.6s_ease-out]">
     
-    <h1 class="text-8xl font-black tracking-tighter text-white mb-2 drop-shadow-lg">
+    <h1 class="text-[140px] leading-none font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/10 mb-6 select-none">
       {$page.status}
     </h1>
     
-    <h2 class="text-2xl font-bold text-zinc-300 tracking-tight mb-6">
+    <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight mb-4">
       {#if $page.status === 404}
-        Territorio Inexplorado
+        Esta página no existe.
       {:else}
-        Interrupción del Sistema
+        Error interno del sistema.
       {/if}
     </h2>
     
-    <p class="text-zinc-500 font-medium mb-10 leading-relaxed text-sm">
+    <p class="text-zinc-500 font-medium mb-12 text-sm sm:text-base max-w-md mx-auto leading-relaxed">
       {#if $page.status === 404}
-        La propiedad o la página que buscas no existe en nuestra base de datos, ha sido eliminada o la dirección es incorrecta.
+        El activo inmobiliario que buscas es privado, ha sido removido del inventario oficial o la dirección URL es incorrecta.
       {:else}
-        {$page.error?.message || 'Ha ocurrido un error inesperado en el servidor. Nuestro equipo técnico ha sido notificado.'}
+        {$page.error?.message || 'Hemos detectado una anomalía de conexión. El equipo técnico de Inmublia ha sido notificado.'}
       {/if}
     </p>
 
-    <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-      <button onclick={() => window.history.back()} class="inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800 border border-zinc-800 h-12 px-8 gap-2 w-full sm:w-auto shadow-sm active:scale-95">
-        <ArrowLeft class="w-4 h-4" />
-        Regresar
-      </button>
-      
-      <a href="/" class="inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-zinc-950 hover:bg-zinc-200 h-12 px-8 gap-2 w-full sm:w-auto shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95">
-        <Home class="w-4 h-4" />
-        Ir al Inicio
-      </a>
-    </div>
+    <button onclick={goBack} class="inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-zinc-700 bg-white text-black hover:bg-zinc-200 hover:scale-105 h-12 px-8 gap-2 shadow-[0_0_40px_rgba(255,255,255,0.15)] active:scale-95 mx-auto">
+      <ArrowLeft class="w-4 h-4" />
+      Regresar al Inventario
+    </button>
   </div>
 </div>
 
 <style>
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
 </style>
