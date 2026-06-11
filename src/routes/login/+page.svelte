@@ -1,101 +1,118 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { ShieldCheck, Mail, KeyRound, Loader2, AlertCircle, Info, ArrowRight } from 'lucide-svelte';
   
-  // Svelte 5: Extraemos los errores devueltos por el servidor si el password falla
   let { form } = $props();
-  
   const motivo = $page.url.searchParams.get('motivo');
   let cargando = $state(false);
 </script>
 
-<div class="min-h-screen bg-slate-50 flex flex-col justify-center items-center font-sans text-slate-900 selection:bg-slate-200">
+<div class="min-h-screen bg-zinc-950 flex flex-col justify-center items-center font-sans text-white selection:bg-indigo-500/30 relative overflow-hidden">
   
-  <div class="w-full max-w-[440px] px-6 py-12 md:px-10 md:py-16 bg-white sm:rounded-3xl sm:shadow-[0_16px_70px_rgba(0,0,0,0.04)] sm:border sm:border-slate-100 relative overflow-hidden">
-    
-    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-slate-100 via-slate-300 to-slate-100"></div>
+  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none"></div>
 
-    <div class="flex flex-col items-center mb-12">
-      <img src="/logo.png" alt="Inmublia" class="h-10 w-auto mb-8">
-      <h1 class="text-3xl font-black text-slate-950 tracking-tighter leading-tight text-center">
+  <div class="w-full max-w-[440px] px-6 py-12 md:px-10 md:py-16 bg-zinc-900/40 backdrop-blur-xl sm:rounded-3xl sm:shadow-2xl sm:border sm:border-white/10 relative z-10">
+    
+    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>
+
+    <div class="flex flex-col items-center mb-10">
+      <div class="w-14 h-14 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center mb-8 shadow-inner ring-1 ring-white/5">
+        <img src="/logo.png" alt="Inmublia" class="h-8 w-auto filter invert opacity-90">
+      </div>
+      <h1 class="text-3xl font-black tracking-tighter leading-tight text-center text-white drop-shadow-sm">
         Consola Operativa
       </h1>
-      <p class="text-sm text-slate-500 mt-2.5 text-center font-medium max-w-[300px]">
-        Gestiona tu inventario y prospectos con la plataforma líder en Real Estate.
+      <p class="text-xs text-zinc-400 mt-3 text-center font-medium max-w-[280px] tracking-wide">
+        Gestión patrimonial exclusiva. Identifícate para acceder a tu entorno.
       </p>
     </div>
 
-    <div class="space-y-4 mb-10">
+    <div class="space-y-4 mb-8">
       {#if motivo === 'inactividad'}
-        <div class="flex items-center gap-3.5 px-5 py-4 bg-slate-50 text-slate-700 rounded-2xl border border-slate-100 shadow-inner">
-          <div class="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-amber-500 shrink-0 shadow-sm">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+        <div class="flex items-center gap-3.5 px-4 py-3 bg-amber-500/10 text-amber-500 rounded-xl border border-amber-500/20 shadow-sm animate-[fadeIn_0.3s_ease-out]">
+          <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+            <Info class="w-4 h-4" />
           </div>
           <div class="flex-1">
-            <p class="text-xs font-bold text-slate-950">Acceso Seguro</p>
-            <p class="text-xs text-slate-600 mt-0.5">Por seguridad, tu sesión ha finalizado. Ingresa de nuevo.</p>
+            <p class="text-[10px] font-black uppercase tracking-widest text-amber-400">Acceso Seguro</p>
+            <p class="text-xs mt-0.5 font-medium">Por seguridad, tu sesión ha finalizado.</p>
           </div>
         </div>
       {/if}
 
       {#if form?.error}
-        <div class="flex items-center gap-3.5 px-5 py-4 bg-red-50 text-red-700 rounded-2xl border border-red-100">
-          <div class="w-10 h-10 rounded-full bg-white border border-red-200 flex items-center justify-center text-red-500 shrink-0 shadow-sm">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        <div class="flex items-center gap-3.5 px-4 py-3 bg-red-500/10 text-red-500 rounded-xl border border-red-500/20 shadow-sm animate-[fadeIn_0.3s_ease-out]">
+          <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+            <AlertCircle class="w-4 h-4" />
           </div>
           <div class="flex-1">
-            <p class="text-xs font-bold text-red-950">Fallo de Autenticación</p>
-            <p class="text-xs text-red-600 mt-0.5">{form.error}</p>
+            <p class="text-[10px] font-black uppercase tracking-widest text-red-400">Autenticación Fallida</p>
+            <p class="text-xs mt-0.5 font-medium">{form.error}</p>
           </div>
         </div>
       {/if}
     </div>
 
-    <form method="POST" action="?/ingresar" class="space-y-6" onsubmit={() => cargando = true}>
+    <form method="POST" action="?/ingresar" class="space-y-5" onsubmit={() => cargando = true}>
       
-      <div class="space-y-1.5 relative group">
-        <label for="email" class="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Correo electrónico</label>
+      <div class="space-y-1.5 group">
+        <label for="email" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 px-1 transition-colors group-focus-within:text-indigo-400">Credencial de Acceso</label>
         <div class="relative">
-          <div class="absolute inset-y-0 left-0 pl-4.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-slate-900 transition-colors">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.206"></path></svg>
+          <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
+            <Mail class="w-4 h-4" />
           </div>
-          <input type="email" name="email" id="email" placeholder="juan.perez@agencia.com" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-13 pr-5 py-4 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none transition-all shadow-inner" />
+          <input type="email" name="email" id="email" placeholder="correo@agencia.com" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
         </div>
       </div>
 
-      <div class="space-y-1.5 relative group">
-        <label for="password" class="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Contraseña</label>
+      <div class="space-y-1.5 group">
+        <div class="flex items-center justify-between px-1">
+           <label for="password" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 transition-colors group-focus-within:text-indigo-400">Llave Criptográfica</label>
+           <button type="button" class="text-[10px] font-bold text-zinc-500 hover:text-white transition-colors">¿Olvidaste tu llave?</button>
+        </div>
         <div class="relative">
-          <div class="absolute inset-y-0 left-0 pl-4.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-slate-900 transition-colors">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+          <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
+            <KeyRound class="w-4 h-4" />
           </div>
-          <input type="password" name="password" id="password" placeholder="••••••••••••" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-13 pr-5 py-4 text-sm text-slate-950 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none transition-all shadow-inner" />
+          <input type="password" name="password" id="password" placeholder="••••••••••••" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
         </div>
       </div>
 
-      <div class="pt-2">
-        <button type="submit" disabled={cargando} class="w-full bg-slate-950 hover:bg-slate-800 disabled:opacity-60 text-white font-bold py-4.5 px-6 rounded-2xl transition-all shadow-lg shadow-slate-950/10 flex items-center justify-center gap-3 text-sm">
+      <div class="pt-4">
+        <button type="submit" disabled={cargando} class="w-full bg-white hover:bg-zinc-200 text-black disabled:opacity-50 disabled:hover:bg-white font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95 group">
           {#if cargando}
-            <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-            Verificando identidad...
+            <Loader2 class="w-4 h-4 animate-spin text-black" />
+            Desencriptando...
           {:else}
-            Entrar a mi Consola
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+            <ShieldCheck class="w-4 h-4" />
+            Acceder al Sistema
+            <ArrowRight class="w-4 h-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
           {/if}
         </button>
       </div>
 
     </form>
 
-    <div class="mt-12 pt-8 border-t border-slate-100 text-center">
-      <p class="text-sm text-slate-500">
-        ¿No tienes cuenta? <a href="/registro" class="font-bold text-slate-950 hover:text-blue-600 transition-colors">Contrata Inmublia</a>
+    <div class="mt-10 pt-8 border-t border-white/5 text-center">
+      <p class="text-xs text-zinc-500 font-medium">
+        ¿Aún no tienes infraestructura propia? <br>
+        <a href="/registro" class="inline-flex items-center gap-1 font-bold text-white hover:text-indigo-400 transition-colors mt-2">
+          Contactar a Ventas Inmublia <ArrowRight class="w-3 h-3" />
+        </a>
       </p>
     </div>
 
   </div>
 
-  <footer class="mt-10 text-center px-6">
-    <p class="text-xs text-slate-400 font-medium">&copy; 2024 Inmublia Technologies. Todos los derechos reservados.</p>
+  <footer class="mt-8 text-center px-6 relative z-10">
+    <p class="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">&copy; 2026 Inmublia Technologies. Secured Platform.</p>
   </footer>
 
 </div>
+
+<style>
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
