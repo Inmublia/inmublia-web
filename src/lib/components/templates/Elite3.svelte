@@ -379,7 +379,7 @@
             </div>
             
             <button type="submit" disabled={enviando} class="w-full text-left pt-8 text-[10px] font-bold uppercase tracking-[0.4em] text-bronze hover:text-white transition-colors disabled:opacity-50 flex items-center justify-between group">
-              <span>{#if enviando}Procesando Alta...{:else}Emitir Solicitud{:/if}</span>
+              <span>{#if enviando}Procesando Alta...{:else}Emitir Solicitud{/if}</span>
               <ArrowUpRight class="w-4 h-4 transform group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
             </button>
           </form>
