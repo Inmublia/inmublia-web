@@ -14,16 +14,19 @@
     MapPin, 
     MessageCircle, 
     Video,
-    BadgeDollarSign
+    BadgeDollarSign,
+    LayoutTemplate
   } from 'lucide-svelte';
 
   let { form, data } = $props();
   let creditosIA = $state(data.creditos_ia ?? 0);
+  let planSuscripcion = $derived(data.plan_suscripcion); // Plan del broker
   
   let loading = $state(false);
   let imagePreview = $state(null);
   let galeriaPreviews = $state([]);
   let isOculta = $state(false);
+  let selectedTemplate = $state('classic'); // Estado de la plantilla
 
   // --- ESTADOS DE LA IA ---
   let generandoIA = $state(false);
@@ -42,6 +45,25 @@
   let selectTipo = $state(null);
   let selectOperacion = $state(null);
   let inputRecamaras = $state(null);
+
+  const catalogoTemplates = [
+    { id: 'classic', nombre: 'Classic', minPlan: 'basico' },
+    { id: 'clean', nombre: 'Clean Base', minPlan: 'basico' },
+    { id: 'modern', nombre: 'Modern Grid', minPlan: 'pro' },
+    { id: 'editorial', nombre: 'Editorial', minPlan: 'pro' },
+    { id: 'conversion', nombre: 'Conversion Focus', minPlan: 'pro' },
+    { id: 'luxury', nombre: 'Luxury Immersive', minPlan: 'elite' },
+    { id: 'cinematic', nombre: 'Cinematic', minPlan: 'elite' },
+    { id: 'prestige', nombre: 'Prestige Dark', minPlan: 'elite' },
+    { id: 'panoramic', nombre: 'Panoramic 3D', minPlan: 'elite' }
+  ];
+
+  function puedeUsarTemplate(minPlan) {
+    if (minPlan === 'basico') return true;
+    if (minPlan === 'pro' && (planSuscripcion === 'pro' || planSuscripcion === 'elite')) return true;
+    if (minPlan === 'elite' && planSuscripcion === 'elite') return true;
+    return false;
+  }
 
   function handleImageChange(event) {
     const file = event.target.files[0];
@@ -458,6 +480,44 @@
               <label for="destacada" class="text-sm font-semibold text-slate-900 cursor-pointer">VIP / Signature (Propiedad Destacada)</label>
               <p class="text-xs text-slate-500 mt-1 leading-relaxed">Resalta este inmueble en tu catálogo público como una exclusiva de alto valor.</p>
             </div>
+          </div>
+        </section>
+
+        <section class="space-y-6 pt-10 border-t border-slate-100">
+          <div class="border-b border-slate-100 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <LayoutTemplate class="w-5 h-5 text-indigo-500" /> 4. Diseño del Smart Brochure
+              </h2>
+              <p class="text-xs text-slate-500 mt-1">Elige cómo verá tu cliente esta propiedad específica.</p>
+            </div>
+            <div class="bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-lg">
+              <p class="text-[10px] font-bold text-indigo-800 uppercase tracking-widest">Plan Actual: {planSuscripcion}</p>
+            </div>
+          </div>
+
+          <input type="hidden" name="template_id" value={selectedTemplate}>
+
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {#each catalogoTemplates as template}
+              {@const autorizado = puedeUsarTemplate(template.minPlan)}
+              {@const activo = selectedTemplate === template.id}
+              <label class="relative border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 {activo ? 'border-indigo-600 ring-2 ring-indigo-600 shadow-md bg-indigo-50/10' : 'border-slate-200 hover:border-slate-300 bg-white'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
+                <input type="radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
+                <div class="p-4 flex flex-col justify-between h-full min-h-[100px]">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="font-bold text-sm {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
+                    {#if !autorizado}
+                      <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-amber-100 text-amber-800">
+                        🔒 {template.minPlan}
+                      </span>
+                    {:else if activo}
+                      <CheckCircle2 class="w-4 h-4 text-indigo-600" />
+                    {/if}
+                  </div>
+                </div>
+              </label>
+            {/each}
           </div>
         </section>
 
