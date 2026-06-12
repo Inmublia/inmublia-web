@@ -20,13 +20,13 @@
 
   let { form, data } = $props();
   let creditosIA = $state(data.creditos_ia ?? 0);
-  let planSuscripcion = $derived(data.plan_suscripcion); // Plan del broker
+  let planSuscripcion = $derived(data.plan_suscripcion); 
   
   let loading = $state(false);
   let imagePreview = $state(null);
   let galeriaPreviews = $state([]);
   let isOculta = $state(false);
-  let selectedTemplate = $state('classic'); // Estado de la plantilla
+  let selectedTemplate = $state('prop_basic_1'); 
 
   // --- ESTADOS DE LA IA ---
   let generandoIA = $state(false);
@@ -47,15 +47,15 @@
   let inputRecamaras = $state(null);
 
   const catalogoTemplates = [
-    { id: 'classic', nombre: 'Classic', minPlan: 'basico' },
-    { id: 'clean', nombre: 'Clean Base', minPlan: 'basico' },
-    { id: 'modern', nombre: 'Modern Grid', minPlan: 'pro' },
-    { id: 'editorial', nombre: 'Editorial', minPlan: 'pro' },
-    { id: 'conversion', nombre: 'Conversion Focus', minPlan: 'pro' },
-    { id: 'luxury', nombre: 'Luxury Immersive', minPlan: 'elite' },
-    { id: 'cinematic', nombre: 'Cinematic', minPlan: 'elite' },
-    { id: 'prestige', nombre: 'Prestige Dark', minPlan: 'elite' },
-    { id: 'panoramic', nombre: 'Panoramic 3D', minPlan: 'elite' }
+    { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico' },
+    { id: 'prop_basic_2', nombre: 'Clean Showcase', minPlan: 'basico' },
+    { id: 'prop_pro_1', nombre: 'Lead Magnet', minPlan: 'pro' },
+    { id: 'prop_pro_2', nombre: 'Modern Asymmetric', minPlan: 'pro' },
+    { id: 'prop_pro_3', nombre: 'Editorial Story', minPlan: 'pro' },
+    { id: 'prop_elite_1', nombre: 'Luxury Immersive', minPlan: 'elite' },
+    { id: 'prop_elite_2', nombre: 'Cinematic Tour', minPlan: 'elite' },
+    { id: 'prop_elite_3', nombre: 'Prestige Dark', minPlan: 'elite' },
+    { id: 'prop_elite_4', nombre: 'Panoramic 3D', minPlan: 'elite' }
   ];
 
   function puedeUsarTemplate(minPlan) {
@@ -489,10 +489,10 @@
               <h2 class="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                 <LayoutTemplate class="w-5 h-5 text-indigo-500" /> 4. Diseño del Smart Brochure
               </h2>
-              <p class="text-xs text-slate-500 mt-1">Elige cómo verá tu cliente esta propiedad específica.</p>
+              <p class="text-xs text-slate-500 mt-1">Elige la plantilla específica para vestir la página de este inmueble.</p>
             </div>
             <div class="bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-lg">
-              <p class="text-[10px] font-bold text-indigo-800 uppercase tracking-widest">Plan Actual: {planSuscripcion}</p>
+              <p class="text-[10px] font-bold text-indigo-800 uppercase tracking-widest">Plan de Acceso: {planSuscripcion}</p>
             </div>
           </div>
 
