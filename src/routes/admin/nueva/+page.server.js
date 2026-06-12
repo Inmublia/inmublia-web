@@ -4,25 +4,22 @@ import { env } from '$env/dynamic/private';
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
 
-  // Pasamos los créditos disponibles a la UI para mostrarlos
   const { data: broker } = await locals.supabase
     .from('brokers')
-    .select('ia_creditos_disponibles')
+    .select('ia_creditos_disponibles, plan_suscripcion')
     .eq('email', locals.user.email)
     .single();
 
   return {
-    // Si la columna no existe aún, asumimos 5 como fallback de seguridad
-    creditos_ia: broker?.ia_creditos_disponibles ?? 5 
+    creditos_ia: broker?.ia_creditos_disponibles ?? 5,
+    plan_suscripcion: broker?.plan_suscripcion || 'basico'
   };
 };
 
 export const actions = {
-  // 🔥 EL MOTOR DE IA EN EL BACKEND
   generarCampañaIA: async ({ request, locals }) => {
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
-    // 1. Verificamos créditos en la BD (Candado Anti-Robo)
     const { data: broker } = await locals.supabase
       .from('brokers')
       .select('id, ia_creditos_disponibles, plan_suscripcion')
@@ -44,11 +41,9 @@ export const actions = {
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
-    // 2. Prompt System (Aislado para evitar hacks o preguntas random)
     let systemPrompt = `Eres un estratega de marketing inmobiliario de alto nivel. Tu única función es crear material de ventas para propiedades. Si te preguntan algo ajeno, responde: "Solo redacto textos inmobiliarios."
     Tono requerido: ${tono === 'lujo' ? 'Exclusivo, aspiracional y elegante.' : tono === 'familiar' ? 'Cálido, seguro y enfocado en la familia.' : 'Analítico, enfocado en plusvalía y retorno de inversión.'}`;
 
-    // 3. Prompt User (Estructurado para pedir el JSON exacto de las 3 pestañas)
     const userPrompt = `
       Crea una campaña para esta propiedad:
       - Operación: ${operacion}
@@ -65,7 +60,6 @@ export const actions = {
     `;
 
     try {
-      // Usamos OpenAI GPT-4o-mini por ahora (Perfecto y barato. Lo cambiaremos a DeepSeek V4 después a través de Gateway)
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -87,11 +81,9 @@ export const actions = {
       const iaData = await response.json();
       let iaText = iaData.choices[0].message.content;
       
-      // Limpiamos los backticks de markdown si la IA los mandó
       iaText = iaText.replace(/```json/g, '').replace(/```/g, '');
       const parsedContent = JSON.parse(iaText);
 
-      // 4. Descontamos el crédito en Supabase
       await locals.supabase
         .from('brokers')
         .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
@@ -136,6 +128,9 @@ export const actions = {
     
     const video_url = formData.get('video_url') || null;
     const recorrido_3d_url = formData.get('recorrido_3d_url') || null;
+
+    // 🔥 Recuperamos el Template elegido
+    const template_id = formData.get('template_id') || 'classic';
 
     const imagen = formData.get('imagen'); 
     const galeriaArchivos = formData.getAll('galeria'); 
@@ -216,7 +211,8 @@ export const actions = {
         imagen_url: portadaUrl,
         galeria_urls: galeriaUrls, 
         video_url,
-        recorrido_3d_url 
+        recorrido_3d_url,
+        template_id // 🔥 Guardamos la plantilla elegida en Supabase
       });
 
     if (insertError) return fail(500, { error: `Error SQL: ${insertError.message}` });
