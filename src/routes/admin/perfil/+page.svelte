@@ -2,13 +2,10 @@
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import imageCompression from 'browser-image-compression';
-  import { LayoutTemplate, ShieldCheck } from 'lucide-svelte'; 
+  import { Settings, ShieldCheck } from 'lucide-svelte'; 
 
   let { data, form } = $props();
   let broker = $state(data.broker || {});
-  let planConfig = $derived(data.planConfig || { templates_autorizados: ['classic'] });
-  
-  let selectedTemplate = $state(broker.template_seleccionado || 'classic');
 
   let savingProfile = $state(false);
   let showSuccess = $state(false);
@@ -21,15 +18,6 @@
   const planActual = broker.plan_suscripcion || 'basico';
   const isPro = planActual === 'pro' || planActual === 'elite';
   const isElite = planActual === 'elite';
-
-  const catalogoTemplates = [
-    { id: 'classic', nombre: 'Classic Minimalist', desc: 'Diseño limpio y tradicional.', minPlan: 'basico' },
-    { id: 'clean', nombre: 'Clean Base', desc: 'Estilo corporativo de alto contraste.', minPlan: 'basico' },
-    { id: 'modern', nombre: 'Modern Grid', desc: 'Estilo asimétrico con contacto fijo.', minPlan: 'pro' },
-    { id: 'editorial', nombre: 'Editorial', desc: 'Enfoque en lectura y tipografía elegante.', minPlan: 'pro' },
-    { id: 'luxury', nombre: 'Luxury Immersive', desc: 'Diseño premium de pantalla completa.', minPlan: 'elite' },
-    { id: 'cinematic', nombre: 'Cinematic', desc: 'Video-first con navegación inmersiva.', minPlan: 'elite' }
-  ];
 
   function handleFileSelect(event) {
     const file = event.target.files[0];
@@ -62,7 +50,7 @@
     <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none translate-x-1/4 -translate-y-1/2"></div>
     <div class="flex items-center gap-4 relative z-10">
       <div class="p-2.5 bg-zinc-900 rounded-xl text-white shadow-sm border border-zinc-800">
-        <LayoutTemplate class="w-5 h-5 text-indigo-400" />
+        <Settings class="w-5 h-5 text-indigo-400" />
       </div>
       <div>
         <h1 class="text-xl font-black tracking-tight text-white">Configuración de Agencia</h1>
@@ -241,48 +229,6 @@
                   </div>
                   <input type="text" name="pixel_tiktok" bind:value={broker.pixel_tiktok} disabled={!isElite} placeholder={isElite ? "Ej. CB1234567890" : "Exclusivo Plan Elite"} class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed">
                 </div>
-              </div>
-            </div>
-
-            <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100">
-              <div class="flex items-center gap-3 mb-6">
-                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                <div>
-                  <h3 class="text-lg font-black text-slate-900">Diseño del Portal (Templates)</h3>
-                  <p class="text-[11px] font-medium text-slate-500 mt-1">Tu plan te da acceso a diseños específicos. Selecciona uno.</p>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <input type="hidden" name="template_seleccionado" value={selectedTemplate}>
-                {#each catalogoTemplates as template}
-                  {@const autorizado = planConfig.templates_autorizados.includes(template.id)}
-                  {@const activo = selectedTemplate === template.id}
-                  <div class="relative bg-white border rounded-xl flex flex-col overflow-hidden transition-all {activo ? 'border-indigo-600 ring-1 ring-indigo-600' : 'border-slate-200 hover:border-slate-300'} {!autorizado ? 'opacity-60 bg-slate-50' : ''}">
-                    <div class="h-20 bg-slate-100 border-b border-slate-200 flex items-center justify-center relative group">
-                      <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                      <a href="https://{broker.subdominio}.inmublia.com/?preview={template.id}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center gap-2 text-white font-bold text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:text-amber-400">
-                        Ver Preview
-                      </a>
-                    </div>
-                    <label class="p-4 flex flex-col justify-between flex-1 cursor-pointer {activo ? 'bg-indigo-50/20' : ''} {!autorizado ? 'cursor-not-allowed' : ''}">
-                      <input type="radio" name="template_radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
-                      <div>
-                        <div class="flex items-center justify-between mb-2">
-                          <span class="font-bold text-sm {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
-                          {#if !autorizado}
-                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 uppercase tracking-widest shadow-sm flex shrink-0">🔒 {template.minPlan}</span>
-                          {:else if activo}
-                            <span class="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0">
-                              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            </span>
-                          {/if}
-                        </div>
-                        <p class="text-[10px] text-slate-500 leading-relaxed mb-4">{template.desc}</p>
-                      </div>
-                    </label>
-                  </div>
-                {/each}
               </div>
             </div>
 
