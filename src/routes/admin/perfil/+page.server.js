@@ -1,5 +1,4 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { PLANES_CONFIG } from '$lib/config/plans';
 
 export async function load({ locals }) {
   const user = locals.user;
@@ -13,10 +12,7 @@ export async function load({ locals }) {
 
   if (error || !broker) throw redirect(303, '/login');
 
-  const planActual = broker.plan_suscripcion || 'basico';
-  const planConfig = PLANES_CONFIG?.[planActual] || { templates_autorizados: ['classic', 'clean', 'modern', 'editorial', 'luxury', 'cinematic'] };
-
-  return { broker, planConfig };
+  return { broker };
 }
 
 export const actions = {
@@ -32,13 +28,10 @@ export const actions = {
       const subdominio = formData.get('subdominio')?.toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
       const bio = formData.get('bio')?.toString().trim() || null;
       
-      // Nuevas Redes Sociales
       const facebook = formData.get('facebook')?.toString().trim() || null;
       const instagram = formData.get('instagram')?.toString().trim() || null;
       const linkedin = formData.get('linkedin')?.toString().trim() || null;
       const tiktok = formData.get('tiktok')?.toString().trim() || null;
-      
-      const template_seleccionado = formData.get('template_seleccionado')?.toString().trim();
 
       if (!nombre_comercial || !whatsapp || !subdominio) {
         return fail(400, { error: 'El nombre, WhatsApp y subdominio son obligatorios.' });
@@ -52,19 +45,11 @@ export const actions = {
         
       if (brokerError || !brokerActual) return fail(403, { error: `No se pudo obtener tu perfil: ${brokerError?.message}` });
 
-      if (template_seleccionado && PLANES_CONFIG) {
-        const planSaaS = PLANES_CONFIG[brokerActual.plan_suscripcion || 'basico'];
-        if (planSaaS && planSaaS.templates_autorizados && !planSaaS.templates_autorizados.includes(template_seleccionado)) {
-          return fail(403, { error: `Suscripción insuficiente para la plantilla: ${template_seleccionado}` });
-        }
-      }
-
       const updatePayload = {
         nombre_comercial, whatsapp, subdominio, bio,
         facebook, instagram, linkedin, tiktok
       };
 
-      // 🛡️ REGLA DE NEGOCIO SAAS PARA PÍXELES
       const plan = brokerActual.plan_suscripcion || 'basico';
       const isPro = plan === 'pro' || plan === 'elite';
       const isElite = plan === 'elite';
@@ -75,11 +60,6 @@ export const actions = {
       }
       if (isElite) {
         updatePayload.pixel_tiktok = formData.get('pixel_tiktok')?.toString().trim() || null;
-      }
-
-      if (template_seleccionado) {
-        updatePayload.template_seleccionado = template_seleccionado;
-        updatePayload.template = template_seleccionado; 
       }
 
       const avatarFile = formData.get('avatar');
