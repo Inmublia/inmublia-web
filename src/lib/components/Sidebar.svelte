@@ -6,7 +6,8 @@
     TrendingUp, 
     Settings, 
     LogOut,
-    Target
+    Target,
+    Palette
   } from 'lucide-svelte';
   
   // Extraemos el broker directamente del store global
@@ -51,6 +52,11 @@
 
     <div class="my-4 border-t border-zinc-800/50 mx-3"></div>
     <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4 px-3">Sistema</p>
+
+    <a href="/admin/apariencia" class="flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold transition-all {rutaActual.includes('/admin/apariencia') ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 border border-transparent'}">
+      <Palette class="w-4 h-4 {rutaActual.includes('/admin/apariencia') ? 'text-indigo-400' : 'text-zinc-500'}" />
+      Design Studio
+    </a>
 
     <a href="/admin/perfil" class="flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold transition-all {rutaActual.includes('/admin/perfil') ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 border border-transparent'}">
       <Settings class="w-4 h-4 {rutaActual.includes('/admin/perfil') ? 'text-indigo-400' : 'text-zinc-500'}" />
