@@ -1,184 +1,213 @@
 <script>
+  // ==========================================
+  // INMUBLIA ADMIN: THE DESIGN SANCTUARY
+  // ==========================================
   import { enhance } from '$app/forms';
-  import { invalidateAll } from '$app/navigation';
-  import { Palette, ShieldCheck, CheckCircle2, AlertCircle, LayoutTemplate } from 'lucide-svelte'; 
+  import { CheckCircle2, AlertCircle, Save, Layers, Palette, Eye, LayoutGrid, Tablet, Smartphone } from 'lucide-svelte';
+  import AdminLayout from '$lib/components/AdminLayout.svelte';
 
   let { data, form } = $props();
   let broker = $state(data.broker || {});
-  let planConfig = $derived(data.planConfig || { templates_autorizados: ['classic'] });
-  let planSuscripcion = $derived(broker.plan_suscripcion || 'basico');
   
-  let selectedTemplate = $state(broker.template_seleccionado || 'classic');
+  // 🔥 CANDADO DE NEGOCIO: Solo templates autorizados por el plan ELITE
+  let planConfig = $derived(data.planConfig || { templates_autorizados: ['prop_elite_1'] });
+  let templatesAutorizados = $derived(planConfig.templates_autorizados);
 
-  let savingProfile = $state(false);
-  let showSuccess = $state(false);
+  let savingDesign = $state(false);
 
-  // 1. CATÁLOGO GLOBAL DE AGENCIA (Las 6 originales)
-  const catalogoGlobal = [
-    { id: 'classic', nombre: 'Classic Minimalist', desc: 'Diseño limpio y tradicional.', minPlan: 'basico' },
-    { id: 'clean', nombre: 'Clean Base', desc: 'Estilo corporativo de alto contraste.', minPlan: 'basico' },
-    { id: 'modern', nombre: 'Modern Grid', desc: 'Estilo asimétrico con contacto fijo.', minPlan: 'pro' },
-    { id: 'editorial', nombre: 'Editorial', desc: 'Enfoque en lectura y tipografía elegante.', minPlan: 'pro' },
-    { id: 'luxury', nombre: 'Luxury Immersive', desc: 'Diseño premium de pantalla completa.', minPlan: 'elite' },
-    { id: 'cinematic', nombre: 'Cinematic', desc: 'Video-first con navegación inmersiva.', minPlan: 'elite' }
-  ];
+  // --- LÓGICA DE PREVISUALIZACIÓN DINÁMICA DE BROCHURES ---
+  // Mapa de miniaturas y previews reales para datos demo
+  const catalogTemplates = {
+    'prop_elite_1': { 
+      name: 'Luxury Immersive', 
+      desc: 'Glassmorphism sobre fondo fijo al 100%.',
+      demoUrl: 'https://demo.inmublia.com/demo-property-elite1' // Url de demo real de Inmublia
+    },
+    'prop_elite_2': { 
+      name: 'Cinematic Tour', 
+      desc: 'Video hero en bucle como fondo inmersivo.',
+      demoUrl: 'https://demo.inmublia.com/demo-property-elite2'
+    },
+    'prop_elite_3': { 
+      name: 'Prestige Dark', 
+      desc: 'Estética neo-brutalista en negro y bronce.',
+      demoUrl: 'https://demo.inmublia.com/demo-property-elite3'
+    },
+    'prop_elite_4': { 
+      name: 'Panoramic 3D', 
+      desc: 'Matterport 3D como protagonista absoluto.',
+      demoUrl: 'https://demo.inmublia.com/demo-property-elite4'
+    }
+  };
 
-  // 2. GALERÍA DE SMART BROCHURES (Las 9 nuevas para propiedades)
-  const catalogoPropiedades = [
-    { id: 'prop_basic_1', nombre: 'Essential Focus', desc: 'Ficha técnica directa.', minPlan: 'basico' },
-    { id: 'prop_basic_2', nombre: 'Clean Showcase', desc: 'Enfoque en la galería.', minPlan: 'basico' },
-    { id: 'prop_pro_1', nombre: 'Lead Magnet', desc: 'Captura de leads agresiva.', minPlan: 'pro' },
-    { id: 'prop_pro_2', nombre: 'Modern Asymmetric', desc: 'Diseño para desarrollos.', minPlan: 'pro' },
-    { id: 'prop_pro_3', nombre: 'Editorial Story', desc: 'Narrativa visual elegante.', minPlan: 'pro' },
-    { id: 'prop_elite_1', nombre: 'Luxury Immersive', desc: 'Premium pantalla completa.', minPlan: 'elite' },
-    { id: 'prop_elite_2', nombre: 'Cinematic Tour', desc: 'Video inmersivo inicial.', minPlan: 'elite' },
-    { id: 'prop_elite_3', nombre: 'Prestige Dark', desc: 'Modo oscuro absoluto.', minPlan: 'elite' },
-    { id: 'prop_elite_4', nombre: 'Panoramic 3D', desc: 'Matterport como héroe.', minPlan: 'elite' }
-  ];
+  // Filtramos el catálogo para mostrar solo los autorizados
+  let authorizedCatalog = $derived(
+    Object.entries(catalogTemplates)
+      .filter(([id]) => templatesAutorizados.includes(id))
+      .map(([id, data]) => ({ id, ...data }))
+  );
 
-  function puedeUsarPropiedad(minPlan) {
-    if (minPlan === 'basico') return true;
-    if (minPlan === 'pro' && (planSuscripcion === 'pro' || planSuscripcion === 'elite')) return true;
-    if (minPlan === 'elite' && planSuscripcion === 'elite') return true;
-    return false;
-  }
+  // Estado para la previsualización del catálogo
+  // Fallback si no hay plantilla elegida -> la primera autorizada
+  let selectedTemplateId = $state(broker.template_id_catalog || templatesAutorizados[0] || 'prop_elite_1');
+  let selectedTemplateData = $derived(catalogTemplates[selectedTemplateId]);
+  let previewMode = $state('tablet'); // 'mobile' o 'tablet'
 </script>
 
-<main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F8FAFC]">
+<style>
+  /* Efecto de borde de selección ámbar */
+  .template-card.selected {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  }
+</style>
+
+<AdminLayout title="Santuario de Diseño" broker={broker}>
   
-  <header class="h-24 bg-zinc-950 border-b border-zinc-800 flex items-center px-10 shrink-0 shadow-xl shadow-zinc-900/10 z-10 relative">
-    <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none translate-x-1/4 -translate-y-1/2"></div>
-    <div class="flex items-center gap-4 relative z-10">
-      <div class="p-2.5 bg-zinc-900 rounded-xl text-white shadow-sm border border-zinc-800">
-        <Palette class="w-5 h-5 text-indigo-400" />
+  <header class="sticky top-[73px] bg-white border-b border-slate-200 p-6 z-40 mb-8 -mx-6 shadow-sm flex items-center justify-between">
+    <div class="flex items-center gap-3.5">
+      <div class="p-3.5 rounded-2xl bg-amber-500/10 text-amber-600 border border-amber-500/20 shadow-inner">
+        <Palette class="w-7 h-7" />
       </div>
       <div>
-        <h1 class="text-xl font-black tracking-tight text-white">Design Studio</h1>
-        <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
-          <ShieldCheck class="w-3 h-3 text-emerald-500" /> Nivel de acceso: <span class="text-zinc-300 uppercase">{planSuscripcion}</span>
-        </p>
+        <h1 class="text-3xl font-black text-slate-900 tracking-tight">Apariencia y Marca</h1>
+        <p class="text-slate-500 text-sm font-medium mt-1">Defina la identidad de su portal inmobiliario y el estilo de sus Smart Brochures Elite.</p>
       </div>
     </div>
+
+    <form method="POST" action="?/saveAllDesign" use:enhance={() => { savingDesign = true; return async ({ update }) => { savingDesign = false; update(); }; }}>
+      <input type="hidden" name="template_id_catalog" value={selectedTemplateId}>
+      
+      <button type="submit" disabled={savingDesign} class="flex items-center gap-2.5 px-7 py-3.5 bg-amber-500 text-white rounded-xl text-sm font-extrabold hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/30 disabled:opacity-50 active:scale-[0.98]">
+        {#if savingDesign}
+          Procesando...
+        {:else}
+          <Save class="w-4 h-4" /> Guardar Configuración de Diseño
+        {/if}
+      </button>
+    </form>
   </header>
 
-  <div class="p-10 flex-1 overflow-auto pb-32">
-    <div class="max-w-7xl mx-auto space-y-12">
+  {#if form?.success}
+    <div class="p-5 rounded-2xl font-bold mb-8 text-sm flex items-center gap-3 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" role="alert">
+      <CheckCircle2 class="w-5 h-5" /> Configuración de diseño y catálogo actualizada correctamente.
+    </div>
+  {:else if form?.error}
+    <div class="p-5 rounded-2xl font-bold mb-8 text-sm flex items-center gap-3 bg-rose-500/10 text-rose-600 border border-rose-500/20" role="alert">
+      <AlertCircle class="w-5 h-5" /> Error: {form.error}
+    </div>
+  {/if}
 
-      {#if form?.error}
-         <div class="font-medium p-4 rounded-xl text-sm flex items-center gap-2 bg-red-50 border border-red-100 text-red-700 shadow-sm" role="alert">
-           <AlertCircle class="w-4 h-4" /> {form.error}
-         </div>
-      {/if}
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+    
+    <div class="lg:col-span-6 space-y-10">
       
-      {#if showSuccess}
-        <div class="font-medium p-4 rounded-xl text-sm flex items-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-700 shadow-sm animate-[fadeIn_0.3s_ease-out]" role="alert">
-          <CheckCircle2 class="w-4 h-4" /> Diseño global actualizado correctamente.
+      <section class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-8 border-b border-slate-200 flex items-center gap-3">
+          <Layers class="w-5 h-5 text-slate-400" />
+          <h2 class="text-xl font-black text-slate-900 tracking-tight">Identidad del Portal Corporativo</h2>
         </div>
-      {/if}
+        
+        <div class="p-10 text-center flex flex-col items-center gap-6 border-b border-slate-100 bg-zinc-950 shadow-inner">
+          <span class="text-[9px] font-bold uppercase tracking-[0.3em] text-zinc-600">PREVISUALIZACIÓN DE BARRA SUPERIOR</span>
+          <img src={broker.avatar_url || 'https://ui-avatars.com/api/?name=Inmublia&background=f59e0b&color=fff'} alt="Logo" class="w-20 h-20 rounded-full border-4 border-white object-cover shadow-xl">
+          <span class="text-xs uppercase tracking-[0.3em] font-extrabold text-white">{broker.nombre_comercial || 'Inmublia'}</span>
+        </div>
 
-      <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-100">
-          <div>
-            <h3 class="text-xl font-black text-slate-900">1. Identidad de Portal (Global)</h3>
-            <p class="text-xs font-medium text-slate-500 mt-1">Selecciona el diseño principal de tu catálogo donde se listarán todas tus propiedades.</p>
+        <div class="p-8">
+          <p class="text-xs font-semibold text-slate-500 mb-6 leading-relaxed">Arrastre y suelte su logotipo corporativo (formato PNG transparente recomendado, máx 1MB). Este se mostrará en la barra superior de su portal de propiedades y en las cabeceras de las Smart Brochures.</p>
+          
+          <div class="w-full">
+            <input type="text" value={broker.nombre_comercial || ''} placeholder="Nombre Comercial (ej. Inmublia Exclusivas)" class="w-full h-12 rounded-xl border border-slate-200 px-4 text-sm font-medium focus:border-amber-400 focus:ring-amber-200 transition-colors" readonly>
+            <p class="text-[10px] font-semibold text-slate-400 mt-1.5 ml-1">Vea el perfil para cambiar el nombre comercial.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-8 border-b border-slate-200 flex items-center gap-3">
+          <LayoutGrid class="w-5 h-5 text-slate-400" />
+          <h2 class="text-xl font-black text-slate-900 tracking-tight">Configuración del Catálogo Elite</h2>
+        </div>
+
+        <div class="p-8">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {#each authorizedCatalog as template}
+              <button 
+                onclick={() => selectedTemplateId = template.id} 
+                class="template-card flex flex-col bg-white p-5 rounded-[2rem] border-2 border-slate-100 transition-all text-left group hover:border-amber-200 hover:shadow-lg active:scale-[0.98]"
+                class:selected={selectedTemplateId === template.id}
+              >
+                <div class="w-full h-32 bg-slate-950 rounded-xl mb-4 overflow-hidden shadow-inner flex items-center justify-center p-2 relative">
+                  <span class="absolute top-2 right-2 p-1.5 rounded-full bg-white/10 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Eye class="w-4 h-4" />
+                  </span>
+                  <div class="w-24 h-24 bg-white/10 rounded-full border border-white/20 shadow-xl flex items-center justify-center text-white/50 text-xs font-black uppercase tracking-widest">{template.name.split(' ')[0]}</div>
+                </div>
+                
+                <h4 class="text-sm font-extrabold text-slate-900 group-hover:text-amber-600 transition-colors">{template.name}</h4>
+                <p class="text-xs font-medium text-slate-500 mt-1.5 leading-relaxed flex-1">{template.desc}</p>
+                
+                <span class="text-[10px] font-bold text-amber-500 uppercase tracking-widest mt-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5">
+                  <Palette class="w-3.5 h-3.5" /> Seleccionar plantilla
+                </span>
+              </button>
+            {/each}
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="lg:col-span-6">
+      <section class="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden sticky top-[180px]">
+        
+        <div class="p-6 border-b border-slate-200 flex items-center justify-between gap-3 bg-slate-50">
+          <div class="flex items-center gap-3">
+            <div class="p-2.5 rounded-xl bg-slate-900 text-white border border-slate-700 shadow-inner">
+              <Eye class="w-5 h-5" />
+            </div>
+            <div>
+              <h3 class="text-base font-black text-slate-900 tracking-tight">Previsualización del Catálogo</h3>
+              <p class="text-[11px] font-semibold text-amber-600 mt-0.5">Viendo Plantilla: {selectedTemplateData.name}</p>
+            </div>
           </div>
           
-          <form method="POST" action="?/updateTemplate" use:enhance={() => {
-            savingProfile = true;
-            return async ({ update, result }) => {
-              savingProfile = false;
-              if (result.type === 'failure') alert("❌ Error: " + (result.data?.error || "Desconocido"));
-              else if (result.type === 'success') { showSuccess = true; setTimeout(() => showSuccess = false, 4000); await invalidateAll(); }
-              update({ reset: false });
-            };
-          }}>
-             <input type="hidden" name="template_seleccionado" value={selectedTemplate}>
-             <button type="submit" disabled={savingProfile} class="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 text-white font-bold py-3 px-8 rounded-xl shadow-sm flex items-center justify-center gap-2 transition-all w-full md:w-auto active:scale-95 text-sm">
-                {#if savingProfile}
-                  <span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Guardando...
-                {:else}
-                  <CheckCircle2 class="w-4 h-4" /> Guardar Portal
-                {/if}
-             </button>
-          </form>
+          <div class="flex items-center gap-2 bg-white p-1 rounded-full border border-slate-200 shadow-sm">
+            <button onclick={() => previewMode = 'tablet'} class="p-2.5 rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-900" class:bg-amber-100={previewMode === 'tablet'} class:text-amber-700={previewMode === 'tablet'}>
+              <Tablet class="w-4 h-4" />
+            </button>
+            <button onclick={() => previewMode = 'mobile'} class="p-2.5 rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-900" class:bg-amber-100={previewMode === 'mobile'} class:text-amber-700={previewMode === 'mobile'}>
+              <Smartphone class="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {#each catalogoGlobal as template}
-            {@const autorizado = planConfig.templates_autorizados.includes(template.id)}
-            {@const activo = selectedTemplate === template.id}
-            <div class="relative bg-white border rounded-2xl flex flex-col overflow-hidden transition-all duration-300 {activo ? 'border-indigo-600 ring-2 ring-indigo-600 shadow-md' : 'border-slate-200 hover:border-slate-300'} {!autorizado ? 'opacity-60 bg-slate-50 grayscale-[30%]' : ''}">
-              
-              <div class="h-24 bg-slate-100 border-b border-slate-200 flex items-center justify-center relative group">
-                <LayoutTemplate class="w-8 h-8 text-slate-300" />
-                <a href="https://{broker.subdominio}.inmublia.com/?preview={template.id}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-slate-900/70 backdrop-blur-[2px] flex items-center justify-center gap-2 text-white font-bold text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                  Vista Previa
-                </a>
-              </div>
-              
-              <label class="p-4 flex flex-col justify-between flex-1 cursor-pointer {activo ? 'bg-indigo-50/10' : ''} {!autorizado ? 'cursor-not-allowed' : ''}">
-                <input type="radio" name="template_radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
-                <div>
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="font-black text-sm {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
-                    {#if !autorizado}
-                      <span class="text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest {template.minPlan === 'elite' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'}">
-                         🔒 {template.minPlan}
-                      </span>
-                    {:else if activo}
-                      <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-sm">
-                        <CheckCircle2 class="w-3.5 h-3.5" />
-                      </span>
-                    {/if}
-                  </div>
-                  <p class="text-[11px] text-slate-500 font-medium leading-relaxed">{template.desc}</p>
-                </div>
-              </label>
+        <div class="p-8 md:p-12 text-center flex flex-col items-center bg-slate-900 min-h-[600px] shadow-inner relative">
+          
+          <div 
+            class="mockup-frame border-[12px] border-black rounded-[3rem] shadow-[0_40px_100px_rgba(0,0,0,0.8)] overflow-hidden transition-all duration-500 ease-in-out relative bg-white"
+            class:w-[360px]={previewMode === 'mobile'} class:h-[640px]={previewMode === 'mobile'}
+            class:w-[500px]={previewMode === 'tablet'} class:h-[660px]={previewMode === 'tablet'}
+          >
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-6 bg-black rounded-b-xl z-20"></div>
+
+            <iframe 
+              src={selectedTemplateData.demoUrl} 
+              title="Vista previa real"
+              class="w-full h-full border-0 absolute inset-0 z-10"
+              loading="lazy"
+            ></iframe>
+          </div>
+
+          {#if !selectedTemplateData.demoUrl}
+            <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-12 text-center text-slate-500">
+              Elija una plantilla del catálogo a la izquierda para cargar la previsualización interactiva aquí.
             </div>
-          {/each}
-        </div>
-      </div>
+          {/if}
 
-      <div class="bg-slate-900 p-8 rounded-3xl shadow-xl border border-slate-800 relative overflow-hidden">
-        <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none"></div>
-        
-        <div class="mb-8 pb-6 border-b border-slate-800 relative z-10">
-          <h3 class="text-xl font-black text-white">2. Catálogo de Smart Brochures</h3>
-          <p class="text-xs font-medium text-slate-400 mt-1">Estas son las 9 plantillas disponibles para vestir cada propiedad individual. Las seleccionarás al crear o editar una casa en el Inventario.</p>
         </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 relative z-10">
-          {#each catalogoPropiedades as propTemplate}
-            {@const autorizado = puedeUsarPropiedad(propTemplate.minPlan)}
-            <div class="relative bg-slate-800/50 border border-slate-700/50 rounded-2xl flex flex-col overflow-hidden {!autorizado ? 'opacity-40 grayscale-[50%]' : 'hover:border-slate-500 transition-colors'}">
-              
-              <div class="h-20 bg-slate-800 border-b border-slate-700 flex items-center justify-center relative group">
-                <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                <div class="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <span class="text-white font-bold text-[10px] uppercase tracking-widest border border-white/30 px-3 py-1.5 rounded-lg hover:bg-white/10">Ver Demo</span>
-                </div>
-              </div>
-              
-              <div class="p-4 flex flex-col justify-between flex-1">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="font-bold text-xs text-white">{propTemplate.nombre}</span>
-                  {#if !autorizado}
-                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                       🔒 {propTemplate.minPlan}
-                    </span>
-                  {:else}
-                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                       ✓ {propTemplate.minPlan}
-                    </span>
-                  {/if}
-                </div>
-                <p class="text-[10px] text-slate-400 font-medium leading-relaxed">{propTemplate.desc}</p>
-              </div>
-            </div>
-          {/each}
-        </div>
-      </div>
-
+      </section>
     </div>
+
   </div>
-</main>
+</AdminLayout>
