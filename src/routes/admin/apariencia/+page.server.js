@@ -14,22 +14,22 @@ export async function load({ locals }) {
   if (error || !broker) throw redirect(303, '/login');
 
   const planActual = broker.plan_suscripcion || 'basico';
-  const planConfig = PLANES_CONFIG?.[planActual] || { templates_autorizados: ['classic', 'clean', 'modern', 'editorial', 'luxury', 'cinematic'] };
+  const planConfig = PLANES_CONFIG?.[planActual] || { 
+    templates_autorizados: ['classic', 'clean', 'modern', 'editorial', 'luxury', 'cinematic'] 
+  };
 
-  // NUEVO: Traer 1 sola propiedad del broker para usarla como Preview Real de las Brochures
-  const { data: propiedadPreview } = await locals.supabase
+  // Extracción directa de la base de datos de la primera propiedad del broker
+  const { data: propiedad } = await locals.supabase
     .from('propiedades')
     .select('slug')
     .eq('broker_id', broker.id)
-    .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   return { 
     broker, 
     planConfig,
-    // Enviamos el slug. Si no tiene casas, enviará null.
-    previewSlug: propiedadPreview?.slug || null 
+    previewSlug: propiedad?.slug || 'propiedad-demo'
   };
 }
 
@@ -71,10 +71,6 @@ export const actions = {
 
       if (updateError) {
         return fail(500, { error: `FALLO EN BD: ${updateError.message}` });
-      }
-
-      if (!checkUpdate || checkUpdate.length === 0) {
-        return fail(500, { error: 'Fallo silencioso: La actualización no se reflejó.' });
       }
 
       return { success: true };
