@@ -154,3 +154,99 @@
               <div class="h-28 bg-slate-100 border-b border-slate-200 flex flex-col items-center justify-center relative group overflow-hidden">
                 {#if template.id === 'classic' || template.id === 'clean'}
                   <div class="w-full h-full bg-slate-50 flex flex-col p-4">
+                     <div class="w-1/2 h-2 bg-slate-300 rounded mb-2"></div>
+                     <div class="w-full h-full bg-slate-200 rounded"></div>
+                  </div>
+                {:else if template.id === 'modern' || template.id === 'editorial'}
+                  <div class="w-full h-full bg-slate-50 flex gap-2 p-2">
+                     <div class="w-2/3 h-full bg-slate-300 rounded"></div>
+                     <div class="w-1/3 h-full bg-slate-200 rounded"></div>
+                  </div>
+                {:else}
+                  <div class="w-full h-full bg-slate-800 flex items-center justify-center">
+                     <div class="w-1/2 h-4 bg-white/20 rounded-full"></div>
+                  </div>
+                {/if}
+
+                <a href={demoUrls[template.id]} target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-white font-bold text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity z-10" onclick={(e) => e.stopPropagation()}>
+                  <Eye class="w-5 h-5 mb-1" /> Ver Demo Completo
+                </a>
+              </div>
+              
+              <div class="p-5 flex flex-col flex-1">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-black text-sm {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
+                  {#if !autorizado}
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-widest bg-slate-200 text-slate-600">
+                       🔒 {template.minPlan}
+                    </span>
+                  {:else if activo}
+                    <CheckCircle2 class="w-5 h-5 text-indigo-600" />
+                  {/if}
+                </div>
+                <p class="text-[11px] text-slate-500 font-medium leading-relaxed">{template.desc}</p>
+              </div>
+            </label>
+          {/each}
+        </div>
+      </div>
+
+      <div class="bg-slate-900 p-8 rounded-3xl shadow-xl border border-slate-800 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none translate-x-1/4 -translate-y-1/4"></div>
+        
+        <div class="mb-8 border-b border-slate-800 pb-4 relative z-10">
+          <h3 class="text-lg font-black text-white flex items-center gap-2">
+            <Smartphone class="w-5 h-5 text-indigo-400" />
+            2. Arsenal de Smart Brochures
+          </h3>
+          <p class="text-xs font-medium text-slate-400 mt-1">Estos diseños se aplican individualmente en cada propiedad de su inventario. (Modo exhibición).</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 relative z-10">
+          {#each catalogoPropiedades as propTemplate}
+            {@const autorizado = puedeUsar(propTemplate.minPlan)}
+            
+            <div class="relative bg-slate-800/50 border border-slate-700 rounded-2xl flex flex-col overflow-hidden {!autorizado ? 'opacity-40 grayscale' : 'hover:border-indigo-400 hover:shadow-lg transition-all group'}">
+              
+              <div class="h-20 bg-slate-950 flex flex-col items-center justify-center relative p-3">
+                
+                <div class="w-full h-full rounded-md flex items-center justify-center relative overflow-hidden {propTemplate.thumbType === 'immersive' ? 'bg-slate-900 border border-slate-800' : propTemplate.thumbType === 'video' ? 'bg-slate-950 border border-slate-800' : propTemplate.thumbType === 'form' ? 'bg-black border border-zinc-900' : 'bg-slate-50 border border-slate-200'}">
+                  {#if propTemplate.thumbType === 'immersive'}
+                    <div class="w-8 h-8 bg-white/10 rounded-full border border-white/20"></div>
+                  {:else if propTemplate.thumbType === 'video'}
+                    <div class="w-full h-full border-2 border-dashed border-white/10 rounded"></div>
+                  {:else if propTemplate.thumbType === 'form'}
+                    <div class="w-2/3 h-2/3 bg-white/10 rounded p-1 flex flex-col gap-0.5">
+                      <div class="w-full h-1 bg-white/20 rounded"></div>
+                    </div>
+                  {/if}
+                </div>
+
+                <a href={demoUrls[propTemplate.id] || 'https://demo.inmublia.com'} target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-indigo-900/90 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer">
+                  <span class="text-white font-bold text-[10px] uppercase tracking-widest border border-white/30 px-4 py-2 rounded-lg hover:bg-white/20 transition-colors flex items-center gap-1.5"><Eye class="w-3.5 h-3.5" /> Preview</span>
+                </a>
+              </div>
+              
+              <div class="p-5 flex flex-col flex-1">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-bold text-sm text-white truncate pr-2">{propTemplate.nombre}</span>
+                  {#if !autorizado}
+                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-slate-800 text-slate-500 shrink-0">
+                       🔒 {propTemplate.minPlan}
+                    </span>
+                  {:else}
+                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
+                       ✓ {propTemplate.minPlan}
+                    </span>
+                  {/if}
+                </div>
+                <p class="text-[10px] text-slate-400 font-medium leading-relaxed">{propTemplate.desc}</p>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
