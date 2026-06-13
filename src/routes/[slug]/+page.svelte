@@ -20,9 +20,9 @@
 
   let { data, form } = $props();
   
-  // Extraemos la elección de diseño desde la base de datos
-  // Fallbacks para propiedades antiguas o nulas: 'prop_basic_1' o 'classic'
-  let templateId = $derived(data.propiedad?.template_id || 'prop_basic_1');
+  // LÓGICA QUIRÚRGICA: Si viene un template forzado en la URL (?template=), se monta ese. 
+  // Si no, recurre al guardado en base de datos.
+  let templateId = $derived(data.templateForzado || data.propiedad?.template_id || 'prop_basic_1');
 </script>
 
 {#if templateId === 'prop_basic_1' || templateId === 'classic'}
