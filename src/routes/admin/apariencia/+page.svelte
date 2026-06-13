@@ -1,4 +1,5 @@
 <script module>
+  // 1. CATÁLOGO GLOBAL DE AGENCIA (Las 6 originales) - SE GUARDAN EN BD
   export const catalogoGlobal = [
     { id: 'classic', nombre: 'Classic Minimalist', desc: 'Diseño limpio y tradicional.', minPlan: 'basico' },
     { id: 'clean', nombre: 'Clean Base', desc: 'Estilo corporativo de alto contraste.', minPlan: 'basico' },
@@ -8,16 +9,17 @@
     { id: 'cinematic', nombre: 'Cinematic', desc: 'Video-first con navegación inmersiva.', minPlan: 'elite' }
   ];
 
+  // 2. GALERÍA DE DISEÑOS DE PROPIEDADES (Las 9 de propiedades) - SOLO EXHIBICIÓN INTERACTIVA
   export const catalogoPropiedades = [
-    { id: 'prop_basic_1', nombre: 'Essential Focus', desc: 'Ficha técnica directa y optimizada.', minPlan: 'basico' },
-    { id: 'prop_basic_2', nombre: 'Clean Showcase', desc: 'Enfoque limpio en la galería de imágenes.', minPlan: 'basico' },
-    { id: 'prop_pro_1', nombre: 'Lead Magnet', desc: 'Formulario sticky optimizado para captura.', minPlan: 'pro' },
-    { id: 'prop_pro_2', nombre: 'Modern Asymmetric', desc: 'Doble panel vertical contemporáneo.', minPlan: 'pro' },
-    { id: 'prop_pro_3', nombre: 'Editorial Story', desc: 'Estilo de revista de arquitectura (Fuentes Serif).', minPlan: 'pro' },
-    { id: 'prop_elite_1', nombre: 'Luxury Immersive', desc: 'Efecto Glassmorphism premium sobre fondo.', minPlan: 'elite' },
-    { id: 'prop_elite_2', nombre: 'Cinematic Tour', desc: 'Video de fondo con interfaz limpia integrada.', minPlan: 'elite' },
-    { id: 'prop_elite_3', nombre: 'Prestige Dark', desc: 'Estética neo-brutalista selecta en negro y bronce.', minPlan: 'elite' },
-    { id: 'prop_elite_4', nombre: 'Panoramic 3D', desc: 'Integración fluida para recorridos virtuales.', minPlan: 'elite' }
+    { id: 'prop_basic_1', nombre: 'Essential Focus', desc: 'Ficha técnica directa y optimizada.', minPlan: 'basico', thumbType: 'list' },
+    { id: 'prop_basic_2', nombre: 'Clean Showcase', desc: 'Enfoque limpio en la galería de imágenes.', minPlan: 'basico', thumbType: 'list' },
+    { id: 'prop_pro_1', nombre: 'Lead Magnet', desc: 'Formulario sticky optimizado para captura.', minPlan: 'pro', thumbType: 'form' },
+    { id: 'prop_pro_2', nombre: 'Modern Asymmetric', desc: 'Doble panel vertical contemporáneo.', minPlan: 'pro', thumbType: 'immersive' },
+    { id: 'prop_pro_3', nombre: 'Editorial Story', desc: 'Estilo de revista de arquitectura (Fuentes Serif).', minPlan: 'pro', thumbType: 'immersive' },
+    { id: 'prop_elite_1', nombre: 'Luxury Immersive', desc: 'Efecto Glassmorphism premium sobre fondo.', minPlan: 'elite', thumbType: 'immersive' },
+    { id: 'prop_elite_2', nombre: 'Cinematic Tour', desc: 'Video de fondo con interfaz limpia integrada.', minPlan: 'elite', thumbType: 'video' },
+    { id: 'prop_elite_3', nombre: 'Prestige Dark', desc: 'Estética neo-brutalista selecta en negro y bronce.', minPlan: 'elite', thumbType: 'immersive' },
+    { id: 'prop_elite_4', nombre: 'Panoramic 3D', desc: 'Integración fluida para recorridos virtuales.', minPlan: 'elite', thumbType: 'video' }
   ];
 </script>
 
@@ -31,10 +33,9 @@
   let planConfig = $derived(data.planConfig || { templates_autorizados: ['classic'] });
   let planSuscripcion = $derived(broker.plan_suscripcion || 'basico');
   
-  // 1. Estado reactivo corregido
   let selectedTemplate = $state(broker.template_seleccionado || 'classic');
 
-  // Resolvedores directos desde la BD
+  // Resolvedores directos desde la BD (Load function)
   let subdominio = $derived(broker.subdominio || 'demo');
   let previewSlug = $derived(data.previewSlug || 'propiedad-demo');
 
@@ -126,7 +127,7 @@
             {@const autorizado = planConfig.templates_autorizados.includes(template.id)}
             {@const activo = selectedTemplate === template.id}
             
-            <label class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activo ? 'border-amber-500 ring-4 ring-amber-500/10 shadow-md bg-amber-50/10' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
+            <label class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activo ? 'border-indigo-600 ring-2 ring-indigo-600/20 shadow-md bg-indigo-50/50' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
               <input type="radio" name="template_radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
               
               <div class="h-24 bg-slate-50 border-b border-slate-100 flex flex-col items-center justify-center relative group overflow-hidden">
@@ -153,11 +154,11 @@
               
               <div class="p-4 flex flex-col flex-1">
                 <div class="flex items-center justify-between mb-1">
-                  <span class="font-extrabold text-xs tracking-tight {activo ? 'text-amber-800' : 'text-slate-900'}">{template.nombre}</span>
+                  <span class="font-extrabold text-xs tracking-tight {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
                   {#if !autorizado}
                     <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 uppercase tracking-wider">Plan {template.minPlan}</span>
                   {:else if activo}
-                    <CheckCircle2 class="w-4 h-4 text-amber-500" />
+                    <CheckCircle2 class="w-4 h-4 text-indigo-600" />
                   {/if}
                 </div>
                 <p class="text-[10px] text-slate-500 leading-normal font-medium">{template.desc}</p>
@@ -173,6 +174,47 @@
         <div class="mb-6 border-b border-slate-800 pb-4 relative z-10">
           <h3 class="text-base font-black text-white flex items-center gap-2">
             <Smartphone class="w-4 h-4 text-indigo-400" />
-            2. Diseños de Maquetas para Propiedades
+            2. Diseños de Landing Pages para Propiedades
           </h3>
-          <p class="text-xs font-medium text-slate-400 mt
+          <p class="text-xs font-medium text-slate-400 mt-1">Catálogo estético interactivo. Estos diseños se asignan individualmente dentro de la consola de cada propiedad.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-5 relative z-10">
+          {#each catalogoPropiedades as propTemplate}
+            {@const autorizado = puedeUsar(propTemplate.minPlan)}
+            
+            <div class="relative flex flex-col bg-slate-800/40 border border-slate-700/80 rounded-xl overflow-hidden transition-all duration-200 {!autorizado ? 'opacity-40 bg-slate-950 grayscale' : 'hover:border-indigo-500/80 hover:shadow-md group'}">
+              
+              <div class="h-20 bg-slate-950 flex flex-col items-center justify-center relative p-3 border-b border-slate-800/50">
+                <div class="w-full h-full rounded bg-slate-900 border border-slate-800/60 flex items-center justify-center text-slate-600 text-[10px] font-black uppercase tracking-wider select-none">
+                  Vista Maqueta
+                </div>
+
+                {#if autorizado}
+                  <a href="https://{subdominio}.inmublia.com/{previewSlug}?template={propTemplate.id}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-indigo-950/90 backdrop-blur-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer">
+                    <span class="text-white font-bold text-[9px] uppercase tracking-widest border border-white/20 px-3.5 py-1.5 rounded flex items-center gap-1.5 hover:bg-white/10 transition-colors">
+                      <Eye class="w-3.5 h-3.5" /> Ver Vista Previa
+                    </span>
+                  </a>
+                {/if}
+              </div>
+              
+              <div class="p-4 flex flex-col flex-1">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="font-extrabold text-xs text-white tracking-tight">{propTemplate.nombre}</span>
+                  {#if !autorizado}
+                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 uppercase tracking-wider shrink-0">🔒 {propTemplate.minPlan}</span>
+                  {:else}
+                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 uppercase tracking-wider shrink-0">✓ {propTemplate.minPlan}</span>
+                  {/if}
+                </div>
+                <p class="text-[10px] text-slate-400 leading-normal font-medium flex-1">{propTemplate.desc}</p>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
