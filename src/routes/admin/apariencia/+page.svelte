@@ -26,13 +26,17 @@
 <script>
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
-  import { CheckCircle2, AlertCircle, Save, Layers, Palette, LayoutTemplate, Smartphone } from 'lucide-svelte'; 
+  import { CheckCircle2, AlertCircle, Save, Layers, Palette, Eye, LayoutTemplate, Smartphone } from 'lucide-svelte'; 
 
   let { data, form } = $props();
   let broker = $state(data.broker || {});
   let planConfig = $derived(data.planConfig || { templates_autorizados: ['classic'] });
   let planSuscripcion = $derived(broker.plan_suscripcion || 'basico');
   
+  // Obtenemos propiedades para generar un preview real
+  let propiedades = $derived(data.propiedades || []);
+  let primeraPropiedadSlug = $derived(propiedades.length > 0 ? propiedades[0].slug : null);
+
   let selectedTemplate = $state(broker.template_seleccionado || 'classic');
 
   let savingProfile = $state(false);
@@ -109,7 +113,7 @@
         </div>
       </div>
 
-      <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200">
+      <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200 border-l-4 border-l-amber-500">
         <div class="mb-6 border-b border-slate-100 pb-4">
           <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">
             <LayoutTemplate class="w-5 h-5 text-indigo-500" />
@@ -127,7 +131,10 @@
               <input type="radio" name="template_radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
               
               <div class="h-24 bg-slate-50 border-b border-slate-100 flex flex-col items-center justify-center relative group overflow-hidden">
-                <span class="text-slate-300 font-black uppercase tracking-widest text-[11px] select-none">{template.id}</span>
+                <LayoutTemplate class="w-8 h-8 text-slate-300 transition-transform group-hover:scale-110" />
+                <a href="https://{broker.subdominio}.inmublia.com/?preview={template.id}" target="_blank" rel="noopener noreferrer" class="absolute bottom-2 right-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest bg-white border border-slate-200 text-slate-600 px-2.5 py-1 rounded shadow-sm hover:text-indigo-600 hover:border-indigo-200 transition-colors z-10" onclick={(e) => e.stopPropagation()}>
+                  <Eye class="w-3.5 h-3.5" /> Ver Demo
+                </a>
               </div>
               
               <div class="p-5 flex flex-col flex-1">
@@ -151,9 +158,9 @@
         <div class="mb-6 border-b border-slate-800 pb-4 relative z-10">
           <h3 class="text-lg font-black text-white flex items-center gap-2">
             <Smartphone class="w-5 h-5 text-indigo-400" />
-            2. Arsenal de Smart Brochures
+            2. Catálogo de Diseños Inmobiliarios
           </h3>
-          <p class="text-xs font-medium text-slate-400 mt-1">Estos 9 diseños se aplican de forma individual al momento de publicar cada propiedad. (Modo exhibición).</p>
+          <p class="text-xs font-medium text-slate-400 mt-1">Estos diseños se aplican de forma individual al momento de publicar cada propiedad. (Modo exhibición).</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 relative z-10">
@@ -163,7 +170,7 @@
             <div class="relative flex flex-col bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden {!autorizado ? 'opacity-40 grayscale' : 'shadow-md group'}">
               
               <div class="h-16 bg-slate-950 border-b border-slate-800 flex items-center justify-center px-4">
-                <span class="text-[9px] font-black text-slate-600 uppercase tracking-widest truncate select-none">{propTemplate.id}</span>
+                <span class="text-[9px] font-black text-slate-600 uppercase tracking-widest select-none">Plantilla Individual</span>
               </div>
               
               <div class="p-4 flex flex-col flex-1">
@@ -175,7 +182,23 @@
                     <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">✓ {propTemplate.minPlan}</span>
                   {/if}
                 </div>
-                <p class="text-[10px] text-slate-400 leading-relaxed">{propTemplate.desc}</p>
+                <p class="text-[10px] text-slate-400 leading-relaxed mb-4">{propTemplate.desc}</p>
+                
+                <div class="mt-auto">
+                    {#if primeraPropiedadSlug && autorizado}
+                      <a href="https://{broker.subdominio}.inmublia.com/{primeraPropiedadSlug}?preview={propTemplate.id}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-1.5 text-[9px] font-bold uppercase tracking-widest bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1.5 rounded hover:text-white hover:bg-indigo-600 transition-colors w-full text-center">
+                        <Eye class="w-3.5 h-3.5" /> Ver Demo Real
+                      </a>
+                    {:else if !autorizado}
+                      <button disabled class="flex items-center justify-center gap-1.5 text-[9px] font-bold uppercase tracking-widest bg-slate-800/50 border border-slate-700/50 text-slate-500 px-3 py-1.5 rounded cursor-not-allowed w-full text-center">
+                        Requiere Plan {propTemplate.minPlan}
+                      </button>
+                    {:else}
+                      <button disabled class="flex items-center justify-center gap-1.5 text-[9px] font-bold uppercase tracking-widest bg-slate-800 border border-slate-700 text-slate-500 px-3 py-1.5 rounded cursor-not-allowed w-full text-center" title="Añade una propiedad para habilitar las vistas previas reales">
+                        Añade una propiedad primero
+                      </button>
+                    {/if}
+                </div>
               </div>
             </div>
           {/each}
