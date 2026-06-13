@@ -31,7 +31,6 @@
   let planConfig = $derived(data.planConfig || { templates_autorizados: ['classic'] });
   let planSuscripcion = $derived(broker.plan_suscripcion || 'basico');
   
-  // Variables reactivas para AMBAS selecciones
   let selectedTemplate = $state(broker.template_seleccionado || 'classic');
   let selectedLanding = $state(broker.template_id_catalog || 'prop_basic_1');
 
@@ -51,7 +50,7 @@
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F8FAFC]">
   
-  <header class="h-24 bg-white border-b border-slate-200 flex items-center justify-between px-10 shrink-0 shadow-sm z-10 relative">
+  <header class="h-24 bg-white border-b border-slate-200 flex items-center justify-between px-8 md:px-10 shrink-0 shadow-sm z-10 relative">
     <div class="flex items-center gap-4 relative z-10">
       <div class="p-2.5 bg-slate-900 rounded-xl text-white shadow-sm border border-slate-800">
         <Palette class="w-5 h-5 text-amber-400" />
@@ -88,7 +87,7 @@
     </div>
   </header>
 
-  <div class="p-8 md:p-10 flex-1 overflow-auto pb-32">
+  <div class="p-6 md:p-10 flex-1 overflow-auto pb-32">
     <div class="max-w-6xl mx-auto space-y-8">
 
       {#if form?.error}
@@ -113,7 +112,7 @@
         </div>
       </div>
 
-      <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200">
+      <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200 border-l-4 border-l-amber-500">
         <div class="mb-5 flex flex-col gap-1">
           <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
             <LayoutTemplate class="w-4 h-4 text-amber-500" />
@@ -127,7 +126,7 @@
             {@const autorizado = planConfig.templates_autorizados.includes(template.id)}
             {@const activo = selectedTemplate === template.id}
             
-            <label class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activo ? 'border-amber-500 ring-2 ring-amber-500/10 shadow-md bg-amber-50/10' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
+            <label class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activo ? 'border-amber-500 bg-amber-50/30 shadow-md ring-2 ring-amber-500/20' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
               <input type="radio" name="template_radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
               
               <div class="h-20 bg-slate-50 border-b border-slate-100 flex flex-col items-center justify-center relative group overflow-hidden">
@@ -154,14 +153,21 @@
               
               <div class="p-3.5 flex flex-col flex-1">
                 <div class="flex items-center justify-between mb-1">
-                  <span class="font-extrabold text-xs tracking-tight {activo ? 'text-amber-800' : 'text-slate-900'}">{template.nombre}</span>
+                  <span class="font-extrabold text-xs tracking-tight {activo ? 'text-amber-700' : 'text-slate-900'}">{template.nombre}</span>
                   {#if !autorizado}
-                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 uppercase flex items-center gap-1"><Lock class="w-2 h-2"/> Plan {template.minPlan}</span>
-                  {:else if activo}
-                    <CheckCircle2 class="w-4 h-4 text-amber-500" />
+                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 uppercase flex items-center gap-1 shrink-0"><Lock class="w-2 h-2"/> Plan {template.minPlan}</span>
+                  {:else}
+                     <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest {activo ? 'bg-amber-100 text-amber-700' : 'bg-emerald-50 text-emerald-600'} shrink-0">
+                       ✓ Plan {template.minPlan}
+                     </span>
                   {/if}
                 </div>
-                <p class="text-[10px] text-slate-500 leading-tight font-medium">{template.desc}</p>
+                <div class="flex items-center justify-between mt-auto">
+                   <p class="text-[10px] text-slate-500 leading-tight font-medium line-clamp-1 pr-2">{template.desc}</p>
+                   {#if activo}
+                     <CheckCircle2 class="w-4 h-4 text-amber-500 shrink-0" />
+                   {/if}
+                </div>
               </div>
             </label>
           {/each}
@@ -183,7 +189,7 @@
             {@const autorizado = puedeUsar(propTemplate.minPlan)}
             {@const activoLanding = selectedLanding === propTemplate.id}
             
-            <label class="relative flex flex-col bg-slate-800/60 border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activoLanding ? 'border-amber-500 bg-amber-900/10 ring-2 ring-amber-500/20' : 'border-slate-700/80 hover:border-slate-600'} {!autorizado ? 'opacity-40 bg-slate-950 grayscale cursor-not-allowed' : ''}">
+            <label class="relative flex flex-col bg-slate-800/60 border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activoLanding ? 'border-amber-500 bg-amber-900/20 ring-2 ring-amber-500/20' : 'border-slate-700/80 hover:border-slate-600'} {!autorizado ? 'opacity-40 bg-slate-950 grayscale cursor-not-allowed' : ''}">
               <input type="radio" name="landing_radio" bind:group={selectedLanding} value={propTemplate.id} disabled={!autorizado} class="hidden">
               
               <div class="h-16 bg-slate-950 flex flex-col items-center justify-center relative p-2 border-b border-slate-800/50 group overflow-hidden">
@@ -223,7 +229,7 @@
                 {#if autorizado}
                   <a href="https://{subdominio}.inmublia.com/{previewSlug}?template={propTemplate.id}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-slate-900/90 backdrop-blur-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer" onclick={(e) => e.stopPropagation()}>
                     <span class="text-white font-bold text-[9px] uppercase tracking-widest border border-white/20 px-3 py-1 rounded flex items-center gap-1.5 hover:bg-white/10 transition-colors">
-                      <Eye class="w-3.5 h-3.5" /> Ver Demo Real
+                      <Eye class="w-3.5 h-3.5 text-amber-400" /> Ver Demo Real
                     </span>
                   </a>
                 {/if}
@@ -234,11 +240,18 @@
                   <span class="font-extrabold text-xs tracking-tight {activoLanding ? 'text-amber-400' : 'text-white'}">{propTemplate.nombre}</span>
                   {#if !autorizado}
                     <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 uppercase flex items-center gap-1 shrink-0"><Lock class="w-2 h-2"/> Plan {propTemplate.minPlan}</span>
-                  {:else if activoLanding}
-                    <CheckCircle2 class="w-4 h-4 text-amber-500 shrink-0" />
+                  {:else}
+                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest {activoLanding ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 border border-slate-700 text-slate-400'} shrink-0">
+                      ✓ Plan {propTemplate.minPlan}
+                    </span>
                   {/if}
                 </div>
-                <p class="text-[10px] text-slate-400 leading-tight font-medium flex-1">{propTemplate.desc}</p>
+                <div class="flex items-center justify-between mt-auto">
+                   <p class="text-[10px] text-slate-400 leading-tight font-medium line-clamp-1 pr-2">{propTemplate.desc}</p>
+                   {#if activoLanding}
+                     <CheckCircle2 class="w-4 h-4 text-amber-500 shrink-0" />
+                   {/if}
+                </div>
               </div>
             </label>
           {/each}
