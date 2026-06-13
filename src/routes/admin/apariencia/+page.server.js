@@ -16,7 +16,21 @@ export async function load({ locals }) {
   const planActual = broker.plan_suscripcion || 'basico';
   const planConfig = PLANES_CONFIG?.[planActual] || { templates_autorizados: ['classic', 'clean', 'modern', 'editorial', 'luxury', 'cinematic'] };
 
-  return { broker, planConfig };
+  // NUEVO: Traer 1 sola propiedad del broker para usarla como Preview Real de las Brochures
+  const { data: propiedadPreview } = await locals.supabase
+    .from('propiedades')
+    .select('slug')
+    .eq('broker_id', broker.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  return { 
+    broker, 
+    planConfig,
+    // Enviamos el slug. Si no tiene casas, enviará null.
+    previewSlug: propiedadPreview?.slug || null 
+  };
 }
 
 export const actions = {
