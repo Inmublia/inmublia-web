@@ -1,5 +1,4 @@
 <script module>
-  // 1. CATÁLOGO GLOBAL DE AGENCIA (Las 6 originales) - SE GUARDAN EN BD
   export const catalogoGlobal = [
     { id: 'classic', nombre: 'Classic Minimalist', desc: 'Diseño limpio y tradicional.', minPlan: 'basico' },
     { id: 'clean', nombre: 'Clean Base', desc: 'Estilo corporativo de alto contraste.', minPlan: 'basico' },
@@ -9,7 +8,6 @@
     { id: 'cinematic', nombre: 'Cinematic', desc: 'Video-first con navegación inmersiva.', minPlan: 'elite' }
   ];
 
-  // 2. GALERÍA DE TEMPLATES DE PROPIEDADES - SOLO EXHIBICIÓN INTERACTIVA
   export const catalogoPropiedades = [
     { id: 'prop_basic_1', nombre: 'Essential Focus', desc: 'Ficha técnica directa y optimizada.', minPlan: 'basico' },
     { id: 'prop_basic_2', nombre: 'Clean Showcase', desc: 'Enfoque limpio en la galería de imágenes.', minPlan: 'basico' },
@@ -26,16 +24,17 @@
 <script>
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
-  import { CheckCircle2, AlertCircle, Save, Layers, Palette, Eye, LayoutTemplate, Smartphone, ShieldCheck } from 'lucide-svelte'; 
+  import { CheckCircle2, AlertCircle, Save, Palette, Eye, LayoutTemplate, Smartphone, ShieldCheck } from 'lucide-svelte'; 
 
   let { data, form } = $props();
   let broker = $state(data.broker || {});
   let planConfig = $derived(data.planConfig || { templates_autorizados: ['classic'] });
   let planSuscripcion = $derived(broker.plan_suscripcion || 'basico');
   
+  // 1. Estado reactivo corregido
   let selectedTemplate = $state(broker.template_seleccionado || 'classic');
 
-  // Resolvedores directos desde la BD (Load function)
+  // Resolvedores directos desde la BD
   let subdominio = $derived(broker.subdominio || 'demo');
   let previewSlug = $derived(data.previewSlug || 'propiedad-demo');
 
@@ -49,14 +48,6 @@
     return false;
   }
 </script>
-
-<style>
-  .template-card.selected {
-    border-color: #6366f1 !important; 
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    background-color: #e0e7ff; 
-  }
-</style>
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F8FAFC]">
   
@@ -135,106 +126,53 @@
             {@const autorizado = planConfig.templates_autorizados.includes(template.id)}
             {@const activo = selectedTemplate === template.id}
             
-            <label class="template-card relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activo ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
-              <input type="radio" name="template_radio" bind:group={selectedTemplateId} value={template.id} disabled={!autorizado} class="hidden">
+            <label class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activo ? 'border-amber-500 ring-4 ring-amber-500/10 shadow-md bg-amber-50/10' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
+              <input type="radio" name="template_radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
               
-              <div class="h-28 bg-slate-100 border-b border-slate-200 flex flex-col items-center justify-center relative group overflow-hidden">
+              <div class="h-24 bg-slate-50 border-b border-slate-100 flex flex-col items-center justify-center relative group overflow-hidden">
                 {#if template.id === 'classic' || template.id === 'clean'}
                   <div class="w-full h-full bg-slate-50 flex flex-col p-4 select-none">
-                     <div class="w-1/2 h-2 bg-slate-300 rounded mb-2"></div>
+                     <div class="w-1/3 h-1.5 bg-slate-300 rounded mb-1.5"></div>
                      <div class="w-full h-full bg-slate-200 rounded"></div>
                   </div>
                 {:else if template.id === 'modern' || template.id === 'editorial'}
-                  <div class="w-full h-full bg-slate-50 flex gap-2 p-2 select-none">
-                     <div class="w-2/3 h-full bg-slate-300 rounded"></div>
-                     <div class="w-1/3 h-full bg-slate-200 rounded"></div>
+                  <div class="w-full h-full bg-slate-50 flex gap-1.5 p-3 select-none">
+                     <div class="w-3/5 h-full bg-slate-300 rounded"></div>
+                     <div class="w-2/5 h-full bg-slate-200 rounded"></div>
                   </div>
                 {:else}
                   <div class="w-full h-full bg-slate-800 flex items-center justify-center select-none">
-                     <div class="w-1/2 h-4 bg-white/20 rounded-full"></div>
+                     <div class="w-1/3 h-3 bg-white/20 rounded-full"></div>
                   </div>
                 {/if}
 
-                <a href="https://{subdominio}.inmublia.com/?preview={template.id}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center gap-2 text-white font-bold text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity z-10" onclick={(e) => e.stopPropagation()}>
-                  <Eye class="w-5 h-5 mb-1" /> Ver Ejemplo
+                <a href="https://{subdominio}.inmublia.com/?preview={template.id}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center gap-1.5 text-white font-bold text-[9px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity z-10" onclick={(e) => e.stopPropagation()}>
+                  <Eye class="w-3.5 h-3.5" /> Ver Ejemplo
                 </a>
               </div>
               
-              <div class="p-5 flex flex-col flex-1">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="font-black text-sm {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
+              <div class="p-4 flex flex-col flex-1">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="font-extrabold text-xs tracking-tight {activo ? 'text-amber-800' : 'text-slate-900'}">{template.nombre}</span>
                   {#if !autorizado}
-                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-widest bg-slate-200 text-slate-600">
-                       🔒 {template.minPlan}
-                    </span>
+                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 uppercase tracking-wider">Plan {template.minPlan}</span>
                   {:else if activo}
-                    <CheckCircle2 class="w-5 h-5 text-indigo-600" />
+                    <CheckCircle2 class="w-4 h-4 text-amber-500" />
                   {/if}
                 </div>
-                <p class="text-[11px] text-slate-500 font-medium leading-relaxed">{template.desc}</p>
+                <p class="text-[10px] text-slate-500 leading-normal font-medium">{template.desc}</p>
               </div>
             </label>
           {/each}
         </div>
       </div>
 
-      <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200">
-        <div class="mb-6 border-b border-slate-100 pb-4">
-          <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
-            <Smartphone class="w-4 h-4 text-indigo-500" />
-            2. Catálogo de Diseños Inmobiliarios
+      <div class="bg-slate-900 p-6 md:p-8 rounded-3xl shadow-lg border border-slate-800 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[80px] pointer-events-none"></div>
+        
+        <div class="mb-6 border-b border-slate-800 pb-4 relative z-10">
+          <h3 class="text-base font-black text-white flex items-center gap-2">
+            <Smartphone class="w-4 h-4 text-indigo-400" />
+            2. Diseños de Maquetas para Propiedades
           </h3>
-          <p class="text-xs font-medium text-slate-500 mt-1">Muestrario estético e interactivo. Estas maquetas de Landing Page se aplican de forma exclusiva en la ficha de cada propiedad.</p>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {#each catalogoPropiedades as propTemplate}
-            {@const autorizado = puedeUsar(propTemplate.minPlan)}
-            
-            <div class="relative flex flex-col bg-white border border-slate-200 rounded-xl overflow-hidden transition-all duration-200 {!autorizado ? 'opacity-40 bg-slate-50 grayscale' : 'hover:border-indigo-500 hover:shadow-md group'}">
-              
-              <div class="h-24 bg-slate-50 flex flex-col items-center justify-center relative p-3 border-b border-slate-100">
-                <div class="w-full h-full rounded border border-slate-200 bg-white flex items-center justify-center text-slate-400 text-[10px] font-black uppercase tracking-wider select-none shadow-inner">
-                  Mini Domo Visual
-                </div>
-
-                {#if autorizado}
-                  <a href="https://{subdominio}.inmublia.com/{previewSlug}?template={propTemplate.id}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-indigo-950/90 backdrop-blur-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer">
-                    <span class="text-white font-bold text-[9px] uppercase tracking-widest border border-white/20 px-3.5 py-1.5 rounded flex items-center gap-1.5 hover:bg-white/10 transition-colors">
-                      <Eye class="w-3.5 h-3.5" /> Ver Vista Previa
-                    </span>
-                  </a>
-                {/if}
-              </div>
-              
-              <div class="p-5 flex flex-col flex-1">
-                <div class="flex items-center justify-between mb-1.5">
-                  <span class="font-extrabold text-sm text-slate-900 tracking-tight">{propTemplate.nombre}</span>
-                  {#if !autorizado}
-                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 uppercase tracking-wider shrink-0">🔒 {propTemplate.minPlan}</span>
-                  {:else}
-                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-200 uppercase tracking-wider shrink-0">✓ {propTemplate.minPlan}</span>
-                  {/if}
-                </div>
-                <p class="text-[11px] text-slate-500 leading-normal font-medium flex-1 mb-4">{propTemplate.desc}</p>
-
-                <div class="mt-auto">
-                    {#if autorizado}
-                      <a href="https://{subdominio}.inmublia.com/{previewSlug}?template={propTemplate.id}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-1.5 text-[9px] font-bold uppercase tracking-widest bg-slate-900 border border-slate-800 text-white px-3 py-2 rounded-xl hover:bg-slate-800 transition-colors w-full text-center">
-                        <Eye class="w-3.5 h-3.5 text-amber-400" /> Ver Demo Real
-                      </a>
-                    {:else}
-                      <button disabled class="flex items-center justify-center gap-1.5 text-[9px] font-bold uppercase tracking-widest bg-slate-100 border border-slate-200 text-slate-400 px-3 py-2 rounded-xl cursor-not-allowed w-full text-center">
-                        Requiere Plan {propTemplate.minPlan}
-                      </button>
-                    {/if}
-                </div>
-              </div>
-            </div>
-          {/each}
-        </div>
-      </div>
-
-    </div>
-  </div>
-</main>
+          <p class="text-xs font-medium text-slate-400 mt
