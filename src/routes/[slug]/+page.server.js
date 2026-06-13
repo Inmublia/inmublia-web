@@ -1,8 +1,11 @@
 import { supabase } from '$lib/supabase';
 import { error, fail } from '@sveltejs/kit';
 
-export async function load({ params }) {
+export async function load({ params, url }) {
   const { slug } = params;
+
+  // CAPTURA DE INGENIERÍA: Extraemos el parámetro inyectado por la URL (?template=...)
+  const templateForzado = url.searchParams.get('template')?.toString().trim() || null;
 
   // 1. Buscamos la propiedad exacta por su slug amigable
   const { data: propiedad, error: propError } = await supabase
@@ -30,7 +33,8 @@ export async function load({ params }) {
     });
   }
 
-  return { propiedad, broker };
+  // Retornamos el parámetro del template forzado para que el enrutador del frontend lo intercepte
+  return { propiedad, broker, templateForzado };
 }
 
 export const actions = {
@@ -44,14 +48,13 @@ export const actions = {
     const broker_id = formData.get('broker_id');
     const propiedad_titulo = formData.get('propiedad_titulo');
     
-    // 🔥 Atrapamos la atribución real desde el motor del Frontend
+    // Atrapamos la atribución real desde el motor del Frontend
     const origen_lead = formData.get('origen_lead')?.toString().trim() || 'Tráfico Directo';
 
     if (!nombre || !correo || !telefono || !propiedad_id || !broker_id) {
       return fail(400, { error: 'Por favor, llena todos los campos obligatorios del formulario.' });
     }
 
-    // Inyectamos el origen en el objeto de inserción
     const leadData = {
       nombre, 
       correo, 
@@ -87,7 +90,7 @@ export const actions = {
             nombre, 
             correo, 
             telefono, 
-            origen: origen_lead, // Enviamos también el origen al CRM del broker
+            origen: origen_lead, 
             registro: leadData.creado_en 
           }
         })
