@@ -26,7 +26,7 @@
 <script>
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
-  import { CheckCircle2, AlertCircle, Save, Layers, Palette, Eye, LayoutTemplate, Smartphone } from 'lucide-svelte'; 
+  import { CheckCircle2, AlertCircle, Save, Layers, Palette, Eye, LayoutTemplate, Smartphone, ShieldCheck } from 'lucide-svelte'; 
 
   let { data, form } = $props();
   let broker = $state(data.broker || {});
@@ -126,10 +126,10 @@
             <label class="relative flex flex-col bg-white border-2 rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 {activo ? 'border-amber-500 ring-4 ring-amber-500/10 shadow-lg' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
               <input type="radio" name="template_radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
               
-              <div class="h-24 bg-slate-50 border-b border-slate-100 flex flex-col items-center justify-center relative">
-                <span class="text-slate-400 font-black uppercase tracking-widest text-[11px]">{template.id}</span>
-                <a href="https://demo.inmublia.com/?preview={template.id}" target="_blank" rel="noopener noreferrer" class="absolute bottom-2 right-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest bg-white border border-slate-200 text-slate-600 px-2 py-1 rounded shadow-sm hover:text-indigo-600 hover:border-indigo-200 transition-colors z-10" onclick={(e) => e.stopPropagation()}>
-                  <Eye class="w-3.5 h-3.5" /> Demo
+              <div class="h-24 bg-slate-50 border-b border-slate-100 flex flex-col items-center justify-center relative group overflow-hidden">
+                <LayoutTemplate class="w-8 h-8 text-slate-300 transition-transform group-hover:scale-110" />
+                <a href="https://demo.inmublia.com/?preview={template.id}" target="_blank" rel="noopener noreferrer" class="absolute bottom-2 right-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest bg-white border border-slate-200 text-slate-600 px-2.5 py-1 rounded shadow-sm hover:text-indigo-600 hover:border-indigo-200 transition-colors z-10" onclick={(e) => e.stopPropagation()}>
+                  <Eye class="w-3.5 h-3.5" /> Ver Demo
                 </a>
               </div>
               
@@ -154,20 +154,20 @@
         <div class="mb-6 border-b border-slate-800 pb-4 relative z-10">
           <h3 class="text-lg font-black text-white flex items-center gap-2">
             <Smartphone class="w-5 h-5 text-indigo-400" />
-            2. Arsenal de Smart Brochures
+            2. Catálogo de Smart Brochures
           </h3>
-          <p class="text-xs font-medium text-slate-400 mt-1">Estos 9 diseños se aplican de forma individual al momento de publicar cada propiedad. (Modo exhibición).</p>
+          <p class="text-xs font-medium text-slate-400 mt-1">Estos diseños se aplican de forma individual al momento de publicar cada propiedad. (Modo exhibición).</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 relative z-10">
           {#each catalogoPropiedades as propTemplate}
             {@const autorizado = puedeUsar(propTemplate.minPlan)}
             
-            <div class="relative flex flex-col bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden {!autorizado ? 'opacity-40 grayscale' : 'hover:border-indigo-400 hover:shadow-lg transition-all shadow-md'}">
+            <div class="relative flex flex-col bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden {!autorizado ? 'opacity-40 grayscale' : 'hover:border-indigo-400 hover:shadow-lg transition-all shadow-md group'}">
               
               <div class="h-16 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-4">
-                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest truncate">{propTemplate.id}</span>
-                <a href="https://demo.inmublia.com/brochure/{propTemplate.id}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest bg-slate-800 border border-slate-700 text-slate-300 px-2.5 py-1 rounded hover:text-white hover:bg-indigo-600 transition-colors shrink-0">
+                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Plantilla Individual</span>
+                <a href="https://demo.inmublia.com/demo-propiedad?template={propTemplate.id}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest bg-slate-800 border border-slate-700 text-slate-300 px-2.5 py-1 rounded hover:text-white hover:bg-indigo-600 transition-colors shrink-0">
                   <Eye class="w-3.5 h-3.5" /> Preview
                 </a>
               </div>
