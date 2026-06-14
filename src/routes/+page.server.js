@@ -1,7 +1,7 @@
-import { supabase } from '$lib/supabase';
+// ELIMINADO: import { supabase } from '$lib/supabase';
 
-export async function load({ url, setHeaders }) {
-  // 1. ELIMINACIÓN DE CACHÉ PARA GARANTIZAR DISEÑOS FRESCOS
+export async function load({ url, setHeaders, locals }) {
+  // 1. ELIMINACIÓN DE CACHÉ PARA GARANTIZAR DISEÑOS FRESCOS EN EL EDGE
   setHeaders({
     'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
     'Pragma': 'no-cache',
@@ -16,10 +16,11 @@ export async function load({ url, setHeaders }) {
     subdominioActivo = hostname.replace('.inmublia.com', '');
   }
 
-  let query = supabase.from('propiedades').select('*').eq('estatus', 'Activa');
+  // 2. USAR EL CLIENTE DINÁMICO (locals.supabase) EN LUGAR DEL ESTÁTICO
+  let query = locals.supabase.from('propiedades').select('*').eq('estatus', 'Activa');
 
   if (subdominioActivo) {
-    const { data: broker, error: brokerError } = await supabase
+    const { data: broker, error: brokerError } = await locals.supabase
       .from('brokers')
       .select('*')
       .eq('subdominio', subdominioActivo)
@@ -33,7 +34,6 @@ export async function load({ url, setHeaders }) {
     }
   }
 
-  // Obtenemos propiedades públicas
   const { data: propiedades, error: propError } = await query;
 
   if (propError) {
