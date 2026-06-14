@@ -3,9 +3,40 @@ import { error, fail } from '@sveltejs/kit';
 
 export async function load({ params, url }) {
   const { slug } = params;
-
-  // CAPTURA DE INGENIERÍA: Extraemos el parámetro inyectado por la URL (?template=...)
   const templateForzado = url.searchParams.get('template')?.toString().trim() || null;
+
+  // INTERCEPCIÓN QUIRÚRGICA: Si entra la maqueta de rescate, inyectamos data mock de alta fidelidad directamente.
+  if (slug === 'propiedad-demo') {
+    return {
+      propiedad: {
+        id: 'demo-id',
+        titulo: 'Ficha Inmobiliaria Elite (Demostración)',
+        descripcion: 'Esta es una propiedad de demostración generada para previsualizar los acabados del catálogo de diseños. Cuenta con una arquitectura contemporánea y acabados de lujo.',
+        precio: 8900000,
+        moneda: 'MXN',
+        habitaciones: 3,
+        banos: 4,
+        estacionamientos: 3,
+        metros_construccion: 380,
+        metros_terreno: 420,
+        imagen_url: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=2000',
+        galeria_urls: [
+          'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200',
+          'https://images.unsplash.com/photo-1600607687931-cece5ce21460?auto=format&fit=crop&q=80&w=1200'
+        ],
+        amenidades: ['Seguridad Privada', 'Roof Garden', 'Acabados en Marmol'],
+        estatus: 'Activa',
+        tipo_operacion: 'Venta',
+        tipo_inmueble: 'Casa'
+      },
+      broker: {
+        id: 'demo-broker-id',
+        nombre_comercial: 'Inmublia Broker',
+        subdominio: 'demo'
+      },
+      templateForzado
+    };
+  }
 
   // 1. Buscamos la propiedad exacta por su slug amigable
   const { data: propiedad, error: propError } = await supabase
@@ -33,7 +64,6 @@ export async function load({ params, url }) {
     });
   }
 
-  // Retornamos el parámetro del template forzado para que el enrutador del frontend lo intercepte
   return { propiedad, broker, templateForzado };
 }
 
@@ -47,8 +77,6 @@ export const actions = {
     const propiedad_id = formData.get('propiedad_id');
     const broker_id = formData.get('broker_id');
     const propiedad_titulo = formData.get('propiedad_titulo');
-    
-    // Atrapamos la atribución real desde el motor del Frontend
     const origen_lead = formData.get('origen_lead')?.toString().trim() || 'Tráfico Directo';
 
     if (!nombre || !correo || !telefono || !propiedad_id || !broker_id) {
@@ -70,31 +98,6 @@ export const actions = {
 
     if (insertError) {
       return fail(500, { error: `Error del servidor al registrar el prospecto: ${insertError.message}` });
-    }
-
-    const { data: brokerConfig } = await supabase
-      .from('brokers')
-      .select('webhook_url')
-      .eq('id', broker_id)
-      .single();
-
-    if (brokerConfig && brokerConfig.webhook_url) {
-      fetch(brokerConfig.webhook_url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fuente: "Inmublia SaaS",
-          evento: "nuevo_prospecto",
-          propiedad_interes: propiedad_titulo,
-          prospecto: { 
-            nombre, 
-            correo, 
-            telefono, 
-            origen: origen_lead, 
-            registro: leadData.creado_en 
-          }
-        })
-      }).catch(err => console.error("Error silencioso al disparar el webhook universal:", err));
     }
 
     return { success: true, message: 'La información ha sido enviada con éxito.' };
