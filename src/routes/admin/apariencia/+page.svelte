@@ -1,5 +1,4 @@
 <script module>
-  // Catálogo unificado con planes mínimos explícitos
   export const catalogoGlobal = [
     { id: 'classic', nombre: 'Classic Minimalist', desc: 'Diseño limpio y tradicional.', minPlan: 'basico' },
     { id: 'clean', nombre: 'Clean Base', desc: 'Estilo corporativo de alto contraste.', minPlan: 'basico' },
@@ -14,7 +13,7 @@
     { id: 'prop_basic_2', nombre: 'Clean Showcase', desc: 'Enfoque limpio en la galería de imágenes.', minPlan: 'basico', thumbType: 'list' },
     { id: 'prop_pro_1', nombre: 'Lead Magnet', desc: 'Formulario sticky optimizado para captura.', minPlan: 'pro', thumbType: 'form' },
     { id: 'prop_pro_2', nombre: 'Modern Asymmetric', desc: 'Doble panel vertical contemporáneo.', minPlan: 'pro', thumbType: 'split' },
-    { id: 'prop_pro_3', nombre: 'Editorial Story', desc: 'Revista de arquitectura elegante.', minPlan: 'pro', thumbType: 'immersive' },
+    { id: 'prop_pro_3', nombre: 'Editorial Story', desc: 'Revista de arquitectura (Serif).', minPlan: 'pro', thumbType: 'immersive' },
     { id: 'prop_elite_1', nombre: 'Luxury Immersive', desc: 'Efecto Glassmorphism premium sobre fondo.', minPlan: 'elite', thumbType: 'immersive' },
     { id: 'prop_elite_2', nombre: 'Cinematic Tour', desc: 'Video de fondo con interfaz limpia integrada.', minPlan: 'elite', thumbType: 'video' },
     { id: 'prop_elite_3', nombre: 'Prestige Dark', desc: 'Estética neo-brutalista en negro y bronce.', minPlan: 'elite', thumbType: 'immersive' },
@@ -32,7 +31,7 @@
   let planConfig = $derived(data.planConfig || { templates_autorizados: ['classic'] });
   let planSuscripcion = $derived(broker.plan_suscripcion || 'basico');
   
-  // Vinculación reactiva bidireccional limpia para persistir ambas opciones
+  // Reactividad Svelte 5 acoplada directamente a las columnas de Supabase
   let selectedTemplate = $state(broker.template_seleccionado || 'classic');
   let selectedLanding = $state(broker.template_id_catalog || 'prop_basic_1');
 
@@ -100,7 +99,7 @@
       
       {#if showSuccess}
         <div class="p-3.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
-          <CheckCircle2 class="w-4 h-4" /> Configuración visual actualizada con éxito.
+          <CheckCircle2 class="w-4 h-4" /> Configuración visual actualizada y sincronizada.
         </div>
       {/if}
 
@@ -149,7 +148,7 @@
                 {/if}
 
                 <a href="https://{subdominio}.inmublia.com/?preview={template.id}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center gap-1 text-white font-bold text-[9px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity z-10" onclick={(e) => e.stopPropagation()}>
-                  <Eye class="w-3.5 h-3.5" /> Ver Ejemplo
+                  <Eye class="w-3.5 h-3.5" /> Demo
                 </a>
               </div>
               
@@ -159,7 +158,7 @@
                   {#if !autorizado}
                     <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 uppercase flex items-center gap-1 shrink-0"><Lock class="w-2 h-2"/> Plan {template.minPlan}</span>
                   {:else}
-                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest {activo ? 'bg-amber-100 text-amber-700' : 'bg-emerald-50 text-emerald-600'} shrink-0">
+                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest {activo ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'} shrink-0">
                       ✓ Plan {template.minPlan}
                     </span>
                   {/if}
@@ -176,51 +175,60 @@
         </div>
       </div>
 
-      <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200 border-l-4 border-l-slate-900">
-        <div class="mb-5 flex flex-col gap-1">
-          <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
-            <Smartphone class="w-4 h-4 text-slate-900" />
+      <div class="bg-slate-900 p-6 md:p-8 rounded-3xl shadow-lg border border-slate-800 relative overflow-hidden">
+        
+        <div class="mb-5 flex flex-col gap-1 relative z-10">
+          <h3 class="text-base font-black text-white flex items-center gap-2">
+            <Smartphone class="w-4 h-4 text-amber-500" />
             2. Diseños Base de Landing Pages para Propiedades
           </h3>
-          <p class="text-[11px] font-medium text-slate-500 leading-relaxed">Seleccione la plantilla predeterminada para las nuevas propiedades de su inventario. El diseño puede modificarse de forma individual en la consola de cada propiedad.</p>
+          <p class="text-[11px] font-medium text-slate-400 leading-relaxed">Seleccione la plantilla predeterminada para las nuevas propiedades de su inventario. El diseño puede modificarse de forma individual en la consola de cada propiedad.</p>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
           {#each catalogoPropiedades as propTemplate}
             {@const autorizado = puedeUsar(propTemplate.minPlan)}
             {@const activoLanding = selectedLanding === propTemplate.id}
             
-            <label class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activoLanding ? 'border-amber-500 bg-amber-50/30 shadow-md ring-2 ring-amber-500/10' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-40 bg-slate-50 grayscale cursor-not-allowed' : ''}">
+            <label class="relative flex flex-col bg-slate-800/60 border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activoLanding ? 'border-amber-500 bg-amber-900/20 ring-2 ring-amber-500/20' : 'border-slate-700/80 hover:border-slate-600'} {!autorizado ? 'opacity-40 bg-slate-950 grayscale cursor-not-allowed' : ''}">
               <input type="radio" name="landing_radio" bind:group={selectedLanding} value={propTemplate.id} disabled={!autorizado} class="hidden">
               
-              <div class="h-16 bg-slate-50 border-b border-slate-100 flex flex-col items-center justify-center relative p-2 group overflow-hidden">
-                <div class="w-full h-full rounded border border-slate-200 flex overflow-hidden opacity-70 {propTemplate.thumbType === 'immersive' ? 'bg-slate-200' : propTemplate.thumbType === 'video' ? 'bg-slate-300' : 'bg-white'}">
+              <div class="h-16 bg-slate-950 flex flex-col items-center justify-center relative p-2 border-b border-slate-800/50 group overflow-hidden">
+                <div class="w-full h-full rounded border border-slate-800/60 flex overflow-hidden opacity-70 {propTemplate.thumbType === 'immersive' ? 'bg-slate-800' : propTemplate.thumbType === 'video' ? 'bg-black' : 'bg-slate-900'}">
+                  
                   {#if propTemplate.thumbType === 'immersive'}
                     <div class="w-full h-full flex items-center justify-center relative">
-                      <div class="m-auto w-5 h-5 bg-slate-400 rounded-full border border-slate-300"></div>
+                      <div class="m-auto w-6 h-6 bg-white/5 rounded-full border border-white/10"></div>
                     </div>
                   {:else if propTemplate.thumbType === 'video'}
                     <div class="w-full h-full flex items-center justify-center relative">
-                      <div class="w-full h-full border border-dashed border-slate-400 rounded opacity-50 m-auto"></div>
+                      <div class="w-full h-full border border-dashed border-white/10 rounded opacity-50 m-auto"></div>
                     </div>
                   {:else if propTemplate.thumbType === 'form'}
-                    <div class="flex flex-row gap-1.5 w-full h-full p-1.5 bg-slate-50">
-                      <div class="w-2/3 h-full bg-slate-200 rounded-xs"></div>
-                      <div class="w-1/3 h-full bg-slate-300 rounded-xs p-0.5 flex flex-col gap-0.5">
-                        <div class="w-full h-0.5 bg-slate-400"></div>
-                        <div class="w-full h-1 bg-amber-500 mt-auto"></div>
+                    <div class="flex flex-row gap-2 w-full h-full p-2">
+                      <div class="w-2/3 h-full bg-slate-800 rounded-sm"></div>
+                      <div class="w-1/3 h-full bg-white/5 rounded-sm p-0.5 flex flex-col gap-0.5">
+                        <div class="w-full h-0.5 bg-white/10"></div>
+                        <div class="w-full h-0.5 bg-white/10"></div>
+                        <div class="w-full h-1 bg-amber-500/30 mt-auto"></div>
                       </div>
                     </div>
+                  {:else if propTemplate.thumbType === 'split'}
+                    <div class="flex flex-row w-full h-full">
+                      <div class="w-1/2 h-full bg-slate-800"></div>
+                      <div class="w-1/2 h-full bg-slate-900"></div>
+                    </div>
                   {:else}
-                    <div class="flex flex-col gap-0.5 w-full h-full p-1.5 bg-slate-50">
-                      <div class="w-1/2 h-1 bg-slate-400 rounded-xs mb-0.5"></div>
-                      <div class="w-full h-full bg-slate-200 rounded-xs"></div>
+                    <div class="flex flex-col gap-1 w-full h-full p-2">
+                      <div class="w-1/2 h-1 bg-slate-700 rounded-sm mb-1"></div>
+                      <div class="w-full h-full bg-slate-800 rounded-sm"></div>
                     </div>
                   {/if}
+
                 </div>
 
                 {#if autorizado}
-                  <a href="https://{subdominio}.inmublia.com/{previewSlug}?template={propTemplate.id}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer" onclick={(e) => e.stopPropagation()}>
+                  <a href="https://{subdominio}.inmublia.com/{previewSlug}?template={propTemplate.id}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-slate-900/90 backdrop-blur-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer" onclick={(e) => e.stopPropagation()}>
                     <span class="text-white font-bold text-[9px] uppercase tracking-widest border border-white/20 px-3 py-1 rounded flex items-center gap-1.5 hover:bg-white/10 transition-colors">
                       <Eye class="w-3.5 h-3.5 text-amber-400" /> Ver Demo Real
                     </span>
@@ -230,17 +238,17 @@
               
               <div class="p-3.5 flex flex-col flex-1">
                 <div class="flex items-center justify-between mb-1">
-                  <span class="font-extrabold text-xs tracking-tight {activoLanding ? 'text-amber-800' : 'text-slate-900'}">{propTemplate.nombre}</span>
+                  <span class="font-extrabold text-xs tracking-tight {activoLanding ? 'text-amber-400' : 'text-white'}">{propTemplate.nombre}</span>
                   {#if !autorizado}
-                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 uppercase flex items-center gap-1 shrink-0"><Lock class="w-2 h-2"/> Plan {propTemplate.minPlan}</span>
+                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 uppercase flex items-center gap-1 shrink-0"><Lock class="w-2 h-2"/> Plan {propTemplate.minPlan}</span>
                   {:else}
-                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest {activoLanding ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'} shrink-0">
+                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest {activoLanding ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 border border-slate-700 text-slate-400'} shrink-0">
                       ✓ Plan {propTemplate.minPlan}
                     </span>
                   {/if}
                 </div>
                 <div class="flex items-center justify-between mt-auto">
-                   <p class="text-[10px] text-slate-500 leading-tight font-medium line-clamp-1 pr-2">{propTemplate.desc}</p>
+                   <p class="text-[10px] text-slate-400 leading-tight font-medium line-clamp-1 pr-2">{propTemplate.desc}</p>
                    {#if activoLanding}
                      <CheckCircle2 class="w-4 h-4 text-amber-500 shrink-0" />
                    {/if}
