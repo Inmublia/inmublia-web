@@ -124,10 +124,10 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {#each catalogoGlobal as template}
-            {@const autorizado = planConfig.templates_autorizados.includes(template.id)}
+            {@const autorizado = puedeUsar(template.minPlan)}
             {@const activo = selectedTemplate === template.id}
             
-            <label class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activo ? 'border-amber-500 ring-2 ring-amber-500/10 shadow-md bg-amber-50/10' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
+            <label class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activo ? 'border-amber-500 bg-amber-50/30 shadow-md ring-2 ring-amber-500/20' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
               <input type="radio" name="template_radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
               
               <div class="h-20 bg-slate-50 border-b border-slate-100 flex flex-col items-center justify-center relative group overflow-hidden">
@@ -182,7 +182,7 @@
             <Smartphone class="w-4 h-4 text-amber-500" />
             2. Diseños Base de Landing Pages para Propiedades
           </h3>
-          <p class="text-[11px] font-medium text-slate-400 leading-relaxed">Seleccione la plantilla predeterminada para las nuevas propiedades de su inventario. El diseño puede modificarse de forma individual en la consola de cada propiedad.</p>
+          <p class="text-[11px] font-medium text-slate-400 leading-relaxed">Seleccione la plantilla que se aplicará inmediatamente a <strong class="text-amber-400 font-bold">todo su inventario público</strong>. Posteriormente, podrá modificar el diseño de forma individual desde la consola de cada propiedad.</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
@@ -227,10 +227,16 @@
 
                 </div>
 
-                {#if autorizado}
+                {#if autorizado && previewSlug}
                   <a href="https://{subdominio}.inmublia.com/{previewSlug}?template={propTemplate.id}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-slate-900/90 backdrop-blur-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer" onclick={(e) => e.stopPropagation()}>
                     <span class="text-white font-bold text-[9px] uppercase tracking-widest border border-white/20 px-3 py-1 rounded flex items-center gap-1.5 hover:bg-white/10 transition-colors">
                       <Eye class="w-3.5 h-3.5 text-amber-400" /> Ver Demo Real
+                    </span>
+                  </a>
+                {:else if autorizado && !previewSlug}
+                   <a href="https://{subdominio}.inmublia.com/" target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-slate-900/90 backdrop-blur-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer" onclick={(e) => e.stopPropagation()}>
+                    <span class="text-white font-bold text-[9px] uppercase tracking-widest border border-white/20 px-3 py-1 rounded flex items-center gap-1.5 hover:bg-white/10 transition-colors">
+                      <Eye class="w-3.5 h-3.5 text-slate-400" /> Portal Base
                     </span>
                   </a>
                 {/if}
