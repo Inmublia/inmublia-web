@@ -18,18 +18,25 @@ export async function load({ locals }) {
     templates_autorizados: ['classic', 'clean', 'modern', 'editorial', 'luxury', 'cinematic'] 
   };
 
-  const { data: propiedad } = await locals.supabase
+  // Extracción directa de base de datos de la primera propiedad activa del Broker
+  const { data: propiedades, error: propError } = await locals.supabase
     .from('propiedades')
     .select('slug')
     .eq('broker_id', broker.id)
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+
+  if (propError) {
+    console.error("🔥 Error extrayendo propiedades de la BD en apariencia:", propError);
+  }
+
+  // Si tiene propiedades reales usa el slug real, si no, usa el interceptor seguro 'propiedad-demo'
+  const previewSlug = (propiedades && propiedades.length > 0) ? propiedades[0].slug : 'propiedad-demo';
 
   return { 
     broker, 
     planConfig,
-    previewSlug: propiedad?.slug || 'propiedad-demo'
+    previewSlug
   };
 }
 
@@ -40,7 +47,6 @@ export const actions = {
       if (!user) return fail(401, { error: 'Sesión expirada. Vuelve a iniciar sesión.' });
 
       const formData = await request.formData();
-      // Capturamos AMBAS selecciones del frontend
       const template_seleccionado = formData.get('template_seleccionado')?.toString().trim();
       const template_id_catalog = formData.get('template_id_catalog')?.toString().trim();
 
@@ -56,7 +62,6 @@ export const actions = {
         
       if (brokerError || !brokerActual) return fail(403, { error: `No se pudo obtener tu perfil: ${brokerError?.message}` });
 
-      // Verificamos permisos para AMBAS plantillas
       if (PLANES_CONFIG) {
         const planSaaS = PLANES_CONFIG[brokerActual.plan_suscripcion || 'basico'];
         const ambasAutorizadas = planSaaS && 
@@ -69,18 +74,16 @@ export const actions = {
         }
       }
 
-      // Preparamos la carga útil con los dos campos
       const updatePayload = {
         template_seleccionado: template_seleccionado,
-        template: template_seleccionado, // Retrocompatibilidad
+        template: template_seleccionado, 
         template_id_catalog: template_id_catalog 
       };
 
-      const { data: checkUpdate, error: updateError } = await locals.supabase
+      const { error: updateError } = await locals.supabase
         .from('brokers')
         .update(updatePayload)
-        .eq('id', brokerActual.id)
-        .select();
+        .eq('id', brokerActual.id);
 
       if (updateError) {
         return fail(500, { error: `FALLO EN BD: ${updateError.message}` });
