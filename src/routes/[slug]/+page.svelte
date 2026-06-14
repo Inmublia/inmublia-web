@@ -20,8 +20,7 @@
 
   let { data, form } = $props();
   
-  // LÓGICA QUIRÚRGICA: Si viene un template forzado en la URL (?template=), se monta ese. 
-  // Si no, recurre al guardado en base de datos.
+  // Intercepta si viene el template forzado dinámico por la URL de apariencia (?template=)
   let templateId = $derived(data.templateForzado || data.propiedad?.template_id || 'prop_basic_1');
 </script>
 
