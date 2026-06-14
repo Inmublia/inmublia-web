@@ -2,7 +2,6 @@
   import { page } from '$app/stores';
   import videoFondo from '$lib/luxury.mp4'; 
   
-  // IMPORTACIONES COMPLETAS Y CORRECTAS
   import Classic from '$lib/templates/Classic.svelte';
   import Luxury from '$lib/templates/Luxury.svelte';
   import Modern from '$lib/templates/Modern.svelte';
@@ -12,11 +11,15 @@
   import LandingInmublia from '$lib/components/LandingInmublia.svelte';
   
   let { data } = $props();
-  let propiedades = $derived(data.propiedades);
-  let broker = $derived(data.broker);
+  
+  // Reactividad estricta acoplada a los datos del load function
+  let propiedades = $derived(data.propiedades || []);
+  let broker = $derived(data.broker || null);
 
   let previewMode = $derived($page.url.searchParams.get('preview'));
-  let plantillaActiva = $derived(previewMode || broker?.template_seleccionado || 'classic');
+  
+  // Prioridad: 1) URL Preview, 2) Base de Datos, 3) Classic (Fallback)
+  let plantillaActiva = $derived(previewMode || (broker && broker.template_seleccionado) ? (previewMode || broker.template_seleccionado) : 'classic');
 
   // INYECCIÓN DE PÍXELES
   const START_SCR = '<scr'+'ipt>';
