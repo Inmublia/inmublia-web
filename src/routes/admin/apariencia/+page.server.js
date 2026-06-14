@@ -1,47 +1,3 @@
-import { fail, redirect } from '@sveltejs/kit';
-import { PLANES_CONFIG } from '$lib/config/plans';
-
-export async function load({ locals }) {
-  const user = locals.user;
-  if (!user) throw redirect(303, '/login');
-
-  // 1. Extraemos el broker asegurando su ID real
-  const { data: broker, error } = await locals.supabase
-    .from('brokers')
-    .select('id, subdominio, nombre_comercial, email, plan_suscripcion, template_seleccionado, template_id_catalog, avatar_url')
-    .eq('email', user.email)
-    .single();
-
-  if (error || !broker) throw redirect(303, '/login');
-
-  const planActual = broker.plan_suscripcion || 'basico';
-  const planConfig = PLANES_CONFIG?.[planActual] || { 
-    templates_autorizados: ['classic', 'clean', 'modern', 'editorial', 'luxury', 'cinematic'] 
-  };
-
-  const brokerId = broker.id;
-
-  // 2. Extraemos el preview slug de forma blindada
-  const { data: propiedades, error: propError } = await locals.supabase
-    .from('propiedades')
-    .select('slug')
-    .eq('broker_id', brokerId)
-    .limit(1);
-
-  if (propError) {
-    console.error("🔥 Error de Supabase al leer propiedades:", propError);
-  }
-
-  // 3. Asignación estricta: Si hay data real, se usa. Si no, demo.
-  const previewSlug = (propiedades && propiedades.length > 0) ? propiedades[0].slug : 'propiedad-demo';
-
-  return { 
-    broker, 
-    planConfig,
-    previewSlug
-  };
-}
-
 export const actions = {
   updateTemplate: async ({ request, locals }) => {
     try {
@@ -80,10 +36,10 @@ export const actions = {
         return fail(403, { error: 'Tu nivel de suscripción es insuficiente para guardar estos diseños.' });
       }
 
-      // Guardamos en la base de datos de manera explícita
+      // 1. ACTUALIZAMOS AL BROKER
       const updatePayload = {
         template_seleccionado: template_seleccionado,
-        template: template_seleccionado, // Columna de retrocompatibilidad
+        template: template_seleccionado, 
         template_id_catalog: template_id_catalog 
       };
 
@@ -95,6 +51,18 @@ export const actions = {
       if (updateError) {
         console.error("🔥 Error de Supabase al escribir broker:", updateError);
         return fail(500, { error: `FALLO AL GUARDAR EN BD: ${updateError.message}` });
+      }
+
+      // 🔥 2. MAGIA: ACTUALIZACIÓN MASIVA DE INVENTARIO
+      // Esto sobreescribe el template de TODAS las casas de este broker al instante.
+      const { error: propUpdateError } = await locals.supabase
+        .from('propiedades')
+        .update({ template_id: template_id_catalog })
+        .eq('broker_id', brokerActual.id);
+
+      if (propUpdateError) {
+        console.error("🔥 Error actualizando inventario masivo:", propUpdateError);
+        // No fallamos toda la petición si esto falla, pero lo registramos
       }
 
       return { success: true };
