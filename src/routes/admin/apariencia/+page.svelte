@@ -27,13 +27,25 @@
   import { CheckCircle2, AlertCircle, Save, Palette, Eye, LayoutTemplate, Smartphone, ShieldCheck, Lock } from 'lucide-svelte'; 
 
   let { data, form } = $props();
-  let broker = $state(data.broker || {});
+  
+  // Derivados para garantizar datos frescos
+  let broker = $derived(data.broker || {});
   let planConfig = $derived(data.planConfig || { templates_autorizados: ['classic'] });
   let planSuscripcion = $derived(broker.plan_suscripcion || 'basico');
   
-  // Reactividad Svelte 5 acoplada directamente a las columnas de Supabase
-  let selectedTemplate = $state(broker.template_seleccionado || 'classic');
-  let selectedLanding = $state(broker.template_id_catalog || 'prop_basic_1');
+  // Variables mutables con estado inicial neutro
+  let selectedTemplate = $state('classic');
+  let selectedLanding = $state('prop_basic_1');
+
+  // EL SINCRONIZADOR A PRUEBA DE FALLOS
+  // Espera a que los datos del broker sean reales (tengan ID) antes de inicializar la vista,
+  // erradicando el bug de la selección fantasma.
+  $effect(() => {
+    if (broker && broker.id) {
+      selectedTemplate = broker.template_seleccionado || 'classic';
+      selectedLanding = broker.template_id_catalog || 'prop_basic_1';
+    }
+  });
 
   let subdominio = $derived(broker.subdominio || 'demo');
   let previewSlug = $derived(data.previewSlug || 'propiedad-demo');
@@ -99,7 +111,7 @@
       
       {#if showSuccess}
         <div class="p-3.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
-          <CheckCircle2 class="w-4 h-4" /> Configuración visual actualizada y sincronizada.
+          <CheckCircle2 class="w-4 h-4" /> Configuración visual actualizada y sincronizada en todo el inventario.
         </div>
       {/if}
 
@@ -127,7 +139,7 @@
             {@const autorizado = puedeUsar(template.minPlan)}
             {@const activo = selectedTemplate === template.id}
             
-            <label class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activo ? 'border-amber-500 bg-amber-50/30 shadow-md ring-2 ring-amber-500/20' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
+            <label class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activo ? 'border-amber-500 bg-amber-50/50 shadow-md ring-2 ring-amber-500/10' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
               <input type="radio" name="template_radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
               
               <div class="h-20 bg-slate-50 border-b border-slate-100 flex flex-col items-center justify-center relative group overflow-hidden">
@@ -175,14 +187,14 @@
         </div>
       </div>
 
-      <div class="bg-slate-900 p-6 md:p-8 rounded-3xl shadow-lg border border-slate-800 relative overflow-hidden">
+      <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200 border-l-4 border-l-slate-900 relative overflow-hidden">
         
         <div class="mb-5 flex flex-col gap-1 relative z-10">
-          <h3 class="text-base font-black text-white flex items-center gap-2">
-            <Smartphone class="w-4 h-4 text-amber-500" />
+          <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
+            <Smartphone class="w-4 h-4 text-slate-900" />
             2. Diseños Base de Landing Pages para Propiedades
           </h3>
-          <p class="text-[11px] font-medium text-slate-400 leading-relaxed">Seleccione la plantilla que se aplicará inmediatamente a <strong class="text-amber-400 font-bold">todo su inventario público</strong>. Posteriormente, podrá modificar el diseño de forma individual desde la consola de cada propiedad.</p>
+          <p class="text-[11px] font-medium text-slate-500 leading-relaxed">Seleccione la plantilla que se aplicará inmediatamente a <strong class="text-slate-800 font-bold">todo su inventario público</strong>. Posteriormente, podrá modificar el diseño de forma individual desde la consola de cada propiedad.</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
@@ -190,38 +202,38 @@
             {@const autorizado = puedeUsar(propTemplate.minPlan)}
             {@const activoLanding = selectedLanding === propTemplate.id}
             
-            <label class="relative flex flex-col bg-slate-800/60 border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activoLanding ? 'border-amber-500 bg-amber-900/20 ring-2 ring-amber-500/20' : 'border-slate-700/80 hover:border-slate-600'} {!autorizado ? 'opacity-40 bg-slate-950 grayscale cursor-not-allowed' : ''}">
+            <label class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activoLanding ? 'border-slate-900 bg-slate-50 shadow-md ring-2 ring-slate-900/10' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-40 grayscale cursor-not-allowed' : ''}">
               <input type="radio" name="landing_radio" bind:group={selectedLanding} value={propTemplate.id} disabled={!autorizado} class="hidden">
               
-              <div class="h-16 bg-slate-950 flex flex-col items-center justify-center relative p-2 border-b border-slate-800/50 group overflow-hidden">
-                <div class="w-full h-full rounded border border-slate-800/60 flex overflow-hidden opacity-70 {propTemplate.thumbType === 'immersive' ? 'bg-slate-800' : propTemplate.thumbType === 'video' ? 'bg-black' : 'bg-slate-900'}">
+              <div class="h-16 bg-slate-50 flex flex-col items-center justify-center relative p-2 border-b border-slate-100 group overflow-hidden">
+                <div class="w-full h-full rounded border border-slate-200 flex overflow-hidden opacity-70 {propTemplate.thumbType === 'immersive' ? 'bg-slate-200' : propTemplate.thumbType === 'video' ? 'bg-slate-300' : 'bg-white'}">
                   
                   {#if propTemplate.thumbType === 'immersive'}
                     <div class="w-full h-full flex items-center justify-center relative">
-                      <div class="m-auto w-6 h-6 bg-white/5 rounded-full border border-white/10"></div>
+                      <div class="m-auto w-5 h-5 bg-slate-400 rounded-full border border-slate-300"></div>
                     </div>
                   {:else if propTemplate.thumbType === 'video'}
                     <div class="w-full h-full flex items-center justify-center relative">
-                      <div class="w-full h-full border border-dashed border-white/10 rounded opacity-50 m-auto"></div>
+                      <div class="w-full h-full border border-dashed border-slate-400 rounded opacity-50 m-auto"></div>
                     </div>
                   {:else if propTemplate.thumbType === 'form'}
-                    <div class="flex flex-row gap-2 w-full h-full p-2">
-                      <div class="w-2/3 h-full bg-slate-800 rounded-sm"></div>
-                      <div class="w-1/3 h-full bg-white/5 rounded-sm p-0.5 flex flex-col gap-0.5">
-                        <div class="w-full h-0.5 bg-white/10"></div>
-                        <div class="w-full h-0.5 bg-white/10"></div>
-                        <div class="w-full h-1 bg-amber-500/30 mt-auto"></div>
+                    <div class="flex flex-row gap-1.5 w-full h-full p-1.5">
+                      <div class="w-2/3 h-full bg-slate-200 rounded-xs"></div>
+                      <div class="w-1/3 h-full bg-slate-100 rounded-xs p-0.5 flex flex-col gap-0.5">
+                        <div class="w-full h-0.5 bg-slate-300"></div>
+                        <div class="w-full h-0.5 bg-slate-300"></div>
+                        <div class="w-full h-1 bg-amber-400/50 mt-auto"></div>
                       </div>
                     </div>
                   {:else if propTemplate.thumbType === 'split'}
                     <div class="flex flex-row w-full h-full">
-                      <div class="w-1/2 h-full bg-slate-800"></div>
-                      <div class="w-1/2 h-full bg-slate-900"></div>
+                      <div class="w-1/2 h-full bg-slate-200"></div>
+                      <div class="w-1/2 h-full bg-slate-300"></div>
                     </div>
                   {:else}
-                    <div class="flex flex-col gap-1 w-full h-full p-2">
-                      <div class="w-1/2 h-1 bg-slate-700 rounded-sm mb-1"></div>
-                      <div class="w-full h-full bg-slate-800 rounded-sm"></div>
+                    <div class="flex flex-col gap-0.5 w-full h-full p-1.5">
+                      <div class="w-1/2 h-1 bg-slate-300 rounded-xs mb-0.5"></div>
+                      <div class="w-full h-full bg-slate-200 rounded-xs"></div>
                     </div>
                   {/if}
 
@@ -244,19 +256,19 @@
               
               <div class="p-3.5 flex flex-col flex-1">
                 <div class="flex items-center justify-between mb-1">
-                  <span class="font-extrabold text-xs tracking-tight {activoLanding ? 'text-amber-400' : 'text-white'}">{propTemplate.nombre}</span>
+                  <span class="font-extrabold text-xs tracking-tight {activoLanding ? 'text-slate-900' : 'text-slate-700'}">{propTemplate.nombre}</span>
                   {#if !autorizado}
-                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 uppercase flex items-center gap-1 shrink-0"><Lock class="w-2 h-2"/> Plan {propTemplate.minPlan}</span>
+                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 uppercase flex items-center gap-1 shrink-0"><Lock class="w-2 h-2"/> Plan {propTemplate.minPlan}</span>
                   {:else}
-                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest {activoLanding ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 border border-slate-700 text-slate-400'} shrink-0">
+                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest {activoLanding ? 'bg-slate-200 text-slate-800' : 'bg-slate-100 text-slate-500'} shrink-0">
                       ✓ Plan {propTemplate.minPlan}
                     </span>
                   {/if}
                 </div>
                 <div class="flex items-center justify-between mt-auto">
-                   <p class="text-[10px] text-slate-400 leading-tight font-medium line-clamp-1 pr-2">{propTemplate.desc}</p>
+                   <p class="text-[10px] text-slate-500 leading-tight font-medium line-clamp-1 pr-2">{propTemplate.desc}</p>
                    {#if activoLanding}
-                     <CheckCircle2 class="w-4 h-4 text-amber-500 shrink-0" />
+                     <CheckCircle2 class="w-4 h-4 text-slate-900 shrink-0" />
                    {/if}
                 </div>
               </div>
