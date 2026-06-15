@@ -13,10 +13,8 @@ export const actions = {
       return fail(400, { error: 'Faltan datos obligatorios.' });
     }
 
-    // Inicializamos el cliente con la Service Role para poder escribir en tablas protegidas
     const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 1. Buscar si el usuario existe en la tabla de autenticación interna de Supabase
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.listUsers();
     const usuarioDestino = userData?.users.find(u => u.email === email);
 
@@ -24,7 +22,6 @@ export const actions = {
       return fail(400, { error: 'No encontramos ninguna compra asociada a este correo electrónico.' });
     }
 
-    // 2. Guardar la contraseña en su cuenta de autenticación
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       usuarioDestino.id,
       { password: password }
@@ -34,26 +31,20 @@ export const actions = {
       return fail(500, { error: 'Error al configurar la contraseña en el sistema de autenticación.' });
     }
 
-    // 3. ¡EL ESLABÓN PERDIDO!: Crear el registro real en la tabla de 'brokers'
-    // Vinculamos el ID de la cuenta auth con la fila pública para que la consola lo reconozca
+    // ELIMINADA la columna created_at. Solo inyectamos ID y Email.
     const { error: brokerError } = await supabaseAdmin
       .from('brokers')
       .insert([
         { 
           id: usuarioDestino.id, 
-          email: email,
-          created_at: new Date().toISOString()
+          email: email
         }
       ]);
 
-    if (brokerError) {
-      // Si el registro ya existía (error de clave duplicada), lo dejamos pasar, si es otra cosa, tronamos
-      if (brokerError.code !== '23505') { 
-        return fail(500, { error: `Error de base de datos al inicializar broker: ${brokerError.message}` });
-      }
+    if (brokerError && brokerError.code !== '23505') { 
+      return fail(500, { error: `Error de BD al inicializar broker: ${brokerError.message}` });
     }
 
-    // 4. Iniciar sesión síncronamente (Tu solución blindada para Cloudflare Edge)
     const { data: loginData, error: loginError } = await locals.supabase.auth.signInWithPassword({
       email,
       password
@@ -70,7 +61,6 @@ export const actions = {
       });
     }
 
-    // 5. Redirección final segura: el guardián de /admin ahora sí validará la fila existente
     throw redirect(303, '/admin');
   }
 };
