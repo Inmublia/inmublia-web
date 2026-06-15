@@ -8,12 +8,11 @@
   let confirmPassword = $state('');
   let errorLocal = $state('');
 
-  // Validación antes de enviar al servidor
   function validarFormulario(evento: Event) {
     errorLocal = '';
     if (password !== confirmPassword) {
-      evento.preventDefault(); // Detiene el envío del formulario
-      errorLocal = 'Las llaves criptográficas no coinciden. Verifícalas.';
+      evento.preventDefault(); 
+      errorLocal = 'Las contraseñas no coinciden. Verifícalas.';
       return;
     }
     cargando = true;
@@ -36,7 +35,7 @@
         Infraestructura Lista
       </h1>
       <p class="text-xs text-zinc-400 mt-3 text-center font-medium max-w-[280px] tracking-wide">
-        Confirma tu acceso de compra y establece tu nueva llave criptográfica.
+        Confirma tu acceso de compra y establece tu contraseña de administrador.
       </p>
     </div>
 
@@ -67,22 +66,22 @@
       </div>
 
       <div class="space-y-1.5 group">
-        <label for="password" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 px-1 transition-colors group-focus-within:text-indigo-400">Nueva Llave Criptográfica</label>
+        <label for="password" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 px-1 transition-colors group-focus-within:text-indigo-400">Crear Contraseña</label>
         <div class="relative">
           <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
             <KeyRound class="w-4 h-4" />
           </div>
-          <input type="password" name="password" id="password" bind:value={password} minlength="6" placeholder="••••••••••••" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
+          <input type="password" name="password" id="password" bind:value={password} minlength="6" placeholder="••••••••" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
         </div>
       </div>
 
       <div class="space-y-1.5 group">
-        <label for="confirmPassword" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 px-1 transition-colors group-focus-within:text-indigo-400">Verificar Llave</label>
+        <label for="confirmPassword" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 px-1 transition-colors group-focus-within:text-indigo-400">Verificar Contraseña</label>
         <div class="relative">
           <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
             <ShieldCheck class="w-4 h-4" />
           </div>
-          <input type="password" id="confirmPassword" bind:value={confirmPassword} minlength="6" placeholder="••••••••••••" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
+          <input type="password" id="confirmPassword" bind:value={confirmPassword} minlength="6" placeholder="••••••••" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
         </div>
       </div>
 
