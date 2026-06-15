@@ -7,11 +7,15 @@
     Settings, 
     LogOut,
     Target,
-    Palette
+    Palette,
+    Bell
   } from 'lucide-svelte';
   
   // Extraemos el broker directamente del store global
   let broker = $derived($page.data.broker || {});
+  
+  // Extraemos el contador de alertas inyectado por el layout.server.js
+  let unreadAlertsCount = $derived($page.data.unreadAlertsCount || 0);
   
   // Leemos la URL actual para saber qué botón sombrear
   let rutaActual = $derived($page.url.pathname);
@@ -38,6 +42,18 @@
     <a href="/admin/leads" class="flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold transition-all {rutaActual.includes('/admin/leads') ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 border border-transparent'}">
       <Users class="w-4 h-4 {rutaActual.includes('/admin/leads') ? 'text-indigo-400' : 'text-zinc-500'}" />
       Prospectos (CRM)
+    </a>
+
+    <a href="/admin/alertas" class="flex items-center justify-between px-3 py-2.5 rounded-lg font-semibold transition-all {rutaActual.includes('/admin/alertas') ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 border border-transparent'}">
+      <div class="flex items-center gap-3">
+        <Bell class="w-4 h-4 {rutaActual.includes('/admin/alertas') ? 'text-rose-400' : 'text-zinc-500'} {unreadAlertsCount > 0 ? 'animate-pulse text-rose-500' : ''}" />
+        Alertas
+      </div>
+      {#if unreadAlertsCount > 0}
+        <span class="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)]">
+          {unreadAlertsCount}
+        </span>
+      {/if}
     </a>
 
     <a href="/admin/directorio" class="flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold transition-all {rutaActual.includes('/admin/directorio') ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 border border-transparent'}">
