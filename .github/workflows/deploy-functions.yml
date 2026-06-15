@@ -24,4 +24,4 @@ jobs:
           version: latest
 
       - name: Deploy stripe-webhook
-        run: supabase functions deploy stripe-webhook --project-ref $PROJECT_ID
+        run: supabase functions deploy stripe-webhook --project-ref $PROJECT_ID --no-verify-jwt
