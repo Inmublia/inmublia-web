@@ -4,14 +4,17 @@ export async function load({ locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
-  // Recuperamos el ID del broker en sesión
+  // SOLUCIÓN: Buscamos al broker por email (infalible) en lugar de auth_user_id
   const { data: broker } = await locals.supabase
     .from('brokers')
     .select('id')
-    .eq('auth_user_id', user.id)
+    .eq('email', user.email)
     .single();
 
-  if (!broker) throw redirect(303, '/login');
+  if (!broker) {
+      console.error("No se encontró broker asociado al email:", user.email);
+      throw redirect(303, '/login');
+  }
 
   // Traemos todas sus notificaciones ordenadas por las más recientes
   const { data: notificaciones, error } = await locals.supabase
@@ -55,7 +58,7 @@ export const actions = {
     const { data: broker } = await locals.supabase
       .from('brokers')
       .select('id')
-      .eq('auth_user_id', user.id)
+      .eq('email', user.email)
       .single();
 
     if (!broker) return fail(404);
