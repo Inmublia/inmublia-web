@@ -1,4 +1,5 @@
 // Despertando el webhook
+// forzando lectura del config.toml
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@14";
