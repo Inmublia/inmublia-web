@@ -13,9 +13,19 @@ export async function handle({ event, resolve }) {
       },
       setAll(cookiesToSet) {
         try {
+          // Detectamos si estamos en entorno local de desarrollo para no romper las cookies de localhost
+          const isLocal = event.url.hostname === 'localhost' || event.url.hostname === '127.0.0.1';
+          const cookieDomain = isLocal ? undefined : '.inmublia.com';
+
           cookiesToSet.forEach(({ name, value, options }) => {
+            // Extraemos el dominio original, pero inyectamos nuestro candado multi-tenant
             const { domain, ...cleanOptions } = options;
-            event.cookies.set(name, value, { ...cleanOptions, path: '/' });
+            
+            event.cookies.set(name, value, { 
+              ...cleanOptions, 
+              path: '/',
+              domain: cookieDomain // 🔥 EL CANDADO MULTI-TENANT: Permite la sesión cruzada
+            });
           });
         } catch (err) {
           // Captura silenciosa recomendada por SvelteKit
