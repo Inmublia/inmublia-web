@@ -1,3 +1,44 @@
+import { fail, redirect } from '@sveltejs/kit';
+import { PLANES_CONFIG } from '$lib/config/plans';
+
+export async function load({ locals }) {
+  const user = locals.user;
+  if (!user) throw redirect(303, '/login');
+
+  // EL QUERY RELACIONAL MAESTRO
+  // Esto extrae al broker y, gracias a la Foreign Key, mapea los slugs de sus propiedades en 1 solo viaje.
+  const { data: brokerData, error } = await locals.supabase
+    .from('brokers')
+    .select(`
+      *,
+      propiedades (slug)
+    `)
+    .eq('email', user.email)
+    .single();
+
+  if (error || !brokerData) {
+    console.error("🔥 Error crítico extrayendo broker:", error);
+    throw redirect(303, '/login');
+  }
+
+  // Destructuramos para separar el objeto broker de su arreglo relacional de propiedades
+  const { propiedades, ...broker } = brokerData;
+
+  const planActual = broker.plan_suscripcion || 'basico';
+  const planConfig = PLANES_CONFIG?.[planActual] || { 
+    templates_autorizados: ['classic', 'clean', 'modern', 'editorial', 'luxury', 'cinematic'] 
+  };
+
+  // Asignamos el preview slug del primer inmueble real, o el demo de rescate si el inventario está vacío
+  const previewSlug = (propiedades && propiedades.length > 0) ? propiedades[0].slug : 'propiedad-demo';
+
+  return { 
+    broker, 
+    planConfig,
+    previewSlug
+  };
+}
+
 export const actions = {
   updateTemplate: async ({ request, locals }) => {
     try {
