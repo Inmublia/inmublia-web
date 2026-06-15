@@ -28,18 +28,15 @@
 
   let { data, form } = $props();
   
-  // Derivados para garantizar datos frescos
   let broker = $derived(data.broker || {});
   let planConfig = $derived(data.planConfig || { templates_autorizados: ['classic'] });
   let planSuscripcion = $derived(broker.plan_suscripcion || 'basico');
   
-  // Variables mutables con estado inicial neutro
+  // Estado mutable inicializado en neutro
   let selectedTemplate = $state('classic');
   let selectedLanding = $state('prop_basic_1');
 
-  // EL SINCRONIZADOR A PRUEBA DE FALLOS
-  // Espera a que los datos del broker sean reales (tengan ID) antes de inicializar la vista,
-  // erradicando el bug de la selección fantasma.
+  // Sincronizador maestro que asegura la persistencia visual al cargar datos
   $effect(() => {
     if (broker && broker.id) {
       selectedTemplate = broker.template_seleccionado || 'classic';
@@ -139,8 +136,13 @@
             {@const autorizado = puedeUsar(template.minPlan)}
             {@const activo = selectedTemplate === template.id}
             
-            <label class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activo ? 'border-amber-500 bg-amber-50/50 shadow-md ring-2 ring-amber-500/10' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
-              <input type="radio" name="template_radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
+            <div 
+              role="button"
+              tabindex="0"
+              onclick={() => { if(autorizado) selectedTemplate = template.id; }}
+              onkeydown={(e) => { if(e.key === 'Enter' && autorizado) selectedTemplate = template.id; }}
+              class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activo ? 'border-amber-500 bg-amber-50/50 shadow-md ring-2 ring-amber-500/10' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}"
+            >
               
               <div class="h-20 bg-slate-50 border-b border-slate-100 flex flex-col items-center justify-center relative group overflow-hidden">
                 {#if template.id === 'classic' || template.id === 'clean'}
@@ -182,7 +184,7 @@
                    {/if}
                 </div>
               </div>
-            </label>
+            </div>
           {/each}
         </div>
       </div>
@@ -202,8 +204,13 @@
             {@const autorizado = puedeUsar(propTemplate.minPlan)}
             {@const activoLanding = selectedLanding === propTemplate.id}
             
-            <label class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activoLanding ? 'border-slate-900 bg-slate-50 shadow-md ring-2 ring-slate-900/10' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-40 grayscale cursor-not-allowed' : ''}">
-              <input type="radio" name="landing_radio" bind:group={selectedLanding} value={propTemplate.id} disabled={!autorizado} class="hidden">
+            <div 
+              role="button"
+              tabindex="0"
+              onclick={() => { if(autorizado) selectedLanding = propTemplate.id; }}
+              onkeydown={(e) => { if(e.key === 'Enter' && autorizado) selectedLanding = propTemplate.id; }}
+              class="relative flex flex-col bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 {activoLanding ? 'border-slate-900 bg-slate-50 shadow-md ring-2 ring-slate-900/10' : 'border-slate-100 hover:border-slate-300'} {!autorizado ? 'opacity-40 grayscale cursor-not-allowed' : ''}"
+            >
               
               <div class="h-16 bg-slate-50 flex flex-col items-center justify-center relative p-2 border-b border-slate-100 group overflow-hidden">
                 <div class="w-full h-full rounded border border-slate-200 flex overflow-hidden opacity-70 {propTemplate.thumbType === 'immersive' ? 'bg-slate-200' : propTemplate.thumbType === 'video' ? 'bg-slate-300' : 'bg-white'}">
@@ -272,7 +279,7 @@
                    {/if}
                 </div>
               </div>
-            </label>
+            </div>
           {/each}
         </div>
       </div>
