@@ -20,36 +20,39 @@ export async function load({ locals, setHeaders, url }) {
     throw redirect(303, '/login?motivo=inactividad');
   }
 
-  let unreadAlertsCount = 0;
-
   try {
     // 3. EXTRACCIÓN OPTIMIZADA DEL BROKER (Usando auth_user_id en lugar de email)
     const { data: broker, error: brokerError } = await locals.supabase
       .from('brokers')
-      .select('id')
+      .select('*')
       .eq('auth_user_id', user.id)
       .single();
 
-    // 4. CONTEO DE ALERTAS INACTIVAS
-    if (broker && !brokerError) {
-      const { count, error: countError } = await locals.supabase
-        .from('notificaciones_agente')
-        .select('*', { count: 'exact', head: true })
-        .eq('broker_id', broker.id)
-        .eq('leida', false);
+    if (brokerError || !broker) throw new Error("Broker no encontrado");
 
-      if (!countError && count) {
-        unreadAlertsCount = count;
-      }
-    }
+    // 4. DESCARGA DE LEADS PARA NOTIFICACIONES GLOBALES
+    // Se descargan los leads con sus notas para que el NotificationBell pueda calcular los recordatorios
+    const { data: leads, error: leadsError } = await locals.supabase
+      .from('leads')
+      .select(`id, nombre, lead_notas(id, contenido, tipo, fecha_recordatorio, completado)`)
+      .eq('broker_id', broker.id);
+
+    if (leadsError) throw leadsError;
+
+    // 5. EXPOSICIÓN DE DATOS SEGUROS AL FRONTEND
+    return {
+      user,
+      broker,
+      leads: leads || []
+    };
+
   } catch (err) {
-    console.error("Error al cargar notificaciones globales:", err);
-    // No bloqueamos la carga de la app si fallan las alertas
+    console.error("Error al cargar datos globales del admin:", err);
+    // En caso de fallo en BD, no rompemos la app completa, regresamos arrays vacíos
+    return {
+      user,
+      broker: null,
+      leads: []
+    };
   }
-
-  // 5. EXPOSICIÓN DE DATOS SEGUROS AL FRONTEND
-  return {
-    user,
-    unreadAlertsCount
-  };
 }
