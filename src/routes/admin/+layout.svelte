@@ -4,19 +4,14 @@
   let { children } = $props();
 </script>
 
-<div class="flex h-screen bg-slate-50 overflow-hidden font-sans">
+<div class="flex h-screen w-full bg-slate-50 overflow-hidden font-sans relative">
   <Sidebar />
   
-  <div class="flex-1 flex flex-col min-w-0">
-    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-end px-4 sm:px-6 shrink-0 z-40 shadow-sm relative">
-      <div class="flex items-center gap-4">
-        <NotificationBell />
-        
-        </div>
-    </header>
+  <div class="absolute bottom-6 right-6 sm:bottom-8 sm:right-8 z-[100]">
+    <NotificationBell />
+  </div>
 
-    <main class="flex-1 overflow-auto relative z-0">
-      {@render children()}
-    </main>
+  <div class="flex-1 h-screen overflow-y-auto relative min-w-0">
+    {@render children()}
   </div>
 </div>
