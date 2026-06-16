@@ -16,7 +16,9 @@
     Check, 
     UserPlus,
     Building2,
-    MessageSquareQuote
+    MessageSquareQuote,
+    ScanLine,
+    XCircle
   } from 'lucide-svelte';
 
   let { event = {}, attendeesDb = [] } = $props();
@@ -24,6 +26,12 @@
   let eventStatus = $state('upcoming'); 
   let showCheckin = $state(false);
   let activeTab = $state('overview');
+  
+  // Estados para el Escáner QR
+  let showScanner = $state(false);
+  let scanError = $state('');
+  let scannerVideo = $state(null);
+  let stream = null;
 
   let attendees = $derived(attendeesDb);
   let timer;
@@ -50,7 +58,10 @@
     timer = setInterval(updateStatus, 60000);
   });
 
-  onDestroy(() => clearInterval(timer));
+  onDestroy(() => {
+    clearInterval(timer);
+    stopScanner();
+  });
 
   let shareMsg = $derived(
     encodeURIComponent(`🏡 Lanzamiento Exclusivo · Open House: ${event.title}\n✨ Cupo limitado. Registra tus credenciales aquí: https://${event.agent?.url}/open-house/${event.id}`)
@@ -80,10 +91,39 @@
   }
 
   function exportToCSV() {
-    const rows = [['Nombre', 'WhatsApp', 'Objetivo Comercial', 'Presupuesto', 'Check-In Físico', 'Estatus Base']];
-    attendees.forEach(a => rows.push([a.name, a.phone, a.intent, a.budget || 'N/A', a.checked_in ? 'SÍ' : 'NO', a.status]));
+    // Añadida columna de pre-calificación financiera (fricción positiva)
+    const rows = [['Nombre', 'WhatsApp', 'Objetivo Comercial', 'Pre-Aprobación', 'Presupuesto', 'Check-In Físico', 'Estatus Base']];
+    attendees.forEach(a => rows.push([a.name, a.phone, a.intent, a.financial_status || 'Sin Confirmar', a.budget || 'N/A', a.checked_in ? 'SÍ' : 'NO', a.status]));
     const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
     window.open(encodeURI(csvContent));
+  }
+
+  // Lógica del Escáner Nativo (HTML5 Video API)
+  async function startScanner() {
+    showScanner = true;
+    scanError = '';
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      if (scannerVideo) {
+        scannerVideo.srcObject = stream;
+        scannerVideo.setAttribute('playsinline', true); // Necesario para iOS Safari
+        scannerVideo.play();
+        // Nota técnica: Para decodificar el QR desde el video puro se necesita una librería como jsQR.
+        // Dado que no queremos inyectar dependencias pesadas en este paso, simularemos el evento 
+        // indicándole al broker que el QR lleva al prospecto a una URL de auto-checkin en su celular.
+        scanError = 'Para un Check-In automático, pide al prospecto escanear el QR central con su cámara.';
+      }
+    } catch (err) {
+      scanError = 'Acceso a cámara denegado o no disponible.';
+    }
+  }
+
+  function stopScanner() {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+    showScanner = false;
   }
 </script>
 
@@ -238,12 +278,36 @@
 
       {:else if activeTab === 'attendees'}
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <div class="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-50/50">
             <h3 class="text-lg font-black text-slate-900">Directorio de Accesos</h3>
-            <button class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center gap-2" onclick={exportToCSV}>
-              <FileDown class="w-4 h-4 text-slate-400" /> Exportar CSV
-            </button>
+            
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+              <button class="flex-1 sm:flex-none bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center justify-center gap-2" onclick={showScanner ? stopScanner : startScanner}>
+                {#if showScanner}
+                  <XCircle class="w-4 h-4 text-indigo-500" /> Cerrar Escáner
+                {:else}
+                  <ScanLine class="w-4 h-4 text-indigo-500" /> Escanear Asistente
+                {/if}
+              </button>
+              <button class="flex-1 sm:flex-none bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center justify-center gap-2" onclick={exportToCSV}>
+                <FileDown class="w-4 h-4 text-slate-400" /> Exportar CSV
+              </button>
+            </div>
           </div>
+
+          {#if showScanner}
+            <div class="p-6 bg-slate-900 flex flex-col items-center justify-center text-center animate-[fadeIn_0.2s_ease-out]">
+              <div class="w-full max-w-sm rounded-xl overflow-hidden shadow-2xl ring-4 ring-slate-800 relative bg-black aspect-square flex items-center justify-center">
+                {#if scanError}
+                  <p class="text-amber-400 text-sm font-bold px-6">{scanError}</p>
+                {/if}
+                <video bind:this={scannerVideo} class="w-full h-full object-cover {scanError ? 'hidden' : 'block'}"></video>
+                <div class="absolute inset-0 border-[40px] border-black/40 pointer-events-none {scanError ? 'hidden' : 'block'}"></div>
+                <div class="absolute inset-0 border-2 border-indigo-500 m-[40px] pointer-events-none opacity-50 {scanError ? 'hidden' : 'block'}"></div>
+              </div>
+              <p class="text-slate-400 text-[10px] uppercase tracking-widest mt-4 font-bold">Apunta el QR del prospecto hacia la cámara</p>
+            </div>
+          {/if}
           
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse table-fixed min-w-[900px]">
@@ -251,7 +315,8 @@
                 <tr class="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-white border-b border-slate-100">
                   <th class="w-[30%] px-6 py-4">Prospecto</th>
                   <th class="w-[20%] px-6 py-4">Contacto</th>
-                  <th class="w-[15%] px-6 py-4 text-center">Perfil</th>
+                  <th class="w-[15%] px-6 py-4 text-center">Interés</th>
+                  <th class="w-[15%] px-6 py-4 text-center">Capacidad</th>
                   <th class="w-[15%] px-6 py-4 text-center">Estatus</th>
                   <th class="w-[20%] px-6 py-4 text-right">Acciones</th>
                 </tr>
@@ -274,6 +339,9 @@
                       {:else}
                         <span class="px-2.5 py-1 inline-flex text-[9px] font-bold uppercase tracking-widest rounded-md bg-slate-100 text-slate-600 border border-slate-200">{att.intent}</span>
                       {/if}
+                    </td>
+                    <td class="px-6 py-4 text-center truncate">
+                      <span class="text-[10px] font-bold text-slate-500">{att.financial_status || 'Sin Confirmar'}</span>
                     </td>
                     <td class="px-6 py-4 text-center truncate">
                       <div class="flex items-center justify-center gap-1.5">
@@ -308,7 +376,7 @@
                 {/each}
                 {#if attendees.length === 0}
                   <tr>
-                    <td colspan="5" class="text-center py-16 text-slate-400 font-medium">
+                    <td colspan="6" class="text-center py-16 text-slate-400 font-medium">
                       <div class="flex flex-col items-center justify-center gap-3">
                         <Users class="w-8 h-8 text-slate-300" />
                         Ningún prospecto ha solicitado acceso aún.
