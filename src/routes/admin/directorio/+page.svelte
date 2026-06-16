@@ -11,7 +11,8 @@
 
   let searchQuery = $state('');
 
-  let clientesInteligentes = $derived(() => {
+  // OPTIMIZACIÓN SVELTE 5: Usamos $derived.by para procesar el bloque una sola vez y guardarlo en memoria
+  let clientesInteligentes = $derived.by(() => {
     let mapa = {};
     
     leads.forEach(l => {
@@ -40,7 +41,7 @@
 
       if (cliente.presupuestoInferido > 0) {
         cliente.matches = propiedades.filter(p => {
-          if (p.estatus !== 'Activa') return false; 
+          // Ya no necesitamos checar if(p.estatus !== 'Activa') porque el backend ya lo filtró
           if (cliente.interesesHistorial.find(i => i.id === p.id)) return false; 
           
           const minBudget = cliente.presupuestoInferido * 0.7;
@@ -59,22 +60,33 @@
       }
       return cliente;
     })
-    .filter(c => c.nombre.toLowerCase().includes(searchQuery.toLowerCase()) || c.correo.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(c => c.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) || c.correo?.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => b.matches.length - a.matches.length);
   });
 
-  let totalClientes = $derived(clientesInteligentes().length);
-  let totalMatches = $derived(clientesInteligentes().reduce((acc, c) => acc + c.matches.length, 0));
+  // Al usar $derived.by, llamamos a la variable como arreglo directo, no como función
+  let totalClientes = $derived(clientesInteligentes.length);
+  let totalMatches = $derived(clientesInteligentes.reduce((acc, c) => acc + c.matches.length, 0));
   let valorPipelinePotencial = $derived(
-    clientesInteligentes().reduce((acc, c) => acc + (c.matches[0]?.precio || 0), 0)
+    clientesInteligentes.reduce((acc, c) => acc + (c.matches[0]?.precio || 0), 0)
   );
 
   const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 
   function enviarWhatsApp(telefono, cliente, propiedadMatch) {
+    if (!telefono) {
+      alert("Este prospecto no tiene un número de WhatsApp registrado.");
+      return;
+    }
+
+    // PREVENCIÓN DE CRASH: Manejo seguro de cadenas nulas o vacías
+    const nombreLead = cliente?.split(' ')[0] || 'inversor';
+    const nombreBroker = broker?.nombre_comercial?.split(' ')[0] || 'tu asesor';
+
     const msg = propiedadMatch 
-      ? `Hola ${cliente.split(' ')[0]}, soy ${broker.nombre_comercial.split(' ')[0]}. Revisando mis archivos noté que estabas buscando propiedades de cierto perfil. Acabo de captar una exclusiva que encaja perfecto con lo que buscabas: ${propiedadMatch.titulo}. ¿Te gustaría que te envíe el Smart Brochure?`
-      : `Hola ${cliente.split(' ')[0]}, te saluda ${broker.nombre_comercial.split(' ')[0]}. ¿Cómo va tu búsqueda de propiedad?`;
+      ? `Hola ${nombreLead}, soy ${nombreBroker}. Revisando mis archivos noté que estabas buscando propiedades de cierto perfil. Acabo de captar una exclusiva que encaja perfecto con lo que buscabas: ${propiedadMatch.titulo}. ¿Te gustaría que te envíe el Smart Brochure?`
+      : `Hola ${nombreLead}, te saluda ${nombreBroker}. ¿Cómo va tu búsqueda de propiedad?`;
+      
     window.open(`https://wa.me/${telefono.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
   }
 </script>
@@ -148,12 +160,12 @@
       </div>
 
       <div class="space-y-4">
-        {#each clientesInteligentes() as cliente}
+        {#each clientesInteligentes as cliente}
           <div class="bg-white rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-slate-200 overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-[0_4px_20px_rgb(0,0,0,0.06)] hover:border-slate-300">
             
             <div class="flex-1 p-4 lg:p-5 border-b lg:border-b-0 lg:border-r border-slate-100 flex items-center gap-4">
               <div class="w-12 h-12 rounded-full bg-slate-100 shrink-0 shadow-inner border border-slate-200 overflow-hidden hidden sm:block">
-                <img src="https://ui-avatars.com/api/?name={cliente.nombre}&background=0f172a&color=fff&bold=true&size=100" alt="Avatar" class="w-full h-full object-cover">
+                <img src="https://ui-avatars.com/api/?name={cliente.nombre || 'Lead'}&background=0f172a&color=fff&bold=true&size=100" alt="Avatar" class="w-full h-full object-cover">
               </div>
               <div class="flex-1 flex flex-col justify-center">
                 <div class="flex items-center justify-between mb-1">
@@ -185,13 +197,13 @@
                   </span>
                 </div>
 
-                <div class="bg-white rounded-lg p-1.5 border border-amber-200/60 shadow-sm mb-2.5 flex gap-2.5 items-center cursor-pointer hover:bg-amber-50/50 transition-colors">
+                <a href="/admin/editar/{bestMatch.id}" target="_blank" rel="noopener noreferrer" class="bg-white rounded-lg p-1.5 border border-amber-200/60 shadow-sm mb-2.5 flex gap-2.5 items-center cursor-pointer hover:bg-amber-50/50 transition-colors">
                   <img src={bestMatch.imagen_url} alt="Match" class="w-9 h-9 rounded object-cover">
                   <div class="flex-1 truncate">
                     <p class="text-[10px] font-bold text-slate-900 truncate">{bestMatch.titulo}</p>
                     <p class="text-[10px] font-black text-amber-600 tracking-tight">{formatter.format(bestMatch.precio)}</p>
                   </div>
-                </div>
+                </a>
 
                 <button onclick={() => enviarWhatsApp(cliente.telefono, cliente.nombre, bestMatch)} class="w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-2 rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5 text-[10px] active:scale-95">
                   Enviar Propiedad <ArrowRight class="w-3 h-3" />
@@ -207,7 +219,7 @@
           </div>
         {/each}
 
-        {#if clientesInteligentes().length === 0}
+        {#if clientesInteligentes.length === 0}
           <div class="bg-white rounded-3xl border border-slate-200 p-16 text-center flex flex-col items-center justify-center w-full max-w-[1400px] mx-auto">
             <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 mb-4 shadow-inner">
               <Users class="w-6 h-6" />
@@ -221,3 +233,10 @@
     </div>
   </main>
 </div>
+
+<style>
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
