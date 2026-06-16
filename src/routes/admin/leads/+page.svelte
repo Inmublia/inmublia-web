@@ -12,7 +12,11 @@
     Clock, 
     UserCircle,
     GripVertical,
-    MessageSquareQuote
+    MessageSquareQuote,
+    BellRing,
+    CalendarClock,
+    CheckCircle2,
+    MessageSquare
   } from 'lucide-svelte';
   
   let { data } = $props();
@@ -26,6 +30,10 @@
   let nuevaNotaTexto = $state('');
   let guardandoNota = $state(false);
   let submitBtn = $state(null);
+
+  // Estados para Recordatorios
+  let esRecordatorio = $state(false);
+  let fechaRecordatorio = $state('');
   
   let searchQuery = $state('');
   let leadsFiltrados = $derived(
@@ -39,7 +47,6 @@
     leads = data.leads || [];
   });
 
-  // PALETA PREMIUM: Tonos Joya sobre grises claros
   const columnas = [
     { id: 'nuevo', titulo: 'Nuevos', dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
     { id: 'contactado', titulo: 'Contactados', dot: 'bg-blue-500', badge: 'bg-blue-50 text-blue-600 border-blue-200' },
@@ -54,6 +61,12 @@
     return col ? col.badge : 'bg-slate-100 text-slate-600 border-slate-200';
   }
 
+  function formatDateTime(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  }
+
   function timeAgo(dateString) {
     if (!dateString) return 'Desconocido';
     const date = new Date(dateString);
@@ -64,6 +77,11 @@
     if (diffInSeconds < 3600) return `Hace ${Math.floor(diffInSeconds / 60)} min`;
     if (diffInSeconds < 86400) return `Hace ${Math.floor(diffInSeconds / 3600)} horas`;
     return `Hace ${Math.floor(diffInSeconds / 86400)} días`;
+  }
+
+  function isOverdue(dateString) {
+    if (!dateString) return false;
+    return new Date(dateString) <= new Date();
   }
 
   function arrancar(event, id) {
@@ -101,13 +119,37 @@
     fetch('?/actualizar', {
       method: 'POST',
       body: formData,
-      headers: {
-        'x-sveltekit-action': 'true',
-        'accept': 'application/json'
-      }
+      headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' }
     }).catch(err => {
       console.error("Error guardando estado:", err);
       alert('Falló la sincronización con el CRM.');
+    });
+  }
+
+  function completarRecordatorio(notaId) {
+    // Actualización optimista
+    const leadIndex = leads.findIndex(l => l.id === selectedLead.id);
+    if (leadIndex !== -1) {
+      const notaIndex = leads[leadIndex].lead_notas.findIndex(n => n.id === notaId);
+      if (notaIndex !== -1) {
+        leads[leadIndex].lead_notas[notaIndex].completado = true;
+        selectedLead.lead_notas[notaIndex].completado = true;
+        
+        // Recalcular si quedan recordatorios pendientes
+        const now = new Date();
+        const tienePendientes = leads[leadIndex].lead_notas.some(n => 
+          n.tipo === 'recordatorio' && !n.completado && new Date(n.fecha_recordatorio) <= now
+        );
+        leads[leadIndex].has_pending_reminder = tienePendientes;
+      }
+    }
+
+    const formData = new FormData();
+    formData.append('nota_id', notaId);
+    fetch('?/completarRecordatorio', { 
+      method: 'POST', 
+      body: formData, 
+      headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' }
     });
   }
 
@@ -119,19 +161,31 @@
 
   function cerrarPanel() {
     isPanelOpen = false;
-    setTimeout(() => { selectedLead = null; nuevaNotaTexto = ''; }, 300);
+    setTimeout(() => { 
+      selectedLead = null; 
+      nuevaNotaTexto = ''; 
+      esRecordatorio = false; 
+      fechaRecordatorio = '';
+    }, 300);
   }
 
   function manejadorNota({ formData, cancel }) {
     const notaTemp = formData.get('contenido').trim();
     if (!notaTemp || guardandoNota) { cancel(); return; }
+    if (esRecordatorio && !fechaRecordatorio) { alert("Selecciona fecha y hora"); cancel(); return; }
     
     guardandoNota = true;
+    
+    // Configuración para el payload que va al servidor
+    formData.append('is_recordatorio', esRecordatorio);
+    if (esRecordatorio) formData.append('fecha_recordatorio', fechaRecordatorio);
     
     const nuevaNotaObj = {
       id: 'temp-' + Date.now(),
       contenido: notaTemp,
-      tipo: 'nota',
+      tipo: esRecordatorio ? 'recordatorio' : 'nota',
+      fecha_recordatorio: esRecordatorio ? fechaRecordatorio : null,
+      completado: false,
       creado_en: new Date().toISOString()
     };
     
@@ -146,6 +200,8 @@
       guardandoNota = false;
       if (result.type === 'success') {
         nuevaNotaTexto = ''; 
+        esRecordatorio = false;
+        fechaRecordatorio = '';
         await update(); 
         
         const leadActualizado = data.leads.find(l => l.id === selectedLead.id);
@@ -153,13 +209,13 @@
           selectedLead = { ...leadActualizado, lead_notas: [...leadActualizado.lead_notas] };
         }
       } else {
-        alert(`Fallo en servidor: ${result.data?.error || 'Revisa tu conexión'}`);
+        alert(`Fallo: ${result.data?.error || 'Revisa tu conexión'}`);
       }
     };
   }
 
   function eliminarLead(id) {
-    if (confirm('¿Eliminar este prospecto permanentemente?')) {
+    if (confirm('¿Eliminar prospecto permanentemente?')) {
       leads = leads.filter(l => l.id !== id);
       const formData = new FormData();
       formData.append('id', id);
@@ -170,13 +226,10 @@
     }
   }
 
-  // Atajo de teclado (Cmd+Enter o Ctrl+Enter)
   function handleKeyDown(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
-      if (nuevaNotaTexto.trim() && submitBtn) {
-        submitBtn.click();
-      }
+      if (nuevaNotaTexto.trim() && submitBtn) submitBtn.click();
     }
   }
 </script>
@@ -226,13 +279,20 @@
                 draggable="true"
                 ondragstart={(e) => arrancar(e, lead.id)}
                 ondragend={terminar}
-                class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm cursor-pointer active:cursor-grabbing hover:border-indigo-300 hover:shadow-md transition-all duration-200 group relative"
+                class="bg-white p-4 rounded-xl border {lead.has_pending_reminder ? 'border-rose-300 shadow-rose-100' : 'border-slate-200 shadow-sm'} cursor-pointer active:cursor-grabbing hover:border-indigo-300 hover:shadow-md transition-all duration-200 group relative"
               >
                 <button onclick={() => abrirPanel(lead)} class="absolute inset-0 w-full h-full z-0 cursor-pointer"></button>
 
                 <div class="flex items-start justify-between mb-4 relative z-10 pointer-events-none">
                   <div class="flex items-center gap-3">
-                    <img src="https://ui-avatars.com/api/?name={lead.nombre}&background=f8fafc&color=0f172a" alt="Avatar" class="w-9 h-9 rounded-full shadow-sm ring-1 ring-slate-100">
+                    <div class="relative">
+                      <img src="https://ui-avatars.com/api/?name={lead.nombre}&background=f8fafc&color=0f172a" alt="Avatar" class="w-9 h-9 rounded-full shadow-sm ring-1 ring-slate-100">
+                      {#if lead.has_pending_reminder}
+                        <div class="absolute -top-1 -right-1 bg-rose-500 text-white rounded-full p-0.5 ring-2 ring-white">
+                          <BellRing class="w-3 h-3" />
+                        </div>
+                      {/if}
+                    </div>
                     <div>
                       <h3 class="text-sm font-black text-slate-900 leading-none mb-1.5">{lead.nombre}</h3>
                       <p class="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest">
@@ -326,15 +386,41 @@
             {#each selectedLead.lead_notas as nota}
               <div class="relative pl-6">
                 <div class="absolute left-0 top-2 bottom-[-24px] w-px bg-slate-200 last:hidden"></div>
-                <div class="absolute left-[-4.5px] top-2 w-2.5 h-2.5 rounded-full bg-indigo-500 ring-4 ring-white shadow-sm"></div>
                 
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
-                  <p class="text-sm text-slate-700 font-medium whitespace-pre-wrap leading-relaxed">{nota.contenido}</p>
-                  <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-50">
-                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{nota.tipo === 'nota' ? 'Nota Interna' : 'Evento'}</span>
-                    <span class="text-[10px] font-bold text-slate-400 flex items-center gap-1"><Clock class="w-3 h-3" /> {timeAgo(nota.creado_en)}</span>
+                {#if nota.tipo === 'recordatorio'}
+                  <div class="absolute left-[-4.5px] top-2 w-2.5 h-2.5 rounded-full {nota.completado ? 'bg-slate-300' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-500 animate-pulse' : 'bg-amber-400')} ring-4 ring-white shadow-sm"></div>
+                  
+                  <div class="bg-white p-4 rounded-xl border {nota.completado ? 'border-slate-200 opacity-60' : (isOverdue(nota.fecha_recordatorio) ? 'border-rose-300 bg-rose-50/30' : 'border-amber-200 bg-amber-50/30')} shadow-[0_2px_10px_rgba(0,0,0,0.02)] transition-all">
+                    <div class="flex items-center gap-2 mb-2">
+                      <CalendarClock class="w-4 h-4 {nota.completado ? 'text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'text-rose-500' : 'text-amber-500')}" />
+                      <span class="text-[10px] font-bold uppercase tracking-widest {nota.completado ? 'text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'text-rose-600' : 'text-amber-600')}">
+                        {nota.completado ? 'Completado' : 'Recordatorio'}
+                      </span>
+                    </div>
+                    <p class="text-sm {nota.completado ? 'text-slate-500 line-through' : 'text-slate-800'} font-medium whitespace-pre-wrap leading-relaxed mb-3">{nota.contenido}</p>
+                    
+                    <div class="flex items-center justify-between pt-3 border-t {nota.completado ? 'border-slate-100' : (isOverdue(nota.fecha_recordatorio) ? 'border-rose-100' : 'border-amber-100')}">
+                      <span class="text-[10px] font-bold text-slate-500">{formatDateTime(nota.fecha_recordatorio)}</span>
+                      
+                      {#if !nota.completado}
+                        <button onclick={() => completarRecordatorio(nota.id)} class="text-[10px] font-bold flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors shadow-sm text-slate-600">
+                          <CheckCircle2 class="w-3.5 h-3.5" /> Marcar Listo
+                        </button>
+                      {/if}
+                    </div>
                   </div>
-                </div>
+                {:else}
+                  <div class="absolute left-[-4.5px] top-2 w-2.5 h-2.5 rounded-full bg-indigo-500 ring-4 ring-white shadow-sm"></div>
+                  
+                  <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                    <p class="text-sm text-slate-700 font-medium whitespace-pre-wrap leading-relaxed">{nota.contenido}</p>
+                    <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-50">
+                      <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><MessageSquare class="w-3 h-3" /> Nota</span>
+                      <span class="text-[10px] font-bold text-slate-400 flex items-center gap-1"><Clock class="w-3 h-3" /> {timeAgo(nota.creado_en)}</span>
+                    </div>
+                  </div>
+                {/if}
+
               </div>
             {/each}
           </div>
@@ -342,39 +428,56 @@
           <div class="flex-1 flex flex-col items-center justify-center text-center px-4 opacity-60">
             <UserCircle class="w-12 h-12 text-slate-300 mb-3" />
             <p class="text-sm font-bold text-slate-500">Sin historial</p>
-            <p class="text-xs font-medium text-slate-400 mt-1">Escribe tu primera nota abajo para comenzar.</p>
+            <p class="text-xs font-medium text-slate-400 mt-1">Escribe tu primera nota o recordatorio abajo para comenzar.</p>
           </div>
         {/if}
       </div>
 
-      <div class="p-6 bg-slate-50 border-t border-slate-200 shrink-0">
-        <form method="POST" action="?/guardarNota" use:enhance={manejadorNota} class="flex flex-col gap-3 relative">
+      <div class="p-5 bg-slate-50 border-t border-slate-200 shrink-0">
+        <form method="POST" action="?/guardarNota" use:enhance={manejadorNota} class="flex flex-col gap-3">
           <input type="hidden" name="lead_id" value={selectedLead.id} />
           
-          <textarea 
-            name="contenido"
-            bind:value={nuevaNotaTexto} 
-            onkeydown={handleKeyDown}
-            placeholder="Resumen de llamada... (Cmd + Enter para guardar)" 
-            class="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-14 py-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none resize-none min-h-[90px] shadow-sm font-medium"
-            required
-          ></textarea>
+          <div class="flex items-center gap-2 mb-1 p-1 bg-slate-200/50 rounded-lg inline-flex w-fit">
+            <button type="button" onclick={() => esRecordatorio = false} class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all flex items-center gap-1.5 {!esRecordatorio ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}">
+              <MessageSquare class="w-3.5 h-3.5" /> Nota
+            </button>
+            <button type="button" onclick={() => esRecordatorio = true} class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all flex items-center gap-1.5 {esRecordatorio ? 'bg-white shadow-sm text-amber-600' : 'text-slate-500 hover:text-slate-700'}">
+              <BellRing class="w-3.5 h-3.5" /> Recordatorio
+            </button>
+          </div>
+
+          {#if esRecordatorio}
+            <div class="animate-[fadeIn_0.2s_ease-out]">
+              <label for="fecha" class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Fecha y Hora a contactar</label>
+              <input type="datetime-local" id="fecha" bind:value={fechaRecordatorio} class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none shadow-sm font-medium">
+            </div>
+          {/if}
           
-          <button 
-            type="submit" 
-            bind:this={submitBtn}
-            disabled={guardandoNota || !nuevaNotaTexto.trim()}
-            class="absolute bottom-3 right-3 bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-200 disabled:text-slate-400 text-white p-2.5 rounded-lg transition-colors flex items-center justify-center shadow-md active:scale-95"
-            title="Guardar Nota (Cmd/Ctrl + Enter)"
-          >
-            {#if guardandoNota}
-              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-            {:else}
-              <Send class="w-4 h-4" />
-            {/if}
-          </button>
+          <div class="relative">
+            <textarea 
+              name="contenido"
+              bind:value={nuevaNotaTexto} 
+              onkeydown={handleKeyDown}
+              placeholder={esRecordatorio ? "Asunto del recordatorio... (Cmd + Enter para guardar)" : "Resumen de llamada... (Cmd + Enter para guardar)"} 
+              class="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-14 py-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 {esRecordatorio ? 'focus:ring-amber-500/20 focus:border-amber-400' : 'focus:ring-indigo-500/20 focus:border-indigo-400'} outline-none resize-none min-h-[90px] shadow-sm font-medium transition-colors"
+              required
+            ></textarea>
+            
+            <button 
+              type="submit" 
+              bind:this={submitBtn}
+              disabled={guardandoNota || !nuevaNotaTexto.trim()}
+              class="absolute bottom-3 right-3 {esRecordatorio ? 'bg-amber-500 hover:bg-amber-400 text-slate-900' : 'bg-slate-900 hover:bg-indigo-600 text-white'} disabled:bg-slate-200 disabled:text-slate-400 p-2.5 rounded-lg transition-colors flex items-center justify-center shadow-md active:scale-95"
+              title="Guardar (Cmd/Ctrl + Enter)"
+            >
+              {#if guardandoNota}
+                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              {:else}
+                <Send class="w-4 h-4" />
+              {/if}
+            </button>
+          </div>
         </form>
-        <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400 mt-3 text-center">* Al registrar interacción, el prospecto avanza en el embudo.</p>
       </div>
     {/if}
   </div>
