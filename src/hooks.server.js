@@ -6,7 +6,8 @@ export async function handle({ event, resolve }) {
   const supabaseUrl = env.PUBLIC_SUPABASE_URL || event.platform?.env?.PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = env.PUBLIC_SUPABASE_ANON_KEY || event.platform?.env?.PUBLIC_SUPABASE_ANON_KEY;
   
-  const host = event.url.hostname;
+  // Leemos el host real que nos pasa Cloudflare Worker, si no existe (local), leemos el normal
+  const host = event.request.headers.get('x-forwarded-host') || event.url.hostname;
   const pathname = event.url.pathname;
   const isLocal = host === 'localhost' || host === '127.0.0.1';
   
