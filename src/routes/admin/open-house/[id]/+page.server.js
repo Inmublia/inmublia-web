@@ -1,32 +1,30 @@
-import { createClient } from '@supabase/supabase-js';
-import { env as publicEnv } from '$env/dynamic/public';
-import { env as privateEnv } from '$env/dynamic/private';
-import { redirect, error, fail } from '@sveltejs/kit';
-
-const getSupabaseAdmin = () => {
-  return createClient(
-    publicEnv.PUBLIC_SUPABASE_URL,
-    privateEnv.SUPABASE_SERVICE_ROLE_KEY,
-    { auth: { persistSession: false } }
-  );
-};
+import { fail, redirect, error } from '@sveltejs/kit';
 
 export async function load({ params, locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
-  const supabaseAdmin = getSupabaseAdmin();
-
-  const { data: oh, error: ohError } = await supabaseAdmin
-    .from('open_houses')
-    .select('*, propiedades(*), brokers(*)')
-    .eq('id', params.id)
+  // 1. Autenticación estricta
+  const { data: broker, error: brokerError } = await locals.supabase
+    .from('brokers')
+    .select('id, nombre_comercial, subdominio')
+    .eq('auth_user_id', user.id)
     .single();
 
-  if (ohError || !oh) throw error(404, 'Evento no encontrado.');
-  if (oh.brokers?.email !== user.email) throw error(403, 'No autorizado.');
+  if (brokerError || !broker) throw redirect(303, '/login');
 
-  const { data: attendees } = await supabaseAdmin
+  // 2. Carga del evento asegurando que el broker es el dueño
+  const { data: oh, error: ohError } = await locals.supabase
+    .from('open_houses')
+    .select('*, propiedades(*)')
+    .eq('id', params.id)
+    .eq('broker_id', broker.id) // <- CANDADO DE SEGURIDAD
+    .single();
+
+  if (ohError || !oh) throw error(404, 'Evento no encontrado o no tienes permisos.');
+
+  // 3. Carga de los asistentes
+  const { data: attendees } = await locals.supabase
     .from('open_house_attendees')
     .select('*')
     .eq('open_house_id', params.id)
@@ -45,20 +43,47 @@ export async function load({ params, locals }) {
       benefit: oh.benefit,
       description: oh.description,
       agent: {
-        name: oh.brokers?.nombre_comercial,
-        url: `${oh.brokers?.subdominio}.inmublia.com`
+        name: broker.nombre_comercial,
+        url: `${broker.subdominio}.inmublia.com`
       }
     }
   };
 }
 
+// Helper interno para validar que el asistente pertenece a un evento de este broker
+async function verifyOwnership(supabase, attendeeId, brokerId) {
+  const { data: attendee } = await supabase
+    .from('open_house_attendees')
+    .select('open_house_id')
+    .eq('id', attendeeId)
+    .single();
+    
+  if (!attendee) return false;
+
+  const { data: oh } = await supabase
+    .from('open_houses')
+    .select('id')
+    .eq('id', attendee.open_house_id)
+    .eq('broker_id', brokerId)
+    .single();
+
+  return !!oh;
+}
+
 export const actions = {
-  checkin: async ({ request }) => {
-    const supabaseAdmin = getSupabaseAdmin();
+  checkin: async ({ request, locals }) => {
+    if (!locals.user) return fail(401, { error: 'No autorizado' });
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
+    if (!broker) return fail(403);
+
     const formData = await request.formData();
     const attendeeId = formData.get('attendee_id');
 
-    const { error: updateError } = await supabaseAdmin
+    // Validación de seguridad de doble capa
+    const isOwner = await verifyOwnership(locals.supabase, attendeeId, broker.id);
+    if (!isOwner) return fail(403, { error: 'Operación denegada.' });
+
+    const { error: updateError } = await locals.supabase
       .from('open_house_attendees')
       .update({ checked_in: true })
       .eq('id', attendeeId);
@@ -67,12 +92,18 @@ export const actions = {
     return { success: true };
   },
 
-  admitir: async ({ request }) => {
-    const supabaseAdmin = getSupabaseAdmin();
+  admitir: async ({ request, locals }) => {
+    if (!locals.user) return fail(401, { error: 'No autorizado' });
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
+    if (!broker) return fail(403);
+
     const formData = await request.formData();
     const attendeeId = formData.get('attendee_id');
 
-    const { error: updateError } = await supabaseAdmin
+    const isOwner = await verifyOwnership(locals.supabase, attendeeId, broker.id);
+    if (!isOwner) return fail(403, { error: 'Operación denegada.' });
+
+    const { error: updateError } = await locals.supabase
       .from('open_house_attendees')
       .update({ status: 'confirmed' })
       .eq('id', attendeeId);
@@ -85,16 +116,17 @@ export const actions = {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
-    const supabaseAdmin = getSupabaseAdmin();
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', user.id).single();
+    if (!broker) return fail(403);
+
     const formData = await request.formData();
-    
     const id = formData.get('id');
     const date = formData.get('date');
     const timeStart = formData.get('timeStart');
     const timeEnd = formData.get('timeEnd');
     const maxCapacity = formData.get('maxCapacity');
 
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await locals.supabase
       .from('open_houses')
       .update({ 
         event_date: date, 
@@ -102,10 +134,11 @@ export const actions = {
         time_end: timeEnd, 
         max_capacity: parseInt(maxCapacity, 10) 
       })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('broker_id', broker.id); // <- Aseguramos que solo edita sus eventos
 
     if (updateError) {
-      console.error('Error al actualizar los ajustes del evento:', updateError);
+      console.error('Error al actualizar:', updateError);
       return fail(500, { error: 'No se pudieron actualizar los ajustes.' });
     }
 
