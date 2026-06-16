@@ -1,6 +1,7 @@
 <script>
-  import { invalidateAll } from '$app/navigation';
+  import { invalidateAll, goto } from '$app/navigation';
   import { enhance } from '$app/forms';
+  import { page } from '$app/stores';
   import { 
     Search, X, Phone, Mail, Home, Send, Trash2, Clock, UserCircle,
     GripVertical, MessageSquareQuote, BellRing, CalendarClock, CheckCircle2, MessageSquare, ChevronDown
@@ -51,11 +52,26 @@
 
   $effect(() => {
     leads = data.leads || [];
+
+    // DEEP LINKING: Interceptor de URLs mágicas desde el Notification Center
+    const leadIdToOpen = $page.url.searchParams.get('open');
+    if (leadIdToOpen && leads.length > 0) {
+      const leadToOpen = leads.find(l => l.id === leadIdToOpen);
+      if (leadToOpen && (!selectedLead || selectedLead.id !== leadIdToOpen)) {
+        setTimeout(() => {
+          abrirPanel(leadToOpen);
+          // Limpiar la URL sin recargar la página
+          const newUrl = new URL($page.url);
+          newUrl.searchParams.delete('open');
+          goto(newUrl.pathname + newUrl.search, { replaceState: true, keepFocus: true, noScroll: true });
+        }, 50);
+      }
+    }
   });
 
   // GENERADOR DE INTERVALOS DE HORA (El estándar de la industria)
   const timeSlots = [];
-  for (let i = 7; i <= 21; i++) { // De 7 AM a 9 PM
+  for (let i = 7; i <= 21; i++) { 
     const hour = i.toString().padStart(2, '0');
     timeSlots.push(`${hour}:00`);
     timeSlots.push(`${hour}:30`);
