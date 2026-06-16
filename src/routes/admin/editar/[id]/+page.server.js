@@ -7,7 +7,6 @@ export async function load({ params, locals }) {
 
   const { id } = params;
   
-  // 1. Extraemos los datos del broker basándonos ESTRICTAMENTE en su token de seguridad
   const { data: broker, error: brokerError } = await locals.supabase
     .from('brokers')
     .select('id, ia_creditos_disponibles')
@@ -16,12 +15,11 @@ export async function load({ params, locals }) {
 
   if (brokerError || !broker) throw redirect(303, '/admin');
 
-  // 2. Extraemos la propiedad, asegurando que PERTENEZCA a este broker
   const { data: propiedad, error: propError } = await locals.supabase
     .from('propiedades')
     .select('*')
     .eq('id', id)
-    .eq('broker_id', broker.id) // <- CANDADO DE SEGURIDAD APLICADO
+    .eq('broker_id', broker.id)
     .single();
   
   if (propError || !propiedad) throw redirect(303, '/admin');
@@ -33,12 +31,10 @@ export async function load({ params, locals }) {
 }
 
 export const actions = {
-  // 🔥 MOTOR IA COMPARTIDO
   generarCampañaIA: async ({ request, locals }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
-    // Corrección: Búsqueda estricta
     const { data: broker } = await locals.supabase
       .from('brokers')
       .select('id, ia_creditos_disponibles')
@@ -121,7 +117,6 @@ export const actions = {
     }
   },
 
-  // GUARDADO ESTÁNDAR
   actualizar: async ({ request, locals, params }) => {
     const user = locals.user;
     if (!user) throw redirect(303, '/login');
@@ -134,14 +129,17 @@ export const actions = {
 
     const video_url = formData.get('video_url') || null;
     const recorrido_3d_url = formData.get('recorrido_3d_url') || null; 
-
-    // Revisamos el estatus de visibilidad basado en el checkbox
     const is_oculta = formData.get('is_oculta') === 'on';
     const estatus = is_oculta ? 'Pre-Mercado' : 'Activa';
+
+    // Nivel 2: Comisión
+    const comisionStr = formData.get('comision');
+    const comision = comisionStr ? parseFloat(comisionStr) : null;
 
     const actualizaciones = {
       titulo: formData.get('titulo'),
       precio: parseNum(formData.get('precio')),
+      comision: comision,
       descripcion: formData.get('descripcion'),
       operacion: formData.get('operacion'),
       tipo: formData.get('tipo'),
@@ -158,7 +156,6 @@ export const actions = {
       recorrido_3d_url: recorrido_3d_url 
     };
 
-    // Corrección: Búsqueda estricta
     const { data: broker } = await locals.supabase
       .from('brokers')
       .select('id')
@@ -208,13 +205,10 @@ export const actions = {
         }
       }
       if (galeriaUrls.length > 0) {
-        // En una app real de producción, podrías querer fusionar el arreglo nuevo con el viejo. 
-        // Por ahora, este código reemplaza la galería, tal como lo tenías diseñado.
         actualizaciones.galeria_urls = galeriaUrls;
       }
     }
 
-    // Actualizamos asegurando que pertenece al broker
     const { data: updatedData, error } = await locals.supabase
       .from('propiedades')
       .update(actualizaciones)
@@ -223,7 +217,7 @@ export const actions = {
       .select();
 
     if (error) return fail(500, { error: `Error SQL al actualizar: ${error.message}` });
-    if (!updatedData || updatedData.length === 0) return fail(500, { error: 'No se pudo actualizar o la propiedad no te pertenece.' });
+    if (!updatedData || updatedData.length === 0) return fail(500, { error: 'No se pudo actualizar.' });
     
     throw redirect(303, '/admin');
   }
