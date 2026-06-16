@@ -34,6 +34,7 @@
   // Estados para Recordatorios
   let esRecordatorio = $state(false);
   let fechaRecordatorio = $state('');
+  let horaRecordatorio = $state(''); // CORRECCIÓN: Declaración faltante
   
   let searchQuery = $state('');
   let leadsFiltrados = $derived(
@@ -42,6 +43,20 @@
       (l.propiedades?.titulo && l.propiedades.titulo.toLowerCase().includes(searchQuery.toLowerCase()))
     )
   );
+
+  // Calcular total de recordatorios pendientes globales
+  let totalRecordatoriosPendientes = $derived(
+    leads.filter(l => l.has_pending_reminder).length
+  );
+
+  // Efecto para actualizar el título del navegador
+  $effect(() => {
+    if (totalRecordatoriosPendientes > 0) {
+      document.title = `(${totalRecordatoriosPendientes}) Pendientes - CRM`;
+    } else {
+      document.title = 'Gestión de Leads - Inmublia';
+    }
+  });
 
   $effect(() => {
     leads = data.leads || [];
@@ -176,25 +191,37 @@
       nuevaNotaTexto = ''; 
       esRecordatorio = false; 
       fechaRecordatorio = '';
+      horaRecordatorio = '';
     }, 300);
   }
 
   function manejadorNota({ formData, cancel }) {
     const notaTemp = formData.get('contenido').trim();
     if (!notaTemp || guardandoNota) { cancel(); return; }
-    if (esRecordatorio && !fechaRecordatorio) { alert("Selecciona fecha y hora"); cancel(); return; }
+    
+    if (esRecordatorio && (!fechaRecordatorio || !horaRecordatorio)) { 
+      alert("Selecciona fecha y hora para el recordatorio"); 
+      cancel(); 
+      return; 
+    }
     
     guardandoNota = true;
     
+    // CORRECCIÓN: Formatear la fecha y hora combinadas
+    let fechaFinalFormateada = null;
+    if (esRecordatorio) {
+      fechaFinalFormateada = `${fechaRecordatorio}T${horaRecordatorio}:00`;
+    }
+
     // Configuración para el payload que va al servidor
     formData.append('is_recordatorio', esRecordatorio);
-    if (esRecordatorio) formData.append('fecha_recordatorio', fechaRecordatorio);
+    if (esRecordatorio) formData.append('fecha_recordatorio', fechaFinalFormateada);
     
     const nuevaNotaObj = {
       id: 'temp-' + Date.now(),
       contenido: notaTemp,
       tipo: esRecordatorio ? 'recordatorio' : 'nota',
-      fecha_recordatorio: esRecordatorio ? fechaRecordatorio : null,
+      fecha_recordatorio: fechaFinalFormateada,
       completado: false,
       creado_en: new Date().toISOString()
     };
@@ -212,6 +239,7 @@
         nuevaNotaTexto = ''; 
         esRecordatorio = false;
         fechaRecordatorio = '';
+        horaRecordatorio = '';
         await update(); 
         
         const leadActualizado = data.leads.find(l => l.id === selectedLead.id);
@@ -252,6 +280,11 @@
         <MessageSquareQuote class="w-5 h-5 text-indigo-400" />
         Gestión de Interesados
       </h1>
+      {#if totalRecordatoriosPendientes > 0}
+        <span class="bg-rose-500 text-white text-[10px] font-black px-2 py-1 rounded-full animate-pulse ml-2">
+          {totalRecordatoriosPendientes} Alertas
+        </span>
+      {/if}
     </div>
     <div class="relative w-full max-w-md hidden sm:block">
       <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
@@ -456,7 +489,7 @@
             </button>
           </div>
 
-         {#if esRecordatorio}
+          {#if esRecordatorio}
             <div class="animate-[fadeIn_0.2s_ease-out] bg-amber-50/50 p-3 rounded-xl border border-amber-100 mb-1">
               <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Programar Llamada / Visita</label>
               <div class="flex gap-2">
