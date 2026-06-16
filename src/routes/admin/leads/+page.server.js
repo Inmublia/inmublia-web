@@ -3,7 +3,6 @@ import { fail, redirect } from '@sveltejs/kit';
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
 
-  // CORRECCIÓN: Búsqueda estricta por auth_user_id
   const { data: broker, error: brokerError } = await locals.supabase
     .from('brokers')
     .select('*')
@@ -11,26 +10,35 @@ export const load = async ({ locals }) => {
     .single();
 
   if (brokerError || !broker) {
-    console.error('🔥 Error al consultar perfil de broker:', brokerError?.message);
     return { broker: null, leads: [] };
   }
 
-  // Obtenemos los leads y anidamos sus propiedades e historial de notas
   const { data: leads, error: leadsError } = await locals.supabase
     .from('leads')
     .select(`*, propiedades (*), lead_notas (*)`)
     .eq('broker_id', broker.id)
     .order('creado_en', { ascending: false });
 
-  if (leadsError) {
-    console.error('🔥 Error al cargar leads:', leadsError.message);
-  }
+  if (leadsError) console.error('Error al cargar leads:', leadsError.message);
+
+  const now = new Date();
 
   const leadsProcesados = (leads || []).map(lead => {
     const notas = lead.lead_notas || [];
-    // Ordenamos las notas de la más reciente a la más antigua
     const notasOrdenadas = [...notas].sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime());
-    return { ...lead, lead_notas: notasOrdenadas };
+    
+    // Motor analítico: Detectar si hay un recordatorio pendiente para hoy o fechas pasadas
+    const pendingReminders = notasOrdenadas.filter(n => 
+      n.tipo === 'recordatorio' && 
+      n.completado === false && 
+      new Date(n.fecha_recordatorio) <= now
+    );
+
+    return { 
+      ...lead, 
+      lead_notas: notasOrdenadas,
+      has_pending_reminder: pendingReminders.length > 0 
+    };
   });
 
   return {
@@ -42,107 +50,76 @@ export const load = async ({ locals }) => {
 export const actions = {
   actualizar: async ({ request, locals }) => {
     if (!locals.user) return fail(401, { error: 'No autorizado' });
-
-    // CORRECCIÓN: Búsqueda estricta por auth_user_id
-    const { data: broker } = await locals.supabase
-      .from('brokers')
-      .select('id')
-      .eq('auth_user_id', locals.user.id)
-      .single();
-      
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
     if (!broker) return fail(403, { error: 'Perfil no encontrado' });
 
     const formData = await request.formData();
     const id = formData.get('id');
     const estado = formData.get('estado');
 
-    const { error } = await locals.supabase
-      .from('leads')
-      .update({ estado })
-      .eq('id', id)
-      .eq('broker_id', broker.id); // Seguridad RLS reforzada
-
+    const { error } = await locals.supabase.from('leads').update({ estado }).eq('id', id).eq('broker_id', broker.id);
     if (error) return fail(500, { error: 'Fallo al mover' });
     return { success: true };
   },
 
   eliminar: async ({ request, locals }) => {
     if (!locals.user) return fail(401, { error: 'No autorizado' });
-
-    // CORRECCIÓN: Búsqueda estricta por auth_user_id
-    const { data: broker } = await locals.supabase
-      .from('brokers')
-      .select('id')
-      .eq('auth_user_id', locals.user.id)
-      .single();
-      
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
     if (!broker) return fail(403, { error: 'Perfil no encontrado' });
 
     const formData = await request.formData();
     const id = formData.get('id');
 
-    const { error } = await locals.supabase
-      .from('leads')
-      .delete()
-      .eq('id', id)
-      .eq('broker_id', broker.id);
-
+    const { error } = await locals.supabase.from('leads').delete().eq('id', id).eq('broker_id', broker.id);
     if (error) return fail(500, { error: 'Fallo al eliminar' });
     return { success: true };
   },
 
   guardarNota: async ({ request, locals }) => {
     if (!locals.user) return fail(401, { error: 'No autorizado' });
-
-    // CORRECCIÓN: Búsqueda estricta por auth_user_id
-    const { data: broker } = await locals.supabase
-      .from('brokers')
-      .select('id')
-      .eq('auth_user_id', locals.user.id)
-      .single();
-      
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
     if (!broker) return fail(403, { error: 'Perfil no encontrado' });
 
     const formData = await request.formData();
     const leadId = formData.get('lead_id');
     const contenido = formData.get('contenido');
+    const isRecordatorio = formData.get('is_recordatorio') === 'true';
+    const fechaRecordatorio = formData.get('fecha_recordatorio');
 
     if (!contenido || !contenido.trim()) return fail(400, { error: 'Nota vacía' });
+    if (isRecordatorio && !fechaRecordatorio) return fail(400, { error: 'Selecciona una fecha y hora' });
 
-    // Validamos que el lead realmente le pertenezca a este broker
-    const { data: lead, error: checkError } = await locals.supabase
-      .from('leads')
-      .select('id, estado')
-      .eq('id', leadId)
-      .eq('broker_id', broker.id)
-      .maybeSingle();
+    const { data: lead, error: checkError } = await locals.supabase.from('leads').select('id, estado').eq('id', leadId).eq('broker_id', broker.id).maybeSingle();
+    if (checkError || !lead) return fail(403, { error: 'No autorizado' });
 
-    if (checkError || !lead) return fail(403, { error: 'No autorizado para este lead' });
+    const payload = {
+      lead_id: leadId,
+      broker_id: broker.id,
+      contenido: contenido.trim(),
+      tipo: isRecordatorio ? 'recordatorio' : 'nota',
+      fecha_recordatorio: isRecordatorio ? fechaRecordatorio : null,
+      completado: false
+    };
 
-    // CORRECCIÓN CRÍTICA: Insertamos el broker.id en lugar del locals.user.id
-    const { error: notaError } = await locals.supabase
-      .from('lead_notas')
-      .insert({ 
-        lead_id: leadId, 
-        broker_id: broker.id, // Antes decía: locals.user.id
-        contenido: contenido.trim(), 
-        tipo: 'nota' 
-      });
+    const { error: notaError } = await locals.supabase.from('lead_notas').insert(payload);
+    if (notaError) return fail(500, { error: `Error: ${notaError.message}` });
 
-    if (notaError) {
-      console.error("🔥 Error Supabase Notas:", notaError);
-      return fail(500, { error: `Supabase Error: ${notaError.message}` });
-    }
-
-    // Si el lead era nuevo, lo pasamos a contactado automáticamente
     if (lead.estado === 'nuevo') {
-      await locals.supabase
-        .from('leads')
-        .update({ estado: 'contactado' })
-        .eq('id', leadId)
-        .eq('broker_id', broker.id);
+      await locals.supabase.from('leads').update({ estado: 'contactado' }).eq('id', leadId).eq('broker_id', broker.id);
     }
+    return { success: true };
+  },
 
+  completarRecordatorio: async ({ request, locals }) => {
+    if (!locals.user) return fail(401, { error: 'No autorizado' });
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
+    if (!broker) return fail(403, { error: 'Perfil no encontrado' });
+
+    const formData = await request.formData();
+    const notaId = formData.get('nota_id');
+
+    const { error } = await locals.supabase.from('lead_notas').update({ completado: true }).eq('id', notaId).eq('broker_id', broker.id);
+    if (error) return fail(500, { error: 'Fallo al completar' });
     return { success: true };
   }
 };
