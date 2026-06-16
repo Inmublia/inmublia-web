@@ -6,7 +6,7 @@ export async function handle({ event, resolve }) {
   const supabaseUrl = env.PUBLIC_SUPABASE_URL || event.platform?.env?.PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = env.PUBLIC_SUPABASE_ANON_KEY || event.platform?.env?.PUBLIC_SUPABASE_ANON_KEY;
   
-  // Leemos el host real que nos pasa Cloudflare Worker, si no existe (local), leemos el normal
+  // [CORRECCIÓN CRÍTICA]: Siempre priorizamos el host inyectado por el CF Worker.
   const host = event.request.headers.get('x-forwarded-host') || event.url.hostname;
   const pathname = event.url.pathname;
   const isLocal = host === 'localhost' || host === '127.0.0.1';
@@ -14,8 +14,6 @@ export async function handle({ event, resolve }) {
   // =====================================================================
   // 1. EL ESCUDO DE ENRUTAMIENTO (Rendimiento Edge)
   // =====================================================================
-  // Si es un archivo estático (imágenes, CSS, JS), lo dejamos pasar DE INMEDIATO. 
-  // Esto ahorra el 90% de los costos de lectura a la base de datos/KV.
   if (pathname.startsWith('/_app/') || pathname.includes('.')) {
     return resolve(event);
   }
@@ -33,10 +31,9 @@ export async function handle({ event, resolve }) {
       brokerId = await event.platform.env.INMUBLIA_KV.get(`tenant:${subdomain}`);
     }
 
-    // B) Fallback Síncrono a Supabase (Rescate por si el KV aún no se propaga)
+    // B) Fallback Síncrono a Supabase
     if (!brokerId) {
       try {
-        // Usamos fetch (API REST nativa) para no agotar las conexiones TCP de Postgres
         const res = await fetch(`${supabaseUrl}/rest/v1/brokers?subdominio=eq.${subdomain}&select=id`, {
           headers: { 
             'apikey': supabaseAnonKey,
@@ -48,7 +45,6 @@ export async function handle({ event, resolve }) {
         if (data && data.length > 0) {
           brokerId = data[0].id;
           
-          // Sincronizamos el KV en segundo plano (Non-blocking) para que la próxima visita responda en 1ms
           if (event.platform?.context?.waitUntil && event.platform?.env?.INMUBLIA_KV) {
             event.platform.context.waitUntil(
               event.platform.env.INMUBLIA_KV.put(`tenant:${subdomain}`, brokerId)
@@ -60,12 +56,11 @@ export async function handle({ event, resolve }) {
       }
     }
 
-    // Si después de buscar en KV y en Supabase no existe, es un subdominio falso/abandonado
     if (!brokerId) {
       return new Response('Portal inmobiliario no encontrado o inactivo.', { status: 404 });
     }
 
-    // ¡Éxito! Inyectamos el ID del broker en el entorno de Svelte para que la página sepa qué casas cargar
+    // Guardamos el ID unificado para usarlo en el load público
     event.locals.tenantId = brokerId;
   }
 
@@ -79,6 +74,7 @@ export async function handle({ event, resolve }) {
       },
       setAll(cookiesToSet) {
         try {
+          // Si estamos en localhost, evitamos establecer el dominio para no romper el entorno de desarrollo local.
           const cookieDomain = isLocal ? undefined : '.inmublia.com';
           cookiesToSet.forEach(({ name, value, options }) => {
             const { domain, ...cleanOptions } = options;
