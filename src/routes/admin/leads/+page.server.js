@@ -3,10 +3,11 @@ import { fail, redirect } from '@sveltejs/kit';
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
 
+  // CORRECCIÓN: Búsqueda estricta por auth_user_id
   const { data: broker, error: brokerError } = await locals.supabase
     .from('brokers')
     .select('*')
-    .eq('email', locals.user.email)
+    .eq('auth_user_id', locals.user.id)
     .single();
 
   if (brokerError || !broker) {
@@ -14,6 +15,7 @@ export const load = async ({ locals }) => {
     return { broker: null, leads: [] };
   }
 
+  // Obtenemos los leads y anidamos sus propiedades e historial de notas
   const { data: leads, error: leadsError } = await locals.supabase
     .from('leads')
     .select(`*, propiedades (*), lead_notas (*)`)
@@ -26,6 +28,7 @@ export const load = async ({ locals }) => {
 
   const leadsProcesados = (leads || []).map(lead => {
     const notas = lead.lead_notas || [];
+    // Ordenamos las notas de la más reciente a la más antigua
     const notasOrdenadas = [...notas].sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime());
     return { ...lead, lead_notas: notasOrdenadas };
   });
@@ -40,7 +43,13 @@ export const actions = {
   actualizar: async ({ request, locals }) => {
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
-    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('email', locals.user.email).single();
+    // CORRECCIÓN: Búsqueda estricta por auth_user_id
+    const { data: broker } = await locals.supabase
+      .from('brokers')
+      .select('id')
+      .eq('auth_user_id', locals.user.id)
+      .single();
+      
     if (!broker) return fail(403, { error: 'Perfil no encontrado' });
 
     const formData = await request.formData();
@@ -51,7 +60,7 @@ export const actions = {
       .from('leads')
       .update({ estado })
       .eq('id', id)
-      .eq('broker_id', broker.id);
+      .eq('broker_id', broker.id); // Seguridad RLS reforzada
 
     if (error) return fail(500, { error: 'Fallo al mover' });
     return { success: true };
@@ -60,7 +69,13 @@ export const actions = {
   eliminar: async ({ request, locals }) => {
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
-    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('email', locals.user.email).single();
+    // CORRECCIÓN: Búsqueda estricta por auth_user_id
+    const { data: broker } = await locals.supabase
+      .from('brokers')
+      .select('id')
+      .eq('auth_user_id', locals.user.id)
+      .single();
+      
     if (!broker) return fail(403, { error: 'Perfil no encontrado' });
 
     const formData = await request.formData();
@@ -79,7 +94,13 @@ export const actions = {
   guardarNota: async ({ request, locals }) => {
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
-    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('email', locals.user.email).single();
+    // CORRECCIÓN: Búsqueda estricta por auth_user_id
+    const { data: broker } = await locals.supabase
+      .from('brokers')
+      .select('id')
+      .eq('auth_user_id', locals.user.id)
+      .single();
+      
     if (!broker) return fail(403, { error: 'Perfil no encontrado' });
 
     const formData = await request.formData();
@@ -88,6 +109,7 @@ export const actions = {
 
     if (!contenido || !contenido.trim()) return fail(400, { error: 'Nota vacía' });
 
+    // Validamos que el lead realmente le pertenezca a este broker
     const { data: lead, error: checkError } = await locals.supabase
       .from('leads')
       .select('id, estado')
@@ -97,11 +119,12 @@ export const actions = {
 
     if (checkError || !lead) return fail(403, { error: 'No autorizado para este lead' });
 
+    // CORRECCIÓN CRÍTICA: Insertamos el broker.id en lugar del locals.user.id
     const { error: notaError } = await locals.supabase
       .from('lead_notas')
       .insert({ 
         lead_id: leadId, 
-        broker_id: locals.user.id, 
+        broker_id: broker.id, // Antes decía: locals.user.id
         contenido: contenido.trim(), 
         tipo: 'nota' 
       });
@@ -111,6 +134,7 @@ export const actions = {
       return fail(500, { error: `Supabase Error: ${notaError.message}` });
     }
 
+    // Si el lead era nuevo, lo pasamos a contactado automáticamente
     if (lead.estado === 'nuevo') {
       await locals.supabase
         .from('leads')
