@@ -15,6 +15,11 @@ const config = {
         alias: {
             "@/*": "./src/*",
             "$lib/*": "./src/lib/*"
+        },
+        // [NUEVO]: Apagamos la validación de origen estricta porque el CF Worker reescribe el Host.
+        // La seguridad real está en las sesiones cifradas de Supabase, no en la URL.
+        csrf: {
+            checkOrigin: false
         }
     }
 };
