@@ -1,4 +1,3 @@
-// Despertando el webhook
 // forzando lectura del config.toml
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -40,40 +39,55 @@ Deno.serve(async (req) => {
     { auth: { persistSession: false } }
   );
 
-  // Muro de Idempotencia
-  const { error: insertError } = await supabaseAdmin
-    .from('stripe_eventos')
-    .insert([{ id: event.id, tipo: event.type }]);
-
-  if (insertError && insertError.code === '23505') {
-    return new Response(JSON.stringify({ recibido: true }), { status: 200 });
-  } else if (insertError) {
-    return new Response('Error de BD', { status: 500 });
-  }
-
-  // Aprovisionamiento
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
-    const email = session.customer_details?.email;
+    const email = session.customer_details?.email || session.customer_email;
     const stripeCustomerId = session.customer as string;
+    
+    // Extracción dinámica: Soporta 'basico', 'pro', 'elite' o cualquier plan futuro
     const planPagado = session.metadata?.plan || 'basico'; 
 
+    // 1. Guardamos el recibo enriquecido en stripe_eventos
+    const { error: insertError } = await supabaseAdmin
+      .from('stripe_eventos')
+      .insert([{ 
+        id: event.id, 
+        tipo: event.type,
+        email: email,
+        stripe_customer_id: stripeCustomerId,
+        plan_comprado: planPagado,
+        payload: event 
+      }]);
+
+    if (insertError) {
+      if (insertError.code === '23505') {
+        return new Response(JSON.stringify({ recibido: true, nota: 'Duplicado' }), { status: 200 });
+      }
+      console.error('Error DB:', insertError);
+      return new Response('Error de BD', { status: 500 });
+    }
+
+    // 2. Creamos la cuenta de Auth (SIN tocar la tabla brokers todavía)
     if (email) {
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      const { error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: email,
         email_confirm: true,
         user_metadata: { plan: planPagado }
       });
-
-      if (authData?.user && !authError) {
-        await supabaseAdmin.from('brokers').insert([{
-          auth_user_id: authData.user.id,
-          stripe_customer_id: stripeCustomerId,
-          plan_suscripcion: planPagado,
-          email_contacto: email,
-          estado_cuenta: 'activa'
-        }]);
+      
+      if (authError && !authError.message.includes('already exists')) {
+        console.error('Error creando usuario Auth:', authError);
       }
+    }
+    
+  } else {
+    // Para cualquier otro evento de Stripe, registramos lo básico
+    const { error: insertError } = await supabaseAdmin
+      .from('stripe_eventos')
+      .insert([{ id: event.id, tipo: event.type }]);
+
+    if (insertError && insertError.code !== '23505') {
+      console.error('Error DB Evento Genérico:', insertError);
     }
   }
 
