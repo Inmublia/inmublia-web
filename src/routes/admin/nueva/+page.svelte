@@ -8,6 +8,7 @@
     Sparkles, 
     Loader2, 
     Check, 
+    CheckCircle2, // <-- ICONO AGREGADO
     Copy, 
     EyeOff, 
     Building2, 
@@ -19,8 +20,9 @@
   } from 'lucide-svelte';
 
   let { form, data } = $props();
-  let creditosIA = $state(data.creditos_ia ?? 0);
-  let planSuscripcion = $derived(data.plan_suscripcion); 
+  // El fallback asegura que nunca rompa, incluso si data viene incompleto
+  let creditosIA = $state(data?.creditos_ia ?? 0);
+  let planSuscripcion = $derived(data?.plan_suscripcion ?? 'basico'); 
   
   let loading = $state(false);
   let imagePreview = $state(null);
@@ -154,7 +156,7 @@
   <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 sticky top-0 z-40">
     <div class="flex items-center gap-3">
       <a href="/admin" class="text-slate-500 hover:text-slate-900 transition-colors p-2 rounded-lg hover:bg-slate-100" aria-label="Volver al inicio">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        <ArrowLeft class="w-5 h-5" />
       </a>
       <h1 class="text-lg font-bold text-slate-900 tracking-tight">Nueva Propiedad</h1>
     </div>
