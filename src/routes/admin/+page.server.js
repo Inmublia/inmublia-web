@@ -1,58 +1,40 @@
-import { createClient } from '@supabase/supabase-js';
-import { env as publicEnv } from '$env/dynamic/public';
-import { env as privateEnv } from '$env/dynamic/private';
-import { redirect, fail, error, isRedirect, isHttpError } from '@sveltejs/kit';
-
-let supabaseAdminInstance = null;
-
-const getSupabaseAdmin = () => {
-  if (!supabaseAdminInstance) {
-    supabaseAdminInstance = createClient(
-      publicEnv.PUBLIC_SUPABASE_URL,
-      privateEnv.SUPABASE_SERVICE_ROLE_KEY,
-      { 
-        auth: { 
-          persistSession: false,
-          autoRefreshToken: false,  // CRÍTICO: Previene cuelgues en Cloudflare
-          detectSessionInUrl: false
-        } 
-      }
-    );
-  }
-  return supabaseAdminInstance;
-};
+import { redirect, fail, error } from '@sveltejs/kit';
 
 export async function load({ locals }) {
+  // 1. Validación de sesión estricta inyectada por el hook
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-
-    const { data: broker, error: brokerError } = await supabaseAdmin
+    // 2. Usar el cliente seguro (locals.supabase) con RLS activado.
+    // Buscamos estrictamente por auth_user_id, no por email.
+    const { data: broker, error: brokerError } = await locals.supabase
       .from('brokers')
       .select('*')
-      .eq('email', user.email)
+      .eq('auth_user_id', user.id)
       .single();
 
     if (brokerError || !broker) throw redirect(303, '/login?error=broker-not-found');
 
-    const { data: propiedades, error: propError } = await supabaseAdmin
+    // 3. Carga del inventario optimizada
+    const { data: propiedades, error: propError } = await locals.supabase
       .from('propiedades')
       .select('*, open_houses(id, event_date)')
       .eq('broker_id', broker.id)
       .order('creado_en', { ascending: false });
 
     if (propError) {
-      console.error('🔥 Error:', propError.message);
-      throw error(500, { message: 'Fallo de inventario' });
+      console.error('🔥 Error de inventario:', propError.message);
+      throw error(500, { message: 'Fallo al cargar el inventario' });
     }
 
+    // 4. Devolvemos los datos limpios al frontend
     return { broker, propiedades: propiedades || [] };
 
   } catch (err) {
-    if (isRedirect(err) || isHttpError(err)) throw err;
-    throw error(500, { message: 'Fallo de conectividad' });
+    if (err.status && err.status === 303) throw err; // Respetar redirecciones
+    console.error("Error crítico en Dashboard:", err);
+    throw error(500, { message: 'Fallo de conectividad con la base de datos' });
   }
 }
 
@@ -64,21 +46,30 @@ export const actions = {
     try {
       const formData = await request.formData();
       const id = formData.get('id');
-      const supabaseAdmin = getSupabaseAdmin();
-
-      const { data: broker, error: brokerError } = await supabaseAdmin
-        .from('brokers').select('id').eq('email', user.email).single();
+      
+      // Validamos quién es el broker
+      const { data: broker, error: brokerError } = await locals.supabase
+        .from('brokers')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
 
       if (brokerError || !broker) return fail(403, { error: 'No autorizado' });
 
-      const { error: deleteError } = await supabaseAdmin
-        .from('propiedades').delete().eq('id', id).eq('broker_id', broker.id); 
+      // Eliminación segura usando RLS
+      const { error: deleteError } = await locals.supabase
+        .from('propiedades')
+        .delete()
+        .eq('id', id)
+        .eq('broker_id', broker.id); 
 
       if (deleteError) return fail(500, { error: deleteError.message });
+      
       return { success: true };
       
     } catch (err) {
-      return fail(500, { error: 'Error del servidor' });
+      console.error("Error al eliminar propiedad:", err);
+      return fail(500, { error: 'Error del servidor al intentar eliminar' });
     }
   }
 };
