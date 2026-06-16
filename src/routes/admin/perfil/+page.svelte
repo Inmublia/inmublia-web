@@ -3,6 +3,7 @@
   import { invalidateAll } from '$app/navigation';
   import imageCompression from 'browser-image-compression';
   import { Settings, ShieldCheck } from 'lucide-svelte'; 
+  import { onDestroy } from 'svelte'; // [NUEVO]: Para la limpieza estricta de memoria
 
   let { data, form } = $props();
   let broker = $state(data.broker || {});
@@ -19,10 +20,23 @@
   const isPro = planActual === 'pro' || planActual === 'elite';
   const isElite = planActual === 'elite';
 
+  // [CORRECCIÓN DE DEUDA TÉCNICA]: Revocación explícita para evitar fugas de RAM
   function handleFileSelect(event) {
     const file = event.target.files[0];
-    if (file) previewUrl = URL.createObjectURL(file);
+    if (file) {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl); // Liberamos la memoria del preview anterior
+      }
+      previewUrl = URL.createObjectURL(file);
+    }
   }
+
+  // [CORRECCIÓN DE DEUDA TÉCNICA]: Si el usuario cambia de ruta en el SaaS, limpiamos la RAM
+  onDestroy(() => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+  });
 
   async function probarWebhook() {
     if (!webhookUrl) return alert('Ingresa una URL primero.');
@@ -88,6 +102,7 @@
             const avatarFile = formData.get('avatar');
             if (avatarFile && avatarFile.size > 0 && avatarFile.name !== 'undefined') {
               try {
+                // Compresión client-side optimizada para el logotipo/avatar
                 const options = {
                   maxSizeMB: 0.2, 
                   maxWidthOrHeight: 800,
@@ -96,7 +111,7 @@
                 const compressedFile = await imageCompression(avatarFile, options);
                 formData.set('avatar', compressedFile, compressedFile.name);
               } catch (error) {
-                console.error('Error comprimiendo', error);
+                console.error('Error comprimiendo logo:', error);
               }
             }
 
