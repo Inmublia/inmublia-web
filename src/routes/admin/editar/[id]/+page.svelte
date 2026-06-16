@@ -223,6 +223,14 @@
               </div>
 
               <div class="sm:col-span-2">
+                <label for="comision" class="block text-xs font-semibold text-slate-500 mb-1.5">Comisión Pactada (%) <span class="font-normal text-[10px] text-slate-400">(Opcional)</span></label>
+                <div class="relative">
+                  <input id="comision" type="number" step="0.1" max="100" min="0" name="comision" value={propiedad.comision || ''} class="w-full bg-white border border-slate-200 rounded-lg pl-4 pr-10 py-2 text-sm font-bold ring-offset-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-sm" placeholder="Ej. 6.5">
+                  <span class="absolute right-4 top-2.5 text-slate-400 font-bold">%</span>
+                </div>
+              </div>
+
+              <div class="sm:col-span-2">
                 <label for="ubicacion" class="block text-xs font-semibold text-slate-500 mb-1.5">Ubicación Estratégica (Colonia, Ciudad)</label>
                 <div class="relative">
                   <MapPin class="absolute left-3 top-3 h-4 w-4 text-slate-400" />
