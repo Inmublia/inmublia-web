@@ -71,7 +71,7 @@
     </div>
 
     <form action="/logout" method="POST">
-      <button type="submit" class="flex items-center justify-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-500 font-semibold transition-colors w-full rounded-lg border border-zinc-800 hover:border-rose-500/20 text-xs">
+      <button type="submit" class="flex items-center justify-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-500 font-semibold transition-colors w-full rounded-lg border border-zinc-800 hover:border-rose-500/20 text-xs cursor-pointer active:scale-95">
         <LogOut class="w-3.5 h-3.5" />
         Cerrar Sesión
       </button>
