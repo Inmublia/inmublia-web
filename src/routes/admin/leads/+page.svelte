@@ -3,7 +3,7 @@
   import { enhance } from '$app/forms';
   import { 
     Search, X, Phone, Mail, Home, Send, Trash2, Clock, UserCircle,
-    GripVertical, MessageSquareQuote, BellRing, CalendarClock, CheckCircle2, MessageSquare
+    GripVertical, MessageSquareQuote, BellRing, CalendarClock, CheckCircle2, MessageSquare, ChevronDown
   } from 'lucide-svelte';
   
   let { data } = $props();
@@ -31,7 +31,7 @@
     )
   );
 
-  // --- ESTADOS DEL MODAL DE CIERRE FINANCIERO OPCIONAL ---
+  // --- ESTADOS DEL MODAL DE CIERRE FINANCIERO ---
   let showModalCierre = $state(false);
   let leadPorCerrar = $state(null);
   let precioCierreFinal = $state('');
@@ -53,6 +53,14 @@
     leads = data.leads || [];
   });
 
+  // GENERADOR DE INTERVALOS DE HORA (El estándar de la industria)
+  const timeSlots = [];
+  for (let i = 7; i <= 21; i++) { // De 7 AM a 9 PM
+    const hour = i.toString().padStart(2, '0');
+    timeSlots.push(`${hour}:00`);
+    timeSlots.push(`${hour}:30`);
+  }
+
   const columnas = [
     { id: 'nuevo', titulo: 'Nuevos', dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
     { id: 'contactado', titulo: 'Contactados', dot: 'bg-blue-500', badge: 'bg-blue-50 text-blue-600 border-blue-200' },
@@ -73,6 +81,14 @@
     const userTimezoneOffset = date.getTimezoneOffset() * 60000;
     const localDate = new Date(date.getTime() + userTimezoneOffset);
     return new Intl.DateTimeFormat('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(localDate);
+  }
+
+  function formatTimeSlot(time24) {
+    const [h, m] = time24.split(':');
+    let hour = parseInt(h);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12 || 12; 
+    return `${hour}:${m} ${ampm}`;
   }
 
   function timeAgo(dateString) {
@@ -130,7 +146,6 @@
   }
 
   function confirmarCierre() {
-    // SIN FRICCIÓN: Si dejan en blanco, pasa derecho
     const leadId = leadPorCerrar.id;
     
     leads = leads.map(lead => {
@@ -473,11 +488,23 @@
           </div>
 
           {#if esRecordatorio}
-            <div class="animate-[fadeIn_0.2s_ease-out] bg-amber-50/50 p-3 rounded-xl border border-amber-100 mb-1">
-              <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Programar Llamada / Visita</label>
-              <div class="flex gap-2">
-                <input type="date" bind:value={fechaRecordatorio} class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none shadow-sm font-medium">
-                <input type="time" bind:value={horaRecordatorio} class="w-[120px] bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none shadow-sm font-medium">
+            <div class="animate-[fadeIn_0.2s_ease-out] bg-amber-50/50 p-4 rounded-xl border border-amber-200 mb-1 shadow-sm">
+              <label class="block text-[10px] font-black text-amber-800 uppercase tracking-widest mb-3">Programar Llamada / Visita</label>
+              <div class="flex flex-col sm:flex-row gap-3">
+                <div class="w-full sm:w-1/2">
+                  <input type="date" bind:value={fechaRecordatorio} class="w-full bg-white border border-amber-200/60 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none shadow-inner transition-colors">
+                </div>
+                <div class="w-full sm:w-1/2 relative">
+                  <select bind:value={horaRecordatorio} class="w-full bg-white border border-amber-200/60 rounded-xl pl-3 pr-10 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none shadow-inner cursor-pointer appearance-none transition-colors">
+                    <option value="" disabled selected>Selecciona la hora...</option>
+                    {#each timeSlots as slot}
+                      <option value={slot}>{formatTimeSlot(slot)}</option>
+                    {/each}
+                  </select>
+                  <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <ChevronDown class="w-4 h-4 text-amber-500" />
+                  </div>
+                </div>
               </div>
             </div>
           {/if}
