@@ -2,28 +2,44 @@ import { redirect, fail } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private'; 
 
 export const load = async ({ locals }) => {
-  if (!locals.user) throw redirect(303, '/login');
+  // 1. Validar sesión
+  const user = locals.user;
+  if (!user) throw redirect(303, '/login');
 
-  const { data: broker } = await locals.supabase
-    .from('brokers')
-    .select('ia_creditos_disponibles, plan_suscripcion')
-    .eq('email', locals.user.email)
-    .single();
+  try {
+    // 2. Buscar al broker de forma estricta usando su ID de Autenticación
+    const { data: broker, error } = await locals.supabase
+      .from('brokers')
+      .select('ia_creditos_disponibles, plan_suscripcion')
+      .eq('auth_user_id', user.id)
+      .single();
 
-  return {
-    creditos_ia: broker?.ia_creditos_disponibles ?? 5,
-    plan_suscripcion: broker?.plan_suscripcion || 'basico'
-  };
+    if (error || !broker) {
+      console.error("Broker no encontrado en carga de formulario:", error);
+      // Fallback seguro para que no se caiga la pantalla con error 500
+      return { creditos_ia: 0, plan_suscripcion: 'basico' };
+    }
+
+    // 3. Devolver datos limpios al frontend
+    return {
+      creditos_ia: broker.ia_creditos_disponibles ?? 5,
+      plan_suscripcion: broker.plan_suscripcion || 'basico'
+    };
+  } catch (err) {
+    console.error("Fallo crítico en load /admin/nueva:", err);
+    return { creditos_ia: 0, plan_suscripcion: 'basico' };
+  }
 };
 
 export const actions = {
   generarCampañaIA: async ({ request, locals }) => {
-    if (!locals.user) return fail(401, { error: 'No autorizado' });
+    const user = locals.user;
+    if (!user) return fail(401, { error: 'No autorizado' });
 
     const { data: broker } = await locals.supabase
       .from('brokers')
       .select('id, ia_creditos_disponibles, plan_suscripcion')
-      .eq('email', locals.user.email)
+      .eq('auth_user_id', user.id)
       .single();
 
     if (!broker) return fail(400, { error: 'Perfil no encontrado.' });
@@ -129,7 +145,6 @@ export const actions = {
     const video_url = formData.get('video_url') || null;
     const recorrido_3d_url = formData.get('recorrido_3d_url') || null;
 
-    // 🔥 Recuperamos el Template elegido
     const template_id = formData.get('template_id') || 'classic';
 
     const imagen = formData.get('imagen'); 
@@ -142,7 +157,7 @@ export const actions = {
     const { data: broker } = await locals.supabase
       .from('brokers')
       .select('id')
-      .eq('email', user.email)
+      .eq('auth_user_id', user.id)
       .single();
 
     if (!broker) return fail(400, { error: 'Perfil de agencia no encontrado.' });
@@ -212,7 +227,7 @@ export const actions = {
         galeria_urls: galeriaUrls, 
         video_url,
         recorrido_3d_url,
-        template_id // 🔥 Guardamos la plantilla elegida en Supabase
+        template_id
       });
 
     if (insertError) return fail(500, { error: `Error SQL: ${insertError.message}` });
