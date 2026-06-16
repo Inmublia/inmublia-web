@@ -7,37 +7,42 @@ export async function load({ params, locals }) {
 
   const { id } = params;
   
-  // Extraemos la propiedad actual
-  const { data: propiedad } = await locals.supabase
+  // 1. Extraemos los datos del broker basándonos ESTRICTAMENTE en su token de seguridad
+  const { data: broker, error: brokerError } = await locals.supabase
+    .from('brokers')
+    .select('id, ia_creditos_disponibles')
+    .eq('auth_user_id', user.id)
+    .single();
+
+  if (brokerError || !broker) throw redirect(303, '/admin');
+
+  // 2. Extraemos la propiedad, asegurando que PERTENEZCA a este broker
+  const { data: propiedad, error: propError } = await locals.supabase
     .from('propiedades')
     .select('*')
     .eq('id', id)
+    .eq('broker_id', broker.id) // <- CANDADO DE SEGURIDAD APLICADO
     .single();
   
-  if (!propiedad) throw redirect(303, '/admin');
-
-  // Extraemos los créditos del broker actual para la IA
-  const { data: broker } = await locals.supabase
-    .from('brokers')
-    .select('ia_creditos_disponibles')
-    .eq('email', user.email)
-    .single();
+  if (propError || !propiedad) throw redirect(303, '/admin');
 
   return { 
     propiedad,
-    creditos_ia: broker?.ia_creditos_disponibles ?? 5 
+    creditos_ia: broker.ia_creditos_disponibles ?? 5 
   };
 }
 
 export const actions = {
   // 🔥 MOTOR IA COMPARTIDO
   generarCampañaIA: async ({ request, locals }) => {
-    if (!locals.user) return fail(401, { error: 'No autorizado' });
+    const user = locals.user;
+    if (!user) return fail(401, { error: 'No autorizado' });
 
+    // Corrección: Búsqueda estricta
     const { data: broker } = await locals.supabase
       .from('brokers')
       .select('id, ia_creditos_disponibles')
-      .eq('email', locals.user.email)
+      .eq('auth_user_id', user.id)
       .single();
 
     if (!broker) return fail(400, { error: 'Perfil no encontrado.' });
@@ -153,10 +158,11 @@ export const actions = {
       recorrido_3d_url: recorrido_3d_url 
     };
 
+    // Corrección: Búsqueda estricta
     const { data: broker } = await locals.supabase
       .from('brokers')
       .select('id')
-      .eq('email', user.email)
+      .eq('auth_user_id', user.id)
       .single();
 
     if (!broker) return fail(403, { error: 'Perfil de asesor no encontrado.' });
@@ -202,10 +208,13 @@ export const actions = {
         }
       }
       if (galeriaUrls.length > 0) {
+        // En una app real de producción, podrías querer fusionar el arreglo nuevo con el viejo. 
+        // Por ahora, este código reemplaza la galería, tal como lo tenías diseñado.
         actualizaciones.galeria_urls = galeriaUrls;
       }
     }
 
+    // Actualizamos asegurando que pertenece al broker
     const { data: updatedData, error } = await locals.supabase
       .from('propiedades')
       .update(actualizaciones)
@@ -214,7 +223,7 @@ export const actions = {
       .select();
 
     if (error) return fail(500, { error: `Error SQL al actualizar: ${error.message}` });
-    if (!updatedData || updatedData.length === 0) return fail(500, { error: 'No se pudo actualizar.' });
+    if (!updatedData || updatedData.length === 0) return fail(500, { error: 'No se pudo actualizar o la propiedad no te pertenece.' });
     
     throw redirect(303, '/admin');
   }
