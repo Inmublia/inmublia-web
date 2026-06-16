@@ -4,10 +4,11 @@ export async function load({ locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
+  // CORRECCIÓN: Búsqueda estricta por ID de Autenticación
   const { data: broker, error } = await locals.supabase
     .from('brokers')
     .select('*')
-    .eq('email', user.email)
+    .eq('auth_user_id', user.id)
     .single();
 
   if (error || !broker) throw redirect(303, '/login');
@@ -37,10 +38,11 @@ export const actions = {
         return fail(400, { error: 'El nombre, WhatsApp y subdominio son obligatorios.' });
       }
 
+      // CORRECCIÓN: Búsqueda estricta por ID de Autenticación
       const { data: brokerActual, error: brokerError } = await locals.supabase
         .from('brokers')
         .select('id, plan_suscripcion')
-        .eq('email', user.email)
+        .eq('auth_user_id', user.id)
         .single();
         
       if (brokerError || !brokerActual) return fail(403, { error: `No se pudo obtener tu perfil: ${brokerError?.message}` });
@@ -103,7 +105,12 @@ export const actions = {
     const formData = await request.formData();
     const webhook_url = formData.get('webhook_url')?.toString().trim() || null;
 
-    const { error } = await locals.supabase.from('brokers').update({ webhook_url }).eq('email', user.email);
+    // CORRECCIÓN: Actualización estricta por ID de Autenticación
+    const { error } = await locals.supabase
+      .from('brokers')
+      .update({ webhook_url })
+      .eq('auth_user_id', user.id);
+      
     if (error) return fail(500, { error: `Error webhook: ${error.message}` });
     return { success: true };
   }
