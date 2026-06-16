@@ -40,12 +40,29 @@ Deno.serve(async (req) => {
   );
 
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const email = session.customer_details?.email || session.customer_email;
-    const stripeCustomerId = session.customer as string;
+    const sessionBasica = event.data.object as Stripe.Checkout.Session;
     
-    // Extracción dinámica: Soporta 'basico', 'pro', 'elite' o cualquier plan futuro
-    const planPagado = session.metadata?.plan || 'basico'; 
+    // 🚀 EL ESTÁNDAR ENTERPRISE: Le pedimos a Stripe el recibo expandido
+    // Esto va al núcleo del producto que compró, sin importar qué enlace usó o cuánto costó.
+    const sessionCompleta = await stripe.checkout.sessions.retrieve(
+      sessionBasica.id,
+      { expand: ['line_items.data.price.product'] }
+    );
+
+    const email = sessionCompleta.customer_details?.email || sessionCompleta.customer_email;
+    const stripeCustomerId = sessionCompleta.customer as string;
+    
+    // Buceamos en el recibo para sacar el metadato directo del Producto maestro
+    let planPagado = 'basico'; // Fallback de seguridad
+    const lineItems = sessionCompleta.line_items?.data;
+    
+    if (lineItems && lineItems.length > 0) {
+      const producto = lineItems[0].price?.product as Stripe.Product;
+      // Extraemos el metadato directamente del producto matriz
+      if (producto && producto.metadata && producto.metadata.plan) {
+        planPagado = producto.metadata.plan;
+      }
+    }
 
     // 1. Guardamos el recibo enriquecido en stripe_eventos
     const { error: insertError } = await supabaseAdmin
@@ -67,7 +84,7 @@ Deno.serve(async (req) => {
       return new Response('Error de BD', { status: 500 });
     }
 
-    // 2. Creamos la cuenta de Auth (SIN tocar la tabla brokers todavía)
+    // 2. Creamos la cuenta de Auth (Sin tocar la tabla brokers, eso lo hace Bienvenida)
     if (email) {
       const { error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: email,
@@ -81,7 +98,7 @@ Deno.serve(async (req) => {
     }
     
   } else {
-    // Para cualquier otro evento de Stripe, registramos lo básico
+    // Registro de eventos genéricos para auditoría
     const { error: insertError } = await supabaseAdmin
       .from('stripe_eventos')
       .insert([{ id: event.id, tipo: event.type }]);
