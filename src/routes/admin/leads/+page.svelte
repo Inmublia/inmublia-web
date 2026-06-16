@@ -458,7 +458,7 @@
               name="contenido"
               bind:value={nuevaNotaTexto} 
               onkeydown={handleKeyDown}
-              placeholder={esRecordatorio ? "Asunto del recordatorio... (Cmd + Enter para guardar)" : "Resumen de llamada... (Cmd + Enter para guardar)"} 
+              placeholder={esRecordatorio ? "Asunto del recordatorio... (Ctrl/Cmd + Enter para guardar)" : "Resumen de llamada... (Ctrl/Cmd + Enter para guardar)"} 
               class="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-14 py-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 {esRecordatorio ? 'focus:ring-amber-500/20 focus:border-amber-400' : 'focus:ring-indigo-500/20 focus:border-indigo-400'} outline-none resize-none min-h-[90px] shadow-sm font-medium transition-colors"
               required
             ></textarea>
@@ -468,7 +468,7 @@
               bind:this={submitBtn}
               disabled={guardandoNota || !nuevaNotaTexto.trim()}
               class="absolute bottom-3 right-3 {esRecordatorio ? 'bg-amber-500 hover:bg-amber-400 text-slate-900' : 'bg-slate-900 hover:bg-indigo-600 text-white'} disabled:bg-slate-200 disabled:text-slate-400 p-2.5 rounded-lg transition-colors flex items-center justify-center shadow-md active:scale-95"
-              title="Guardar (Cmd/Ctrl + Enter)"
+              title="Guardar (Ctrl/Cmd + Enter)"
             >
               {#if guardandoNota}
                 <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
