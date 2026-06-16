@@ -5,15 +5,14 @@ export async function load({ locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
-  // EL QUERY RELACIONAL MAESTRO
-  // Esto extrae al broker y, gracias a la Foreign Key, mapea los slugs de sus propiedades en 1 solo viaje.
+  // CORRECCIÓN: Búsqueda estricta por ID de Autenticación
   const { data: brokerData, error } = await locals.supabase
     .from('brokers')
     .select(`
       *,
       propiedades (slug)
     `)
-    .eq('email', user.email)
+    .eq('auth_user_id', user.id)
     .single();
 
   if (error || !brokerData) {
@@ -53,10 +52,11 @@ export const actions = {
         return fail(400, { error: 'Debe seleccionar ambas plantillas (Portal y Landing Page).' });
       }
 
+      // CORRECCIÓN: Búsqueda estricta por ID de Autenticación
       const { data: brokerActual, error: brokerError } = await locals.supabase
         .from('brokers')
         .select('id, plan_suscripcion')
-        .eq('email', user.email)
+        .eq('auth_user_id', user.id)
         .single();
         
       if (brokerError || !brokerActual) return fail(403, { error: `No se pudo obtener tu perfil: ${brokerError?.message}` });
@@ -65,6 +65,7 @@ export const actions = {
       const planUsuarioStr = (brokerActual.plan_suscripcion || 'basico').toLowerCase();
       const nivelUsuario = niveles[planUsuarioStr] || 1;
 
+      // Validación de nivel de acceso (hardcodeado por seguridad y rendimiento en Edge)
       let reqNivelPortal = 1;
       if (['modern', 'editorial'].includes(template_seleccionado)) reqNivelPortal = 2;
       if (['luxury', 'cinematic'].includes(template_seleccionado)) reqNivelPortal = 3;
@@ -87,7 +88,7 @@ export const actions = {
       const { error: updateError } = await locals.supabase
         .from('brokers')
         .update(updatePayload)
-        .eq('id', brokerActual.id);
+        .eq('id', brokerActual.id); // Asegurado por id del broker
 
       if (updateError) {
         console.error("🔥 Error de Supabase al escribir broker:", updateError);
