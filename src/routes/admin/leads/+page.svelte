@@ -64,7 +64,17 @@
   function formatDateTime(dateString) {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+    // Forzamos el parseo respetando el desfase local para evitar saltos UTC
+    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+    const localDate = new Date(date.getTime() + userTimezoneOffset);
+    
+    return new Intl.DateTimeFormat('es-MX', { 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    }).format(localDate);
   }
 
   function timeAgo(dateString) {
