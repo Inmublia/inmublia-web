@@ -1,6 +1,4 @@
-// ELIMINADO: import { supabase } from '$lib/supabase';
-
-export async function load({ url, setHeaders, locals }) {
+export async function load({ setHeaders, locals }) {
   // 1. ELIMINACIÓN DE CACHÉ PARA GARANTIZAR DISEÑOS FRESCOS EN EL EDGE
   setHeaders({
     'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
@@ -8,15 +6,11 @@ export async function load({ url, setHeaders, locals }) {
     'Expires': '0'
   });
 
-  const hostname = url.hostname;
-  let subdominioActivo = null;
+  // 2. EXTRAER SUBDOMINIO DESDE LOS LOCALS (Inyectado por el Worker de Cloudflare)
+  const subdominioActivo = locals.subdominio_publico;
   let brokerData = null;
 
-  if (hostname.includes('.inmublia.com') && !hostname.startsWith('www.')) {
-    subdominioActivo = hostname.replace('.inmublia.com', '');
-  }
-
-  // 2. USAR EL CLIENTE DINÁMICO (locals.supabase) EN LUGAR DEL ESTÁTICO
+  // 3. USAR EL CLIENTE DINÁMICO (locals.supabase) EN LUGAR DEL ESTÁTICO
   let query = locals.supabase.from('propiedades').select('*').eq('estatus', 'Activa');
 
   if (subdominioActivo) {
@@ -30,6 +24,7 @@ export async function load({ url, setHeaders, locals }) {
       brokerData = broker;
       query = query.eq('broker_id', broker.id);
     } else {
+      // Si hay un subdominio en la URL pero no existe en la base de datos
       return { propiedades: [], broker: null };
     }
   }
