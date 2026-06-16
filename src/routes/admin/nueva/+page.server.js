@@ -2,32 +2,27 @@ import { redirect, fail } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private'; 
 
 export const load = async ({ locals }) => {
-  // 1. Validar sesión
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
   try {
-    // 2. Buscar al broker de forma estricta usando su ID de Autenticación
     const { data: broker, error } = await locals.supabase
       .from('brokers')
-      .select('ia_creditos_disponibles, plan_suscripcion')
+      .select('ia_creditos_disponibles, plan_suscripcion, comision_default')
       .eq('auth_user_id', user.id)
       .single();
 
     if (error || !broker) {
-      console.error("Broker no encontrado en carga de formulario:", error);
-      // Fallback seguro para que no se caiga la pantalla con error 500
-      return { creditos_ia: 0, plan_suscripcion: 'basico' };
+      return { creditos_ia: 0, plan_suscripcion: 'basico', comision_global: 5 };
     }
 
-    // 3. Devolver datos limpios al frontend
     return {
       creditos_ia: broker.ia_creditos_disponibles ?? 5,
-      plan_suscripcion: broker.plan_suscripcion || 'basico'
+      plan_suscripcion: broker.plan_suscripcion || 'basico',
+      comision_global: broker.comision_default || 5
     };
   } catch (err) {
-    console.error("Fallo crítico en load /admin/nueva:", err);
-    return { creditos_ia: 0, plan_suscripcion: 'basico' };
+    return { creditos_ia: 0, plan_suscripcion: 'basico', comision_global: 5 };
   }
 };
 
@@ -44,7 +39,7 @@ export const actions = {
 
     if (!broker) return fail(400, { error: 'Perfil no encontrado.' });
     if (broker.ia_creditos_disponibles <= 0) {
-      return fail(403, { error: '🔒 Te has quedado sin créditos. Mejora tu plan a Pro para obtener 100 créditos mensuales.' });
+      return fail(403, { error: '🔒 Te has quedado sin créditos. Mejora tu plan a Pro.' });
     }
 
     const formData = await request.formData();
@@ -126,11 +121,11 @@ export const actions = {
     
     const titulo = formData.get('titulo');
     const precio = formData.get('precio');
+    const comisionStr = formData.get('comision'); // Nivel 2
     const descripcion = formData.get('descripcion');
     const operacion = formData.get('operacion');
     const tipo = formData.get('tipo');
     const destacada = formData.get('destacada') === 'on';
-    
     const is_oculta = formData.get('is_oculta') === 'on';
     const estatus = is_oculta ? 'Pre-Mercado' : 'Activa';
     
@@ -144,7 +139,6 @@ export const actions = {
     
     const video_url = formData.get('video_url') || null;
     const recorrido_3d_url = formData.get('recorrido_3d_url') || null;
-
     const template_id = formData.get('template_id') || 'classic';
 
     const imagen = formData.get('imagen'); 
@@ -156,11 +150,13 @@ export const actions = {
 
     const { data: broker } = await locals.supabase
       .from('brokers')
-      .select('id')
+      .select('id, comision_default')
       .eq('auth_user_id', user.id)
       .single();
 
     if (!broker) return fail(400, { error: 'Perfil de agencia no encontrado.' });
+
+    const comisionFinal = comisionStr ? parseFloat(comisionStr) : (broker.comision_default || 5);
 
     const fileExt = imagen.name.split('.').pop();
     const fileName = `${broker.id}/${Date.now()}-main.${fileExt}`;
@@ -217,6 +213,7 @@ export const actions = {
         ubicacion,
         estatus,
         precio: cleanNumber(precio), 
+        comision: comisionFinal,
         m2_terreno: cleanNumber(m2_terreno), 
         m2_construccion: cleanNumber(m2_construccion), 
         recamaras: parseInt(recamaras) || 0,
