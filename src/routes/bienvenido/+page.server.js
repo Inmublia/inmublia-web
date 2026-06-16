@@ -17,15 +17,29 @@ export const actions = {
 
     const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 1. Validar que la compra exista
+    // 1. Validar cuenta en Auth
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.listUsers();
     const usuarioDestino = userData?.users.find(u => u.email === email);
 
     if (!usuarioDestino) {
-      return fail(400, { error: 'No encontramos un pago asociado a este correo. Verifica que sea el mismo de tu compra.' });
+      return fail(400, { error: 'No encontramos un pago asociado a este correo.' });
     }
 
-    // 2. Establecer contraseña
+    // 2. 🕵️‍♂️ CONSULTA MAESTRA: Buscar el recibo en stripe_eventos
+    const { data: eventoStripe, error: eventoError } = await supabaseAdmin
+      .from('stripe_eventos')
+      .select('plan_comprado, stripe_customer_id')
+      .eq('email', email)
+      .eq('tipo', 'checkout.session.completed')
+      .order('creado_en', { ascending: false })
+      .limit(1)
+      .single();
+
+    // Extraemos los valores (con un fallback de seguridad por si acaso)
+    const planFinal = eventoStripe?.plan_comprado || 'basico';
+    const stripeCustomerId = eventoStripe?.stripe_customer_id || null;
+
+    // 3. Establecer contraseña
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       usuarioDestino.id,
       { password: password }
@@ -35,7 +49,7 @@ export const actions = {
       return fail(500, { error: 'Error interno al cifrar la contraseña.' });
     }
 
-    // 3. Crear el perfil del Broker con los datos exactos del usuario
+    // 4. Crear el perfil del Broker inyectando el PLAN y el CUSTOMER_ID
     const { error: brokerError } = await supabaseAdmin
       .from('brokers')
       .insert([
@@ -43,25 +57,26 @@ export const actions = {
           auth_user_id: usuarioDestino.id,
           email: email,
           nombre_comercial: nombre_comercial,
-          subdominio: subdominio
+          subdominio: subdominio,
+          plan_suscripcion: planFinal,          // ¡Aquí entra el plan Pro!
+          status_suscripcion: 'activa',         // Lo marcamos como activo de inmediato
+          stripe_customer_id: stripeCustomerId  // Vinculamos su cuenta financiera
         }
       ]);
 
-    // 4. Manejo elegante de errores SQL
     if (brokerError) {
-      // Código 23505 = Violación de Unique Constraint
       if (brokerError.code === '23505') {
         if (brokerError.message.includes('subdominio')) {
-          return fail(400, { error: `El enlace "${subdominio}.inmublia.com" ya está en uso por otra agencia. Elige uno distinto.` });
+          return fail(400, { error: `El enlace "${subdominio}.inmublia.com" ya está en uso. Elige uno distinto.` });
         }
         if (brokerError.message.includes('auth_user_id') || brokerError.message.includes('email')) {
-          return fail(400, { error: 'Esta cuenta ya fue inicializada anteriormente. Inicia sesión normalmente.' });
+          return fail(400, { error: 'Esta cuenta ya fue inicializada anteriormente. Inicia sesión.' });
         }
       }
       return fail(500, { error: `Error conectando con la base de datos: ${brokerError.message}` });
     }
 
-    // 5. Autenticación y creación de cookie segura para Cloudflare Edge
+    // 5. Autenticación y creación de cookie segura para Cloudflare
     const { data: loginData, error: loginError } = await locals.supabase.auth.signInWithPassword({
       email,
       password
