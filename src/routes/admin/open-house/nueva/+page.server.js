@@ -1,33 +1,23 @@
-import { createClient } from '@supabase/supabase-js';
-import { env as publicEnv } from '$env/dynamic/public';
-import { env as privateEnv } from '$env/dynamic/private';
-import { redirect, fail } from '@sveltejs/kit';
-
-const getSupabaseAdmin = () => {
-  return createClient(
-    publicEnv.PUBLIC_SUPABASE_URL,
-    privateEnv.SUPABASE_SERVICE_ROLE_KEY,
-    { auth: { persistSession: false } }
-  );
-};
+import { fail, redirect } from '@sveltejs/kit';
 
 export async function load({ locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
-  const supabaseAdmin = getSupabaseAdmin();
-
-  const { data: broker, error: brokerError } = await supabaseAdmin
+  // CORRECCIÓN: Búsqueda estricta por ID de Autenticación usando el cliente seguro
+  const { data: broker, error: brokerError } = await locals.supabase
     .from('brokers')
     .select('*')
-    .eq('email', user.email)
+    .eq('auth_user_id', user.id)
     .single();
 
   if (brokerError || !broker) {
+    console.error("No se encontró broker asociado al token:", user.id);
     throw redirect(303, '/login?error=broker-not-found');
   }
 
-  const { data: propiedades } = await supabaseAdmin
+  // Obtenemos solo los títulos y IDs para el selector
+  const { data: propiedades } = await locals.supabase
     .from('propiedades')
     .select('id, titulo, operacion')
     .eq('broker_id', broker.id)
@@ -44,12 +34,11 @@ export const actions = {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
-    const supabaseAdmin = getSupabaseAdmin();
-
-    const { data: broker } = await supabaseAdmin
+    // CORRECCIÓN: Búsqueda estricta por ID de Autenticación
+    const { data: broker } = await locals.supabase
       .from('brokers')
       .select('id')
-      .eq('email', user.email)
+      .eq('auth_user_id', user.id)
       .single();
 
     if (!broker) return fail(401, { error: 'Broker no encontrado' });
@@ -69,7 +58,8 @@ export const actions = {
       return fail(400, { error: 'Faltan campos obligatorios' });
     }
 
-    const { data: nuevoEvento, error: insertError } = await supabaseAdmin
+    // Insertamos el evento usando el cliente validado
+    const { data: nuevoEvento, error: insertError } = await locals.supabase
       .from('open_houses')
       .insert([
         {
