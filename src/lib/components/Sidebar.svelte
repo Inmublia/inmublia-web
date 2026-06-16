@@ -7,12 +7,10 @@
     Settings, 
     LogOut,
     Target,
-    Palette,
-    Bell
+    Palette
   } from 'lucide-svelte';
   
   let broker = $derived($page.data.broker || {});
-  let unreadAlertsCount = $derived($page.data.unreadAlertsCount || 0);
   let rutaActual = $derived($page.url.pathname);
 </script>
 
@@ -28,18 +26,6 @@
   
   <nav class="flex-1 p-6 space-y-1.5 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
     <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4 px-3">Consola Operativa</p>
-    
-    <a href="/admin/alertas" class="flex items-center justify-between px-3 py-2.5 rounded-lg font-semibold transition-all {rutaActual.includes('/admin/alertas') ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 border border-transparent'}">
-      <div class="flex items-center gap-3">
-        <Bell class="w-4 h-4 {rutaActual.includes('/admin/alertas') ? 'text-rose-400' : 'text-zinc-500'} {unreadAlertsCount > 0 ? 'animate-pulse text-rose-500' : ''}" />
-        Alertas
-      </div>
-      {#if unreadAlertsCount > 0}
-        <span class="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)]">
-          {unreadAlertsCount}
-        </span>
-      {/if}
-    </a>
 
     <a href="/admin" class="flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold transition-all {rutaActual === '/admin' || rutaActual === '/admin/' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 border border-transparent'}">
       <LayoutDashboard class="w-4 h-4 {rutaActual === '/admin' || rutaActual === '/admin/' ? 'text-indigo-400' : 'text-zinc-500'}" />
