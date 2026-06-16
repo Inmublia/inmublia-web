@@ -456,10 +456,13 @@
             </button>
           </div>
 
-          {#if esRecordatorio}
-            <div class="animate-[fadeIn_0.2s_ease-out]">
-              <label for="fecha" class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Fecha y Hora a contactar</label>
-              <input type="datetime-local" id="fecha" bind:value={fechaRecordatorio} class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none shadow-sm font-medium">
+         {#if esRecordatorio}
+            <div class="animate-[fadeIn_0.2s_ease-out] bg-amber-50/50 p-3 rounded-xl border border-amber-100 mb-1">
+              <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Programar Llamada / Visita</label>
+              <div class="flex gap-2">
+                <input type="date" bind:value={fechaRecordatorio} class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none shadow-sm font-medium">
+                <input type="time" bind:value={horaRecordatorio} class="w-[120px] bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none shadow-sm font-medium">
+              </div>
             </div>
           {/if}
           
