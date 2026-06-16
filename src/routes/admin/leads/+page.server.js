@@ -30,7 +30,6 @@ export const load = async ({ locals }) => {
     const notas = lead.lead_notas || [];
     const notasOrdenadas = [...notas].sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime());
     
-    // Motor analítico: Detectar si hay un recordatorio pendiente
     const pendingReminders = notasOrdenadas.filter(n => 
       n.tipo === 'recordatorio' && 
       n.completado === false && 
@@ -61,7 +60,17 @@ export const actions = {
     const id = formData.get('id');
     const estado = formData.get('estado');
 
-    const { error } = await locals.supabase.from('leads').update({ estado }).eq('id', id).eq('broker_id', broker.id);
+    // Nivel 3: Datos de cierre opcionales
+    const precioCierre = formData.get('precio_cierre');
+    const comisionCierre = formData.get('comision_cierre');
+
+    let actualizaciones = { estado };
+    if (estado === 'cerrado') {
+        actualizaciones.precio_cierre = precioCierre ? parseFloat(precioCierre) : null;
+        actualizaciones.comision_cierre = comisionCierre ? parseFloat(comisionCierre) : null;
+    }
+
+    const { error } = await locals.supabase.from('leads').update(actualizaciones).eq('id', id).eq('broker_id', broker.id);
     if (error) return fail(500, { error: 'Fallo al mover' });
     return { success: true };
   },
@@ -95,24 +104,20 @@ export const actions = {
     if (!contenido || !contenido.trim()) return fail(400, { error: 'Nota vacía' });
 
     const { data: lead, error: checkError } = await locals.supabase.from('leads').select('id, estado').eq('id', leadId).eq('broker_id', broker.id).maybeSingle();
-    if (checkError || !lead) return fail(403, { error: 'No autorizado para este lead' });
+    if (checkError || !lead) return fail(403, { error: 'No autorizado' });
 
-    // CORRECCIÓN DE LA LLAVE FORÁNEA: Regresamos a locals.user.id
     const { error: notaError } = await locals.supabase
       .from('lead_notas')
       .insert({ 
         lead_id: leadId, 
-        broker_id: locals.user.id, // <-- ¡Corregido! 
+        broker_id: locals.user.id, 
         contenido: contenido.trim(), 
         tipo: isRecordatorio ? 'recordatorio' : 'nota',
         fecha_recordatorio: isRecordatorio ? fechaRecordatorio : null,
         completado: false
       });
 
-    if (notaError) {
-      console.error("🔥 Error Supabase Notas:", notaError);
-      return fail(500, { error: `Supabase Error: ${notaError.message}` });
-    }
+    if (notaError) return fail(500, { error: `Supabase Error: ${notaError.message}` });
 
     if (lead.estado === 'nuevo') {
       await locals.supabase.from('leads').update({ estado: 'contactado' }).eq('id', leadId).eq('broker_id', broker.id);
@@ -123,8 +128,6 @@ export const actions = {
 
   completarRecordatorio: async ({ request, locals }) => {
     if (!locals.user) return fail(401, { error: 'No autorizado' });
-    // Esta función no inserta, solo actualiza, así que podemos mantener broker.id si no afecta, 
-    // pero para asegurar consistencia, si 'broker_id' es el UUID en esta tabla, usamos locals.user.id.
     const formData = await request.formData();
     const notaId = formData.get('nota_id');
 
