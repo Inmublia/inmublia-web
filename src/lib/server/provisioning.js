@@ -2,33 +2,33 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '$env/dynamic/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 
-// Usamos la Service Role Key para saltarnos el RLS al crear el tenant
-const supabaseAdmin = createClient(
-  PUBLIC_SUPABASE_URL,
-  env.SUPABASE_SERVICE_ROLE_KEY
-);
-
 /**
  * Función maestra para aprovisionar un nuevo Broker tras un pago exitoso
  */
 export async function crearAgenciaDesdeStripe({ authUserId, email, nombreComercial, subdominioDeseado, stripeCustomerId }) {
   console.log(`[Provisioning] Iniciando creación de agencia para: ${email}`);
 
-  // 1. Limpieza de subdominio (asegurarnos que sea válido para URLs)
+  // Inicialización segura en runtime
+  const supabaseAdmin = createClient(
+    PUBLIC_SUPABASE_URL,
+    env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+
+  // 1. Limpieza de subdominio
   let subdominioLimpio = subdominioDeseado
     .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Quitar acentos
-    .replace(/[^a-z0-9]/g, '-'); // Reemplazar espacios/símbolos con guiones
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, '-');
 
   // 2. Verificación de colisión (¿Ya existe ese subdominio?)
   const { data: existe } = await supabaseAdmin
     .from('brokers')
     .select('id')
     .eq('subdominio', subdominioLimpio)
-    .single();
+    .maybeSingle();
 
   if (existe) {
-    // Si Juan Pérez ya tomó "juanperez", a este le damos "juanperez-123"
     const randomSuffix = Math.floor(100 + Math.random() * 900);
     subdominioLimpio = `${subdominioLimpio}-${randomSuffix}`;
   }
@@ -49,8 +49,8 @@ export async function crearAgenciaDesdeStripe({ authUserId, email, nombreComerci
     .single();
 
   if (brokerError) {
-    console.error(`[Provisioning] Error creando broker:`, brokerError);
-    throw new Error('Fallo crítico aprovisionando el tenant');
+    console.error(`[Provisioning] Error creando broker en Supabase:`, brokerError);
+    throw new Error(`Fallo crítico aprovisionando el tenant: ${brokerError.message}`);
   }
 
   console.log(`[Provisioning] ✅ Agencia creada con éxito: ${subdominioLimpio}.inmublia.com`);
