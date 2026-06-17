@@ -5,8 +5,8 @@ import { env as publicEnv } from '$env/dynamic/public';
 import { createClient } from '@supabase/supabase-js';
 
 export async function load({ url, locals }) {
-  // INICIALIZACIÓN SEGURA EN RUNTIME
-  const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, { apiVersion: '2025-10-16' });
+  // INICIALIZACIÓN SEGURA EN RUNTIME - Sin apiVersion hardcodeada
+  const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY);
   const supabaseAdmin = createClient(publicEnv.PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
 
   const sessionId = url.searchParams.get('s');
@@ -20,7 +20,7 @@ export async function load({ url, locals }) {
 
     if (sessionId) {
       const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
-      if (checkoutSession.payment_status !== 'paid') throw error(403, 'Transacción pendiente.');
+      if (checkoutSession.payment_status !== 'paid') throw error(403, 'Transacción pendiente o no autorizada.');
       email = checkoutSession.customer_details?.email;
     }
 
@@ -38,7 +38,8 @@ export async function load({ url, locals }) {
 
   } catch (err) {
     if (err.status === 303) throw err;
-    throw error(500, 'Imposible verificar los datos de facturación.');
+    console.error('🔥 [Bienvenida Load Error]:', err);
+    throw error(500, `Error validando transacción: ${err.message}`);
   }
 }
 
@@ -84,6 +85,7 @@ export const actions = {
       return { success: true, email, password };
 
     } catch (err) {
+      console.error('🔥 [Bienvenida Action Error]:', err);
       return { success: false, error: 'Error interno al guardar.' };
     }
   }
