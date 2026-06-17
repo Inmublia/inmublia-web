@@ -4,7 +4,7 @@ import { crearAgenciaDesdeStripe } from '$lib/server/provisioning';
 
 // Inicializamos Stripe con la API versión más reciente y estable
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-10-16', // Usa la versión que tengas configurada en tu panel
+  apiVersion: '2025-10-16', // Usa la versión que tengas configurada en tu panel de control
 });
 
 export async function POST({ request }) {
