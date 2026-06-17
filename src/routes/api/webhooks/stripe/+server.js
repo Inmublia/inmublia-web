@@ -5,10 +5,8 @@ import { crearAgenciaDesdeStripe } from '$lib/server/provisioning';
 import { createClient } from '@supabase/supabase-js';
 
 export async function POST({ request }) {
-  // 1. INICIALIZACIÓN SEGURA EN RUNTIME
-  const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, {
-    apiVersion: '2025-10-16', 
-  });
+  // 1. INICIALIZACIÓN SEGURA EN RUNTIME - Sin apiVersion hardcodeada
+  const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY);
   const supabaseAdmin = createClient(publicEnv.PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
 
   const rawBody = await request.text();
