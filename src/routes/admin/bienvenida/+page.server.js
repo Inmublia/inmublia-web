@@ -17,20 +17,21 @@ export async function load({ url, locals, fetch }) {
   const sessionId = url.searchParams.get('s');
   const { session } = await locals.safeGetSession();
   
+  // Si no hay sesión ni ID de Stripe, no hay nada que configurar
   if (!sessionId && !session) throw redirect(303, '/login');
 
   try {
     let email = session?.user?.email;
-    let authUserId = session?.user?.id;
     let customerId = null;
 
     if (sessionId) {
       const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
-      if (checkoutSession.payment_status !== 'paid') throw error(403, 'Transacción pendiente de validación.');
+      if (checkoutSession.payment_status !== 'paid') throw error(403, 'Pago no validado.');
       email = checkoutSession.customer_details?.email;
       customerId = typeof checkoutSession.customer === 'string' ? checkoutSession.customer : checkoutSession.customer?.id;
     }
 
+    // Buscamos al broker para verificar si ya existe
     let query = supabaseAdmin.from('brokers').select('id, auth_user_id, nombre_comercial, subdominio');
     if (customerId) {
       query = query.eq('stripe_customer_id', customerId);
@@ -40,25 +41,31 @@ export async function load({ url, locals, fetch }) {
 
     const { data: broker } = await query.maybeSingle();
 
+    // Si no hay broker creado por el webhook todavía, esperamos (status: waiting)
     if (!broker) return { status: 'waiting', email, sessionId };
 
-    // EL FIX: Solo te redirige a /admin si YA INICIASTE SESIÓN y cambiaste el nombre temporal.
-    // Si acabas de pagar, te quedarás en la bienvenida para poner tu contraseña.
+    // Si ya configuró su perfil (nombre real), lo mandamos al panel
     if (session && broker.nombre_comercial !== 'Agencia Inmublia') {
        throw redirect(303, '/admin');
     }
 
-    return { status: 'ready', email, authUserId: broker.auth_user_id || authUserId, sessionId };
+    // Retornamos auth_user_id para el campo oculto
+    return { 
+      status: 'ready', 
+      email: email, 
+      authUserId: broker.auth_user_id, 
+      sessionId 
+    };
 
   } catch (err) {
     if (err.status === 303) throw err;
-    console.error('🔥 [Bienvenida Server Load Error]:', err);
-    throw error(500, `Imposible verificar el estado actual del aprovisionamiento: ${err.message}`);
+    console.error('🔥 [Bienvenida Load Error]:', err);
+    throw error(500, 'Error verificando aprovisionamiento.');
   }
 }
 
 export const actions = {
-  default: async ({ request, fetch }) => {
+  configurarPerfil: async ({ request, fetch }) => {
     const supabaseAdmin = createClient(publicEnv.PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY, {
       global: { fetch: fetch },
       auth: { persistSession: false, autoRefreshToken: false }
@@ -66,20 +73,17 @@ export const actions = {
 
     const formData = await request.formData();
     const password = formData.get('password');
-    const subdominio = formData.get('subdominio').trim().toLowerCase();
-    const nombreComercial = formData.get('nombreComercial').trim();
+    const subdominio = formData.get('subdominio')?.trim().toLowerCase();
+    const nombre_comercial = formData.get('nombre_comercial')?.trim();
     const authUserId = formData.get('authUserId');
     const email = formData.get('email');
 
-    if (!password || password.length < 6 || !subdominio || !nombreComercial) {
-      return { success: false, error: 'Todos los campos son obligatorios.' };
-    }
-
-    if (!/^[a-z0-9-]+$/.test(subdominio)) {
-      return { success: false, error: 'Subdominio inválido. Solo usa letras, números y guiones.' };
+    if (!password || !subdominio || !nombre_comercial || !authUserId) {
+      return { success: false, error: 'Faltan datos obligatorios para la configuración.' };
     }
 
     try {
+      // 1. Verificación de duplicidad de subdominio
       const { data: duplicate } = await supabaseAdmin
         .from('brokers')
         .select('id')
@@ -87,22 +91,33 @@ export const actions = {
         .not('auth_user_id', 'eq', authUserId)
         .maybeSingle();
 
-      if (duplicate) return { success: false, error: 'Este subdominio ya se encuentra en uso.' };
+      if (duplicate) return { success: false, error: 'Este subdominio ya está ocupado. Elige otro.' };
 
-      const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(authUserId, { password });
+      // 2. Actualización de Password en Auth
+      const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(authUserId, { 
+        password: password,
+        email_confirm: true 
+      });
       if (authError) throw authError;
 
+      // 3. Actualización de Perfil en Tabla Brokers
       const { error: profileError } = await supabaseAdmin
         .from('brokers')
-        .update({ nombre_comercial: nombreComercial, subdominio: subdominio })
+        .update({ 
+          nombre_comercial: nombre_comercial, 
+          subdominio: subdominio 
+        })
         .eq('auth_user_id', authUserId);
+      
       if (profileError) throw profileError;
 
-      return { success: true, email, password };
+      // 4. Redirección al Login para que entre con su nueva clave
+      throw redirect(303, '/login?configurado=true');
 
     } catch (err) {
-      console.error('🔥 [Bienvenida Action Save Error]:', err);
-      return { success: false, error: 'Error del servidor procesando la mutación.' };
+      if (err.status === 303) throw err;
+      console.error('🔥 [Bienvenida Action Error]:', err);
+      return { success: false, error: err.message || 'Error guardando configuración.' };
     }
   }
 };
