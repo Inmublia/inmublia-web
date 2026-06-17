@@ -1,8 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 
 export async function load({ locals, setHeaders, url, depends }) {
-  // 1. REGISTRO DE DEPENDENCIA (La clave para evitar la colisión)
-  // Le dice a SvelteKit que re-ejecute este archivo si el frontend lo pide
+  // 1. EL SELLO DE SEGURIDAD SVELTEKIT
   depends('supabase:auth');
 
   setHeaders({
@@ -12,7 +11,6 @@ export async function load({ locals, setHeaders, url, depends }) {
     'Surrogate-Control': 'no-store'
   });
 
-  // 2. OBTENER SESIÓN Y USUARIO DE FORMA SEGURA
   const { session, user } = await locals.safeGetSession();
 
   if (!user) {
@@ -23,28 +21,33 @@ export async function load({ locals, setHeaders, url, depends }) {
   try {
     const { data: broker, error: brokerError } = await locals.supabase
       .from('brokers')
-      .select('*')
+      .select('id, auth_user_id, nombre_comercial, avatar_url')
       .eq('auth_user_id', user.id)
       .single();
 
     if (brokerError || !broker) throw new Error("Broker no encontrado");
 
-    const { data: leads, error: leadsError } = await locals.supabase
-      .from('leads')
-      .select(`id, nombre, lead_notas(id, contenido, tipo, fecha_recordatorio, completado)`)
-      .eq('broker_id', broker.id);
+    // 2. LA OPTIMIZACIÓN EXTREMA: Solo pedimos notas pendientes, no la tabla entera de Leads.
+    const now = new Date().toISOString();
+    const { data: alertasPendientes, error: alertasError } = await locals.supabase
+      .from('lead_notas')
+      .select('id, contenido, fecha_recordatorio, completado, leads(id, nombre)')
+      .eq('broker_id', broker.id)
+      .eq('tipo', 'recordatorio')
+      .eq('completado', false)
+      .lte('fecha_recordatorio', now); // Solo las vencidas o del momento
 
-    if (leadsError) throw leadsError;
+    if (alertasError) console.error("Error cargando alertas:", alertasError);
 
     return {
-      session, // <-- CRÍTICO: Exponemos la sesión al cliente para que la vigile
+      session,
       user,
       broker,
-      leads: leads || []
+      alertas: alertasPendientes || [] // Enviamos data ligera a la campana
     };
 
   } catch (err) {
-    console.error("Error al cargar datos globales:", err);
-    return { session, user, broker: null, leads: [] };
+    console.error("Error en layout global:", err);
+    return { session, user, broker: null, alertas: [] };
   }
 }
