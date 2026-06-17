@@ -3,46 +3,16 @@
   import { Bell, CalendarClock, ChevronRight, CheckCircle2 } from 'lucide-svelte';
   import { slide } from 'svelte/transition';
 
-  let leads = $derived($page.data.leads || []);
+  // Leemos la data limpia y ligera que nos mandó el servidor
+  let pendingAlerts = $derived($page.data.alertas || []);
+  let unreadCount = $derived(pendingAlerts.length);
   
   let isOpen = $state(false);
 
-  let pendingAlerts = $derived.by(() => {
-    let alerts = [];
-    const now = new Date();
-    
-    leads.forEach(lead => {
-      if (lead.lead_notas) {
-        lead.lead_notas.forEach(nota => {
-          if (nota.tipo === 'recordatorio' && !nota.completado) {
-            const reminderDate = new Date(nota.fecha_recordatorio);
-            if (reminderDate <= now || (reminderDate.getTime() - now.getTime() < 86400000)) {
-              alerts.push({
-                id: nota.id,
-                leadId: lead.id,
-                leadNombre: lead.nombre,
-                contenido: nota.contenido,
-                fecha: nota.fecha_recordatorio,
-                isOverdue: reminderDate <= now
-              });
-            }
-          }
-        });
-      }
-    });
-    return alerts.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
-  });
-
-  let unreadCount = $derived(pendingAlerts.length);
-
-  function toggleDropdown() {
-    isOpen = !isOpen;
-  }
+  function toggleDropdown() { isOpen = !isOpen; }
 
   function handleClickOutside(event) {
-    if (isOpen && !event.target.closest('.notification-widget')) {
-      isOpen = false;
-    }
+    if (isOpen && !event.target.closest('.notification-widget')) isOpen = false;
   }
 
   function formatAlertTime(dateString) {
@@ -75,28 +45,26 @@
           <div class="flex flex-col items-center justify-center p-8 text-center opacity-60">
             <CheckCircle2 class="w-10 h-10 text-emerald-500 mb-3" />
             <p class="text-sm font-bold text-slate-700">¡Todo al día!</p>
-            <p class="text-xs font-medium text-slate-500 mt-1">No tienes recordatorios pendientes.</p>
+            <p class="text-xs font-medium text-slate-500 mt-1">No tienes recordatorios urgentes.</p>
           </div>
         {:else}
           <div class="flex flex-col">
             {#each pendingAlerts as alert}
               <a 
-                href="/admin/leads?open={alert.leadId}"
+                href="/admin/leads?open={alert.leads?.id}"
                 onclick={() => isOpen = false}
                 class="flex items-start gap-4 p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors group relative"
               >
-                <div class="w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 {alert.isOverdue ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]' : 'bg-amber-400'}"></div>
+                <div class="w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></div>
                 <div class="flex-1 min-w-0">
                   <p class="text-xs font-black text-slate-900 truncate mb-0.5 flex items-center justify-between">
-                    {alert.leadNombre}
-                    <span class="text-[9px] font-bold uppercase tracking-widest {alert.isOverdue ? 'text-rose-600 bg-rose-50' : 'text-amber-600 bg-amber-50'} px-1.5 py-0.5 rounded">
-                      {alert.isOverdue ? 'Vencido' : 'Próximo'}
-                    </span>
+                    {alert.leads?.nombre || 'Prospecto'}
+                    <span class="text-[9px] font-bold uppercase tracking-widest text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">Vencido</span>
                   </p>
                   <p class="text-[11px] text-slate-600 line-clamp-2 leading-relaxed font-medium mb-2">{alert.contenido}</p>
                   <p class="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                    <CalendarClock class="w-3 h-3 {alert.isOverdue ? 'text-rose-400' : 'text-slate-400'}" /> 
-                    {formatAlertTime(alert.fecha)}
+                    <CalendarClock class="w-3 h-3 text-rose-400" /> 
+                    {formatAlertTime(alert.fecha_recordatorio)}
                   </p>
                 </div>
                 <ChevronRight class="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transition-colors mt-4 shrink-0" />
@@ -105,12 +73,6 @@
           </div>
         {/if}
       </div>
-      
-      {#if unreadCount > 0}
-        <div class="p-3 bg-slate-50 border-t border-slate-100 text-center">
-          <a href="/admin/leads" onclick={() => isOpen = false} class="text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-indigo-600 transition-colors">Abrir Gestor CRM</a>
-        </div>
-      {/if}
     </div>
   {/if}
 
@@ -120,7 +82,6 @@
     aria-label="Notificaciones"
   >
     <Bell class="w-6 h-6 {unreadCount > 0 ? 'text-white' : 'text-slate-600'} transition-transform duration-300 group-hover:rotate-12" />
-    
     {#if unreadCount > 0}
       <span class="absolute -top-1 -right-1 flex h-5 w-5">
         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
