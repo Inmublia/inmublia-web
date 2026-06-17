@@ -1,28 +1,26 @@
-import { env } from '$env/dynamic/private';
+import { env as privateEnv } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 import Stripe from 'stripe';
 import { crearAgenciaDesdeStripe } from '$lib/server/provisioning';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-10-16', 
-});
-
-// Cliente administrador para saltar políticas de seguridad y crear usuarios a la fuerza
-const supabaseAdmin = createClient(env.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-
 export async function POST({ request }) {
+  // 1. INICIALIZACIÓN SEGURA EN RUNTIME
+  const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-10-16', 
+  });
+  const supabaseAdmin = createClient(publicEnv.PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
+
   const rawBody = await request.text();
   const signature = request.headers.get('stripe-signature');
 
-  if (!signature) {
-    return new Response(JSON.stringify({ error: 'Falta la firma de Stripe' }), { status: 401 });
-  }
+  if (!signature) return new Response(JSON.stringify({ error: 'Falta la firma de Stripe' }), { status: 401 });
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(rawBody, signature, env.STRIPE_WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(rawBody, signature, privateEnv.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error(`🔥 [Webhook Error] Firma inválida: ${err.message}`);
+    console.error(`🔥 [Webhook Error]: ${err.message}`);
     return new Response(JSON.stringify({ error: 'Firma inválida' }), { status: 400 });
   }
 
@@ -37,27 +35,22 @@ export async function POST({ request }) {
       const nombreComercial = session.metadata?.nombre_comercial || '';
       const subdominioDeseado = session.metadata?.subdominio || '';
 
-      if (!email) {
-        throw new Error('Sesión de Stripe sin correo electrónico asociado.');
-      }
+      if (!email) throw new Error('Sesión sin correo asociado.');
 
-      // 1. Creación de Identidad (Auth-First Dinámico)
       if (!authUserId) {
-        // Generamos una contraseña de altísima entropía que el usuario nunca conocerá (la cambiará en el Onboarding)
         const tempPassword = crypto.randomUUID() + crypto.randomUUID() + '!A1';
 
         const { data: uData, error: uErr } = await supabaseAdmin.auth.admin.createUser({
           email: email,
           password: tempPassword,
-          email_confirm: true // Lo auto-confirmamos porque Stripe ya validó el pago
+          email_confirm: true 
         });
 
         if (uErr) {
-          // Si por alguna razón de red el webhook se dispara dos veces, atrapamos al usuario existente
           if (uErr.message.includes('already exists') || uErr.status === 422) {
             const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
             const matchedUser = existingUsers?.users?.find(u => u.email === email);
-            if (!matchedUser) throw new Error('Usuario duplicado no encontrado en el listado.');
+            if (!matchedUser) throw new Error('Usuario duplicado no encontrado.');
             authUserId = matchedUser.id;
           } else {
             throw uErr;
@@ -67,16 +60,8 @@ export async function POST({ request }) {
         }
       }
 
-      // 2. Aprovisionamiento de la Base de Datos (Crear su esquema, tablas, etc.)
-      await crearAgenciaDesdeStripe({
-        authUserId,
-        email,
-        nombreComercial,
-        subdominioDeseado,
-        stripeCustomerId
-      });
+      await crearAgenciaDesdeStripe({ authUserId, email, nombreComercial, subdominioDeseado, stripeCustomerId });
 
-      // 3. Generación del Enlace Criptográfico de Respaldo
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'recovery',
         email: email,
@@ -85,12 +70,11 @@ export async function POST({ request }) {
 
       if (linkError) throw linkError;
 
-      // 4. Disparo Transaccional vía Resend (Fetch Nativo para Cloudflare Workers)
       if (linkData?.properties?.action_link) {
-        const resendReq = await fetch('https://api.resend.com/emails', {
+        await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+            'Authorization': `Bearer ${privateEnv.RESEND_API_KEY}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -116,14 +100,10 @@ export async function POST({ request }) {
             `
           })
         });
-
-        if (!resendReq.ok) {
-          console.error('🔥 Error enviando correo Resend:', await resendReq.text());
-        }
       }
 
     } catch (err) {
-      console.error('🔥 [Webhook] Error en flujo de aprovisionamiento:', err);
+      console.error('🔥 [Webhook Error]:', err);
       return new Response(JSON.stringify({ error: 'Fallo interno' }), { status: 500 });
     }
   }
