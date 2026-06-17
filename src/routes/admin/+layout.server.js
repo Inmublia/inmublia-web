@@ -2,6 +2,7 @@ import { redirect } from '@sveltejs/kit';
 
 export async function load({ locals, setHeaders, url }) {
   // 1. DESTRUCCIÓN DE CACHÉ (Solución de seguridad al botón "Atrás")
+  // La mantenemos para seguridad, pero ya no causará el bug porque usaremos safeGetSession()
   setHeaders({
     'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
     'Pragma': 'no-cache',
@@ -9,10 +10,13 @@ export async function load({ locals, setHeaders, url }) {
     'Surrogate-Control': 'no-store'
   });
 
-  // 2. VALIDACIÓN DE SESIÓN ESTRICTA
-  const user = locals.user;
+  // 2. VALIDACIÓN DE SESIÓN ESTRICTA (EL FIX)
+  // En lugar de confiar solo en el valor residual de la cookie (locals.user),
+  // obligamos a Supabase a validar y auto-renovar el token si está a punto de caducar
+  // por culpa de la navegación cruzada de subdominios.
+  const { user } = await locals.safeGetSession();
 
-  // Si no hay usuario activo o el token expiró...
+  // Si no hay usuario activo incluso después de forzar la validación de Supabase...
   if (!user) {
     if (url.pathname.startsWith('/login')) {
       return {};
@@ -21,7 +25,7 @@ export async function load({ locals, setHeaders, url }) {
   }
 
   try {
-    // 3. EXTRACCIÓN OPTIMIZADA DEL BROKER (Usando auth_user_id en lugar de email)
+    // 3. EXTRACCIÓN DEL BROKER (Mantenemos la seguridad UUID)
     const { data: broker, error: brokerError } = await locals.supabase
       .from('brokers')
       .select('*')
@@ -30,8 +34,7 @@ export async function load({ locals, setHeaders, url }) {
 
     if (brokerError || !broker) throw new Error("Broker no encontrado");
 
-    // 4. DESCARGA DE LEADS PARA NOTIFICACIONES GLOBALES
-    // Se descargan los leads con sus notas para que el NotificationBell pueda calcular los recordatorios
+    // 4. DESCARGA DE LEADS PARA NOTIFICACIONES GLOBALES (La campana)
     const { data: leads, error: leadsError } = await locals.supabase
       .from('leads')
       .select(`id, nombre, lead_notas(id, contenido, tipo, fecha_recordatorio, completado)`)
@@ -48,7 +51,6 @@ export async function load({ locals, setHeaders, url }) {
 
   } catch (err) {
     console.error("Error al cargar datos globales del admin:", err);
-    // En caso de fallo en BD, no rompemos la app completa, regresamos arrays vacíos
     return {
       user,
       broker: null,
