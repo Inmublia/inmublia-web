@@ -8,7 +8,6 @@
   
   let { data, children } = $props();
 
-  // EL VIGÍA DE SESIONES (Previene el Silent Logout)
   onMount(() => {
     const supabase = createBrowserClient(
       env.PUBLIC_SUPABASE_URL, 
@@ -16,9 +15,8 @@
     );
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
-      // Si el navegador recibe un token nuevo (o se cierra sesión), y no coincide con el del servidor...
+      // Si el navegador y el servidor se desincronizan, SvelteKit frena todo y recarga el layout de forma segura
       if (newSession?.expires_at !== data.session?.expires_at) {
-        // ...Obligamos a SvelteKit a actualizar el `+layout.server.js` para sincronizar cookies
         invalidate('supabase:auth');
       }
     });
