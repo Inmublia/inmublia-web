@@ -17,7 +17,6 @@ export async function load({ url, locals, fetch }) {
   const sessionId = url.searchParams.get('s');
   const { session } = await locals.safeGetSession();
   
-  // Si no hay sesión ni ID de Stripe, no hay nada que configurar
   if (!sessionId && !session) throw redirect(303, '/login');
 
   try {
@@ -31,7 +30,6 @@ export async function load({ url, locals, fetch }) {
       customerId = typeof checkoutSession.customer === 'string' ? checkoutSession.customer : checkoutSession.customer?.id;
     }
 
-    // Buscamos al broker para verificar si ya existe
     let query = supabaseAdmin.from('brokers').select('id, auth_user_id, nombre_comercial, subdominio');
     if (customerId) {
       query = query.eq('stripe_customer_id', customerId);
@@ -41,15 +39,14 @@ export async function load({ url, locals, fetch }) {
 
     const { data: broker } = await query.maybeSingle();
 
-    // Si no hay broker creado por el webhook todavía, esperamos (status: waiting)
     if (!broker) return { status: 'waiting', email, sessionId };
 
-    // Si ya configuró su perfil (nombre real), lo mandamos al panel
-    if (session && broker.nombre_comercial !== 'Agencia Inmublia') {
-       throw redirect(303, '/admin');
+    // Si el usuario vuelve a entrar aquí pero ya configuró su subdominio real,
+    // lo expulsamos de la bienvenida hacia su propio subdominio absoluto
+    if (session && broker.nombre_comercial !== 'Agencia Inmublia' && broker.subdominio) {
+       throw redirect(303, `https://${broker.subdominio}.inmublia.com/admin`);
     }
 
-    // Retornamos auth_user_id para el campo oculto
     return { 
       status: 'ready', 
       email: email, 
@@ -60,7 +57,7 @@ export async function load({ url, locals, fetch }) {
   } catch (err) {
     if (err.status === 303) throw err;
     console.error('🔥 [Bienvenida Load Error]:', err);
-    throw error(500, 'Error verificando aprovisionamiento.');
+    throw error(500, 'Error de verificación de aprovisionamiento.');
   }
 }
 
@@ -83,7 +80,7 @@ export const actions = {
     }
 
     try {
-      // 1. Verificación de duplicidad de subdominio
+      // 1. Verificación de colisión de subdominio
       const { data: duplicate } = await supabaseAdmin
         .from('brokers')
         .select('id')
@@ -93,14 +90,14 @@ export const actions = {
 
       if (duplicate) return { success: false, error: 'Este subdominio ya está ocupado. Elige otro.' };
 
-      // 2. Actualización de Password en Auth
+      // 2. Actualización de credenciales en Supabase Auth
       const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(authUserId, { 
         password: password,
         email_confirm: true 
       });
       if (authError) throw authError;
 
-      // 3. Actualización de Perfil en Tabla Brokers
+      // 3. Mutación de datos reales en la tabla pública
       const { error: profileError } = await supabaseAdmin
         .from('brokers')
         .update({ 
@@ -111,13 +108,14 @@ export const actions = {
       
       if (profileError) throw profileError;
 
-      // 4. Redirección al Login para que entre con su nueva clave
-      throw redirect(303, '/login?configurado=true');
+      // 4. DIRECCIÓN ABSOLUTA MULTI-TENANT: 
+      // Despachamos al usuario directamente a la consola de administración de SU subdominio.
+      throw redirect(303, `https://${subdominio}.inmublia.com/admin`);
 
     } catch (err) {
       if (err.status === 303) throw err;
       console.error('🔥 [Bienvenida Action Error]:', err);
-      return { success: false, error: err.message || 'Error guardando configuración.' };
+      return { success: false, error: err.message || 'Error al guardar la configuración.' };
     }
   }
 };
