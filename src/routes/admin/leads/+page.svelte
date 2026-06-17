@@ -114,7 +114,7 @@
     const diffInSeconds = Math.floor((now - date) / 1000);
     if (diffInSeconds < 60) return 'Hace un momento';
     if (diffInSeconds < 3600) return `Hace ${Math.floor(diffInSeconds / 60)} min`;
-    if (diffInSeconds < 86400) return `Hace ${Math.floor(diffInSeconds / 3600)} horas`;
+    if (diffInSeconds < 86400) return `Hace ${Math.floor(diffInSeconds / 3600)} hours`;
     return `Hace ${Math.floor(diffInSeconds / 86400)} días`;
   }
 
@@ -415,10 +415,10 @@
   </div>
 
   {#if isPanelOpen}
-    <div class="absolute inset-0 bg-slate-900/20 backdrop-blur-sm z-40 transition-opacity animate-[fadeIn_0.2s_ease-out]" onclick={cerrarPanel}></div>
+    <div class="absolute inset-0 bg-slate-900/20 backdrop-blur-sm z-[105] transition-opacity animate-[fadeIn_0.2s_ease-out]" onclick={cerrarPanel}></div>
   {/if}
 
-  <div class="absolute top-0 right-0 h-full w-full sm:w-[480px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] border-l border-slate-200 flex flex-col {isPanelOpen ? 'translate-x-0' : 'translate-x-full'}">
+  <div class="absolute top-0 right-0 h-full w-full sm:w-[480px] bg-white shadow-2xl z-[110] transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] border-l border-slate-200 flex flex-col {isPanelOpen ? 'translate-x-0' : 'translate-x-full'}">
     {#if selectedLead}
       <div class="px-6 py-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
         <div class="flex items-center gap-4">
@@ -541,7 +541,7 @@
   </div>
 
   {#if showModalCierre}
-    <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
       <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-[fadeIn_0.2s_ease-out]">
         <div class="p-6 border-b border-slate-100 bg-emerald-50/50">
           <h3 class="text-xl font-black text-emerald-900 flex items-center gap-2">
