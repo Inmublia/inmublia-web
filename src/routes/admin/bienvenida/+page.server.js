@@ -5,7 +5,6 @@ import { env as publicEnv } from '$env/dynamic/public';
 import { createClient } from '@supabase/supabase-js';
 
 export async function load({ url, locals }) {
-  // INICIALIZACIÓN SEGURA EN RUNTIME - Sin apiVersion hardcodeada
   const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY);
   const supabaseAdmin = createClient(publicEnv.PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -17,18 +16,24 @@ export async function load({ url, locals }) {
   try {
     let email = session?.user?.email;
     let authUserId = session?.user?.id;
+    let customerId = null;
 
     if (sessionId) {
       const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
-      if (checkoutSession.payment_status !== 'paid') throw error(403, 'Transacción pendiente o no autorizada.');
+      if (checkoutSession.payment_status !== 'paid') throw error(403, 'Transacción pendiente de validación.');
       email = checkoutSession.customer_details?.email;
+      customerId = checkoutSession.customer;
     }
 
-    const { data: broker } = await supabaseAdmin
-      .from('brokers')
-      .select('id, auth_user_id, nombre_comercial, subdominio')
-      .eq('email', email)
-      .maybeSingle();
+    // Búsqueda inteligente: Prioriza el ID de cliente de Stripe para no fallar
+    let query = supabaseAdmin.from('brokers').select('id, auth_user_id, nombre_comercial, subdominio');
+    if (customerId) {
+      query = query.eq('stripe_customer_id', customerId);
+    } else {
+      query = query.eq('email', email);
+    }
+
+    const { data: broker } = await query.maybeSingle();
 
     if (!broker) return { status: 'waiting', email, sessionId };
 
@@ -38,14 +43,13 @@ export async function load({ url, locals }) {
 
   } catch (err) {
     if (err.status === 303) throw err;
-    console.error('🔥 [Bienvenida Load Error]:', err);
-    throw error(500, `Error validando transacción: ${err.message}`);
+    console.error('🔥 [Bienvenida Server Load Error]:', err);
+    throw error(500, 'Imposible verificar el estado actual del aprovisionamiento.');
   }
 }
 
 export const actions = {
   default: async ({ request }) => {
-    // INICIALIZACIÓN SEGURA EN RUNTIME
     const supabaseAdmin = createClient(publicEnv.PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
 
     const formData = await request.formData();
@@ -71,7 +75,7 @@ export const actions = {
         .not('auth_user_id', 'eq', authUserId)
         .maybeSingle();
 
-      if (duplicate) return { success: false, error: 'Subdominio ya registrado.' };
+      if (duplicate) return { success: false, error: 'Este subdominio ya se encuentra en uso.' };
 
       const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(authUserId, { password });
       if (authError) throw authError;
@@ -85,8 +89,8 @@ export const actions = {
       return { success: true, email, password };
 
     } catch (err) {
-      console.error('🔥 [Bienvenida Action Error]:', err);
-      return { success: false, error: 'Error interno al guardar.' };
+      console.error('🔥 [Bienvenida Action Save Error]:', err);
+      return { success: false, error: 'Error del servidor procesando la mutación.' };
     }
   }
 };
