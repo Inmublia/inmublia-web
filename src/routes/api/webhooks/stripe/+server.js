@@ -1,29 +1,34 @@
-import { env as privateEnv } from '$env/dynamic/private';
-import { env as publicEnv } from '$env/dynamic/public';
+import { env } from '$env/dynamic/private';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import Stripe from 'stripe';
 import { crearAgenciaDesdeStripe } from '$lib/server/provisioning';
 import { createClient } from '@supabase/supabase-js';
 
 export async function POST({ request }) {
-  // 1. INICIALIZACIÓN SEGURA EN RUNTIME - Sin apiVersion hardcodeada
-  const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY);
-  const supabaseAdmin = createClient(publicEnv.PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
+  // Inicialización segura en Runtime
+  const stripe = new Stripe(env.STRIPE_SECRET_KEY);
+  const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
 
   const rawBody = await request.text();
   const signature = request.headers.get('stripe-signature');
 
-  if (!signature) return new Response(JSON.stringify({ error: 'Falta la firma de Stripe' }), { status: 401 });
+  if (!signature) {
+    return new Response(JSON.stringify({ error: 'Falta la firma de Stripe' }), { status: 401 });
+  }
 
-  let event;
+  let stripeEvent;
   try {
-    event = stripe.webhooks.constructEvent(rawBody, signature, privateEnv.STRIPE_WEBHOOK_SECRET);
+    // 🔥 EL FIX CRÍTICO PARA CLOUDFLARE PAGES: constructEventAsync
+    stripeEvent = await stripe.webhooks.constructEventAsync(rawBody, signature, env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error(`🔥 [Webhook Error]: ${err.message}`);
+    console.error(`🔥 [Webhook Error] Fallo criptográfico en Edge: ${err.message}`);
     return new Response(JSON.stringify({ error: 'Firma inválida' }), { status: 400 });
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
+  if (stripeEvent.type === 'checkout.session.completed') {
+    const session = stripeEvent.data.object;
 
     try {
       let authUserId = session.client_reference_id; 
@@ -31,10 +36,10 @@ export async function POST({ request }) {
       const stripeCustomerId = session.customer;
       
       const nombreComercial = session.metadata?.nombre_comercial || '';
-      // AQUÍ ESTÁ EL SALVAVIDAS: Si Stripe no manda subdominio, el webhook genera uno seguro al vuelo para que la base de datos no lo rechace.
+      // Si no trae subdominio, generamos uno seguro base
       const subdominioDeseado = session.metadata?.subdominio || email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') + Math.floor(Math.random() * 1000);
 
-      if (!email) throw new Error('Sesión sin correo asociado.');
+      if (!email) throw new Error('Sesión de Stripe no contiene un email válido.');
 
       if (!authUserId) {
         const tempPassword = crypto.randomUUID() + crypto.randomUUID() + '!A1';
@@ -59,7 +64,13 @@ export async function POST({ request }) {
         }
       }
 
-      await crearAgenciaDesdeStripe({ authUserId, email, nombreComercial, subdominioDeseado, stripeCustomerId });
+      await crearAgenciaDesdeStripe({ 
+        authUserId, 
+        email, 
+        nombreComercial, 
+        subdominioDeseado, 
+        stripeCustomerId
+      });
 
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'recovery',
@@ -73,7 +84,7 @@ export async function POST({ request }) {
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${privateEnv.RESEND_API_KEY}`,
+            'Authorization': `Bearer ${env.RESEND_API_KEY}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -81,20 +92,15 @@ export async function POST({ request }) {
             to: [email],
             subject: 'Tu cuenta Inmublia está lista. Configura tus accesos.',
             html: `
-              <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; color: #0f172a; padding: 30px;">
+              <div style="font-family: -apple-system, sans-serif; max-w-xl; margin: 0 auto; color: #0f172a; padding: 30px;">
                 <h2 style="color: #10b981; font-size: 24px; font-weight: 900; margin-bottom: 15px;">¡Pago procesado con éxito!</h2>
                 <p style="font-size: 16px; line-height: 1.6; color: #334155;">Tu infraestructura inmobiliaria ha sido aprovisionada.</p>
-                <p style="font-size: 16px; line-height: 1.6; color: #334155;">Si no fuiste redirigido automáticamente tras el pago, utiliza el siguiente botón para establecer tu contraseña maestra y definir el dominio de tu agencia:</p>
-                
+                <p style="font-size: 16px; line-height: 1.6; color: #334155;">Utiliza el siguiente botón seguro para establecer tu contraseña maestra y definir el dominio de tu catálogo:</p>
                 <div style="margin: 40px 0;">
                   <a href="${linkData.properties.action_link}" style="background-color: #0f172a; color: #ffffff; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; display: inline-block;">
                     Configurar mi Agencia
                   </a>
                 </div>
-                
-                <p style="font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 20px; margin-top: 40px;">
-                  * Este es un enlace de seguridad de un solo uso. Si ya completaste la configuración en el navegador, ignora este correo.
-                </p>
               </div>
             `
           })
@@ -102,8 +108,8 @@ export async function POST({ request }) {
       }
 
     } catch (err) {
-      console.error('🔥 [Webhook Error]:', err);
-      return new Response(JSON.stringify({ error: 'Fallo interno' }), { status: 500 });
+      console.error('🔥 [Webhook Severe Fault]:', err);
+      return new Response(JSON.stringify({ error: 'Fallo interno en aprovisionamiento' }), { status: 500 });
     }
   }
 
