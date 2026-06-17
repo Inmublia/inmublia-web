@@ -4,32 +4,27 @@ import Stripe from 'stripe';
 import { crearAgenciaDesdeStripe } from '$lib/server/provisioning';
 import { createClient } from '@supabase/supabase-js';
 
-export async function POST({ request }) {
-  // Verificación dura: Si falta la llave, Cloudflare aborta explícitamente
+export async function POST({ request, fetch }) {
   if (!privateEnv.STRIPE_SECRET_KEY || !privateEnv.STRIPE_WEBHOOK_SECRET) {
-    console.error("🔥 Faltan llaves de entorno de Stripe en Cloudflare");
-    return new Response(JSON.stringify({ error: 'Configuración Edge faltante' }), { status: 500 });
+    return new Response(JSON.stringify({ error: 'Faltan llaves de entorno de Stripe en Cloudflare' }), { status: 500 });
   }
 
   const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY);
   const supabaseAdmin = createClient(publicEnv.PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY, {
+    global: { fetch: fetch },
     auth: { persistSession: false, autoRefreshToken: false }
   });
 
   const rawBody = await request.text();
   const signature = request.headers.get('stripe-signature');
 
-  if (!signature) {
-    return new Response(JSON.stringify({ error: 'Falta la firma de Stripe' }), { status: 401 });
-  }
+  if (!signature) return new Response(JSON.stringify({ error: 'Falta firma' }), { status: 401 });
 
   let stripeEvent;
   try {
-    // EL FIX DEFINITIVO PARA CLOUDFLARE: constructEventAsync 
     stripeEvent = await stripe.webhooks.constructEventAsync(rawBody, signature, privateEnv.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error(`🔥 [Webhook Error] Fallo criptográfico: ${err.message}`);
-    return new Response(JSON.stringify({ error: 'Firma inválida' }), { status: 400 });
+    return new Response(JSON.stringify({ error: `Firma inválida: ${err.message}` }), { status: 400 });
   }
 
   if (stripeEvent.type === 'checkout.session.completed') {
@@ -38,16 +33,16 @@ export async function POST({ request }) {
     try {
       let authUserId = session.client_reference_id; 
       const email = session.customer_details?.email;
-      const stripeCustomerId = session.customer;
+      const stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
       
-      const nombreComercial = session.metadata?.nombre_comercial || '';
-      // Salvavidas absoluto: Generar un string alfanumérico aleatorio si Stripe falla en enviar metadata
+      const nombreComercial = session.metadata?.nombre_comercial || 'Agencia Inmublia';
       const subdominioDeseado = session.metadata?.subdominio || (email ? email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') + Math.floor(Math.random() * 1000) : `agencia${Math.floor(Math.random() * 10000)}`);
 
-      if (!email) throw new Error('Sesión de Stripe no contiene email.');
+      if (!email) throw new Error('Sesión de Stripe sin email.');
 
+      // 1. GESTIÓN SEGURA DEL USUARIO EN AUTH
       if (!authUserId) {
-        const tempPassword = crypto.randomUUID() + crypto.randomUUID() + '!A1';
+        const tempPassword = crypto.randomUUID() + '!A1';
 
         const { data: uData, error: uErr } = await supabaseAdmin.auth.admin.createUser({
           email: email,
@@ -56,61 +51,74 @@ export async function POST({ request }) {
         });
 
         if (uErr) {
-          if (uErr.message.includes('already exists') || uErr.status === 422) {
-            const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-            const matchedUser = existingUsers?.users?.find(u => u.email === email);
-            if (!matchedUser) throw new Error('Usuario duplicado inaccesible');
-            authUserId = matchedUser.id;
+          // Si el usuario ya existe, hacemos una búsqueda profunda paginada para encontrar su ID
+          if (uErr.status === 422 || uErr.message.toLowerCase().includes('already exists')) {
+            let foundUser = null;
+            let page = 1;
+            while (!foundUser && page <= 5) {
+              const { data: pageData } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 100 });
+              if (!pageData || !pageData.users || pageData.users.length === 0) break;
+              foundUser = pageData.users.find(u => u.email === email);
+              page++;
+            }
+            if (!foundUser) throw new Error('El usuario existe pero no se pudo recuperar su ID de Auth.');
+            authUserId = foundUser.id;
           } else {
-            throw uErr;
+            throw new Error(`Error creando usuario: ${uErr.message}`);
           }
         } else {
           authUserId = uData.user.id;
         }
       }
 
-      await crearAgenciaDesdeStripe({ authUserId, email, nombreComercial, subdominioDeseado, stripeCustomerId });
-
-      const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'recovery',
-        email: email,
-        redirectTo: 'https://admin.inmublia.com/admin/bienvenida'
+      // 2. APROVISIONAMIENTO EN BASE DE DATOS
+      await crearAgenciaDesdeStripe({ 
+        authUserId, email, nombreComercial, subdominioDeseado, stripeCustomerId, svelteFetch: fetch 
       });
 
-      if (linkData?.properties?.action_link && privateEnv.RESEND_API_KEY) {
-        await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${privateEnv.RESEND_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            from: 'Inmublia <bienvenida@inmublia.com>', 
-            to: [email],
-            subject: 'Tu cuenta Inmublia está lista. Configura tus accesos.',
-            html: `
-              <div style="font-family: -apple-system, sans-serif; padding: 30px;">
-                <h2 style="color: #10b981;">¡Pago procesado con éxito!</h2>
-                <p>Tu infraestructura inmobiliaria ha sido aprovisionada.</p>
-                <a href="${linkData.properties.action_link}" style="background-color: #0f172a; color: #ffffff; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 20px;">
-                  Configurar mi Agencia
-                </a>
-              </div>
-            `
-          })
+      // 3. ENVÍO DE CORREO (Tolerante a fallos)
+      try {
+        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'recovery',
+          email: email,
+          redirectTo: 'https://admin.inmublia.com/admin/bienvenida'
         });
+
+        if (!linkError && linkData?.properties?.action_link && privateEnv.RESEND_API_KEY) {
+          await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${privateEnv.RESEND_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              from: 'Inmublia <bienvenida@inmublia.com>', 
+              to: [email],
+              subject: 'Tu cuenta Inmublia está lista. Configura tus accesos.',
+              html: `<div style="font-family: sans-serif; padding: 20px;">
+                      <h2>¡Pago procesado con éxito!</h2>
+                      <p>Tu infraestructura inmobiliaria ha sido aprovisionada.</p>
+                      <a href="${linkData.properties.action_link}" style="background-color: #0f172a; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">Configurar mi Agencia</a>
+                    </div>`
+            })
+          });
+        }
+      } catch (mailErr) {
+        console.warn('Advertencia: No se pudo enviar el correo de bienvenida.', mailErr);
       }
 
     } catch (err) {
       console.error('🔥 [Webhook Severe Fault]:', err);
-      // Retornar 500 obliga a Stripe a marcarlo como fallido y reintentar
-      return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+      // AUDITORÍA FORENSE: Extraemos el mensaje real y la pila de ejecución, sin objetos vacíos.
+      const errorReal = err instanceof Error ? err.message : String(err);
+      const errorStack = err instanceof Error ? err.stack : 'Sin stack trace';
+      
+      return new Response(JSON.stringify({ 
+        error_aislado: errorReal, 
+        detalle: errorStack 
+      }), { status: 500 });
     }
   }
 
-  // PRUEBA DE LA VERDAD FORENSE: Si no ves "sveltekit: true" en Stripe, Cloudflare no ha actualizado la ruta.
-  return new Response(JSON.stringify({ success: true, sveltekit: true }), { 
-    status: 200, 
-    headers: { 'Content-Type': 'application/json' } 
-  });
+  return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
