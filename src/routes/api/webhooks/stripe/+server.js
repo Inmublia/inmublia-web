@@ -31,7 +31,8 @@ export async function POST({ request }) {
       const stripeCustomerId = session.customer;
       
       const nombreComercial = session.metadata?.nombre_comercial || '';
-      const subdominioDeseado = session.metadata?.subdominio || '';
+      // AQUÍ ESTÁ EL SALVAVIDAS: Si Stripe no manda subdominio, el webhook genera uno seguro al vuelo para que la base de datos no lo rechace.
+      const subdominioDeseado = session.metadata?.subdominio || email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') + Math.floor(Math.random() * 1000);
 
       if (!email) throw new Error('Sesión sin correo asociado.');
 
