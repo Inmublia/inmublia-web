@@ -6,10 +6,11 @@ export async function handle({ event, resolve }) {
   const supabaseUrl = env.PUBLIC_SUPABASE_URL || event.platform?.env?.PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = env.PUBLIC_SUPABASE_ANON_KEY || event.platform?.env?.PUBLIC_SUPABASE_ANON_KEY;
   
-  // [CORRECCIÓN CRÍTICA]: Siempre priorizamos el host inyectado por el CF Worker.
   const host = event.request.headers.get('x-forwarded-host') || event.url.hostname;
   const pathname = event.url.pathname;
-  const isLocal = host === 'localhost' || host === '127.0.0.1';
+  
+  // FIX: Agregamos las IPs de red local para que las pruebas en móvil vía WiFi no destruyan las cookies
+  const isLocal = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.');
   
   // =====================================================================
   // 1. EL ESCUDO DE ENRUTAMIENTO (Rendimiento Edge)
@@ -22,7 +23,6 @@ export async function handle({ event, resolve }) {
   const isRootOrAdmin = isLocal || host === 'inmublia.com' || host === 'www.inmublia.com' || host.startsWith('admin.');
 
   if (!isRootOrAdmin) {
-    // Es un visitante viendo la página pública de un broker
     const subdomain = host.split('.')[0];
     let brokerId = null;
 
@@ -60,7 +60,6 @@ export async function handle({ event, resolve }) {
       return new Response('Portal inmobiliario no encontrado o inactivo.', { status: 404 });
     }
 
-    // Guardamos el ID unificado para usarlo en el load público
     event.locals.tenantId = brokerId;
   }
 
@@ -74,8 +73,10 @@ export async function handle({ event, resolve }) {
       },
       setAll(cookiesToSet) {
         try {
-          // Si estamos en localhost, evitamos establecer el dominio para no romper el entorno de desarrollo local.
-          const cookieDomain = isLocal ? undefined : '.inmublia.com';
+          // FIX DE PRODUCCIÓN: Evitamos forzar el dominio si estamos en Cloudflare Pages dev
+          const isPagesDev = host.includes('.pages.dev');
+          const cookieDomain = (isLocal || isPagesDev) ? undefined : '.inmublia.com';
+          
           cookiesToSet.forEach(({ name, value, options }) => {
             const { domain, ...cleanOptions } = options;
             event.cookies.set(name, value, { 
@@ -89,13 +90,21 @@ export async function handle({ event, resolve }) {
     }
   });
 
+  // FIX DE RED: Añadimos tolerancia a errores de conexión momentáneos
   event.locals.safeGetSession = async () => {
     try {
       const { data: { session } } = await event.locals.supabase.auth.getSession();
       if (!session) return { session: null, user: null };
 
       const { data: { user }, error } = await event.locals.supabase.auth.getUser();
-      if (error) return { session: null, user: null };
+      
+      if (error) {
+        // Tolerancia a fallos de red 5xx o desconexiones
+        if (error.status >= 500 || error.message.includes('fetch')) {
+          return { session, user: session.user };
+        }
+        return { session: null, user: null };
+      }
 
       return { session, user };
     } catch {
