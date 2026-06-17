@@ -1,52 +1,73 @@
 import { env } from '$env/dynamic/private';
 import Stripe from 'stripe';
 import { crearAgenciaDesdeStripe } from '$lib/server/provisioning';
+import { createClient } from '@supabase/supabase-js';
 
-// Inicializamos Stripe con la API versión más reciente y estable
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-10-16', // Usa la versión que tengas configurada en tu panel de control
+  apiVersion: '2025-10-16', 
 });
 
+// Cliente administrador para saltar políticas de seguridad y crear usuarios a la fuerza
+const supabaseAdmin = createClient(env.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
 export async function POST({ request }) {
-  // 1. Extraer el cuerpo "crudo" (raw) y la firma, OBLIGATORIO para la validación criptográfica
   const rawBody = await request.text();
   const signature = request.headers.get('stripe-signature');
 
   if (!signature) {
-    return new Response('Falta la firma de Stripe', { status: 401 });
+    return new Response(JSON.stringify({ error: 'Falta la firma de Stripe' }), { status: 401 });
   }
 
   let event;
-
   try {
-    // 2. Validación criptográfica de grado bancario
     event = stripe.webhooks.constructEvent(rawBody, signature, env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error(`🔥 [Webhook Error] Firma inválida o manipulación detectada: ${err.message}`);
-    return new Response(`Webhook Error: ${err.message}`, { status: 400 });
+    console.error(`🔥 [Webhook Error] Firma inválida: ${err.message}`);
+    return new Response(JSON.stringify({ error: 'Firma inválida' }), { status: 400 });
   }
 
-  // 3. Evaluar el tipo de evento
-  // checkout.session.completed es el evento rey cuando un pago inicial de suscripción es exitoso
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
 
     try {
-      // 4. Extracción de datos del comprador
-      // El 'client_reference_id' es el auth.uid() que inyectaremos al crear el link de pago
-      const authUserId = session.client_reference_id; 
+      let authUserId = session.client_reference_id; 
       const email = session.customer_details?.email;
       const stripeCustomerId = session.customer;
       
-      // Los 'metadata' son campos ocultos que le pasaremos a Stripe antes del pago
-      const nombreComercial = session.metadata?.nombre_comercial || 'Agencia Inmublia';
-      const subdominioDeseado = session.metadata?.subdominio || email.split('@')[0];
+      const nombreComercial = session.metadata?.nombre_comercial || '';
+      const subdominioDeseado = session.metadata?.subdominio || '';
 
-      if (!authUserId) {
-        throw new Error('No se recibió el client_reference_id. Imposible vincular el pago al usuario.');
+      if (!email) {
+        throw new Error('Sesión de Stripe sin correo electrónico asociado.');
       }
 
-      // 5. Encender la fábrica: Disparamos el aprovisionamiento
+      // 1. Creación de Identidad (Auth-First Dinámico)
+      if (!authUserId) {
+        // Generamos una contraseña de altísima entropía que el usuario nunca conocerá (la cambiará en el Onboarding)
+        const tempPassword = crypto.randomUUID() + crypto.randomUUID() + '!A1';
+
+        const { data: uData, error: uErr } = await supabaseAdmin.auth.admin.createUser({
+          email: email,
+          password: tempPassword,
+          email_confirm: true // Lo auto-confirmamos porque Stripe ya validó el pago
+        });
+
+        if (uErr) {
+          // Si por alguna razón de red el webhook se dispara dos veces, atrapamos al usuario existente
+          if (uErr.message.includes('already exists') || uErr.status === 422) {
+            const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+            const matchedUser = existingUsers?.users?.find(u => u.email === email);
+            if (!matchedUser) throw new Error('Usuario duplicado no encontrado en el listado.');
+            authUserId = matchedUser.id;
+          } else {
+            throw uErr;
+          }
+        } else {
+          authUserId = uData.user.id;
+        }
+      }
+
+      // 2. Aprovisionamiento de la Base de Datos (Crear su esquema, tablas, etc.)
       await crearAgenciaDesdeStripe({
         authUserId,
         email,
@@ -55,17 +76,57 @@ export async function POST({ request }) {
         stripeCustomerId
       });
 
+      // 3. Generación del Enlace Criptográfico de Respaldo
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'recovery',
+        email: email,
+        redirectTo: 'https://admin.inmublia.com/admin/bienvenida'
+      });
+
+      if (linkError) throw linkError;
+
+      // 4. Disparo Transaccional vía Resend (Fetch Nativo para Cloudflare Workers)
+      if (linkData?.properties?.action_link) {
+        const resendReq = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            from: 'Inmublia <bienvenida@inmublia.com>', 
+            to: [email],
+            subject: 'Tu cuenta Inmublia está lista. Configura tus accesos.',
+            html: `
+              <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; color: #0f172a; padding: 30px;">
+                <h2 style="color: #10b981; font-size: 24px; font-weight: 900; margin-bottom: 15px;">¡Pago procesado con éxito!</h2>
+                <p style="font-size: 16px; line-height: 1.6; color: #334155;">Tu infraestructura inmobiliaria ha sido aprovisionada.</p>
+                <p style="font-size: 16px; line-height: 1.6; color: #334155;">Si no fuiste redirigido automáticamente tras el pago, utiliza el siguiente botón para establecer tu contraseña maestra y definir el dominio de tu agencia:</p>
+                
+                <div style="margin: 40px 0;">
+                  <a href="${linkData.properties.action_link}" style="background-color: #0f172a; color: #ffffff; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; display: inline-block;">
+                    Configurar mi Agencia
+                  </a>
+                </div>
+                
+                <p style="font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 20px; margin-top: 40px;">
+                  * Este es un enlace de seguridad de un solo uso. Si ya completaste la configuración en el navegador, ignora este correo.
+                </p>
+              </div>
+            `
+          })
+        });
+
+        if (!resendReq.ok) {
+          console.error('🔥 Error enviando correo Resend:', await resendReq.text());
+        }
+      }
+
     } catch (err) {
-      console.error('🔥 [Webhook] Fallo crítico durante el aprovisionamiento:', err);
-      // Retornar un 500 obliga a Stripe a REINTENTAR enviar el webhook en un par de horas
-      // Esto nos salva la vida si la base de datos se cayó un segundo.
-      return new Response('Error procesando la entrega del servicio', { status: 500 });
+      console.error('🔥 [Webhook] Error en flujo de aprovisionamiento:', err);
+      return new Response(JSON.stringify({ error: 'Fallo interno' }), { status: 500 });
     }
   }
 
-  // Responder 200 OK a Stripe en menos de 3 segundos para que no marque el webhook como fallido
-  return new Response(JSON.stringify({ success: true }), { 
-    status: 200,
-    headers: { 'Content-Type': 'application/json' }
-  });
+  return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
