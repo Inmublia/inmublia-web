@@ -63,19 +63,18 @@ export async function handle({ event, resolve }) {
     event.locals.tenantId = brokerId;
   }
 
-  // =====================================================================
+// =====================================================================
   // 2. EL CANDADO MULTI-TENANT (Sesiones y Cookies cruzadas)
   // =====================================================================
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      getAll() {
-        return event.cookies.getAll();
-      },
+      getAll() { return event.cookies.getAll(); },
       setAll(cookiesToSet) {
         try {
-          // FIX DE PRODUCCIÓN: Evitamos forzar el dominio si estamos en Cloudflare Pages dev
-          const isPagesDev = host.includes('.pages.dev');
-          const cookieDomain = (isLocal || isPagesDev) ? undefined : '.inmublia.com';
+          // FIX DEFINITIVO: Cloudflare enruta por 127.0.0.1 a veces, forzamos el dominio si no es pages.dev
+          const isPagesDev = event.url.hostname.includes('.pages.dev');
+          // Si estamos en tu dominio real, OBLIGAMOS a que la cookie se ancle a .inmublia.com
+          const cookieDomain = isPagesDev ? undefined : '.inmublia.com';
           
           cookiesToSet.forEach(({ name, value, options }) => {
             const { domain, ...cleanOptions } = options;
