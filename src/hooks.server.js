@@ -115,7 +115,7 @@ export async function handle({ event, resolve }) {
   // =====================================================================
   // 3. PROTECCIÓN DE RUTAS DE ADMINISTRACIÓN
   // =====================================================================
-  if (pathname.startsWith('/admin')) {
+  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/bienvenida')) {
     const { user } = await event.locals.safeGetSession();
     if (!user) throw redirect(303, '/login?motivo=inactividad');
     event.locals.user = user;
