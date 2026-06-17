@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { env } from '$env/dynamic/private';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { env as privateEnv } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
 /**
  * Función maestra para aprovisionar un nuevo Broker tras un pago exitoso
@@ -8,10 +8,10 @@ import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 export async function crearAgenciaDesdeStripe({ authUserId, email, nombreComercial, subdominioDeseado, stripeCustomerId }) {
   console.log(`[Provisioning] Iniciando creación de agencia para: ${email}`);
 
-  // Inicialización segura en runtime
+  // Inicialización segura en runtime garantizada para Cloudflare Edge
   const supabaseAdmin = createClient(
-    PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY,
+    publicEnv.PUBLIC_SUPABASE_URL,
+    privateEnv.SUPABASE_SERVICE_ROLE_KEY,
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
 
