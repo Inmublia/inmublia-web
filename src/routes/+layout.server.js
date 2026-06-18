@@ -9,20 +9,29 @@ export const load = async ({ locals, depends }) => {
 
   if (!user) return { session: null, user: null, broker: null, planConfig: null };
 
-  // Traemos los datos de membresía del broker
-  const { data: broker } = await locals.supabase
-    .from('brokers')
-    .select('id, nombre_comercial, email, whatsapp, subdominio, avatar_url, template_seleccionado, plan_suscripcion')
-    .eq('email', user.email)
-    .single();
+  try {
+    // FIX: Usar maybeSingle() para no crashear si el broker no terminó de crearse en Stripe
+    const { data: broker, error } = await locals.supabase
+      .from('brokers')
+      .select('id, nombre_comercial, email, whatsapp, subdominio, avatar_url, template_seleccionado, plan_suscripcion')
+      .eq('email', user.email)
+      .maybeSingle();
 
-  // Acoplamos las reglas de su plan según el estado en la base de datos
-  const planConfig = broker ? PLANES_CONFIG[broker.plan_suscripcion] : PLANES_CONFIG['basico'];
+    if (error) throw error;
 
-  return {
-    session,
-    user,
-    broker,
-    planConfig
-  };
+    // Acoplamos las reglas de su plan de forma segura
+    const planConfig = broker && broker.plan_suscripcion 
+      ? PLANES_CONFIG[broker.plan_suscripcion] 
+      : PLANES_CONFIG['basico'];
+
+    return {
+      session,
+      user,
+      broker,
+      planConfig
+    };
+  } catch (err) {
+    console.error('🔥 [Layout Crash Evitado]:', err);
+    return { session, user, broker: null, planConfig: PLANES_CONFIG['basico'] };
+  }
 };
