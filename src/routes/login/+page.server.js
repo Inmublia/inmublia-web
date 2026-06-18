@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 
 export const actions = {
-  ingresar: async ({ request, locals }) => {
+  ingresar: async ({ request, locals, url }) => {
     const formData = await request.formData();
     const email = formData.get('email');
     const password = formData.get('password');
@@ -10,7 +10,6 @@ export const actions = {
       return fail(400, { error: 'Faltan credenciales' });
     }
 
-    // Al hacer signIn, Supabase SSR ya se encarga automáticamente del setAll y las cookies
     const { error } = await locals.supabase.auth.signInWithPassword({
       email,
       password
@@ -20,7 +19,9 @@ export const actions = {
       return fail(400, { error: 'Correo o contraseña incorrectos' });
     }
 
-    throw redirect(303, '/admin');
+    // FIX DEFINITIVO CLOUDFLARE: Forzamos URL absoluta para evitar "Failed to parse URL"
+    const urlAbsoluta = new URL('/admin', url.origin).toString();
+    throw redirect(303, urlAbsoluta);
   },
 
   recuperar: async ({ request, locals }) => {
