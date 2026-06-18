@@ -13,52 +13,43 @@ export async function handle({ event, resolve }) {
     return resolve(event);
   }
 
+  // 1. RESOLUCIÓN DE MULTI-TENANT MÁS ROBUSTA
   const isRootOrAdmin = host === 'inmublia.com' || host === 'www.inmublia.com' || host.startsWith('admin.');
 
   if (!isRootOrAdmin) {
     const subdomain = host.split('.')[0];
     let brokerId = null;
 
-    if (event.platform?.env?.INMUBLIA_KV) {
-      brokerId = await event.platform.env.INMUBLIA_KV.get(`tenant:${subdomain}`);
-    }
-
-    if (!brokerId) {
-      try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/brokers?subdominio=eq.${subdomain}&select=id`, {
-          headers: { 'apikey': supabaseAnonKey, 'Authorization': `Bearer ${supabaseAnonKey}` }
-        });
-        const data = await res.json();
-        if (data && data.length > 0) {
-          brokerId = data[0].id;
-          if (event.platform?.context?.waitUntil && event.platform?.env?.INMUBLIA_KV) {
-            event.platform.context.waitUntil(event.platform.env.INMUBLIA_KV.put(`tenant:${subdomain}`, brokerId));
-          }
+    try {
+      // Usamos el cliente admin directo para saltarnos RLS en la validación inicial
+      const res = await fetch(`${supabaseUrl}/rest/v1/brokers?subdominio=eq.${subdomain}&select=id`, {
+        headers: { 
+          'apikey': supabaseAnonKey, 
+          'Authorization': `Bearer ${supabaseAnonKey}` 
         }
-      } catch (err) {
-        console.error("🔥 Error Fallback Supabase:", err);
+      });
+      const data = await res.json();
+      if (data && data.length > 0) {
+        brokerId = data[0].id;
       }
+    } catch (err) {
+      console.error("🔥 Error Fallback Supabase:", err);
     }
 
-    if (!brokerId) return new Response('Portal no encontrado.', { status: 404 });
+    if (!brokerId) return new Response('Portal inmobiliario no encontrado.', { status: 404 });
     event.locals.tenantId = brokerId;
   }
 
-  // =====================================================================
-  // EL CANDADO MULTI-TENANT FINAL
-  // =====================================================================
+  // 2. COOKIES WILD CARD PARA SESIONES CRUZADAS
+  const isPagesDev = host.includes('.pages.dev');
+  const isLocal = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.');
+  const cookieDomain = (isPagesDev || isLocal) ? undefined : '.inmublia.com';
+
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() { return event.cookies.getAll(); },
       setAll(cookiesToSet) {
         try {
-          // Identificamos el entorno para no romper Cloudflare Pages ni Localhost
-          const isPagesDev = host.includes('.pages.dev');
-          const isLocal = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.');
-          
-          // CRÍTICO: El punto inicial permite que la cookie cruce subdominios (RFC 6265)
-          const cookieDomain = (isPagesDev || isLocal) ? undefined : '.inmublia.com';
-          
           cookiesToSet.forEach(({ name, value, options }) => {
             const { domain, ...cleanOptions } = options;
             event.cookies.set(name, value, { 
@@ -68,13 +59,13 @@ export async function handle({ event, resolve }) {
             });
           });
         } catch (err) {
-          // Silenciamos este catch. Si SvelteKit tira error de headers aquí, 
-          // el layout de Svelte ya lo manejó y no queremos un doble crash.
+          // Ignoramos silenciosamente si SvelteKit choca, el SSR manda
         }
       }
     }
   });
 
+  // 3. RECUPERACIÓN DE SESIÓN (Tolerante a caídas)
   event.locals.safeGetSession = async () => {
     try {
       const { data: { session } } = await event.locals.supabase.auth.getSession();
@@ -91,9 +82,15 @@ export async function handle({ event, resolve }) {
     }
   };
 
+  // 4. EL FIX DEL 500: Redirección usando URL absoluta para no romper Cloudflare
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/bienvenida')) {
     const { user } = await event.locals.safeGetSession();
-    if (!user) throw redirect(303, '/login?motivo=inactividad');
+    if (!user) {
+       // Cloudflare Edge odia los paths relativos en throw redirect a veces.
+       // Construimos la URL absoluta hacia el login.
+       const loginUrl = new URL('/login?motivo=inactividad', event.url.origin);
+       throw redirect(303, loginUrl.toString());
+    }
     event.locals.user = user;
   }
 
