@@ -1,19 +1,25 @@
-export async function load({ setHeaders, locals }) {
-  // 1. ELIMINACIÓN DE CACHÉ PARA GARANTIZAR DISEÑOS FRESCOS EN EL EDGE
+import { createClient } from '@supabase/supabase-js';
+import { env as publicEnv } from '$env/dynamic/public';
+import { env as privateEnv } from '$env/dynamic/private';
+
+export async function load({ setHeaders, locals, fetch }) {
   setHeaders({
     'Cache-Control': 'no-store, max-age=0'
   });
 
-  // 2. EXTRAER EL BROKER ID DESDE LOS LOCALS (Inyectado por el hook)
   const brokerId = locals.tenantId;
 
-  // Si no hay brokerId, estamos en el dominio raíz (Landing Inmublia)
   if (!brokerId) {
     return { propiedades: [], broker: null };
   }
 
-  // 3. CARGAR DATOS DEL BROKER Y SUS PROPIEDADES ACTIVAS
-  const { data: broker, error: brokerError } = await locals.supabase
+  // FIX: Usamos Service Role para saltarnos el RLS de Supabase y poder leer la agencia públicamente
+  const supabaseAdmin = createClient(publicEnv.PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY, {
+    global: { fetch: fetch },
+    auth: { persistSession: false }
+  });
+
+  const { data: broker, error: brokerError } = await supabaseAdmin
     .from('brokers')
     .select('*')
     .eq('id', brokerId)
@@ -23,18 +29,14 @@ export async function load({ setHeaders, locals }) {
       return { propiedades: [], broker: null };
   }
 
-  const { data: propiedades, error: propError } = await locals.supabase
+  const { data: propiedades } = await supabaseAdmin
       .from('propiedades')
       .select('*')
       .eq('broker_id', brokerId)
       .eq('estatus', 'Activa');
 
-  if (propError) {
-    console.error('Error al consultar propiedades:', propError.message);
-  }
-
   return {
     propiedades: propiedades || [],
-    broker: broker || null
+    broker: broker
   };
 }
