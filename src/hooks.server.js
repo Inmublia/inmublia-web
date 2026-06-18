@@ -9,9 +9,6 @@ export async function handle({ event, resolve }) {
   const host = event.request.headers.get('x-forwarded-host') || event.url.hostname;
   const pathname = event.url.pathname;
   
-  // FIX: Agregamos las IPs de red local para que las pruebas en móvil vía WiFi no destruyan las cookies
-  const isLocal = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.');
-  
   // =====================================================================
   // 1. EL ESCUDO DE ENRUTAMIENTO (Rendimiento Edge)
   // =====================================================================
@@ -19,19 +16,16 @@ export async function handle({ event, resolve }) {
     return resolve(event);
   }
 
-  // Identificamos si es el dominio principal/admin o un subdominio (tenant)
-  const isRootOrAdmin = isLocal || host === 'inmublia.com' || host === 'www.inmublia.com' || host.startsWith('admin.');
+  const isRootOrAdmin = host === 'inmublia.com' || host === 'www.inmublia.com' || host.startsWith('admin.');
 
   if (!isRootOrAdmin) {
     const subdomain = host.split('.')[0];
     let brokerId = null;
 
-    // A) Búsqueda en Memoria Ultrarrápida (Cloudflare KV)
     if (event.platform?.env?.INMUBLIA_KV) {
       brokerId = await event.platform.env.INMUBLIA_KV.get(`tenant:${subdomain}`);
     }
 
-    // B) Fallback Síncrono a Supabase
     if (!brokerId) {
       try {
         const res = await fetch(`${supabaseUrl}/rest/v1/brokers?subdominio=eq.${subdomain}&select=id`, {
@@ -63,29 +57,37 @@ export async function handle({ event, resolve }) {
     event.locals.tenantId = brokerId;
   }
 
-// =====================================================================
-  // 2. EL CANDADO MULTI-TENANT (Sesiones y Cookies cruzadas)
   // =====================================================================
+  // 2. EL CANDADO MULTI-TENANT (Sesiones y Cookies Cruzadas)
+  // =====================================================================
+  
+  // Extraemos dinámicamente el dominio base sin el punto conflictivo para SvelteKit
+  // Si estás en Cloudflare Pages dev, respeta su dominio para que no explote.
+  const isCloudflarePages = host.includes('pages.dev');
+  const baseDomain = isCloudflarePages ? host : 'inmublia.com';
+
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() { return event.cookies.getAll(); },
       setAll(cookiesToSet) {
         try {
-          // FIX DEFINITIVO: Cloudflare enruta por 127.0.0.1 a veces, forzamos el dominio si no es pages.dev
-          const isPagesDev = event.url.hostname.includes('.pages.dev');
-          // Si estamos en tu dominio real, OBLIGAMOS a que la cookie se ancle a .inmublia.com
-          const cookieDomain = isPagesDev ? undefined : '.inmublia.com';
-          
           cookiesToSet.forEach(({ name, value, options }) => {
-            const { domain, ...cleanOptions } = options;
-            event.cookies.set(name, value, { 
-              ...cleanOptions, 
-              path: '/',
-              domain: cookieDomain 
-            });
+            // SvelteKit requiere estrictamente el path='/'
+            event.cookies.set(name, value, { ...options, path: '/' });
           });
-        } catch (err) {}
+        } catch (err) {
+          // El estándar de Supabase SSR dicta silenciar errores aquí
+          // para evitar 500s cuando SvelteKit maneja chunks grandes.
+        }
       }
+    },
+    // LA MAGIA OCURRE AQUÍ: Supabase inyecta el dominio a la firma interna
+    // y SvelteKit lo aplica a la cabecera sin tirar 500.
+    cookieOptions: {
+      domain: baseDomain,
+      secure: true,
+      sameSite: 'lax',
+      path: '/'
     }
   });
 
@@ -98,7 +100,6 @@ export async function handle({ event, resolve }) {
       const { data: { user }, error } = await event.locals.supabase.auth.getUser();
       
       if (error) {
-        // Tolerancia a fallos de red 5xx o desconexiones
         if (error.status >= 500 || error.message.includes('fetch')) {
           return { session, user: session.user };
         }
