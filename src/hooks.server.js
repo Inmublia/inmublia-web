@@ -3,47 +3,80 @@ import { redirect } from '@sveltejs/kit';
 import { env } from '$env/dynamic/public';
 
 export async function handle({ event, resolve }) {
+  // Extraemos las variables tanto del entorno dinámico como del platform de Cloudflare
   const supabaseUrl = env.PUBLIC_SUPABASE_URL || event.platform?.env?.PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = env.PUBLIC_SUPABASE_ANON_KEY || event.platform?.env?.PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseServiceKey = event.platform?.env?.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return new Response('Error crítico: Faltan las variables de entorno de Supabase.', { status: 500 });
+  }
   
   const host = event.request.headers.get('x-forwarded-host') || event.url.hostname;
   const pathname = event.url.pathname;
   
+  // Escudo protector para assets estáticos
   if (pathname.startsWith('/_app/') || pathname.includes('.')) {
     return resolve(event);
   }
 
-  // 1. RESOLUCIÓN DE MULTI-TENANT MÁS ROBUSTA
+  // Identificamos el contexto de enrutamiento
   const isRootOrAdmin = host === 'inmublia.com' || host === 'www.inmublia.com' || host.startsWith('admin.');
 
+  // =====================================================================
+  // 1. RESOLUCIÓN DE MULTI-TENANT (Bypasando RLS de forma segura)
+  // =====================================================================
   if (!isRootOrAdmin) {
     const subdomain = host.split('.')[0];
     let brokerId = null;
 
-    try {
-      // Usamos el cliente admin directo para saltarnos RLS en la validación inicial
-      const res = await fetch(`${supabaseUrl}/rest/v1/brokers?subdominio=eq.${subdomain}&select=id`, {
-        headers: { 
-          'apikey': supabaseAnonKey, 
-          'Authorization': `Bearer ${supabaseAnonKey}` 
-        }
-      });
-      const data = await res.json();
-      if (data && data.length > 0) {
-        brokerId = data[0].id;
-      }
-    } catch (err) {
-      console.error("🔥 Error Fallback Supabase:", err);
+    // Primero intentamos buscar en la caché ultrarrápida de Cloudflare KV
+    if (event.platform?.env?.INMUBLIA_KV) {
+      brokerId = await event.platform.env.INMUBLIA_KV.get(`tenant:${subdomain}`);
     }
 
-    if (!brokerId) return new Response('Portal inmobiliario no encontrado.', { status: 404 });
+    // Fallback: Si no está en caché, consultamos Supabase usando la Service Role Key para saltar RLS
+    if (!brokerId) {
+      try {
+        const authKey = supabaseServiceKey || supabaseAnonKey;
+        const res = await fetch(`${supabaseUrl}/rest/v1/brokers?subdominio=eq.${subdomain}&select=id`, {
+          headers: { 
+            'apikey': authKey, 
+            'Authorization': `Bearer ${authKey}` 
+          }
+        });
+        
+        const data = await res.json();
+        if (data && data.length > 0) {
+          brokerId = data[0].id;
+          
+          // Guardamos en KV para la siguiente petición del Edge
+          if (event.platform?.context?.waitUntil && event.platform?.env?.INMUBLIA_KV) {
+            event.platform.context.waitUntil(
+              event.platform.env.INMUBLIA_KV.put(`tenant:${subdomain}`, brokerId)
+            );
+          }
+        }
+      } catch (err) {
+        console.error("🔥 Error en resolución de Tenant:", err);
+      }
+    }
+
+    if (!brokerId) {
+      return new Response('Portal inmobiliario no encontrado o inactivo.', { status: 404 });
+    }
+
     event.locals.tenantId = brokerId;
   }
 
-  // 2. COOKIES WILD CARD PARA SESIONES CRUZADAS
+  // =====================================================================
+  // 2. CONTROLADOR DE COOKIES WILDCARD (Sin puntos conflictivos)
+  // =====================================================================
   const isPagesDev = host.includes('.pages.dev');
   const isLocal = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.');
-  const cookieDomain = (isPagesDev || isLocal) ? undefined : '.inmublia.com';
+  
+  // FIX DEFINITIVO: Eliminamos el punto inicial para erradicar el 500 de SvelteKit
+  const cookieDomain = (isPagesDev || isLocal) ? undefined : 'inmublia.com';
 
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -59,13 +92,13 @@ export async function handle({ event, resolve }) {
             });
           });
         } catch (err) {
-          // Ignoramos silenciosamente si SvelteKit choca, el SSR manda
+          // Mitiga colisiones de headers duplicados en redirecciones de mutación
         }
       }
     }
   });
 
-  // 3. RECUPERACIÓN DE SESIÓN (Tolerante a caídas)
+  // 3. SEGURIDAD DE SESIÓN RESILIENTE
   event.locals.safeGetSession = async () => {
     try {
       const { data: { session } } = await event.locals.supabase.auth.getSession();
@@ -73,7 +106,9 @@ export async function handle({ event, resolve }) {
 
       const { data: { user }, error } = await event.locals.supabase.auth.getUser();
       if (error) {
-        if (error.status >= 500 || error.message.includes('fetch')) return { session, user: session.user };
+        if (error.status >= 500 || error.message.includes('fetch')) {
+          return { session, user: session.user };
+        }
         return { session: null, user: null };
       }
       return { session, user };
@@ -82,14 +117,12 @@ export async function handle({ event, resolve }) {
     }
   };
 
-  // 4. EL FIX DEL 500: Redirección usando URL absoluta para no romper Cloudflare
+  // 4. PROTECCIÓN DE CONSOLA CON URL ABSOLUTA PARA EL EDGE
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/bienvenida')) {
     const { user } = await event.locals.safeGetSession();
     if (!user) {
-       // Cloudflare Edge odia los paths relativos en throw redirect a veces.
-       // Construimos la URL absoluta hacia el login.
-       const loginUrl = new URL('/login?motivo=inactividad', event.url.origin);
-       throw redirect(303, loginUrl.toString());
+      const loginUrl = new URL('/login?motivo=inactividad', event.url.origin);
+      throw redirect(303, loginUrl.toString());
     }
     event.locals.user = user;
   }
