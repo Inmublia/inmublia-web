@@ -2,18 +2,14 @@ import { createClient } from '@supabase/supabase-js';
 import { env as publicEnv } from '$env/dynamic/public';
 import { env as privateEnv } from '$env/dynamic/private';
 
-export async function load({ setHeaders, locals, fetch }) {
-  setHeaders({
-    'Cache-Control': 'no-store, max-age=0'
-  });
-
+// ELIMINAMOS setHeaders de los parámetros y del cuerpo de la función
+export async function load({ locals, fetch }) {
   const brokerId = locals.tenantId;
 
   if (!brokerId) {
     return { propiedades: [], broker: null };
   }
 
-  // FIX: Usamos Service Role para saltarnos el RLS de Supabase y poder leer la agencia públicamente
   const supabaseAdmin = createClient(publicEnv.PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY, {
     global: { fetch: fetch },
     auth: { persistSession: false }
