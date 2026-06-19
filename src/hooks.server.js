@@ -22,7 +22,7 @@ export async function handle({ event, resolve }) {
   const isRootOrAdmin = host === 'inmublia.com' || host === 'www.inmublia.com' || host.startsWith('admin.');
   const isLocal = host === 'localhost' || host === '127.0.0.1' || host.includes('.pages.dev');
   
-  // 1. RESOLUCIÓN DE MULTI-TENANT PÚBLICO (Lectura de URL)
+  // 1. RESOLUCIÓN DE MULTI-TENANT PÚBLICO
   let currentSubdomain = null;
   if (!isRootOrAdmin && !isLocal) {
     currentSubdomain = host.split('.')[0];
@@ -61,7 +61,7 @@ export async function handle({ event, resolve }) {
     event.locals.tenantId = brokerId;
   }
 
-  // 2. MOTOR DE COOKIES (Wildcard + Borrado Estricto de Fantasmas)
+  // 2. MOTOR DE COOKIES (Wildcard + Destructor de Sesión Fantasma)
   const cookieDomain = (isLocal) ? undefined : 'inmublia.com';
 
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -72,20 +72,11 @@ export async function handle({ event, resolve }) {
         try {
           cookiesToSet.forEach(({ name, value, options }) => {
             const { domain, ...cleanOptions } = options;
-            
-            event.cookies.set(name, value, { 
-              ...cleanOptions, 
-              path: '/', 
-              domain: cookieDomain 
-            });
+            event.cookies.set(name, value, { ...cleanOptions, path: '/', domain: cookieDomain });
 
-            // Borrado exhaustivo para evitar el 500 loop
+            // Borrado exhaustivo si la sesión se destruye
             if (!value || options.maxAge === 0 || options.maxAge === -1) {
-              event.cookies.set(name, '', { 
-                ...cleanOptions, 
-                path: '/', 
-                domain: undefined 
-              });
+              event.cookies.set(name, '', { ...cleanOptions, path: '/', domain: undefined });
             }
           });
         } catch (err) {}
@@ -119,22 +110,27 @@ export async function handle({ event, resolve }) {
 
     const { data: userBroker } = await event.locals.supabase
       .from('brokers')
-      .select('subdominio')
+      .select('id, subdominio')
       .eq('auth_user_id', user.id)
       .single();
 
-    if (userBroker && userBroker.subdominio) {
-      const subDB = userBroker.subdominio.toLowerCase();
-      const currentSub = currentSubdomain ? currentSubdomain.toLowerCase() : null;
+    if (userBroker) {
+      // FIX CRÍTICO: Esto garantiza que siempre veas tus inmuebles en el admin
+      event.locals.tenantId = userBroker.id;
 
-      // Si el usuario intenta entrar al admin de otra persona, lo mandamos a su casa
-      if (
-        (isRootOrAdmin && !pathname.includes('/logout')) || 
-        (currentSub && currentSub !== subDB)
-      ) {
-        throw redirect(303, `https://${subDB}.inmublia.com${pathname}`);
+      if (userBroker.subdominio) {
+        const subDB = userBroker.subdominio.toLowerCase();
+        const currentSub = currentSubdomain ? currentSubdomain.toLowerCase() : null;
+
+        // Guardia anti-intrusos a subdominios ajenos
+        if (
+          (isRootOrAdmin && !pathname.includes('/logout')) || 
+          (currentSub && currentSub !== subDB)
+        ) {
+          throw redirect(303, `https://${subDB}.inmublia.com${pathname}`);
+        }
       }
-    } else if (userBroker && !userBroker.subdominio) {
+    } else {
       throw redirect(303, `https://inmublia.com/admin/bienvenida`); 
     }
 
