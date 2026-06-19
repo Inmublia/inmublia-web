@@ -15,12 +15,10 @@ export async function handle({ event, resolve }) {
   const host = event.request.headers.get('x-forwarded-host') || event.url.hostname;
   const pathname = event.url.pathname;
 
-  // Omitir peticiones de archivos estáticos o internos de SvelteKit
   if (pathname.startsWith('/_app/') || pathname.includes('.')) {
     return resolve(event);
   }
 
-  // Identificación de dominios raíz o administrativos principales
   const isRootOrAdmin = host === 'inmublia.com' || host === 'www.inmublia.com' || host.startsWith('admin.');
   const isLocal = host === 'localhost' || host === '127.0.0.1' || host.includes('.pages.dev');
   
@@ -32,12 +30,10 @@ export async function handle({ event, resolve }) {
     currentSubdomain = host.split('.')[0];
     let brokerId = null;
 
-    // Intento de recuperación rápida desde la capa de caché KV si está disponible
     if (event.platform?.env?.INMUBLIA_KV) {
       brokerId = await event.platform.env.INMUBLIA_KV.get(`tenant:${currentSubdomain}`);
     }
 
-    // Consulta de respaldo directa a la base de datos si no está en caché
     if (!brokerId) {
       try {
         const res = await event.fetch(`${supabaseUrl}/rest/v1/brokers?subdominio=eq.${currentSubdomain}&select=id`, {
@@ -57,9 +53,7 @@ export async function handle({ event, resolve }) {
             }
           }
         }
-      } catch (err) {
-        console.error("Error en validación perimetral:", err);
-      }
+      } catch (err) {}
     }
 
     if (!brokerId) {
@@ -70,7 +64,7 @@ export async function handle({ event, resolve }) {
   }
 
   // =====================================================================
-  // 2. MOTOR DE COOKIES (Wildcard + Exterminador de Cookies Fantasma)
+  // 2. MOTOR DE COOKIES (Wildcard + Exterminador)
   // =====================================================================
   const cookieDomain = (isLocal) ? undefined : 'inmublia.com';
 
@@ -83,15 +77,12 @@ export async function handle({ event, resolve }) {
           cookiesToSet.forEach(({ name, value, options }) => {
             const { domain, ...cleanOptions } = options;
             
-            // A) Guardado Estándar: Usa el comodín para el SSO
             event.cookies.set(name, value, { 
               ...cleanOptions, 
               path: '/', 
               domain: cookieDomain 
             });
 
-            // B) EL EXTERMINADOR: Si se está cerrando sesión, disparar borrado estricto 
-            // al subdominio actual para aniquilar residuos de la arquitectura vieja
             if (!value || options.maxAge === 0 || options.maxAge === -1) {
               event.cookies.set(name, '', { 
                 ...cleanOptions, 
@@ -105,7 +96,6 @@ export async function handle({ event, resolve }) {
     }
   });
 
-  // Recuperación segura y resiliente del estado de la sesión
   event.locals.safeGetSession = async () => {
     try {
       const { data: { session } } = await event.locals.supabase.auth.getSession();
@@ -123,22 +113,31 @@ export async function handle({ event, resolve }) {
   };
 
   // =====================================================================
-  // 3. CONTROLADOR DE RUTAS OPERATIVAS (Guardia Anti-Fugas de Datos)
+  // 3. CONTROLADOR DE RUTAS OPERATIVAS (Carga Segura de Datos)
   // =====================================================================
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/bienvenida')) {
     const { user } = await event.locals.safeGetSession();
     
     if (!user) {
-      throw redirect(303, `https://${host}/login?motivo=inactividad`);
+      // FIX CRÍTICO: Expulsión centralizada siempre a la matriz principal
+      const targetLogin = isLocal ? '/login' : 'https://inmublia.com/login';
+      throw redirect(303, `${targetLogin}?motivo=inactividad`);
     }
 
+    // FIX CRÍTICO: Solicitamos también el 'id' real del usuario
     const { data: userBroker } = await event.locals.supabase
       .from('brokers')
-      .select('subdominio')
+      .select('id, subdominio')
       .eq('auth_user_id', user.id)
       .single();
 
     if (userBroker && userBroker.subdominio) {
+      
+      // FIX CRÍTICO: Inyectamos a la fuerza el tenantId real del usuario autenticado.
+      // Esto sobreescribe cualquier lectura dudosa de la URL y fuerza a la interfaz
+      // a cargar exactamente las propiedades de este usuario.
+      event.locals.tenantId = userBroker.id;
+
       if (
         (isRootOrAdmin && !pathname.includes('/logout')) || 
         (currentSubdomain && currentSubdomain !== userBroker.subdominio)
@@ -146,7 +145,8 @@ export async function handle({ event, resolve }) {
         throw redirect(303, `https://${userBroker.subdominio}.inmublia.com${pathname}`);
       }
     } else if (userBroker && !userBroker.subdominio) {
-      throw redirect(303, `https://inmublia.com/admin/bienvenida`); 
+      const targetPerfil = isLocal ? '/admin/perfil' : 'https://inmublia.com/admin/bienvenida';
+      throw redirect(303, targetPerfil); 
     }
 
     event.locals.user = user;
@@ -159,9 +159,6 @@ export async function handle({ event, resolve }) {
   });
 }
 
-// =====================================================================
-// 4. MANEJO DE ERRORES GLOBALES
-// =====================================================================
 export function handleError({ error }) {
   console.error('🔥 [Error de Servidor Atrapado]:', error);
   return {
