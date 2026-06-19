@@ -22,9 +22,7 @@ export async function handle({ event, resolve }) {
   const isRootOrAdmin = host === 'inmublia.com' || host === 'www.inmublia.com' || host.startsWith('admin.');
   const isLocal = host === 'localhost' || host === '127.0.0.1' || host.includes('.pages.dev');
   
-  // =====================================================================
-  // 1. RESOLUCIÓN DE MULTI-TENANT (Entorno público / SEO)
-  // =====================================================================
+  // 1. RESOLUCIÓN DE MULTI-TENANT PÚBLICO (Lectura de URL)
   let currentSubdomain = null;
   if (!isRootOrAdmin && !isLocal) {
     currentSubdomain = host.split('.')[0];
@@ -63,9 +61,7 @@ export async function handle({ event, resolve }) {
     event.locals.tenantId = brokerId;
   }
 
-  // =====================================================================
-  // 2. MOTOR DE COOKIES (Wildcard + Exterminador)
-  // =====================================================================
+  // 2. MOTOR DE COOKIES (Wildcard + Borrado Estricto de Fantasmas)
   const cookieDomain = (isLocal) ? undefined : 'inmublia.com';
 
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -83,6 +79,7 @@ export async function handle({ event, resolve }) {
               domain: cookieDomain 
             });
 
+            // Borrado exhaustivo para evitar el 500 loop
             if (!value || options.maxAge === 0 || options.maxAge === -1) {
               event.cookies.set(name, '', { 
                 ...cleanOptions, 
@@ -112,41 +109,33 @@ export async function handle({ event, resolve }) {
     }
   };
 
-  // =====================================================================
-  // 3. CONTROLADOR DE RUTAS OPERATIVAS (Carga Segura de Datos)
-  // =====================================================================
+  // 3. SEGURIDAD PRIVADA Y PROTECCIÓN DE RUTAS
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/bienvenida')) {
     const { user } = await event.locals.safeGetSession();
     
     if (!user) {
-      // FIX CRÍTICO: Expulsión centralizada siempre a la matriz principal
-      const targetLogin = isLocal ? '/login' : 'https://inmublia.com/login';
-      throw redirect(303, `${targetLogin}?motivo=inactividad`);
+      throw redirect(303, `/login?motivo=inactividad`);
     }
 
-    // FIX CRÍTICO: Solicitamos también el 'id' real del usuario
     const { data: userBroker } = await event.locals.supabase
       .from('brokers')
-      .select('id, subdominio')
+      .select('subdominio')
       .eq('auth_user_id', user.id)
       .single();
 
     if (userBroker && userBroker.subdominio) {
-      
-      // FIX CRÍTICO: Inyectamos a la fuerza el tenantId real del usuario autenticado.
-      // Esto sobreescribe cualquier lectura dudosa de la URL y fuerza a la interfaz
-      // a cargar exactamente las propiedades de este usuario.
-      event.locals.tenantId = userBroker.id;
+      const subDB = userBroker.subdominio.toLowerCase();
+      const currentSub = currentSubdomain ? currentSubdomain.toLowerCase() : null;
 
+      // Si el usuario intenta entrar al admin de otra persona, lo mandamos a su casa
       if (
         (isRootOrAdmin && !pathname.includes('/logout')) || 
-        (currentSubdomain && currentSubdomain !== userBroker.subdominio)
+        (currentSub && currentSub !== subDB)
       ) {
-        throw redirect(303, `https://${userBroker.subdominio}.inmublia.com${pathname}`);
+        throw redirect(303, `https://${subDB}.inmublia.com${pathname}`);
       }
     } else if (userBroker && !userBroker.subdominio) {
-      const targetPerfil = isLocal ? '/admin/perfil' : 'https://inmublia.com/admin/bienvenida';
-      throw redirect(303, targetPerfil); 
+      throw redirect(303, `https://inmublia.com/admin/bienvenida`); 
     }
 
     event.locals.user = user;
@@ -160,9 +149,9 @@ export async function handle({ event, resolve }) {
 }
 
 export function handleError({ error }) {
-  console.error('🔥 [Error de Servidor Atrapado]:', error);
+  console.error('🔥 [Error Crítico]:', error);
   return {
-    message: error.message || 'Error interno del sistema',
+    message: error.message || 'Error interno',
     stack: error.stack || ''
   };
 }
