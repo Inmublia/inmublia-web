@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { env as privateEnv } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
 import { createClient } from '@supabase/supabase-js';
+import { registrarSubdominioEnCloudflare } from '$lib/server/cloudflare';
 
 export async function load({ url, locals, fetch }) {
   const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, {
@@ -41,8 +42,6 @@ export async function load({ url, locals, fetch }) {
 
     if (!broker) return { status: 'waiting', email, sessionId };
 
-    // Si el usuario vuelve a entrar aquí pero ya configuró su subdominio real,
-    // lo expulsamos de la bienvenida hacia el login de su propio subdominio absoluto
     if (session && broker.nombre_comercial !== 'Agencia Inmublia' && broker.subdominio) {
        throw redirect(303, `https://${broker.subdominio}.inmublia.com/login`);
     }
@@ -73,14 +72,12 @@ export const actions = {
     const subdominio = formData.get('subdominio')?.trim().toLowerCase();
     const nombre_comercial = formData.get('nombre_comercial')?.trim();
     const authUserId = formData.get('authUserId');
-    const email = formData.get('email');
 
     if (!password || !subdominio || !nombre_comercial || !authUserId) {
       return { success: false, error: 'Faltan datos obligatorios para la configuración.' };
     }
 
     try {
-      // 1. Verificación de colisión de subdominio
       const { data: duplicate } = await supabaseAdmin
         .from('brokers')
         .select('id')
@@ -90,14 +87,12 @@ export const actions = {
 
       if (duplicate) return { success: false, error: 'Este subdominio ya está ocupado. Elige otro.' };
 
-      // 2. Actualización de credenciales en Supabase Auth
       const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(authUserId, { 
         password: password,
         email_confirm: true 
       });
       if (authError) throw authError;
 
-      // 3. Mutación de datos reales en la tabla pública
       const { error: profileError } = await supabaseAdmin
         .from('brokers')
         .update({ 
@@ -108,10 +103,14 @@ export const actions = {
       
       if (profileError) throw profileError;
 
-      // 4. DIRECCIÓN ABSOLUTA MULTI-TENANT: 
-      // Despachamos al usuario a la PANTALLA DE LOGIN de su nuevo subdominio
-      // para que establezca sus cookies de sesión de forma segura sin arrojar Error 500.
-      throw redirect(303, `https://${subdominio}.inmublia.com/login?setup=success`);
+      // Alta automatizada en el Edge de Cloudflare sin costo
+      const cloudflareConfig = await registrarSubdominioEnCloudflare(subdominio);
+      if (!cloudflareConfig.success) {
+        console.error("🔥 Alerta de aprovisionamiento perimetral fallido, requiere revisión manual.");
+      }
+
+      // Redirección hacia la pantalla de espera mientras se emite el SSL
+      throw redirect(303, `/admin/bienvenida/exito?subdominio=${subdominio}`);
 
     } catch (err) {
       if (err.status === 303) throw err;
