@@ -15,29 +15,35 @@ export async function handle({ event, resolve }) {
   const host = event.request.headers.get('x-forwarded-host') || event.url.hostname;
   const pathname = event.url.pathname;
 
+  // Omitir peticiones de archivos estáticos o internos de SvelteKit
   if (pathname.startsWith('/_app/') || pathname.includes('.')) {
     return resolve(event);
   }
 
+  // Identificación de dominios raíz o administrativos principales
   const isRootOrAdmin = host === 'inmublia.com' || host === 'www.inmublia.com' || host.startsWith('admin.');
-
+  const isLocal = host === 'localhost' || host === '127.0.0.1' || host.includes('.pages.dev');
+  
   // =====================================================================
-  // 1. RESOLUCIÓN DE MULTI-TENANT
+  // 1. RESOLUCIÓN DE MULTI-TENANT (Entorno público / SEO)
   // =====================================================================
-  if (!isRootOrAdmin) {
-    const subdomain = host.split('.')[0];
+  let currentSubdomain = null;
+  if (!isRootOrAdmin && !isLocal) {
+    currentSubdomain = host.split('.')[0];
     let brokerId = null;
 
+    // Intento de recuperación rápida desde la capa de caché KV si está disponible
     if (event.platform?.env?.INMUBLIA_KV) {
-      brokerId = await event.platform.env.INMUBLIA_KV.get(`tenant:${subdomain}`);
+      brokerId = await event.platform.env.INMUBLIA_KV.get(`tenant:${currentSubdomain}`);
     }
 
+    // Consulta de respaldo directa a la base de datos si no está en caché
     if (!brokerId) {
       try {
-        const res = await event.fetch(`${supabaseUrl}/rest/v1/brokers?subdominio=eq.${subdomain}&select=id`, {
-          headers: {
-            'apikey': supabaseServiceKey || supabaseAnonKey,
-            'Authorization': `Bearer ${supabaseServiceKey || supabaseAnonKey}`
+        const res = await event.fetch(`${supabaseUrl}/rest/v1/brokers?subdominio=eq.${currentSubdomain}&select=id`, {
+          headers: { 
+            'apikey': supabaseServiceKey || supabaseAnonKey, 
+            'Authorization': `Bearer ${supabaseServiceKey || supabaseAnonKey}` 
           }
         });
         if (res.ok) {
@@ -46,13 +52,13 @@ export async function handle({ event, resolve }) {
             brokerId = data[0].id;
             if (event.platform?.context?.waitUntil && event.platform?.env?.INMUBLIA_KV) {
               event.platform.context.waitUntil(
-                event.platform.env.INMUBLIA_KV.put(`tenant:${subdomain}`, brokerId)
+                event.platform.env.INMUBLIA_KV.put(`tenant:${currentSubdomain}`, brokerId)
               );
             }
           }
         }
       } catch (err) {
-        console.error("Error en validacion Edge:", err);
+        console.error("Error en validación perimetral:", err);
       }
     }
 
@@ -64,12 +70,10 @@ export async function handle({ event, resolve }) {
   }
 
   // =====================================================================
-  // 2. CONFIGURACIÓN LIMPIA DE COOKIES (Nativa de SvelteKit)
+  // 2. CONFIGURACIÓN DE COOKIES (Mecanismo Wildcard para SSO)
   // =====================================================================
-  const isPagesDev = host.includes('.pages.dev');
-  const isLocal = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.');
-  
-  const cookieDomain = (isPagesDev || isLocal) ? undefined : 'inmublia.com';
+  // Mantenemos el dominio compartido para permitir flujo de sesión unificado
+  const cookieDomain = (isLocal) ? undefined : 'inmublia.com';
 
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     global: { fetch: event.fetch },
@@ -79,10 +83,10 @@ export async function handle({ event, resolve }) {
         try {
           cookiesToSet.forEach(({ name, value, options }) => {
             const { domain, ...cleanOptions } = options;
-            event.cookies.set(name, value, {
-              ...cleanOptions,
-              path: '/',
-              domain: cookieDomain
+            event.cookies.set(name, value, { 
+              ...cleanOptions, 
+              path: '/', 
+              domain: cookieDomain 
             });
           });
         } catch (err) {}
@@ -90,9 +94,7 @@ export async function handle({ event, resolve }) {
     }
   });
 
-  // =====================================================================
-  // 3. RECUPERACIÓN DE SESIÓN RESILIENTE
-  // =====================================================================
+  // Recuperación segura y resiliente del estado de la sesión
   event.locals.safeGetSession = async () => {
     try {
       const { data: { session } } = await event.locals.supabase.auth.getSession();
@@ -100,9 +102,7 @@ export async function handle({ event, resolve }) {
 
       const { data: { user }, error } = await event.locals.supabase.auth.getUser();
       if (error) {
-        if (error.status >= 500 || error.message.includes('fetch')) {
-          return { session, user: session.user };
-        }
+        if (error.status >= 500) return { session, user: session.user };
         return { session: null, user: null };
       }
       return { session, user };
@@ -112,13 +112,37 @@ export async function handle({ event, resolve }) {
   };
 
   // =====================================================================
-  // 4. PROTECCIÓN DE RUTAS
+  // 3. CONTROLADOR DE RUTAS OPERATIVAS (Guardia Anti-Fugas de Datos)
   // =====================================================================
+  // Protegemos con rigurosidad matemática el ecosistema de la consola administrativa
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/bienvenida')) {
     const { user } = await event.locals.safeGetSession();
+    
     if (!user) {
       throw redirect(303, `https://${host}/login?motivo=inactividad`);
     }
+
+    // Buscamos la identidad del propietario real de la sesión activa
+    const { data: userBroker } = await event.locals.supabase
+      .from('brokers')
+      .select('subdominio')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (userBroker && userBroker.subdominio) {
+      // Si intenta consumir datos en la raíz o en el subdominio de un tercero,
+      // el enrutador lo intercepta y lo reubica de inmediato en su propio entorno correcto.
+      if (
+        (isRootOrAdmin && !pathname.includes('/logout')) || 
+        (currentSubdomain && currentSubdomain !== userBroker.subdominio)
+      ) {
+        throw redirect(303, `https://${userBroker.subdominio}.inmublia.com${pathname}`);
+      }
+    } else if (userBroker && !userBroker.subdominio) {
+      // Redirección forzada de contención si el perfil no ha definido subdominio
+      throw redirect(303, `https://inmublia.com/admin/bienvenida`); 
+    }
+
     event.locals.user = user;
   }
 
@@ -130,13 +154,12 @@ export async function handle({ event, resolve }) {
 }
 
 // =====================================================================
-// 5. EXTRACTOR DE ERRORES (Pasa el rastro exacto a +error.svelte)
+// 4. MANEJO DE ERRORES GLOBALES
 // =====================================================================
-export function handleError({ error, event }) {
-  console.error('🔥 [ERROR CRÍTICO REVELADO]:', error);
-  
+export function handleError({ error }) {
+  console.error('🔥 [Error de Servidor Atrapado]:', error);
   return {
-    message: error.message || 'Error interno desconocido',
-    stack: error.stack || 'No hay stack trace disponible'
+    message: error.message || 'Error interno del sistema',
+    stack: error.stack || ''
   };
 }
