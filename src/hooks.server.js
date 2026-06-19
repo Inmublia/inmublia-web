@@ -21,7 +21,9 @@ export async function handle({ event, resolve }) {
 
   const isRootOrAdmin = host === 'inmublia.com' || host === 'www.inmublia.com' || host.startsWith('admin.');
 
+  // =====================================================================
   // 1. RESOLUCIÓN DE MULTI-TENANT
+  // =====================================================================
   if (!isRootOrAdmin) {
     const subdomain = host.split('.')[0];
     let brokerId = null;
@@ -61,11 +63,12 @@ export async function handle({ event, resolve }) {
     event.locals.tenantId = brokerId;
   }
 
-  // 2. CONFIGURACIÓN LIMPIA DE COOKIES
+  // =====================================================================
+  // 2. CONFIGURACIÓN LIMPIA DE COOKIES (Nativa de SvelteKit)
+  // =====================================================================
   const isPagesDev = host.includes('.pages.dev');
   const isLocal = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.');
   
-  // Permite que la cookie fluya entre la raíz y los subdominios
   const cookieDomain = (isPagesDev || isLocal) ? undefined : 'inmublia.com';
 
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -82,14 +85,14 @@ export async function handle({ event, resolve }) {
               domain: cookieDomain
             });
           });
-        } catch (err) {
-          // Bypass para evitar choques internos de SvelteKit con headers
-        }
+        } catch (err) {}
       }
     }
   });
 
+  // =====================================================================
   // 3. RECUPERACIÓN DE SESIÓN RESILIENTE
+  // =====================================================================
   event.locals.safeGetSession = async () => {
     try {
       const { data: { session } } = await event.locals.supabase.auth.getSession();
@@ -108,7 +111,9 @@ export async function handle({ event, resolve }) {
     }
   };
 
+  // =====================================================================
   // 4. PROTECCIÓN DE RUTAS
+  // =====================================================================
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/bienvenida')) {
     const { user } = await event.locals.safeGetSession();
     if (!user) {
@@ -122,4 +127,16 @@ export async function handle({ event, resolve }) {
       return name === 'content-range' || name === 'x-supabase-api-version';
     }
   });
+}
+
+// =====================================================================
+// 5. EXTRACTOR DE ERRORES (Pasa el rastro exacto a +error.svelte)
+// =====================================================================
+export function handleError({ error, event }) {
+  console.error('🔥 [ERROR CRÍTICO REVELADO]:', error);
+  
+  return {
+    message: error.message || 'Error interno desconocido',
+    stack: error.stack || 'No hay stack trace disponible'
+  };
 }
