@@ -1,53 +1,58 @@
 import { redirect } from '@sveltejs/kit';
 
-export async function load({ locals, parent }) {
-  // 1. Heredamos la sesión de forma eficiente desde el +layout.server.js
-  const { user } = await parent();
+export async function load({ locals, setHeaders, url, depends }) {
+  // 1. EL SELLO DE SEGURIDAD SVELTEKIT
+  depends('supabase:auth');
+
+  const { session, user } = await locals.safeGetSession();
 
   if (!user) {
+    if (url.pathname.startsWith('/login') || url.pathname.startsWith('/admin/bienvenida')) return {};
     throw redirect(303, '/login?motivo=inactividad');
   }
 
   try {
-    // 2. Extraemos el perfil del broker, incluyendo 'subdominio' para el botón
+    // 2. EXTRACCIÓN DEL BROKER (Añadido 'subdominio' para que funcione el botón Ver Portal Público)
     const { data: broker, error: brokerError } = await locals.supabase
       .from('brokers')
-      .select('id, nombre_comercial, avatar_url, subdominio, plan_suscripcion')
+      .select('id, auth_user_id, nombre_comercial, avatar_url, subdominio')
       .eq('auth_user_id', user.id)
       .single();
 
     if (brokerError || !broker) throw new Error("Broker no encontrado");
 
-    // 3. LA CARGA DEL INVENTARIO: Extraemos solo las propiedades de este broker
+    // 3. LA OPTIMIZACIÓN EXTREMA: Notas pendientes
+    const now = new Date().toISOString();
+    const { data: alertasPendientes, error: alertasError } = await locals.supabase
+      .from('lead_notas')
+      .select('id, contenido, fecha_recordatorio, completado, leads(id, nombre)')
+      .eq('broker_id', broker.id)
+      .eq('tipo', 'recordatorio')
+      .eq('completado', false)
+      .lte('fecha_recordatorio', now); 
+
+    if (alertasError) console.error("Error cargando alertas:", alertasError);
+
+    // 4. CARGA DE INMUEBLES: Extrayendo las propiedades exclusivas de este agente
     const { data: propiedades, error: propError } = await locals.supabase
       .from('propiedades')
-      .select(`
-        id, 
-        titulo, 
-        slug, 
-        estatus, 
-        precio, 
-        operacion, 
-        ubicacion, 
-        imagen_url, 
-        destacada,
-        open_houses(id, event_date, time_end)
-      `)
+      .select('id, titulo, slug, estatus, precio, operacion, ubicacion, imagen_url, destacada, open_houses(id, event_date, time_end)')
       .eq('broker_id', broker.id)
-      .order('created_at', { ascending: false });
+      .order('creado_en', { ascending: false });
 
-    if (propError) {
-      console.error("Error cargando propiedades:", propError);
-    }
+    if (propError) console.error("Error cargando propiedades:", propError);
 
-    // 4. Retornamos los datos al frontend
+    // 5. RETORNO COMPLETO PARA LA VISTA
     return {
+      session,
+      user,
       broker,
-      propiedades: propiedades || []
+      alertas: alertasPendientes || [],
+      propiedades: propiedades || [] // Ahora la tabla sí recibirá los inmuebles
     };
 
   } catch (err) {
-    console.error("Error en inventario maestro:", err);
-    return { broker: null, propiedades: [] };
+    console.error("Error en admin page server:", err);
+    return { session, user, broker: null, alertas: [], propiedades: [] };
   }
 }
