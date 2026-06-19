@@ -4,7 +4,7 @@ import { redirect } from '@sveltejs/kit';
  * Lógica unificada para destruir la sesión local y del servidor.
  */
 async function handleLogout({ locals, cookies }) {
-  // 1. Destrucción inmediata de la cookie en el navegador (Seguridad local primero)
+  // 1. Destrucción inmediata de la cookie manual en el navegador (Seguridad local primero)
   cookies.delete('inmublia-auth-token', {
     path: '/',
     secure: true,
@@ -12,7 +12,9 @@ async function handleLogout({ locals, cookies }) {
     sameSite: 'lax'
   });
 
-  // 2. Intento controlado de invalidación en el servidor de Supabase
+  // 2. Intento controlado de invalidación en el servidor de Supabase.
+  // IMPORTANTE: Al ejecutar signOut(), SvelteKit dispara automáticamente 
+  // el "Exterminador de Cookies" que configuramos en hooks.server.js
   if (locals.supabase) {
     try {
       // Envolvemos en try/catch para evitar que un token ya expirado 
@@ -23,8 +25,8 @@ async function handleLogout({ locals, cookies }) {
     }
   }
 
-  // 3. Redirección limpia al login libre de estado anterior
-  throw redirect(303, '/login');
+  // 3. Redirección absoluta a la matriz principal (Fix Arquitectónico Multi-Tenant)
+  throw redirect(303, 'https://inmublia.com/login');
 }
 
 // Soporte para peticiones seguras (ej. <form method="POST" action="/logout">)
