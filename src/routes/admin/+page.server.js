@@ -4,14 +4,7 @@ export async function load({ locals, setHeaders, url, depends }) {
   // 1. EL SELLO DE SEGURIDAD SVELTEKIT
   depends('supabase:auth');
 
-  setHeaders({
-    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-    'Pragma': 'no-cache',
-    'Expires': '0',
-    'Surrogate-Control': 'no-store'
-  });
-
-  const { session, user } = await locals.safeGetSession();
+ const { session, user } = await locals.safeGetSession();
 
   if (!user) {
     if (url.pathname.startsWith('/login') || url.pathname.startsWith('/admin/bienvenida')) return {};
