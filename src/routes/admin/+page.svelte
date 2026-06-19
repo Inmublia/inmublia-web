@@ -126,13 +126,9 @@
       </div>
       
       <div class="flex items-center gap-3">
-        {#if broker && broker.subdominio}
-          <a href="https://{broker.subdominio}.inmublia.com" target="_blank" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 hover:text-white h-11 px-5 gap-2 backdrop-blur-sm">
+        {#if broker}
+          <a href={broker.subdominio ? `https://${broker.subdominio}.inmublia.com` : '#'} target={broker.subdominio ? '_blank' : ''} class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 hover:text-white h-11 px-5 gap-2 backdrop-blur-sm" onclick={(e) => { if (!broker.subdominio) e.preventDefault(); }}>
             <ExternalLink class="w-4 h-4" /> Ver Portal Público
-          </a>
-        {:else if broker && !broker.subdominio}
-          <a href="/admin/perfil" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 hover:text-amber-400 h-11 px-5 gap-2 backdrop-blur-sm">
-            <ExternalLink class="w-4 h-4" /> Configurar Subdominio
           </a>
         {/if}
         <a href="/admin/open-house/nueva" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-indigo-100 h-11 px-5 gap-2 backdrop-blur-sm">
