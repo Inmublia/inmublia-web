@@ -70,9 +70,8 @@ export async function handle({ event, resolve }) {
   }
 
   // =====================================================================
-  // 2. CONFIGURACIÓN DE COOKIES (Mecanismo Wildcard para SSO)
+  // 2. MOTOR DE COOKIES (Wildcard + Exterminador de Cookies Fantasma)
   // =====================================================================
-  // Mantenemos el dominio compartido para permitir flujo de sesión unificado
   const cookieDomain = (isLocal) ? undefined : 'inmublia.com';
 
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -83,11 +82,23 @@ export async function handle({ event, resolve }) {
         try {
           cookiesToSet.forEach(({ name, value, options }) => {
             const { domain, ...cleanOptions } = options;
+            
+            // A) Guardado Estándar: Usa el comodín para el SSO
             event.cookies.set(name, value, { 
               ...cleanOptions, 
               path: '/', 
               domain: cookieDomain 
             });
+
+            // B) EL EXTERMINADOR: Si se está cerrando sesión, disparar borrado estricto 
+            // al subdominio actual para aniquilar residuos de la arquitectura vieja
+            if (!value || options.maxAge === 0 || options.maxAge === -1) {
+              event.cookies.set(name, '', { 
+                ...cleanOptions, 
+                path: '/', 
+                domain: undefined 
+              });
+            }
           });
         } catch (err) {}
       }
@@ -114,7 +125,6 @@ export async function handle({ event, resolve }) {
   // =====================================================================
   // 3. CONTROLADOR DE RUTAS OPERATIVAS (Guardia Anti-Fugas de Datos)
   // =====================================================================
-  // Protegemos con rigurosidad matemática el ecosistema de la consola administrativa
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/bienvenida')) {
     const { user } = await event.locals.safeGetSession();
     
@@ -122,7 +132,6 @@ export async function handle({ event, resolve }) {
       throw redirect(303, `https://${host}/login?motivo=inactividad`);
     }
 
-    // Buscamos la identidad del propietario real de la sesión activa
     const { data: userBroker } = await event.locals.supabase
       .from('brokers')
       .select('subdominio')
@@ -130,8 +139,6 @@ export async function handle({ event, resolve }) {
       .single();
 
     if (userBroker && userBroker.subdominio) {
-      // Si intenta consumir datos en la raíz o en el subdominio de un tercero,
-      // el enrutador lo intercepta y lo reubica de inmediato en su propio entorno correcto.
       if (
         (isRootOrAdmin && !pathname.includes('/logout')) || 
         (currentSubdomain && currentSubdomain !== userBroker.subdominio)
@@ -139,7 +146,6 @@ export async function handle({ event, resolve }) {
         throw redirect(303, `https://${userBroker.subdominio}.inmublia.com${pathname}`);
       }
     } else if (userBroker && !userBroker.subdominio) {
-      // Redirección forzada de contención si el perfil no ha definido subdominio
       throw redirect(303, `https://inmublia.com/admin/bienvenida`); 
     }
 
