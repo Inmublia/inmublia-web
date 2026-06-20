@@ -135,8 +135,8 @@ export async function POST({ request, fetch }) {
 
       // Mapeo del nivel de acceso según el ID de precio de Stripe
       let nuevoPlan = 'basico';
-      if (priceId === 'AQUI_TU_PRICE_ID_PRO') nuevoPlan = 'pro';
-      if (priceId === 'AQUI_TU_PRICE_ID_ELITE') nuevoPlan = 'elite';
+      if (priceId === 'price_1TfAJKJHda98KYP8coylMcTp') nuevoPlan = 'pro';
+      if (priceId === 'price_1TfAJdJHda98KYP8KzZTwXDf') nuevoPlan = 'elite';
 
       const { error: updateError } = await supabaseAdmin
         .from('brokers')
