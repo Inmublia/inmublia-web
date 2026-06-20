@@ -2,8 +2,8 @@
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import imageCompression from 'browser-image-compression';
-  import { Settings, ShieldCheck } from 'lucide-svelte'; 
-  import { onDestroy } from 'svelte'; // [NUEVO]: Para la limpieza estricta de memoria
+  import { Settings, ShieldCheck, Loader2 } from 'lucide-svelte'; 
+  import { onDestroy } from 'svelte';
 
   let { data, form } = $props();
   let broker = $state(data.broker || {});
@@ -16,22 +16,23 @@
   let testingWebhook = $state(false);
   let webhookSuccess = $state(false);
 
-  const planActual = broker.plan_suscripcion || 'basico';
-  const isPro = planActual === 'pro' || planActual === 'elite';
-  const isElite = planActual === 'elite';
+  // NUEVO: Variables para Stripe y bloqueos
+  let redirigiendoStripe = $state(false);
+  let planActual = broker.plan_suscripcion || 'basico';
+  let isPro = planActual === 'pro' || planActual === 'elite';
+  let isElite = planActual === 'elite';
+  let esPlanBasico = planActual === 'basico';
 
-  // [CORRECCIÓN DE DEUDA TÉCNICA]: Revocación explícita para evitar fugas de RAM
   function handleFileSelect(event) {
     const file = event.target.files[0];
     if (file) {
       if (previewUrl) {
-        URL.revokeObjectURL(previewUrl); // Liberamos la memoria del preview anterior
+        URL.revokeObjectURL(previewUrl); 
       }
       previewUrl = URL.createObjectURL(file);
     }
   }
 
-  // [CORRECCIÓN DE DEUDA TÉCNICA]: Si el usuario cambia de ruta en el SaaS, limpiamos la RAM
   onDestroy(() => {
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
@@ -55,6 +56,18 @@
       alert('Error de conexión con el Webhook.');
     }
     testingWebhook = false;
+  }
+
+  // NUEVO: Manejador para el botón de facturación
+  function manejadorPortal() {
+    redirigiendoStripe = true;
+    return async ({ result, update }) => {
+      redirigiendoStripe = false;
+      if (result.type === 'failure' || result.type === 'error') {
+        alert(`Fallo en facturación: ${result.data?.error || result.error?.message || 'Revisa tu conexión a Stripe.'}`);
+      }
+      await update();
+    };
   }
 </script>
 
@@ -102,7 +115,6 @@
             const avatarFile = formData.get('avatar');
             if (avatarFile && avatarFile.size > 0 && avatarFile.name !== 'undefined') {
               try {
-                // Compresión client-side optimizada para el logotipo/avatar
                 const options = {
                   maxSizeMB: 0.2, 
                   maxWidthOrHeight: 800,
@@ -272,31 +284,58 @@
                 <p class="text-[11px] font-bold text-emerald-600 tracking-wider">Membresía Activa</p>
               </div>
             </div>
-            <a href="#" rel="noopener noreferrer" class="block w-full text-center bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl transition-colors border border-slate-200 text-sm shadow-sm relative z-10">Gestionar Facturación</a>
+            
+            <form method="POST" action="?/abrirPortalFacturacion" use:enhance={manejadorPortal}>
+              <button type="submit" disabled={redirigiendoStripe} class="block w-full text-center bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-3 rounded-xl transition-colors shadow-sm relative z-10 disabled:opacity-70">
+                {#if redirigiendoStripe}
+                  <Loader2 class="w-4 h-4 animate-spin inline mr-2" /> Conectando...
+                {:else}
+                  Gestionar Membresía
+                {/if}
+              </button>
+            </form>
           </div>
 
           <form method="POST" action="?/actualizarWebhook" use:enhance={() => { return async ({ update }) => { update({ reset: false }); alert("Webhook guardado correctamente."); }; }}>
-            <div class="bg-[#111827] text-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
+            <div class="bg-[#111827] text-white p-8 rounded-3xl shadow-xl relative overflow-hidden flex flex-col">
               <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white opacity-5 blur-2xl pointer-events-none"></div>
+              
               <div class="flex items-center justify-between mb-4 relative z-10">
                 <h3 class="text-lg font-black tracking-tight">Webhook (API)</h3>
                 <span class="text-[8px] font-black uppercase tracking-widest bg-amber-500/20 text-amber-400 px-2 py-1 rounded border border-amber-500/30">Pro / Elite</span>
               </div>
               <p class="text-[11px] text-slate-400 font-medium leading-relaxed mb-6 relative z-10">Conecta tu inventario con tu CRM externo. Recibe leads al instante.</p>
-              <div class="space-y-4 relative z-10">
+              
+              <div class="space-y-4 relative z-10 flex-1 flex flex-col justify-end {esPlanBasico ? 'opacity-30 pointer-events-none' : ''} transition-opacity duration-300">
                 <div>
                   <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2" for="webhook_url">URL del Endpoint</label>
-                  <input type="url" id="webhook_url" name="webhook_url" bind:value={webhookUrl} class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all">
+                  <input type="url" id="webhook_url" name="webhook_url" bind:value={webhookUrl} disabled={esPlanBasico} class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-inner placeholder:text-slate-600">
                 </div>
                 <div class="flex gap-2">
-                  <button type="button" onclick={probarWebhook} disabled={testingWebhook} class="flex-1 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-colors border border-white/10 text-[11px]">
+                  <button type="button" onclick={probarWebhook} disabled={testingWebhook || esPlanBasico} class="flex-1 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-colors border border-white/10 text-[11px] disabled:opacity-50">
                     {#if testingWebhook} Probando... {:else if webhookSuccess} <span class="text-emerald-400">Exitosa</span> {:else} Probar {/if}
                   </button>
-                  <button type="submit" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-3 rounded-xl transition-colors border border-transparent shadow-sm text-[11px]">
+                  <button type="submit" disabled={esPlanBasico} class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-3 rounded-xl transition-colors border border-transparent shadow-sm text-[11px] disabled:opacity-50">
                     Guardar
                   </button>
                 </div>
               </div>
+
+              {#if esPlanBasico}
+                <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950/40 backdrop-blur-[2px] p-6">
+                  <div class="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl text-center shadow-2xl w-full">
+                    <p class="text-xs font-bold text-white mb-4 leading-tight">Actualiza tu plan para conectar Webhooks</p>
+                    <button type="submit" formaction="?/abrirPortalFacturacion" disabled={redirigiendoStripe} class="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-lg shadow-sm transition-transform active:scale-95 disabled:opacity-70">
+                      {#if redirigiendoStripe}
+                        Procesando...
+                      {:else}
+                        Mejorar Plan
+                      {/if}
+                    </button>
+                  </div>
+                </div>
+              {/if}
+
             </div>
           </form>
         </div>
