@@ -1,5 +1,11 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { PLANES_CONFIG } from '$lib/config/plans';
+import Stripe from 'stripe';
+import { env as privateEnv } from '$env/dynamic/private';
+
+const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, {
+  apiVersion: '2023-10-16', // O la versión que uses
+});
 
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
@@ -7,7 +13,7 @@ export const load = async ({ locals }) => {
   const { data: broker, error: brokerError } = await locals.supabase
     .from('brokers')
     .select('*')
-    .eq('auth_user_id', locals.user.id) // CORRECCIÓN
+    .eq('auth_user_id', locals.user.id)
     .single();
 
   if (brokerError || !broker) throw redirect(303, '/login');
@@ -30,7 +36,7 @@ export const actions = {
     const { data: broker } = await locals.supabase
       .from('brokers')
       .select('id, plan_suscripcion')
-      .eq('auth_user_id', user.id) // CORRECCIÓN
+      .eq('auth_user_id', user.id)
       .single();
 
     if (!broker) return fail(403, { error: 'Perfil no encontrado.' });
@@ -51,5 +57,40 @@ export const actions = {
     if (error) return fail(500, { error: 'Error de conectividad al guardar.' });
 
     return { success: true };
+  },
+
+  // 4. NUEVA ACCIÓN: Conectar con el Customer Portal de Stripe
+  abrirPortalFacturacion: async ({ locals }) => {
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: 'No autorizado' });
+
+    // Necesitamos el ID de Stripe y el subdominio para saber a dónde regresarlo
+    const { data: broker, error } = await locals.supabase
+      .from('brokers')
+      .select('stripe_customer_id, subdominio')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (error || !broker) {
+      return fail(500, { error: 'Error al recuperar perfil comercial.' });
+    }
+
+    // Si nunca ha pagado, se le manda a los planes
+    if (!broker.stripe_customer_id) {
+      throw redirect(303, '/admin/planes');
+    }
+
+    try {
+      // Generamos el ticket del portal
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: broker.stripe_customer_id,
+        return_url: `https://${broker.subdominio}.inmublia.com/admin/configuracion`,
+      });
+
+      throw redirect(303, portalSession.url);
+    } catch (err) {
+      console.error("Error Stripe Portal:", err);
+      return fail(500, { error: 'El servicio de facturación no está disponible actualmente.' });
+    }
   }
 };
