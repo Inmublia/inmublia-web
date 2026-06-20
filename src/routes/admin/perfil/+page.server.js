@@ -1,10 +1,15 @@
 import { fail, redirect } from '@sveltejs/kit';
+import Stripe from 'stripe';
+import { env as privateEnv } from '$env/dynamic/private';
+
+const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, {
+  apiVersion: '2023-10-16', // Usa la versión anclada de tu cuenta
+});
 
 export async function load({ locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
-  // CORRECCIÓN: Búsqueda estricta por ID de Autenticación
   const { data: broker, error } = await locals.supabase
     .from('brokers')
     .select('*')
@@ -38,7 +43,6 @@ export const actions = {
         return fail(400, { error: 'El nombre, WhatsApp y subdominio son obligatorios.' });
       }
 
-      // CORRECCIÓN: Búsqueda estricta por ID de Autenticación
       const { data: brokerActual, error: brokerError } = await locals.supabase
         .from('brokers')
         .select('id, plan_suscripcion')
@@ -105,7 +109,6 @@ export const actions = {
     const formData = await request.formData();
     const webhook_url = formData.get('webhook_url')?.toString().trim() || null;
 
-    // CORRECCIÓN: Actualización estricta por ID de Autenticación
     const { error } = await locals.supabase
       .from('brokers')
       .update({ webhook_url })
@@ -113,5 +116,37 @@ export const actions = {
       
     if (error) return fail(500, { error: `Error webhook: ${error.message}` });
     return { success: true };
+  },
+
+  // LA CONEXIÓN A STRIPE
+  abrirPortalFacturacion: async ({ locals }) => {
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: 'No autorizado' });
+
+    const { data: broker, error } = await locals.supabase
+      .from('brokers')
+      .select('stripe_customer_id, subdominio')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (error || !broker) {
+      return fail(500, { error: 'Error al recuperar perfil comercial.' });
+    }
+
+    if (!broker.stripe_customer_id) {
+      return fail(400, { error: 'Esta cuenta de prueba no tiene suscripción activa en Stripe.' });
+    }
+
+    try {
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: broker.stripe_customer_id,
+        return_url: `https://${broker.subdominio}.inmublia.com/admin/perfil`,
+      });
+
+      throw redirect(303, portalSession.url);
+    } catch (err) {
+      console.error("Error Stripe Portal:", err);
+      return fail(500, { error: err.message || 'El portal de facturación no está disponible.' });
+    }
   }
 };
