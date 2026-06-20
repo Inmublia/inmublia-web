@@ -27,6 +27,9 @@ export async function POST({ request, fetch }) {
     return new Response(JSON.stringify({ error: `Firma inválida: ${err.message}` }), { status: 400 });
   }
 
+  // ============================================================================
+  // 1. CREACIÓN DE USUARIO Y AGENCIA (NUEVOS CLIENTES)
+  // ============================================================================
   if (stripeEvent.type === 'checkout.session.completed') {
     const session = stripeEvent.data.object;
 
@@ -40,7 +43,7 @@ export async function POST({ request, fetch }) {
 
       if (!email) throw new Error('Sesión de Stripe sin email.');
 
-      // 1. GESTIÓN SEGURA DEL USUARIO EN AUTH
+      // 1.1 GESTIÓN SEGURA DEL USUARIO EN AUTH
       if (!authUserId) {
         const tempPassword = crypto.randomUUID() + '!A1';
 
@@ -51,7 +54,7 @@ export async function POST({ request, fetch }) {
         });
 
         if (uErr) {
-          // Si el usuario ya existe, hacemos una búsqueda profunda paginada para encontrar su ID
+          // Búsqueda profunda paginada
           if (uErr.status === 422 || uErr.message.toLowerCase().includes('already exists')) {
             let foundUser = null;
             let page = 1;
@@ -71,12 +74,12 @@ export async function POST({ request, fetch }) {
         }
       }
 
-      // 2. APROVISIONAMIENTO EN BASE DE DATOS
+      // 1.2 APROVISIONAMIENTO EN BASE DE DATOS
       await crearAgenciaDesdeStripe({ 
         authUserId, email, nombreComercial, subdominioDeseado, stripeCustomerId, svelteFetch: fetch 
       });
 
-      // 3. ENVÍO DE CORREO (Tolerante a fallos)
+      // 1.3 ENVÍO DE CORREO (Tolerante a fallos)
       try {
         const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
           type: 'recovery',
@@ -108,8 +111,7 @@ export async function POST({ request, fetch }) {
       }
 
     } catch (err) {
-      console.error('🔥 [Webhook Severe Fault]:', err);
-      // AUDITORÍA FORENSE: Extraemos el mensaje real y la pila de ejecución, sin objetos vacíos.
+      console.error('🔥 [Webhook Severe Fault - Checkout]:', err);
       const errorReal = err instanceof Error ? err.message : String(err);
       const errorStack = err instanceof Error ? err.stack : 'Sin stack trace';
       
@@ -120,5 +122,69 @@ export async function POST({ request, fetch }) {
     }
   }
 
+  // ============================================================================
+  // 2. UPGRADES Y DOWNGRADES (DESDE EL PORTAL DE STRIPE)
+  // ============================================================================
+  else if (stripeEvent.type === 'customer.subscription.updated') {
+    const subscription = stripeEvent.data.object;
+
+    try {
+      const customerId = subscription.customer;
+      const status = subscription.status; // 'active', 'past_due', etc.
+      const priceId = subscription.items.data[0].price.id;
+
+      // Mapeo del nivel de acceso según el ID de precio de Stripe
+      let nuevoPlan = 'basico';
+      if (priceId === 'AQUI_TU_PRICE_ID_PRO') nuevoPlan = 'pro';
+      if (priceId === 'AQUI_TU_PRICE_ID_ELITE') nuevoPlan = 'elite';
+
+      const { error: updateError } = await supabaseAdmin
+        .from('brokers')
+        .update({ 
+          plan_suscripcion: nuevoPlan,
+          status_suscripcion: status 
+        })
+        .eq('stripe_customer_id', customerId);
+
+      if (updateError) throw new Error(`Fallo actualizando la BD: ${updateError.message}`);
+      
+      console.log(`[Stripe Webhook]: Upgrade/Downgrade exitoso. Cliente: ${customerId} -> Nuevo Plan: ${nuevoPlan}`);
+
+    } catch (err) {
+      console.error('🔥 [Webhook Severe Fault - Update]:', err);
+      const errorReal = err instanceof Error ? err.message : String(err);
+      return new Response(JSON.stringify({ error_aislado: errorReal }), { status: 500 });
+    }
+  }
+
+  // ============================================================================
+  // 3. CANCELACIONES DEFINITIVAS O FALLOS DE COBRO IRRECUPERABLES
+  // ============================================================================
+  else if (stripeEvent.type === 'customer.subscription.deleted') {
+    const subscription = stripeEvent.data.object;
+
+    try {
+      const customerId = subscription.customer;
+
+      const { error: deleteError } = await supabaseAdmin
+        .from('brokers')
+        .update({ 
+          plan_suscripcion: 'basico', // El fallback de seguridad
+          status_suscripcion: 'cancelada' 
+        })
+        .eq('stripe_customer_id', customerId);
+
+      if (deleteError) throw new Error(`Fallo degradando cuenta en BD: ${deleteError.message}`);
+
+      console.log(`[Stripe Webhook]: Suscripción cancelada. Cliente: ${customerId} fue degradado a Básico.`);
+
+    } catch (err) {
+      console.error('🔥 [Webhook Severe Fault - Delete]:', err);
+      const errorReal = err instanceof Error ? err.message : String(err);
+      return new Response(JSON.stringify({ error_aislado: errorReal }), { status: 500 });
+    }
+  }
+
+  // Retorno universal 200 OK para confirmar recepción a Stripe
   return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
