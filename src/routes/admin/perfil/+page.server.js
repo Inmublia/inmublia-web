@@ -3,14 +3,13 @@ import Stripe from 'stripe';
 import { env as privateEnv } from '$env/dynamic/private';
 
 const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16', // Usa la versión anclada de tu cuenta
+  apiVersion: '2023-10-16',
 });
 
 export async function load({ locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
-  // Búsqueda estricta por ID de Autenticación
   const { data: broker, error } = await locals.supabase
     .from('brokers')
     .select('*')
@@ -44,7 +43,6 @@ export const actions = {
         return fail(400, { error: 'El nombre, WhatsApp y subdominio son obligatorios.' });
       }
 
-      // Búsqueda estricta por ID de Autenticación
       const { data: brokerActual, error: brokerError } = await locals.supabase
         .from('brokers')
         .select('id, plan_suscripcion')
@@ -111,7 +109,6 @@ export const actions = {
     const formData = await request.formData();
     const webhook_url = formData.get('webhook_url')?.toString().trim() || null;
 
-    // Actualización estricta por ID de Autenticación
     const { error } = await locals.supabase
       .from('brokers')
       .update({ webhook_url })
@@ -121,7 +118,6 @@ export const actions = {
     return { success: true };
   },
 
-  // LA CONEXIÓN A STRIPE
   abrirPortalFacturacion: async ({ locals }) => {
     const { user } = await locals.safeGetSession();
     if (!user) return fail(401, { error: 'No autorizado' });
@@ -136,21 +132,25 @@ export const actions = {
       return fail(500, { error: 'Error al recuperar perfil comercial.' });
     }
 
-    // LÓGICA CORREGIDA: Si no tiene ID de Stripe, lo enviamos al flujo de ventas/planes
     if (!broker.stripe_customer_id) {
       throw redirect(303, '/admin/planes');
     }
+
+    let portalUrl;
 
     try {
       const portalSession = await stripe.billingPortal.sessions.create({
         customer: broker.stripe_customer_id,
         return_url: `https://${broker.subdominio}.inmublia.com/admin/perfil`,
       });
-
-      throw redirect(303, portalSession.url);
+      
+      portalUrl = portalSession.url;
     } catch (err) {
-      console.error("Error Stripe Portal:", err);
-      return fail(500, { error: err.message || 'El portal de facturación no está disponible.' });
+      console.error("Error real de Stripe:", err);
+      return fail(500, { error: err.message || 'El portal de Stripe no respondió.' });
     }
+
+    // El redirect va estrictamente fuera del try/catch
+    throw redirect(303, portalUrl);
   }
 };
