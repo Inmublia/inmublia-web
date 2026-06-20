@@ -4,31 +4,65 @@ export async function load({ locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
-  // CORRECCIÓN: Búsqueda estricta por ID de Autenticación
   const { data: broker } = await locals.supabase
     .from('brokers')
     .select('id')
     .eq('auth_user_id', user.id)
     .single();
 
-  if (!broker) {
-      console.error("No se encontró broker asociado al token:", user.id);
-      throw redirect(303, '/login');
-  }
+  if (!broker) throw redirect(303, '/login');
 
-  // Traemos todas sus notificaciones ordenadas por las más recientes
-  const { data: notificaciones, error } = await locals.supabase
+  // 1. Extraer Notificaciones del Sistema (Caja B)
+  const { data: notificaciones, error: errNotif } = await locals.supabase
     .from('notificaciones_agente')
-    .select('*')
+    .select('id, tipo, titulo, mensaje, leida, creado_en')
     .eq('broker_id', broker.id)
     .order('creado_en', { ascending: false });
 
-  if (error) {
-    console.error("🔥 Error recuperando alertas:", error);
+  if (errNotif) console.error("Error notificaciones:", errNotif);
+
+  // 2. Extraer Recordatorios de Leads pendientes (Caja A)
+  const { data: recordatorios, error: errRec } = await locals.supabase
+    .from('lead_notas')
+    .select('id, contenido, fecha_recordatorio, completado, leads(nombre)')
+    .eq('broker_id', broker.id)
+    .eq('tipo', 'recordatorio')
+    .eq('completado', false);
+
+  if (errRec) console.error("Error recordatorios:", errRec);
+
+  // 3. Normalizar y Unificar el Feed
+  let alertasUnificadas = [];
+
+  if (notificaciones) {
+    alertasUnificadas.push(...notificaciones.map(n => ({
+      _id: n.id,
+      _origen: 'sistema',
+      titulo: n.titulo,
+      mensaje: n.mensaje,
+      estado: n.leida,
+      fecha: n.creado_en,
+      tipo_icono: n.tipo // para pintar distintos colores en el frontend
+    })));
   }
 
-  return {
-    notificaciones: notificaciones || []
+  if (recordatorios) {
+    alertasUnificadas.push(...recordatorios.map(r => ({
+      _id: r.id,
+      _origen: 'recordatorio',
+      titulo: `Recordatorio: ${r.leads?.nombre || 'Prospecto eliminado'}`,
+      mensaje: r.contenido,
+      estado: r.completado,
+      fecha: r.fecha_recordatorio, // Usamos la fecha en la que debe cumplirse
+      tipo_icono: 'tarea'
+    })));
+  }
+
+  // 4. Ordenar todo el feed cronológicamente (las más recientes o próximas a vencer primero)
+  alertasUnificadas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+  return { 
+    alertas: alertasUnificadas 
   };
 }
 
@@ -37,7 +71,6 @@ export const actions = {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
-    // Seguridad: Obtenemos el broker para evitar manipulación cruzada de alertas
     const { data: broker } = await locals.supabase
       .from('brokers')
       .select('id')
@@ -48,45 +81,43 @@ export const actions = {
 
     const formData = await request.formData();
     const id = formData.get('id');
+    const origen = formData.get('origen'); // 'sistema' o 'recordatorio'
 
-    if (!id) return fail(400, { error: 'ID de notificación requerido.' });
+    if (!id || !origen) return fail(400, { error: 'Faltan datos.' });
 
-    // Actualización validando que la alerta pertenezca al broker
-    const { error } = await locals.supabase
-      .from('notificaciones_agente')
-      .update({ leida: true })
-      .eq('id', id)
-      .eq('broker_id', broker.id);
-
-    if (error) {
-      return fail(500, { error: `No se pudo actualizar: ${error.message}` });
+    // Enrutamos la actualización a la tabla correcta según el origen de la alerta
+    if (origen === 'sistema') {
+      const { error } = await locals.supabase.from('notificaciones_agente')
+        .update({ leida: true }).eq('id', id).eq('broker_id', broker.id);
+      if (error) return fail(500, { error: error.message });
+    } else {
+      const { error } = await locals.supabase.from('lead_notas')
+        .update({ completado: true }).eq('id', id).eq('broker_id', broker.id);
+      if (error) return fail(500, { error: error.message });
     }
 
     return { success: true };
   },
 
-  marcarTodasLeidas: async ({ locals }) => {
+  marcarTodas: async ({ locals }) => {
     const user = locals.user;
     if (!user) return fail(401);
 
-    // CORRECCIÓN: Búsqueda estricta por ID de Autenticación
-    const { data: broker } = await locals.supabase
-      .from('brokers')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .single();
-
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', user.id).single();
     if (!broker) return fail(404);
 
-    const { error } = await locals.supabase
-      .from('notificaciones_agente')
-      .update({ leida: true })
-      .eq('broker_id', broker.id)
-      .eq('leida', false);
+    // Limpiamos sistema
+    await locals.supabase.from('notificaciones_agente')
+      .update({ leida: true }).eq('broker_id', broker.id).eq('leida', false);
 
-    if (error) {
-      return fail(500, { error: `Error masivo: ${error.message}` });
-    }
+    // Limpiamos recordatorios vencidos hasta este exacto momento
+    const now = new Date().toISOString();
+    await locals.supabase.from('lead_notas')
+      .update({ completado: true })
+      .eq('broker_id', broker.id)
+      .eq('tipo', 'recordatorio')
+      .eq('completado', false)
+      .lte('fecha_recordatorio', now);
 
     return { success: true };
   }
