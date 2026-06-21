@@ -1,4 +1,7 @@
 <script>
+  import { page } from '$app/stores';
+  import PropertySeo from '$lib/components/PropertySeo.svelte';
+
   // ==========================================
   // INMUBLIA: ENRUTADOR MAESTRO DE PLANTILLAS
   // ==========================================
@@ -19,10 +22,19 @@
   import Elite4 from '$lib/components/templates/Elite4.svelte';
 
   let { data, form } = $props();
+
+  // Variables reactivas para el motor SEO/GEO
+  let propiedad = $derived(data.propiedad || {});
+  let broker = $derived(data.broker || data.agencia || {});
+  let urlActual = $derived($page.url.href);
   
   // Intercepta si viene el template forzado dinámico por la URL de apariencia (?template=)
   let templateId = $derived(data.templateForzado || data.propiedad?.template_id || 'prop_basic_1');
 </script>
+
+{#if propiedad.id && broker.id}
+  <PropertySeo {propiedad} {broker} {urlActual} />
+{/if}
 
 {#if templateId === 'prop_basic_1' || templateId === 'classic'}
   <Basic1 {data} {form} />
