@@ -1,61 +1,66 @@
 <script>
-  // Svelte 5 syntax para recibir props
-  let { propiedad, agencia, urlActual } = $props();
+  let { propiedad, broker, urlActual } = $props();
 
-  // 1. Construimos el JSON-LD para los Motores Generativos (GEO/AEO)
+  // Resolución Dinámica de Moneda (Preparado para expansión LATAM)
+  // Verifica si la propiedad tiene una moneda asignada; si no, asume MXN.
+  const monedaDinamica = propiedad.moneda || "MXN";
+
+  // Resolución del país basado en la moneda para el esquema
+  const countryCode = monedaDinamica === "MXN" ? "MX" : (monedaDinamica === "COP" ? "CO" : "LATAM");
+
+  // Construcción del Esquema JSON-LD para ChatGPT, Gemini y Google
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "RealEstateListing",
-    "name": `${propiedad.tipo_inmueble} en Venta - ${propiedad.colonia}, ${propiedad.ciudad}`,
-    "description": propiedad.descripcion_corta || `Excelente ${propiedad.tipo_inmueble} en ${propiedad.colonia} comercializado por ${agencia.nombre_comercial}.`,
-    "image": propiedad.imagen_principal,
+    "name": propiedad.titulo,
+    "description": propiedad.descripcion,
+    "image": propiedad.imagen_url,
     "url": urlActual,
-    "datePosted": propiedad.fecha_publicacion,
+    "datePosted": propiedad.creado_en,
     "offers": {
       "@type": "Offer",
       "price": propiedad.precio,
-      "priceCurrency": propiedad.moneda || "MXN",
-      "availability": "https://schema.org/InStock",
+      "priceCurrency": monedaDinamica,
+      "availability": propiedad.estatus === 'Activa' ? "https://schema.org/InStock" : "https://schema.org/SoldOut",
       "seller": {
         "@type": "RealEstateAgent",
-        "name": agencia.nombre_comercial,
-        "image": agencia.avatar_url,
-        "telephone": agencia.whatsapp
+        "name": broker.nombre_comercial,
+        "image": broker.avatar_url || broker.logo_url,
+        "telephone": broker.whatsapp
       }
     },
     "address": {
       "@type": "PostalAddress",
-      "addressLocality": propiedad.ciudad,
-      "addressRegion": propiedad.estado,
-      "addressCountry": "MX"
+      "addressLocality": propiedad.ubicacion,
+      "addressCountry": countryCode
     },
     "numberOfRooms": propiedad.recamaras,
     "floorSize": {
       "@type": "QuantitativeValue",
-      "value": propiedad.metros_construccion,
-      "unitCode": "MTK" // Código estándar para metros cuadrados
+      "value": propiedad.m2_construccion,
+      "unitCode": "MTK" // Standard Unit Code para Metros Cuadrados
     }
   };
 </script>
 
 <svelte:head>
-  <title>{propiedad.tipo_inmueble} en {propiedad.colonia} | {agencia.nombre_comercial}</title>
-  <meta name="description" content={propiedad.descripcion_corta} />
+  <title>{propiedad.titulo} | {broker.nombre_comercial}</title>
+  <meta name="description" content={propiedad.descripcion?.substring(0, 155) + '...'} />
   <link rel="canonical" href={urlActual} />
 
-  <meta property="og:site_name" content={agencia.nombre_comercial} />
+  <meta property="og:site_name" content={broker.nombre_comercial} />
   <meta property="og:type" content="website" />
   <meta property="og:url" content={urlActual} />
-  <meta property="og:title" content="{propiedad.tipo_inmueble} en {propiedad.colonia}" />
-  <meta property="og:description" content={propiedad.descripcion_corta} />
-  <meta property="og:image" content={propiedad.imagen_principal} />
+  <meta property="og:title" content={propiedad.titulo} />
+  <meta property="og:description" content={propiedad.descripcion?.substring(0, 155)} />
+  <meta property="og:image" content={propiedad.imagen_url} />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="{propiedad.tipo_inmueble} en {propiedad.colonia}" />
-  <meta name="twitter:description" content={propiedad.descripcion_corta} />
-  <meta name="twitter:image" content={propiedad.imagen_principal} />
+  <meta name="twitter:title" content={propiedad.titulo} />
+  <meta name="twitter:description" content={propiedad.descripcion?.substring(0, 155)} />
+  <meta name="twitter:image" content={propiedad.imagen_url} />
 
   <script type="application/ld+json">
     {@html JSON.stringify(jsonLd)}
