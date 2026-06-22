@@ -43,43 +43,6 @@
 
   let videoId = $derived(obtenerIdYouTube(propiedad.video_url));
 
-  // INYECCIÓN DE PÍXELES CON EVENTO DE VISUALIZACIÓN DE PRODUCTO (CORREGIDA)
-  const START_SCR = '<scr'+'ipt>';
-  const END_SCR = '</scr'+'ipt>';
-
-  let metaPixel = $derived(broker?.pixel_fb ? `
-    ${START_SCR}
-      fbq('track', 'PageView');
-      fbq('track', 'ViewContent', {
-        content_name: '${propiedad.titulo}',
-        content_ids: ['${propiedad.id}'],
-        content_type: 'product',
-        value: ${propiedad.precio},
-        currency: '${moneda}'
-      });
-    ${END_SCR}
-  ` : '');
-
-  let googlePixel = $derived(broker?.pixel_google ? `
-    ${START_SCR}
-      gtag('event', 'view_item', {
-        currency: '${moneda}',
-        value: ${propiedad.precio},
-        items: [{ item_id: '${propiedad.id}', item_name: '${propiedad.titulo}' }]
-      });
-    ${END_SCR}
-  ` : '');
-
-  let tiktokPixel = $derived(broker?.pixel_tiktok ? `
-    ${START_SCR}
-        ttq.track('ViewContent', {
-          contents: [{ content_id: '${propiedad.id}', content_name: '${propiedad.titulo}', price: ${propiedad.precio}, quantity: 1 }],
-          value: ${propiedad.precio},
-          currency: '${moneda}'
-        });
-    ${END_SCR}
-  ` : '');
-
   let isGalleryOpen = $state(false);
   let currentImageIndex = $state(0);
   
@@ -105,11 +68,11 @@
 </script>
 
 <style>
-  /* Efecto de máscara de cristal ahumado para secciones inferiores - OSCURO */
+  /* Efecto de máscara de cristal ahumado para secciones inferiores - CLARO */
   .cinematic-glass {
-    background: rgba(10, 10, 12, 0.7);
-    backdrop-filter: blur(30px);
-    -webkit-backdrop-filter: blur(30px);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
   }
   
   .video-bg {
@@ -123,6 +86,11 @@
     transform: translate(-50%, -50%);
     pointer-events: none;
   }
+
+  /* Gradiente para suavizar el paso del video al contenido claro */
+  .video-overlay {
+    background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(255,255,255,0.1) 70%, #f8fafc 100%);
+  }
 </style>
 
 <svelte:window onkeydown={(e) => {
@@ -134,39 +102,36 @@
 }}/>
 
 <svelte:head>
-  {#if metaPixel} {@html metaPixel} {/if}
-  {#if googlePixel} {@html googlePixel} {/if}
-  {#if tiktokPixel} {@html tiktokPixel} {/if}
-</svelte:head>
+  </svelte:head>
 
 {#if isGalleryOpen}
-  <div class="fixed inset-0 z-[200] bg-black/98 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-200">
-    <button class="absolute top-6 right-6 text-white bg-slate-900 p-4 rounded-full z-[210]" onclick={closeGallery}>
+  <div class="fixed inset-0 z-[200] bg-white/95 backdrop-blur-2xl flex items-center justify-center animate-in fade-in duration-300">
+    <button class="absolute top-6 right-6 text-slate-900 bg-slate-100 p-4 rounded-full z-[210]" onclick={closeGallery}>
       <X class="w-6 h-6" />
     </button>
-    <button class="absolute left-6 text-white bg-slate-900 p-4 rounded-full z-[210]" onclick={prevImage}>
+    <button class="absolute left-6 text-slate-900 bg-slate-100 p-4 rounded-full z-[210]" onclick={prevImage}>
       <ChevronLeft class="w-8 h-8" />
     </button>
     <div class="relative max-w-[90vw] max-h-[85vh]">
       <img src={allPhotos[currentImageIndex]} alt="Vista" class="max-w-full max-h-full object-contain rounded-2xl shadow-2xl">
     </div>
-    <button class="absolute right-6 text-white bg-slate-900 p-4 rounded-full z-[210]" onclick={nextImage}>
+    <button class="absolute right-6 text-slate-900 bg-slate-100 p-4 rounded-full z-[210]" onclick={nextImage}>
       <ChevronRight class="w-8 h-8" />
     </button>
   </div>
 {/if}
 
 {#if !isBrochure}
-  <a href="https://wa.me/{broker.whatsapp}?text=Hola,%20me%20interesa%20agendar%20una%20visita%20para:%20{propiedad.titulo}" target="_blank" class="fixed bottom-8 right-8 bg-emerald-500 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all z-[100] flex items-center gap-2 px-4 shadow-lg shadow-black/30">
-    <MessageCircle class="w-5 h-5" /> <span class="font-bold text-sm">WhatsApp</span>
+  <a href="https://wa.me/{broker.whatsapp}?text=Hola,%20me%20interesa%20agendar%20una%20visita%20para:%20{propiedad.titulo}" target="_blank" class="fixed bottom-8 right-8 bg-emerald-500 text-white w-16 h-16 rounded-full shadow-2xl hover:scale-110 transition-all z-[100] flex items-center justify-center p-0 shadow-lg shadow-black/20" aria-label="WhatsApp">
+    <MessageCircle class="w-7 h-7" />
   </a>
 {/if}
 
-<main class="relative w-full bg-[#0a0a0c] font-sans text-white overflow-x-hidden selection:bg-indigo-600 selection:text-white">
+<main class="relative w-full bg-slate-50 font-sans text-slate-900 overflow-x-hidden selection:bg-indigo-600 selection:text-white">
   
   <nav class="absolute top-0 w-full z-40 bg-gradient-to-b from-black/80 to-transparent pt-8 pb-16">
     <div class="max-w-[1400px] mx-auto px-6 md:px-12 flex justify-between items-center">
-      <span class="text-[10px] font-black uppercase tracking-[0.4em] text-white/90 drop-shadow-md">{broker.nombre_comercial}</span>
+      <span class="text-[10px] font-black uppercase tracking-[0.4em] text-white drop-shadow-md">{broker.nombre_comercial}</span>
       <a href="https://{broker.subdominio}.inmublia.com" class="bg-white/10 backdrop-blur-md text-white text-[9px] font-bold uppercase tracking-[0.3em] px-4 py-2 rounded-full border border-white/20 hover:bg-white/20 transition-all">
         Ver Catálogo
       </a>
@@ -183,10 +148,10 @@
           allow="autoplay; encrypted-media">
         </iframe>
       </div>
-      <div class="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black"></div>
+      <div class="absolute inset-0 video-overlay"></div>
     {:else}
       <img src={propiedad.imagen_url} alt="Fondo" class="w-full h-full object-cover opacity-50 scale-105" />
-      <div class="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black"></div>
+      <div class="absolute inset-0 video-overlay"></div>
     {/if}
   </div>
 
@@ -204,46 +169,46 @@
     </div>
   </div>
 
-  <div class="relative z-10 w-full cinematic-glass shadow-[0_-30px_100px_rgba(0,0,0,0.5)] border-t border-white/5 pb-32">
+  <div class="relative z-10 w-full cinematic-glass shadow-[0_-30px_100px_rgba(0,0,0,0.1)] border-t border-white/5 pb-32">
     <div class="max-w-[1400px] mx-auto px-6 md:px-12 pt-20">
       
-      <div class="flex flex-wrap justify-between gap-8 mb-24 border-b border-white/10 pb-16">
+      <div class="flex flex-wrap justify-between gap-8 mb-24 border-b border-slate-200 pb-16">
         <div class="flex items-center gap-4">
-          <div class="w-12 h-12 rounded-2xl bg-slate-900/50 border border-white/5 flex items-center justify-center"><BedDouble class="w-5 h-5 text-slate-600" /></div>
-          <div><p class="text-2xl font-bold">{propiedad.recamaras || '0'}</p><p class="text-[10px] uppercase font-bold text-slate-600 tracking-widest">Habitaciones</p></div>
+          <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center"><BedDouble class="w-5 h-5 text-slate-400" /></div>
+          <div><p class="text-2xl font-bold">{propiedad.recamaras || '0'}</p><p class="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Habitaciones</p></div>
         </div>
         <div class="flex items-center gap-4">
-          <div class="w-12 h-12 rounded-2xl bg-slate-900/50 border border-white/5 flex items-center justify-center"><Bath class="w-5 h-5 text-slate-600" /></div>
-          <div><p class="text-2xl font-bold">{propiedad.banos || '0'}</p><p class="text-[10px] uppercase font-bold text-slate-600 tracking-widest">Baños</p></div>
+          <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center"><Bath class="w-5 h-5 text-slate-400" /></div>
+          <div><p class="text-2xl font-bold">{propiedad.banos || '0'}</p><p class="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Baños</p></div>
         </div>
         <div class="flex items-center gap-4">
-          <div class="w-12 h-12 rounded-2xl bg-slate-900/50 border border-white/5 flex items-center justify-center"><Maximize class="w-5 h-5 text-slate-600" /></div>
-          <div><p class="text-2xl font-bold">{propiedad.m2_construccion || '0'}</p><p class="text-[10px] uppercase font-bold text-slate-600 tracking-widest">M² Const.</p></div>
+          <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center"><Maximize class="w-5 h-5 text-slate-400" /></div>
+          <div><p class="text-2xl font-bold">{propiedad.m2_construccion || '0'}</p><p class="text-[10px] uppercase font-bold text-slate-400 tracking-widest">M² Const.</p></div>
         </div>
         <div class="flex items-center gap-4">
-          <div class="w-12 h-12 rounded-2xl bg-slate-900/50 border border-white/5 flex items-center justify-center"><Car class="w-5 h-5 text-slate-600" /></div>
-          <div><p class="text-2xl font-bold">{propiedad.estacionamientos || '0'}</p><p class="text-[10px] uppercase font-bold text-slate-600 tracking-widest">Garaje</p></div>
+          <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center"><Car class="w-5 h-5 text-slate-400" /></div>
+          <div><p class="text-2xl font-bold">{propiedad.estacionamientos || '0'}</p><p class="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Garaje</p></div>
         </div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-32 mb-24">
         <div class="lg:col-span-5">
-          <h2 class="text-[11px] font-black uppercase tracking-[0.4em] mb-10 text-slate-600">Descripción</h2>
-          <div class="text-lg font-light leading-relaxed text-slate-300 whitespace-pre-line">
+          <h2 class="text-[11px] font-black uppercase tracking-[0.4em] mb-10 text-indigo-600">Descripción</h2>
+          <div class="text-lg font-light leading-relaxed text-slate-600 whitespace-pre-line">
             {propiedad.descripcion}
           </div>
         </div>
 
         <div class="lg:col-span-7">
-          <h2 class="text-[11px] font-black uppercase tracking-[0.4em] mb-10 text-slate-600">Galería de Escenas</h2>
+          <h2 class="text-[11px] font-black uppercase tracking-[0.4em] mb-10 text-slate-400">Galería de Escenas</h2>
           <div class="grid grid-cols-2 gap-4">
             {#each allPhotos.slice(0, 4) as foto, idx}
               <button class="relative overflow-hidden rounded-3xl group {idx === 0 ? 'col-span-2 aspect-[21/9]' : 'aspect-square'}" onclick={() => openGallery(idx)}>
                 <img src={foto} alt="Escena" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 filter grayscale-[20%] group-hover:grayscale-0">
                 <div class="absolute inset-0 bg-slate-900/10 group-hover:bg-slate-900/0 transition-all"></div>
                 {#if idx === 3 && allPhotos.length > 4}
-                  <div class="absolute inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center">
-                    <span class="text-white font-black text-xs tracking-widest">+ {allPhotos.length - 4} FOTOS</span>
+                  <div class="absolute inset-0 bg-white/80 backdrop-blur-md flex items-center justify-center">
+                    <span class="text-slate-900 font-black text-xs tracking-widest">+ {allPhotos.length - 4} FOTOS</span>
                   </div>
                 {/if}
               </button>
@@ -253,9 +218,9 @@
       </div>
 
       {#if propiedad.recorrido_3d_url && obtenerIdMatterport(propiedad.recorrido_3d_url)}
-        <div class="mb-32 bg-[#1a1a1e] rounded-[3rem] p-8 md:p-16 shadow-xl shadow-slate-900/50 border border-white/5">
-          <h2 class="text-[11px] font-black uppercase tracking-[0.4em] mb-12 text-center text-slate-600 hover:text-white transition-colors">Experiencia Virtual Interactiva</h2>
-          <div class="relative w-full pb-[50%] h-0 rounded-[2rem] overflow-hidden border-8 border-slate-900">
+        <div class="mb-32 bg-white rounded-[3rem] p-8 md:p-16 shadow-xl shadow-slate-200/50">
+          <h2 class="text-[11px] font-black uppercase tracking-[0.4em] mb-12 text-center text-indigo-600">Experiencia Virtual Interactiva</h2>
+          <div class="relative w-full pb-[50%] h-0 rounded-[2rem] overflow-hidden border-8 border-slate-50">
             <iframe title="3D Tour" src="https://my.matterport.com/show/?m={obtenerIdMatterport(propiedad.recorrido_3d_url)}" class="absolute top-0 left-0 w-full h-full border-0 grayscale hover:grayscale-0 transition-all duration-700" allowfullscreen></iframe>
           </div>
         </div>
@@ -297,9 +262,9 @@
         </div>
       {/if}
 
-      <div class="mt-40 pt-20 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-12">
+      <div class="mt-40 pt-20 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-12 bg-[#1a1a1e] rounded-[3rem] p-16 shadow-lg shadow-slate-900 border border-white/5">
         <div class="flex items-center gap-8">
-          <div class="w-20 h-20 rounded-3xl overflow-hidden shadow-lg shadow-slate-900 border border-white/5 grayscale hover:grayscale-0 transition-all duration-700">
+          <div class="w-20 h-20 rounded-3xl overflow-hidden shadow-lg shadow-slate-900 border border-white/5">
             <img src={broker.avatar_url || `https://ui-avatars.com/api/?name=${broker.nombre_comercial}&background=1a1a1e&color=fff`} alt="Agente" class="w-full h-full object-cover">
           </div>
           <div>
