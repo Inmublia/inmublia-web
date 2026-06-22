@@ -12,8 +12,13 @@
   let propiedad = $derived(data.propiedad);
   let broker = $derived(data.broker);
 
+  // 🔥 VALIDACIÓN BLINDADA: Plan Premium + Estatus Activo
   let urlPideBrochure = $derived($page.url.searchParams.get('brochure') === 'true');
-  let tienePlanPremium = $derived(broker?.plan_suscripcion === 'pro' || broker?.plan_suscripcion === 'elite');
+  
+  let planActual = $derived(broker?.plan_suscripcion?.toLowerCase()?.trim() || 'basico');
+  let estatusActual = $derived(broker?.status_suscripcion?.toLowerCase()?.trim() || 'inactiva');
+  let tienePlanPremium = $derived((planActual === 'pro' || planActual === 'elite') && estatusActual === 'activa');
+  
   let isBrochure = $derived(urlPideBrochure && tienePlanPremium);
 
   let enviando = $state(false);
