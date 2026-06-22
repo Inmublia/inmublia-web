@@ -19,19 +19,29 @@ export const actions = {
       return fail(400, { error: 'Correo o contraseña incorrectos' });
     }
 
-    // FIX DEFINITIVO CLOUDFLARE: Forzamos URL absoluta para evitar "Failed to parse URL"
-    const urlAbsoluta = new URL('/admin', url.origin).toString();
-    throw redirect(303, urlAbsoluta);
+    // 🔥 FIX ARQUITECTURA MULTI-TENANT: Extraer el Host Real
+    // Leemos directamente las cabeceras HTTP de la solicitud. Esto ignora 
+    // el enrutamiento interno de Cloudflare y respeta el subdominio exacto.
+    const hostReal = request.headers.get('host') || url.host;
+    const protocolo = request.headers.get('x-forwarded-proto') || 'https';
+    
+    // Redirección dinámica y segura
+    throw redirect(303, `${protocolo}://${hostReal}/admin`);
   },
 
-  recuperar: async ({ request, locals }) => {
+  recuperar: async ({ request, locals, url }) => {
     const formData = await request.formData();
     const email = formData.get('email');
 
     if (!email) return fail(400, { error: 'Falta correo.' });
 
+    // 🔥 FIX MULTI-TENANT: Mantener la recuperación en el mismo subdominio
+    const hostReal = request.headers.get('host') || url.host;
+    const protocolo = request.headers.get('x-forwarded-proto') || 'https';
+    const redirectUrl = `${protocolo}://${hostReal}/recuperar-acceso`;
+
     const { error } = await locals.supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://inmublia.com/recuperar-acceso',
+      redirectTo: redirectUrl,
     });
 
     if (error) return fail(400, { error: error.message });
