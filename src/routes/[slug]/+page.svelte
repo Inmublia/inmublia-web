@@ -1,6 +1,9 @@
 <script>
   import { page } from '$app/stores';
   import PropertySeo from '$lib/components/PropertySeo.svelte';
+  
+  // 🔥 NUEVO: Componente unificado para la experiencia Brochure
+  import SmartBrochure from '$lib/components/shared/SmartBrochure.svelte';
 
   // ==========================================
   // INMUBLIA: ENRUTADOR MAESTRO DE PLANTILLAS
@@ -30,39 +33,52 @@
   
   // Intercepta si viene el template forzado dinámico por la URL de apariencia (?template=)
   let templateId = $derived(data.templateForzado || data.propiedad?.template_id || 'prop_basic_1');
+
+  // 🔥 LÓGICA DE NEGOCIO CENTRALIZADA: GATEKEEPER DEL SMART BROCHURE
+  // Valida estatus estricto antes de permitir el cambio de interfaz
+  let urlPideBrochure = $derived($page.url.searchParams.get('brochure') === 'true');
+  let planActual = $derived(broker?.plan_suscripcion?.toLowerCase()?.trim() || 'basico');
+  let estatusActual = $derived(broker?.status_suscripcion?.toLowerCase()?.trim() || 'inactiva');
+  let tienePlanPremium = $derived((planActual === 'pro' || planActual === 'elite') && estatusActual === 'activa');
+  
+  let isBrochure = $derived(urlPideBrochure && tienePlanPremium);
 </script>
 
 {#if propiedad.id && broker.id}
   <PropertySeo {propiedad} {broker} {urlActual} />
 {/if}
 
-{#if templateId === 'prop_basic_1' || templateId === 'classic'}
-  <Basic1 {data} {form} />
-
-{:else if templateId === 'prop_basic_2' || templateId === 'clean'}
-  <Basic2 {data} {form} />
-
-{:else if templateId === 'prop_pro_1' || templateId === 'modern'}
-  <Pro1 {data} {form} />
-
-{:else if templateId === 'prop_pro_2'}
-  <Pro2 {data} {form} />
-
-{:else if templateId === 'prop_pro_3' || templateId === 'editorial'}
-  <Pro3 {data} {form} />
-
-{:else if templateId === 'prop_elite_1' || templateId === 'luxury'}
-  <Elite1 {data} {form} />
-
-{:else if templateId === 'prop_elite_2' || templateId === 'cinematic'}
-  <Elite2 {data} {form} />
-
-{:else if templateId === 'prop_elite_3'}
-  <Elite3 {data} {form} />
-
-{:else if templateId === 'prop_elite_4'}
-  <Elite4 {data} {form} />
-
+{#if isBrochure}
+  <SmartBrochure {data} {form} />
 {:else}
-  <Basic1 {data} {form} />
+  {#if templateId === 'prop_basic_1' || templateId === 'classic'}
+    <Basic1 {data} {form} />
+
+  {:else if templateId === 'prop_basic_2' || templateId === 'clean'}
+    <Basic2 {data} {form} />
+
+  {:else if templateId === 'prop_pro_1' || templateId === 'modern'}
+    <Pro1 {data} {form} />
+
+  {:else if templateId === 'prop_pro_2'}
+    <Pro2 {data} {form} />
+
+  {:else if templateId === 'prop_pro_3' || templateId === 'editorial'}
+    <Pro3 {data} {form} />
+
+  {:else if templateId === 'prop_elite_1' || templateId === 'luxury'}
+    <Elite1 {data} {form} />
+
+  {:else if templateId === 'prop_elite_2' || templateId === 'cinematic'}
+    <Elite2 {data} {form} />
+
+  {:else if templateId === 'prop_elite_3'}
+    <Elite3 {data} {form} />
+
+  {:else if templateId === 'prop_elite_4'}
+    <Elite4 {data} {form} />
+
+  {:else}
+    <Basic1 {data} {form} />
+  {/if}
 {/if}
