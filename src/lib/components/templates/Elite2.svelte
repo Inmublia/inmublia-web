@@ -5,7 +5,7 @@
   import { 
     X, ChevronLeft, ChevronRight, Facebook, Instagram, Linkedin, 
     CheckCircle2, AlertCircle, LayoutGrid, MapPin, 
-    Compass, Play, Send, Download, Phone, Mail
+    Compass, Play, Send, Download, Phone, Mail, MessageCircle
   } from 'lucide-svelte';
 
   let { data, form } = $props();
