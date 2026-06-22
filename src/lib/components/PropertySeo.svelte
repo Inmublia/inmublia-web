@@ -62,7 +62,5 @@
   <meta name="twitter:description" content={propiedad.descripcion?.substring(0, 155)} />
   <meta name="twitter:image" content={propiedad.imagen_url} />
 
-  <script type="application/ld+json">
-    {@html JSON.stringify(jsonLd)}
-  </script>
+  {@html `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`}
 </svelte:head>
