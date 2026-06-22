@@ -12,10 +12,10 @@ export async function load({ locals, setHeaders, url, depends }) {
   }
 
   try {
-    // 2. EXTRACCIÓN DEL BROKER (Añadido 'subdominio' para que funcione el botón Ver Portal Público)
+    // 2. EXTRACCIÓN DEL BROKER (Cargamos TODO con '*' para asegurar plan y estatus)
     const { data: broker, error: brokerError } = await locals.supabase
       .from('brokers')
-      .select('id, auth_user_id, nombre_comercial, avatar_url, subdominio')
+      .select('*')
       .eq('auth_user_id', user.id)
       .single();
 
@@ -48,7 +48,7 @@ export async function load({ locals, setHeaders, url, depends }) {
       user,
       broker,
       alertas: alertasPendientes || [],
-      propiedades: propiedades || [] // Ahora la tabla sí recibirá los inmuebles
+      propiedades: propiedades || []
     };
 
   } catch (err) {
