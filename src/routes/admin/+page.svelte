@@ -103,10 +103,16 @@
     win.document.close();
   }
 
+  // 🔥 VALIDACIÓN BLINDADA: Plan + Estatus Activo
   function intentarAbrirBrochure(slug) {
-    const plan = broker?.plan_suscripcion || 'basico';
-    if (plan === 'pro' || plan === 'elite') window.open(`/${slug}?brochure=true`, '_blank');
-    else showUpsellModal = true;
+    const plan = broker?.plan_suscripcion?.toLowerCase()?.trim() || 'basico';
+    const estatus = broker?.status_suscripcion?.toLowerCase()?.trim() || 'inactiva';
+    
+    if ((plan === 'pro' || plan === 'elite') && estatus === 'activa') {
+      window.open(`/${slug}?brochure=true`, '_blank');
+    } else {
+      showUpsellModal = true;
+    }
   }
 </script>
 
