@@ -21,13 +21,13 @@ export async function load({ locals, setHeaders, url, depends }) {
   try {
     const { data: broker, error: brokerError } = await locals.supabase
       .from('brokers')
-      .select('id, auth_user_id, nombre_comercial, avatar_url')
+      .select('*')
       .eq('auth_user_id', user.id)
       .single();
 
     if (brokerError || !broker) throw new Error("Broker no encontrado");
 
-    // 2. LA OPTIMIZACIÓN EXTREMA: Solo pedimos notas pendientes, no la tabla entera de Leads.
+    // 2. LA OPTIMIZACIÓN EXTREMA: Solo pedimos notas pendientes
     const now = new Date().toISOString();
     const { data: alertasPendientes, error: alertasError } = await locals.supabase
       .from('lead_notas')
@@ -35,7 +35,7 @@ export async function load({ locals, setHeaders, url, depends }) {
       .eq('broker_id', broker.id)
       .eq('tipo', 'recordatorio')
       .eq('completado', false)
-      .lte('fecha_recordatorio', now); // Solo las vencidas o del momento
+      .lte('fecha_recordatorio', now);
 
     if (alertasError) console.error("Error cargando alertas:", alertasError);
 
@@ -43,7 +43,7 @@ export async function load({ locals, setHeaders, url, depends }) {
       session,
       user,
       broker,
-      alertas: alertasPendientes || [] // Enviamos data ligera a la campana
+      alertas: alertasPendientes || [] 
     };
 
   } catch (err) {
