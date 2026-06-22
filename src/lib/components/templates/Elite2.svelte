@@ -5,8 +5,8 @@
   import { 
     X, ChevronLeft, ChevronRight, Facebook, Instagram, Linkedin, 
     CheckCircle2, AlertCircle, LayoutGrid, Sparkles, MapPin, BedDouble, 
-    Bath, Maximize, Car, Compass, Play, 
-    MessageCircle // <--- ICONO DE WHATSAPP PARA EL BOTÓN ESTIRADO
+    Bath, Maximize, Car, Compass, Play, MessageCircle,
+    Send, Download // 🔥 AQUI ESTÁ EL FIX: IMPORTACIONES FALTANTES AÑADIDAS
   } from 'lucide-svelte';
 
   let { data, form } = $props();
@@ -20,7 +20,7 @@
 
   let enviando = $state(false);
 
-  // Formateador de moneda dinámico (Usando la lógica que definimos en el SEO)
+  // Formateador de moneda dinámico
   const moneda = $derived(propiedad.moneda || "MXN");
   const formatearPrecio = (valor) => new Intl.NumberFormat('es-MX', { 
     style: 'currency', 
@@ -42,9 +42,8 @@
 
   let videoId = $derived(obtenerIdYouTube(propiedad.video_url));
 
-  // 🔥 RESTAURAR VCARD: Función para descargar la vCard del Agente que comercializa la propiedad
+  // 🔥 RESTAURAR VCARD
   function descargarVCardAgente() {
-    // Usamos el código que el usuario nos pasó para vCard, pero con la info del AGENTE de la propiedad
     const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${broker.nombre_comercial}\nORG:Inmublia Certified Broker\nTITLE:Asesor Inmobiliario\nTEL;TYPE=CELL:${broker.whatsapp}\nNOTE:Especialista en ${propiedad.ubicacion}\nURL:https://${broker.subdominio}.inmublia.com\nEND:VCARD`;
     const blob = new Blob([vcard], { type: 'text/vcard' });
     const url = URL.createObjectURL(blob);
@@ -54,8 +53,6 @@
     a.click();
     URL.revokeObjectURL(url);
   }
-
-  // schemaData JSON-LD eliminado: El SEO ahora se centraliza en PropertySeo.svelte
 
   let isGalleryOpen = $state(false);
   let currentImageIndex = $state(0);
@@ -92,9 +89,9 @@
   /* Escalado de Iframe para cubrir toda la pantalla sin bordes negros */
   .video-bg {
     width: 100vw;
-    height: 56.25vw; /* 16:9 Aspect Ratio */
+    height: 56.25vw;
     min-height: 100vh;
-    min-width: 177.77vh; /* 16:9 Aspect Ratio */
+    min-width: 177.77vh;
     position: absolute;
     top: 50%;
     left: 50%;
@@ -112,7 +109,7 @@
 }}/>
 
 <svelte:head>
-  </svelte:head>
+</svelte:head>
 
 {#if isGalleryOpen}
   <div class="fixed inset-0 z-[200] bg-black/98 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-200" role="dialog" aria-modal="true" tabindex="-1">
