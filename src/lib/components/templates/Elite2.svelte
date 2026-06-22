@@ -224,7 +224,7 @@
 
   </main>
 
-{#else}
+{:else}
   {#if isGalleryOpen}
     <div class="fixed inset-0 z-[200] bg-white/95 backdrop-blur-2xl flex items-center justify-center animate-in fade-in duration-300">
       <button class="absolute top-6 right-6 text-slate-900 bg-slate-100 p-4 rounded-full z-[210]" onclick={closeGallery}>
