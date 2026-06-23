@@ -19,9 +19,9 @@ export const actions = {
       return fail(400, { error: 'Correo o contraseña incorrectos' });
     }
 
-    // Extracción robusta de hosts para evitar la fuga del subdominio en Cloudflare
-    const hostReal = request.headers.get('host') || url.host;
-    const protocolo = request.headers.get('x-forwarded-proto') || 'https';
+    // Para el login regular, seguimos respetando el subdominio donde esté parado
+    const hostReal = request.headers.get('x-forwarded-host') || url.hostname;
+    const protocolo = request.headers.get('x-forwarded-proto') || (url.protocol.includes('https') ? 'https' : 'http');
     
     throw redirect(303, `${protocolo}://${hostReal}/admin`);
   },
@@ -32,11 +32,12 @@ export const actions = {
 
     if (!email) return fail(400, { error: 'Falta correo electrónico.' });
 
-    const hostReal = request.headers.get('host') || url.host;
-    const protocolo = request.headers.get('x-forwarded-proto') || 'https';
+    // 🔥 FIX SAAS DEFINITIVO: Centralizamos la recuperación en el dominio raíz.
+    // Esto evita que Supabase colapse si el usuario pidió la recuperación desde un subdominio.
+    const isLocal = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    const rootDomain = isLocal ? url.origin : 'https://inmublia.com';
     
-    // El enlace del correo enviará al usuario al callback, pidiendo ir luego a /recuperar-acceso
-    const redirectUrl = `${protocolo}://${hostReal}/auth/callback?next=/recuperar-acceso`;
+    const redirectUrl = `${rootDomain}/auth/callback?next=/recuperar-acceso`;
 
     const { error } = await locals.supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl,
