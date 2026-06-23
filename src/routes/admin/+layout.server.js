@@ -29,12 +29,11 @@ export async function load({ locals, setHeaders, url, depends }) {
 
     const now = new Date().toISOString();
 
-    // 2. MOTOR DE LÍNEA DE TIEMPO (Consultas en secuencia para evitar colapso en Cloudflare)
-    
+    // 2. MOTOR DE LÍNEA DE TIEMPO
     const { data: recordatorios, error: errRec } = await locals.supabase
       .from('lead_notas')
       .select('id, contenido, fecha_recordatorio, completado, leads(id, nombre)')
-      .eq('broker_id', user.id) // 🔥 FIX CRÍTICO: lead_notas.broker_id apunta a auth.users(id)
+      .eq('broker_id', user.id)
       .eq('tipo', 'recordatorio')
       .eq('completado', false)
       .lte('fecha_recordatorio', now);
@@ -44,16 +43,22 @@ export async function load({ locals, setHeaders, url, depends }) {
     const { data: notificaciones, error: errNotif } = await locals.supabase
       .from('notificaciones_agente')
       .select('id, titulo, mensaje, creado_en, leida, leads(id, nombre)')
-      .eq('broker_id', broker.id) // Aquí se mantiene broker.id
+      .eq('broker_id', broker.id) 
       .eq('leida', false);
 
     if (errNotif) console.error("Error en notificaciones:", errNotif);
 
-    // Formateador de fechas en el servidor para evitar discrepancias de zona horaria
+    // Formateador de fechas
     const formatter = new Intl.DateTimeFormat('es-MX', {
       timeZone: 'America/Mexico_City',
       weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
     });
+
+    // 🔥 FIX DE SUPABASE: Esta función garantiza que siempre tengamos un objeto limpio y nunca un arreglo que rompa el ID
+    const extraerLead = (leadData) => {
+      if (!leadData) return null;
+      return Array.isArray(leadData) ? leadData[0] : leadData;
+    };
 
     // 3. Formatear y Unificar
     const alertasUnificadas = [
@@ -64,7 +69,7 @@ export async function load({ locals, setHeaders, url, depends }) {
         mensaje: r.contenido,
         fecha: r.fecha_recordatorio,
         fecha_formateada: r.fecha_recordatorio ? formatter.format(new Date(r.fecha_recordatorio)) : '',
-        lead: r.leads
+        lead: extraerLead(r.leads) // <-- Aquí aplicamos el seguro antibloqueos
       })),
       ...(notificaciones || []).map(n => ({
         id: n.id,
@@ -73,7 +78,7 @@ export async function load({ locals, setHeaders, url, depends }) {
         mensaje: n.mensaje,
         fecha: n.creado_en,
         fecha_formateada: n.creado_en ? formatter.format(new Date(n.creado_en)) : '',
-        lead: n.leads
+        lead: extraerLead(n.leads) // <-- Aquí aplicamos el seguro antibloqueos
       }))
     ].sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
 
@@ -81,7 +86,6 @@ export async function load({ locals, setHeaders, url, depends }) {
       session,
       user,
       broker,
-      // 🔥 BLINDAJE DE VARIABLE: Ninguna página interna podrá sobreescribir este nombre
       alertasGlobales: alertasUnificadas 
     };
 
