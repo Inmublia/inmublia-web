@@ -29,10 +29,9 @@ export async function load({ locals, setHeaders, url, depends }) {
 
     const now = new Date().toISOString();
 
-    // 2. MOTOR DE LÍNEA DE TIEMPO UNIFICADA (Unified Timeline)
+    // 2. MOTOR DE LÍNEA DE TIEMPO (Consultas en secuencia para evitar colapso en Cloudflare)
     
-    // A) Obtener Recordatorios manuales vencidos o para hoy
-    const queryRecordatorios = locals.supabase
+    const { data: recordatorios, error: errRec } = await locals.supabase
       .from('lead_notas')
       .select('id, contenido, fecha_recordatorio, completado, leads(id, nombre)')
       .eq('broker_id', broker.id)
@@ -40,25 +39,19 @@ export async function load({ locals, setHeaders, url, depends }) {
       .eq('completado', false)
       .lte('fecha_recordatorio', now);
 
-    // B) Obtener Alertas automáticas del sistema (Inactividad, etc.)
-    const queryNotificaciones = locals.supabase
+    if (errRec) console.error("Error en recordatorios:", errRec);
+
+    const { data: notificaciones, error: errNotif } = await locals.supabase
       .from('notificaciones_agente')
       .select('id, titulo, mensaje, creado_en, leida, leads(id, nombre)')
       .eq('broker_id', broker.id)
       .eq('leida', false);
 
-    // Disparamos ambas promesas en paralelo para máximo performance (Velocidad Edge)
-    const [resRecordatorios, resNotificaciones] = await Promise.all([
-      queryRecordatorios,
-      queryNotificaciones
-    ]);
+    if (errNotif) console.error("Error en notificaciones:", errNotif);
 
-    if (resRecordatorios.error) console.error("Error cargando recordatorios:", resRecordatorios.error);
-    if (resNotificaciones.error) console.error("Error cargando notificaciones:", resNotificaciones.error);
-
-    // C) Formatear y Unificar
+    // 3. Formatear y Unificar
     const alertasUnificadas = [
-      ...(resRecordatorios.data || []).map(r => ({
+      ...(recordatorios || []).map(r => ({
         id: r.id,
         tipo_alerta: 'recordatorio',
         titulo: 'Seguimiento Pendiente',
@@ -66,7 +59,7 @@ export async function load({ locals, setHeaders, url, depends }) {
         fecha: r.fecha_recordatorio,
         lead: r.leads
       })),
-      ...(resNotificaciones.data || []).map(n => ({
+      ...(notificaciones || []).map(n => ({
         id: n.id,
         tipo_alerta: 'sistema',
         titulo: n.titulo,
@@ -74,7 +67,7 @@ export async function load({ locals, setHeaders, url, depends }) {
         fecha: n.creado_en,
         lead: n.leads
       }))
-    ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); // Ordenamos las más urgentes/recientes primero
+    ].sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
 
     return {
       session,
