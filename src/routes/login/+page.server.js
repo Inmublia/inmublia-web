@@ -19,13 +19,10 @@ export const actions = {
       return fail(400, { error: 'Correo o contraseña incorrectos' });
     }
 
-    // 🔥 FIX ARQUITECTURA MULTI-TENANT: Extraer el Host Real
-    // Leemos directamente las cabeceras HTTP de la solicitud. Esto ignora 
-    // el enrutamiento interno de Cloudflare y respeta el subdominio exacto.
+    // Extracción robusta de hosts para evitar la fuga del subdominio en Cloudflare
     const hostReal = request.headers.get('host') || url.host;
     const protocolo = request.headers.get('x-forwarded-proto') || 'https';
     
-    // Redirección dinámica y segura
     throw redirect(303, `${protocolo}://${hostReal}/admin`);
   },
 
@@ -33,18 +30,19 @@ export const actions = {
     const formData = await request.formData();
     const email = formData.get('email');
 
-    if (!email) return fail(400, { error: 'Falta correo.' });
+    if (!email) return fail(400, { error: 'Falta correo electrónico.' });
 
-    // 🔥 FIX MULTI-TENANT: Mantener la recuperación en el mismo subdominio
     const hostReal = request.headers.get('host') || url.host;
     const protocolo = request.headers.get('x-forwarded-proto') || 'https';
-    const redirectUrl = `${protocolo}://${hostReal}/recuperar-acceso`;
+    
+    // El enlace del correo enviará al usuario al callback, pidiendo ir luego a /recuperar-acceso
+    const redirectUrl = `${protocolo}://${hostReal}/auth/callback?next=/recuperar-acceso`;
 
     const { error } = await locals.supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl,
     });
 
     if (error) return fail(400, { error: error.message });
-    return { success: true, message: 'Enlace enviado.' };
+    return { success: true, message: 'Enlace de restablecimiento enviado con éxito.' };
   }
 };
