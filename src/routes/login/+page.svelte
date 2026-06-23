@@ -1,15 +1,32 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { enhance } from '$app/forms';
+  import { onMount } from 'svelte';
   import { ShieldCheck, Mail, KeyRound, Loader2, AlertCircle, Info, ArrowRight, CheckCircle2 } from 'lucide-svelte';
   
   let { form } = $props();
-  // Solución Svelte 5 SSR:
   let motivo = $derived($page.url.searchParams.get('motivo'));
   let cargando = $state(false);
   
-  // 🔥 NUEVO: Estado para alternar entre Login y Recuperación
+  // Estado para alternar entre Login y Recuperación
   let vistaRecuperacion = $state(false);
+
+  // 🔥 NUEVO: Estado para capturar errores que viajan en el HASH (#) de la URL
+  let errorHash = $state('');
+
+  onMount(() => {
+    // Al montarse en el cliente, revisamos si Supabase nos arrojó un error en el hash fragment
+    if (window.location.hash.includes('error=')) {
+      const params = new URLSearchParams(window.location.hash.slice(1));
+      const errorCode = params.get('error_code');
+      
+      if (errorCode === 'otp_expired' || params.get('error') === 'access_denied') {
+        errorHash = 'El enlace de recuperación ha expirado o ya fue utilizado. Por seguridad, solicita uno nuevo.';
+        // Si venía de un error de contraseña, abrimos automáticamente la vista de recuperación
+        vistaRecuperacion = true;
+      }
+    }
+  });
 </script>
 
 <div class="min-h-screen bg-zinc-950 flex flex-col justify-center items-center font-sans text-white selection:bg-indigo-500/30 relative overflow-hidden">
@@ -57,14 +74,14 @@
         </div>
       {/if}
 
-      {#if form?.error}
+      {#if form?.error || errorHash}
         <div class="flex items-center gap-3.5 px-4 py-3 bg-red-500/10 text-red-500 rounded-xl border border-red-500/20 shadow-sm animate-[fadeIn_0.3s_ease-out]">
           <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
             <AlertCircle class="w-4 h-4" />
           </div>
           <div class="flex-1">
-            <p class="text-[10px] font-black uppercase tracking-widest text-red-400">Autenticación Fallida</p>
-            <p class="text-xs mt-0.5 font-medium">{form.error}</p>
+            <p class="text-[10px] font-black uppercase tracking-widest text-red-400">Enlace Inválido</p>
+            <p class="text-xs mt-0.5 font-medium">{errorHash || form?.error}</p>
           </div>
         </div>
       {:else if form?.success}
@@ -96,7 +113,7 @@
         <div class="space-y-1.5 group">
           <div class="flex items-center justify-between px-1">
              <label for="password" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 transition-colors group-focus-within:text-indigo-400">Llave Criptográfica</label>
-             <button type="button" onclick={() => { vistaRecuperacion = true; form = null; }} class="text-[10px] font-bold text-zinc-500 hover:text-white transition-colors">¿Olvidó su llave?</button>
+             <button type="button" onclick={() => { vistaRecuperacion = true; form = null; errorHash = ''; }} class="text-[10px] font-bold text-zinc-500 hover:text-white transition-colors">¿Olvidó su llave?</button>
           </div>
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
@@ -141,7 +158,7 @@
             {/if}
           </button>
           
-          <button type="button" onclick={() => { vistaRecuperacion = false; form = null; }} class="w-full bg-transparent hover:bg-zinc-800 text-zinc-400 font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center text-sm">
+          <button type="button" onclick={() => { vistaRecuperacion = false; form = null; errorHash = ''; }} class="w-full bg-transparent hover:bg-zinc-800 text-zinc-400 font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center text-sm">
             Cancelar y regresar
           </button>
         </div>
