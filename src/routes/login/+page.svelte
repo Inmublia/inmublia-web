@@ -1,11 +1,15 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { ShieldCheck, Mail, KeyRound, Loader2, AlertCircle, Info, ArrowRight } from 'lucide-svelte';
+  import { enhance } from '$app/forms';
+  import { ShieldCheck, Mail, KeyRound, Loader2, AlertCircle, Info, ArrowRight, CheckCircle2 } from 'lucide-svelte';
   
   let { form } = $props();
   // Solución Svelte 5 SSR:
   let motivo = $derived($page.url.searchParams.get('motivo'));
   let cargando = $state(false);
+  
+  // 🔥 NUEVO: Estado para alternar entre Login y Recuperación
+  let vistaRecuperacion = $state(false);
 </script>
 
 <div class="min-h-screen bg-zinc-950 flex flex-col justify-center items-center font-sans text-white selection:bg-indigo-500/30 relative overflow-hidden">
@@ -21,15 +25,15 @@
         <img src="/logo.png" alt="Inmublia" class="h-8 w-auto filter invert opacity-90">
       </div>
       <h1 class="text-3xl font-black tracking-tighter leading-tight text-center text-white drop-shadow-sm">
-        Consola Operativa
+        {vistaRecuperacion ? 'Recuperar Acceso' : 'Consola Operativa'}
       </h1>
       <p class="text-xs text-zinc-400 mt-3 text-center font-medium max-w-[280px] tracking-wide">
-        Gestión patrimonial exclusiva. Identifícate para acceder a tu entorno.
+        {vistaRecuperacion ? 'Ingresa tu correo para recibir un enlace seguro de restablecimiento.' : 'Gestión patrimonial exclusiva. Identifícate para acceder a tu entorno.'}
       </p>
     </div>
 
     <div class="space-y-4 mb-8">
-      {#if motivo === 'inactividad'}
+      {#if motivo === 'inactividad' && !vistaRecuperacion}
         <div class="flex items-center gap-3.5 px-4 py-3 bg-amber-500/10 text-amber-500 rounded-xl border border-amber-500/20 shadow-sm animate-[fadeIn_0.3s_ease-out]">
           <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
             <Info class="w-4 h-4" />
@@ -37,6 +41,18 @@
           <div class="flex-1">
             <p class="text-[10px] font-black uppercase tracking-widest text-amber-400">Acceso Seguro</p>
             <p class="text-xs mt-0.5 font-medium">Por seguridad, tu sesión ha finalizado.</p>
+          </div>
+        </div>
+      {/if}
+
+      {#if motivo === 'clave_actualizada' && !vistaRecuperacion}
+        <div class="flex items-center gap-3.5 px-4 py-3 bg-emerald-500/10 text-emerald-500 rounded-xl border border-emerald-500/20 shadow-sm animate-[fadeIn_0.3s_ease-out]">
+          <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+            <CheckCircle2 class="w-4 h-4" />
+          </div>
+          <div class="flex-1">
+            <p class="text-[10px] font-black uppercase tracking-widest text-emerald-400">Éxito</p>
+            <p class="text-xs mt-0.5 font-medium">Contraseña actualizada. Ingresa con tus nuevas credenciales.</p>
           </div>
         </div>
       {/if}
@@ -51,46 +67,86 @@
             <p class="text-xs mt-0.5 font-medium">{form.error}</p>
           </div>
         </div>
+      {:else if form?.success}
+        <div class="flex items-center gap-3.5 px-4 py-3 bg-emerald-500/10 text-emerald-500 rounded-xl border border-emerald-500/20 shadow-sm animate-[fadeIn_0.3s_ease-out]">
+          <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+            <CheckCircle2 class="w-4 h-4" />
+          </div>
+          <div class="flex-1">
+            <p class="text-[10px] font-black uppercase tracking-widest text-emerald-400">Verifica tu Bandeja</p>
+            <p class="text-xs mt-0.5 font-medium">{form.message}</p>
+          </div>
+        </div>
       {/if}
     </div>
 
-    <form method="POST" action="?/ingresar" class="space-y-5" onsubmit={() => cargando = true}>
-      
-      <div class="space-y-1.5 group">
-        <label for="email" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 px-1 transition-colors group-focus-within:text-indigo-400">Credencial de Acceso</label>
-        <div class="relative">
-          <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
-            <Mail class="w-4 h-4" />
+    {#if !vistaRecuperacion}
+      <form method="POST" action="?/ingresar" class="space-y-5 animate-[fadeIn_0.3s_ease-out]" onsubmit={() => cargando = true}>
+        
+        <div class="space-y-1.5 group">
+          <label for="email" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 px-1 transition-colors group-focus-within:text-indigo-400">Credencial de Acceso</label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
+              <Mail class="w-4 h-4" />
+            </div>
+            <input type="email" name="email" id="email" placeholder="correo@agencia.com" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
           </div>
-          <input type="email" name="email" id="email" placeholder="correo@agencia.com" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
         </div>
-      </div>
 
-      <div class="space-y-1.5 group">
-        <div class="flex items-center justify-between px-1">
-           <label for="password" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 transition-colors group-focus-within:text-indigo-400">Llave Criptográfica</label>
-        </div>
-        <div class="relative">
-          <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
-            <KeyRound class="w-4 h-4" />
+        <div class="space-y-1.5 group">
+          <div class="flex items-center justify-between px-1">
+             <label for="password" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 transition-colors group-focus-within:text-indigo-400">Llave Criptográfica</label>
+             <button type="button" onclick={() => { vistaRecuperacion = true; form = null; }} class="text-[10px] font-bold text-zinc-500 hover:text-white transition-colors">¿Olvidó su llave?</button>
           </div>
-          <input type="password" name="password" id="password" placeholder="••••••••••••" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
+              <KeyRound class="w-4 h-4" />
+            </div>
+            <input type="password" name="password" id="password" placeholder="••••••••••••" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
+          </div>
         </div>
-      </div>
 
-      <div class="pt-4">
-        <button type="submit" disabled={cargando} class="w-full bg-white hover:bg-zinc-200 text-black disabled:opacity-50 disabled:hover:bg-white font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95 group">
-          {#if cargando}
-            <Loader2 class="w-4 h-4 animate-spin text-black" />
-            Desencriptando...
-          {:else}
-            <ShieldCheck class="w-4 h-4" />
-            Acceder al Sistema
-            <ArrowRight class="w-4 h-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-          {/if}
-        </button>
-      </div>
-    </form>
+        <div class="pt-4">
+          <button type="submit" disabled={cargando} class="w-full bg-white hover:bg-zinc-200 text-black disabled:opacity-50 disabled:hover:bg-white font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95 group">
+            {#if cargando}
+              <Loader2 class="w-4 h-4 animate-spin text-black" />
+              Desencriptando...
+            {:else}
+              <ShieldCheck class="w-4 h-4" />
+              Acceder al Sistema
+              <ArrowRight class="w-4 h-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+            {/if}
+          </button>
+        </div>
+      </form>
+
+    {:else}
+      <form method="POST" action="?/recuperar" use:enhance={() => { cargando = true; return async ({ update }) => { cargando = false; update(); }; }} class="space-y-5 animate-[fadeIn_0.3s_ease-out]">
+        <div class="space-y-1.5 group">
+          <label for="recovery_email" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 px-1 transition-colors group-focus-within:text-indigo-400">Correo Asociado</label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
+              <Mail class="w-4 h-4" />
+            </div>
+            <input type="email" name="email" id="recovery_email" placeholder="correo@agencia.com" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
+          </div>
+        </div>
+
+        <div class="pt-4 flex flex-col gap-3">
+          <button type="submit" disabled={cargando} class="w-full bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 disabled:hover:bg-indigo-600 font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(79,70,229,0.3)] active:scale-95 group">
+            {#if cargando}
+              <Loader2 class="w-4 h-4 animate-spin text-white" /> Procesando...
+            {:else}
+              <Mail class="w-4 h-4" /> Enviar Enlace Seguro
+            {/if}
+          </button>
+          
+          <button type="button" onclick={() => { vistaRecuperacion = false; form = null; }} class="w-full bg-transparent hover:bg-zinc-800 text-zinc-400 font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center text-sm">
+            Cancelar y regresar
+          </button>
+        </div>
+      </form>
+    {/if}
 
     <div class="mt-10 pt-8 border-t border-white/5 text-center">
       <p class="text-xs text-zinc-500 font-medium">
