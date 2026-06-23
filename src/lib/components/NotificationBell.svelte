@@ -3,7 +3,6 @@
   import { Bell, CalendarClock, ChevronRight, CheckCircle2, AlertTriangle } from 'lucide-svelte';
   import { slide } from 'svelte/transition';
 
-  // 🔥 LEYENDO LA VARIABLE BLINDADA DEL SERVIDOR GLOBAL
   let pendingAlerts = $derived($page.data.alertasGlobales || []);
   let unreadCount = $derived(pendingAlerts.length);
   
@@ -52,8 +51,8 @@
           <div class="flex flex-col">
             {#each pendingAlerts as alert}
               <a 
-                href={alert.lead?.id ? `/admin/leads?open=${alert.lead.id}` : '#'}
-                onclick={() => isOpen = false}
+                href={alert.lead?.id ? `/admin/leads?open=${alert.lead.id}` : '/admin'}
+                onclick={(e) => { isOpen = false; }} 
                 class="flex items-start gap-4 p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors group relative"
               >
                 <div class="mt-1.5 shrink-0">
