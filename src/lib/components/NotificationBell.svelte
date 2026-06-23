@@ -1,41 +1,47 @@
 <script>
-  import { page } from '$app/stores';
-  // 🔥 FIX CRÍTICO: Importamos 'goto' para forzar la navegación programática
+  import { page } from '$app/state'; 
   import { goto } from '$app/navigation';
   import { Bell, CalendarClock, ChevronRight, CheckCircle2, AlertTriangle } from 'lucide-svelte';
   import { slide } from 'svelte/transition';
 
-  let pendingAlerts = $derived($page.data.alertasGlobales || []);
+  let pendingAlerts = $derived(page.data.alertasGlobales || []);
   let unreadCount = $derived(pendingAlerts.length);
   
   let isOpen = $state(false);
+  let widgetRef = $state(null);
 
-  function toggleDropdown() { isOpen = !isOpen; }
-
-  function handleClickOutside(event) {
-    if (isOpen && !event.target.closest('.notification-widget')) isOpen = false;
+  function handleDocumentClick(event) {
+    if (isOpen && widgetRef && !widgetRef.contains(event.target)) {
+      isOpen = false;
+    }
   }
 
-  // 🔥 EL MOTOR DE NAVEGACIÓN BLINDADO: Cierra la campana y te transporta sin fallos
-  async function navegarProgramaticamente(url) {
-    isOpen = false;
-    await goto(url);
+  function handleKeydown(event) {
+    if (isOpen && event.key === 'Escape') isOpen = false;
   }
 
-  function formatAlertTime(dateString) {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-    const localDate = new Date(date.getTime() + userTimezoneOffset);
-    return new Intl.DateTimeFormat('es-MX', { 
+  let formattedDates = $state({});
+  $effect(() => {
+    const formatter = new Intl.DateTimeFormat('es-MX', { 
       weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
-    }).format(localDate);
+    });
+    const newDates = {};
+    pendingAlerts.forEach(alert => {
+      if (alert.fecha) newDates[alert.id] = formatter.format(new Date(alert.fecha));
+    });
+    formattedDates = newDates;
+  });
+
+  function getSSRFallback(isoString) {
+    if (!isoString) return '';
+    return isoString.split('T')[0].split('-').reverse().join('/');
   }
 </script>
 
-<svelte:window onclick={handleClickOutside} />
+<svelte:document onclickcapture={handleDocumentClick} onkeydown={handleKeydown} />
 
-<div class="relative notification-widget font-sans z-[100]">
+<div bind:this={widgetRef} class="relative notification-widget font-sans z-[100]">
+  
   {#if isOpen}
     <div 
       transition:slide={{ duration: 250, axis: 'y' }}
@@ -53,15 +59,22 @@
           <div class="flex flex-col items-center justify-center p-8 text-center opacity-60">
             <CheckCircle2 class="w-10 h-10 text-emerald-500 mb-3" />
             <p class="text-sm font-bold text-slate-700">¡Todo al día!</p>
-            <p class="text-xs font-medium text-slate-500 mt-1">No tienes recordatorios urgentes.</p>
+            <p class="text-xs font-medium text-slate-500 mt-1">No tienes recordatorios urgentes ni alertas.</p>
           </div>
         {:else}
           <div class="flex flex-col">
             {#each pendingAlerts as alert}
-              <button 
-                type="button"
-                onclick={() => navegarProgramaticamente(alert.lead?.id ? `/admin/leads?open=${alert.lead.id}` : '/admin/alertas')}
-                class="w-full text-left flex items-start gap-4 p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors group relative cursor-pointer"
+              <a 
+                href={alert.lead?.id ? `/admin/leads?open=${alert.lead.id}` : '/admin/alertas'}
+                onclick={(e) => {
+                  // Si haces Ctrl+Click o Cmd+Click para abrir en otra pestaña, dejamos que el navegador actúe normal
+                  if (e.metaKey || e.ctrlKey) return;
+                  
+                  e.preventDefault(); // Evitamos que SvelteKit se congele por la pérdida del nodo en el DOM
+                  isOpen = false; // Cerramos el menú
+                  goto(e.currentTarget.href); // Forzamos la navegación programática con la ruta correcta
+                }}
+                class="flex items-start gap-4 p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors group relative"
               >
                 <div class="mt-1.5 shrink-0">
                    {#if alert.tipo_alerta === 'recordatorio'}
@@ -81,11 +94,11 @@
                   <p class="text-[11px] text-slate-600 line-clamp-2 leading-relaxed font-medium mb-2">{alert.mensaje || alert.titulo}</p>
                   <p class="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                     <CalendarClock class="w-3 h-3 text-rose-400" /> 
-                    {formatAlertTime(alert.fecha)}
+                    <time datetime={alert.fecha}>{formattedDates[alert.id] || getSSRFallback(alert.fecha)}</time>
                   </p>
                 </div>
                 <ChevronRight class="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transition-colors mt-4 shrink-0" />
-              </button>
+              </a>
             {/each}
           </div>
         {/if}
@@ -94,13 +107,15 @@
   {/if}
 
   <button 
-    onclick={toggleDropdown}
+    type="button"
+    onclick={() => isOpen = !isOpen}
+    aria-expanded={isOpen}
     class="relative flex items-center justify-center w-14 h-14 rounded-full {unreadCount > 0 ? 'bg-slate-900 hover:bg-slate-800' : 'bg-white border border-slate-200 hover:bg-slate-50'} transition-all duration-300 shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-900/20 active:scale-95 group"
     aria-label="Notificaciones"
   >
-    <Bell class="w-6 h-6 {unreadCount > 0 ? 'text-white' : 'text-slate-600'} transition-transform duration-300 group-hover:rotate-12" />
+    <Bell class="w-6 h-6 pointer-events-none {unreadCount > 0 ? 'text-white' : 'text-slate-600'} transition-transform duration-300 group-hover:rotate-12" />
     {#if unreadCount > 0}
-      <span class="absolute -top-1 -right-1 flex h-5 w-5">
+      <span class="absolute -top-1 -right-1 flex h-5 w-5 pointer-events-none">
         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
         <span class="relative inline-flex rounded-full h-5 w-5 bg-rose-500 text-[10px] font-black text-white items-center justify-center border-2 border-slate-900">
           {unreadCount > 9 ? '9+' : unreadCount}
