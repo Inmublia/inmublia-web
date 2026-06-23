@@ -1,8 +1,8 @@
 <script>
   import { page } from '$app/stores';
   import { Bell, CalendarClock, ChevronRight, CheckCircle2, AlertTriangle } from 'lucide-svelte';
-  // 🔥 FIX 1: Cambiamos 'slide' por 'fly' para evitar el colapso visual de altura
-  import { fly } from 'svelte/transition';
+  // 🔥 FIX UI: Usamos fade y scale, son las únicas animaciones 100% seguras para cajas flotantes invertidas
+  import { fade, scale } from 'svelte/transition';
 
   let pendingAlerts = $derived($page.data.alertas || []);
   let unreadCount = $derived(pendingAlerts.length);
@@ -10,7 +10,6 @@
   let isOpen = $state(false);
 
   function toggleDropdown(e) {
-    // 🔥 FIX 2: Matamos el "doble clic fantasma" frenando la propagación al window
     e.stopPropagation();
     isOpen = !isOpen;
   }
@@ -22,6 +21,7 @@
   }
 
   function formatAlertTime(dateString) {
+    if (!dateString) return 'Sin fecha';
     const date = new Date(dateString);
     const userTimezoneOffset = date.getTimezoneOffset() * 60000;
     const localDate = new Date(date.getTime() + userTimezoneOffset);
@@ -33,25 +33,25 @@
 
 <svelte:window onclick={handleClickOutside} />
 
-<div class="relative notification-widget font-sans z-[100]">
+<div class="relative notification-widget font-sans z-[9999]">
   {#if isOpen}
     <div 
-      transition:fly={{ y: 15, duration: 250 }}
-      class="absolute bottom-full right-0 lg:bottom-auto lg:top-full lg:mt-4 mb-4 lg:mb-0 w-[340px] sm:w-[380px] bg-white rounded-3xl shadow-[0_10px_50px_-10px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden transform origin-bottom-right lg:origin-top-right"
+      transition:scale={{ start: 0.95, duration: 150 }}
+      class="absolute bottom-full right-0 lg:bottom-auto lg:top-full lg:mt-4 mb-4 lg:mb-0 w-[340px] sm:w-[380px] bg-white rounded-3xl shadow-[0_10px_50px_-10px_rgba(0,0,0,0.3)] border border-slate-200 flex flex-col transform origin-bottom-right lg:origin-top-right"
     >
-      <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
+      <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between rounded-t-3xl">
         <h3 class="text-sm font-black text-slate-900 tracking-tight">Centro de Control</h3>
         {#if unreadCount > 0}
           <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">{unreadCount} Pendientes</span>
         {/if}
       </div>
 
-      <div class="max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200" onclick={(e) => e.stopPropagation()}>
+      <div class="max-h-[380px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 rounded-b-3xl bg-white" onclick={(e) => e.stopPropagation()}>
         {#if unreadCount === 0}
           <div class="flex flex-col items-center justify-center p-10 text-center opacity-70">
             <CheckCircle2 class="w-12 h-12 text-emerald-500 mb-4" />
             <p class="text-base font-black text-slate-800 tracking-tight">Bandeja Limpia</p>
-            <p class="text-xs font-medium text-slate-500 mt-1">No tienes recordatorios urgentes ni alertas de inactividad.</p>
+            <p class="text-xs font-medium text-slate-500 mt-1">No tienes recordatorios urgentes ni alertas.</p>
           </div>
         {:else}
           <div class="flex flex-col divide-y divide-slate-50">
