@@ -1,124 +1,83 @@
-<script>
-  import { page } from '$app/stores';
-  import { Bell, CalendarClock, ChevronRight, CheckCircle2, AlertTriangle } from 'lucide-svelte';
-  // Transición suave que no rompe el Box Model
-  import { fly } from 'svelte/transition';
+import { redirect } from '@sveltejs/kit';
 
-  let pendingAlerts = $derived($page.data.alertas || []);
-  let unreadCount = $derived(pendingAlerts.length);
-  
-  let isOpen = $state(false);
-  
-  // 🔥 FIX SVELTE 5: Referencias nativas del DOM para clics perfectos
-  let dropdownRef = $state(null);
-  let buttonRef = $state(null);
+export async function load({ locals, setHeaders, url, depends }) {
+  // 1. EL SELLO DE SEGURIDAD SVELTEKIT
+  depends('supabase:auth');
 
-  function toggleDropdown() {
-    isOpen = !isOpen;
+  setHeaders({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'Surrogate-Control': 'no-store'
+  });
+
+  const { session, user } = await locals.safeGetSession();
+
+  if (!user) {
+    if (url.pathname.startsWith('/login')) return {};
+    throw redirect(303, '/login?motivo=inactividad');
   }
 
-  function handleClickOutside(event) {
-    // Si está abierto, y el clic NO fue en el dropdown, y NO fue en el botón -> cerramos.
-    if (isOpen && dropdownRef && !dropdownRef.contains(event.target) && buttonRef && !buttonRef.contains(event.target)) {
-      isOpen = false;
-    }
-  }
+  try {
+    const { data: broker, error: brokerError } = await locals.supabase
+      .from('brokers')
+      .select('*')
+      .eq('auth_user_id', user.id)
+      .single();
 
-  function formatAlertTime(dateString) {
-    if (!dateString) return 'Sin fecha';
-    const date = new Date(dateString);
-    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-    const localDate = new Date(date.getTime() + userTimezoneOffset);
-    return new Intl.DateTimeFormat('es-MX', { 
-      weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
-    }).format(localDate);
-  }
-</script>
+    if (brokerError || !broker) throw new Error("Broker no encontrado");
 
-<svelte:window onclick={handleClickOutside} />
+    const now = new Date().toISOString();
 
-<div class="relative notification-widget font-sans z-[9999]">
-  
-  {#if isOpen}
-    <div 
-      bind:this={dropdownRef}
-      class="absolute bottom-full right-0 mb-4 lg:bottom-auto lg:top-full lg:mt-4 lg:mb-0 w-[340px] sm:w-[380px] z-[10000]"
-    >
-      <div 
-        transition:fly={{ y: 15, duration: 250, opacity: 0 }}
-        class="w-full bg-white rounded-3xl shadow-[0_10px_50px_-10px_rgba(0,0,0,0.3)] border border-slate-200 flex flex-col overflow-hidden"
-      >
-        <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
-          <h3 class="text-sm font-black text-slate-900 tracking-tight">Centro de Control</h3>
-          {#if unreadCount > 0}
-            <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">{unreadCount} Pendientes</span>
-          {/if}
-        </div>
-
-        <div class="max-h-[380px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 bg-white">
-          {#if unreadCount === 0}
-            <div class="flex flex-col items-center justify-center p-10 text-center opacity-70">
-              <CheckCircle2 class="w-12 h-12 text-emerald-500 mb-4" />
-              <p class="text-base font-black text-slate-800 tracking-tight">Bandeja Limpia</p>
-              <p class="text-xs font-medium text-slate-500 mt-1">No tienes recordatorios urgentes ni alertas.</p>
-            </div>
-          {:else}
-            <div class="flex flex-col divide-y divide-slate-50">
-              {#each pendingAlerts as alert}
-                <a 
-                  href={alert.lead?.id ? `/admin/leads?open=${alert.lead.id}` : '#'}
-                  onclick={() => isOpen = false}
-                  class="flex items-start gap-4 p-5 hover:bg-slate-50 transition-colors group relative"
-                >
-                  <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm border {alert.tipo_alerta === 'recordatorio' ? 'bg-amber-50 text-amber-500 border-amber-100' : 'bg-rose-50 text-rose-500 border-rose-100'}">
-                    {#if alert.tipo_alerta === 'recordatorio'}
-                      <CalendarClock class="w-5 h-5" />
-                    {:else}
-                      <AlertTriangle class="w-5 h-5" />
-                    {/if}
-                  </div>
-
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-start justify-between gap-2 mb-1">
-                      <p class="text-xs font-black text-slate-900 truncate">
-                        {alert.lead?.nombre || 'Alerta del Sistema'}
-                      </p>
-                      <span class="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0 border {alert.tipo_alerta === 'recordatorio' ? 'text-amber-600 bg-amber-50 border-amber-100' : 'text-rose-600 bg-rose-50 border-rose-100'}">
-                        {alert.tipo_alerta === 'recordatorio' ? 'Recordatorio' : 'Alerta'}
-                      </span>
-                    </div>
-                    
-                    <p class="text-[11px] font-bold text-slate-700 mb-0.5">{alert.titulo}</p>
-                    <p class="text-[11px] text-slate-500 line-clamp-2 leading-relaxed font-medium mb-2">{alert.mensaje}</p>
-                    
-                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                      {formatAlertTime(alert.fecha)}
-                    </p>
-                  </div>
-                </a>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      </div>
-    </div>
-  {/if}
-
-  <button 
-    bind:this={buttonRef}
-    onclick={toggleDropdown}
-    class="relative flex items-center justify-center w-14 h-14 rounded-full {unreadCount > 0 ? 'bg-slate-900 hover:bg-slate-800 shadow-[0_4px_20px_rgba(15,23,42,0.4)]' : 'bg-white border border-slate-200 hover:bg-slate-50 shadow-sm'} transition-all duration-300 focus:outline-none active:scale-95 group"
-    aria-label="Notificaciones"
-  >
-    <Bell class="w-6 h-6 {unreadCount > 0 ? 'text-white' : 'text-slate-600'} transition-transform duration-300 group-hover:rotate-12" />
+    // 2. MOTOR DE LÍNEA DE TIEMPO (Consultas en secuencia para evitar colapso en Cloudflare)
     
-    {#if unreadCount > 0}
-      <span class="absolute -top-1 -right-1 flex h-5 w-5">
-        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-        <span class="relative inline-flex rounded-full h-5 w-5 bg-rose-500 text-[10px] font-black text-white items-center justify-center border-2 border-slate-900 shadow-md">
-          {unreadCount > 9 ? '9+' : unreadCount}
-        </span>
-      </span>
-    {/if}
-  </button>
-</div>
+    const { data: recordatorios, error: errRec } = await locals.supabase
+      .from('lead_notas')
+      .select('id, contenido, fecha_recordatorio, completado, leads(id, nombre)')
+      .eq('broker_id', broker.id)
+      .eq('tipo', 'recordatorio')
+      .eq('completado', false)
+      .lte('fecha_recordatorio', now);
+
+    if (errRec) console.error("Error en recordatorios:", errRec);
+
+    const { data: notificaciones, error: errNotif } = await locals.supabase
+      .from('notificaciones_agente')
+      .select('id, titulo, mensaje, creado_en, leida, leads(id, nombre)')
+      .eq('broker_id', broker.id)
+      .eq('leida', false);
+
+    if (errNotif) console.error("Error en notificaciones:", errNotif);
+
+    // 3. Formatear y Unificar
+    const alertasUnificadas = [
+      ...(recordatorios || []).map(r => ({
+        id: r.id,
+        tipo_alerta: 'recordatorio',
+        titulo: 'Seguimiento Pendiente',
+        mensaje: r.contenido,
+        fecha: r.fecha_recordatorio,
+        lead: r.leads
+      })),
+      ...(notificaciones || []).map(n => ({
+        id: n.id,
+        tipo_alerta: 'sistema',
+        titulo: n.titulo,
+        mensaje: n.mensaje,
+        fecha: n.creado_en,
+        lead: n.leads
+      }))
+    ].sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
+
+    return {
+      session,
+      user,
+      broker,
+      alertas: alertasUnificadas 
+    };
+
+  } catch (err) {
+    console.error("Error en layout global:", err);
+    return { session, user, broker: null, alertas: [] };
+  }
+}
