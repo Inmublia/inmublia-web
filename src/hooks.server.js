@@ -61,8 +61,8 @@ export async function handle({ event, resolve }) {
     event.locals.tenantId = brokerId;
   }
 
-  // 2. MOTOR DE COOKIES (Wildcard + Destructor de Sesión Fantasma)
-  const cookieDomain = (isLocal) ? undefined : 'inmublia.com';
+  // 2. MOTOR DE COOKIES (Wildcard + Excepción PKCE)
+  const baseCookieDomain = (isLocal) ? undefined : 'inmublia.com';
 
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     global: { fetch: event.fetch },
@@ -72,7 +72,13 @@ export async function handle({ event, resolve }) {
         try {
           cookiesToSet.forEach(({ name, value, options }) => {
             const { domain, ...cleanOptions } = options;
-            event.cookies.set(name, value, { ...cleanOptions, path: '/', domain: cookieDomain });
+            
+            // 🔥 CIRUGÍA PKCE: Si es el token temporal de verificación de correo, NO uses dominio global.
+            // Déjalo amarrado estrictamente al subdominio actual para que el callback funcione.
+            const isPKCECookie = name.includes('-auth-token-code-verifier');
+            const targetDomain = isPKCECookie ? undefined : baseCookieDomain;
+
+            event.cookies.set(name, value, { ...cleanOptions, path: '/', domain: targetDomain });
 
             // Borrado exhaustivo si la sesión se destruye
             if (!value || options.maxAge === 0 || options.maxAge === -1) {
