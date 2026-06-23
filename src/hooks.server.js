@@ -61,8 +61,9 @@ export async function handle({ event, resolve }) {
     event.locals.tenantId = brokerId;
   }
 
-  // 2. MOTOR DE COOKIES (Wildcard + Excepción PKCE)
-  const baseCookieDomain = (isLocal) ? undefined : 'inmublia.com';
+  // 2. MOTOR DE COOKIES (Unificado para SaaS)
+  // Al asignar el dominio base, la cookie PKCE será accesible tanto en la raíz como en los subdominios.
+  const cookieDomain = (isLocal) ? undefined : 'inmublia.com';
 
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     global: { fetch: event.fetch },
@@ -72,13 +73,7 @@ export async function handle({ event, resolve }) {
         try {
           cookiesToSet.forEach(({ name, value, options }) => {
             const { domain, ...cleanOptions } = options;
-            
-            // 🔥 CIRUGÍA PKCE: Si es el token temporal de verificación de correo, NO uses dominio global.
-            // Déjalo amarrado estrictamente al subdominio actual para que el callback funcione.
-            const isPKCECookie = name.includes('-auth-token-code-verifier');
-            const targetDomain = isPKCECookie ? undefined : baseCookieDomain;
-
-            event.cookies.set(name, value, { ...cleanOptions, path: '/', domain: targetDomain });
+            event.cookies.set(name, value, { ...cleanOptions, path: '/', domain: cookieDomain });
 
             // Borrado exhaustivo si la sesión se destruye
             if (!value || options.maxAge === 0 || options.maxAge === -1) {
@@ -121,14 +116,12 @@ export async function handle({ event, resolve }) {
       .single();
 
     if (userBroker) {
-      // FIX CRÍTICO: Esto garantiza que siempre veas tus inmuebles en el admin
       event.locals.tenantId = userBroker.id;
 
       if (userBroker.subdominio) {
         const subDB = userBroker.subdominio.toLowerCase();
         const currentSub = currentSubdomain ? currentSubdomain.toLowerCase() : null;
 
-        // Guardia anti-intrusos a subdominios ajenos
         if (
           (isRootOrAdmin && !pathname.includes('/logout')) || 
           (currentSub && currentSub !== subDB)
