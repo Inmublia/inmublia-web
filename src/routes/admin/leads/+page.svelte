@@ -1,7 +1,8 @@
 <script>
   import { invalidateAll, goto } from '$app/navigation';
   import { enhance } from '$app/forms';
-  import { page } from '$app/stores';
+  // 🔥 FIX 1: Adiós a $app/stores. El estándar de Svelte 5 exige $app/state
+  import { page } from '$app/state'; 
   import { 
     Search, X, Phone, Mail, Home, Send, Trash2, Clock, UserCircle,
     GripVertical, MessageSquareQuote, BellRing, CalendarClock, CheckCircle2, MessageSquare, ChevronDown
@@ -19,7 +20,6 @@
   let guardandoNota = $state(false);
   let submitBtn = $state(null);
 
-  // Estados para Recordatorios
   let esRecordatorio = $state(false);
   let fechaRecordatorio = $state('');
   let horaRecordatorio = $state(''); 
@@ -32,7 +32,6 @@
     )
   );
 
-  // --- ESTADOS DEL MODAL DE CIERRE FINANCIERO ---
   let showModalCierre = $state(false);
   let leadPorCerrar = $state(null);
   let precioCierreFinal = $state('');
@@ -50,18 +49,21 @@
     }
   });
 
+  // 🔥 FIX 2: Sincronización segura del estado
   $effect(() => {
     leads = data.leads || [];
+  });
 
-    // DEEP LINKING: Interceptor de URLs mágicas desde el Notification Center
-    const leadIdToOpen = $page.url.searchParams.get('open');
+  // 🔥 FIX 3: Deep Linking sin bucles de la muerte (Svelte 5 Nativo)
+  $effect(() => {
+    // Usamos page directo, sin el signo de dólar ($)
+    const leadIdToOpen = page.url.searchParams.get('open');
     if (leadIdToOpen && leads.length > 0) {
       const leadToOpen = leads.find(l => l.id === leadIdToOpen);
       if (leadToOpen && (!selectedLead || selectedLead.id !== leadIdToOpen)) {
         setTimeout(() => {
           abrirPanel(leadToOpen);
-          // Limpiar la URL sin recargar la página
-          const newUrl = new URL($page.url);
+          const newUrl = new URL(page.url);
           newUrl.searchParams.delete('open');
           goto(newUrl.pathname + newUrl.search, { replaceState: true, keepFocus: true, noScroll: true });
         }, 50);
@@ -69,7 +71,6 @@
     }
   });
 
-  // GENERADOR DE INTERVALOS DE HORA (El estándar de la industria)
   const timeSlots = [];
   for (let i = 7; i <= 21; i++) { 
     const hour = i.toString().padStart(2, '0');
@@ -91,9 +92,11 @@
     return col ? col.badge : 'bg-slate-100 text-slate-600 border-slate-200';
   }
 
+  // 🔥 FIX 4: El escudo contra el Vite Error Overlay (Invalid Date)
   function formatDateTime(dateString) {
     if (!dateString) return '';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return ''; // Escudo protector
     const userTimezoneOffset = date.getTimezoneOffset() * 60000;
     const localDate = new Date(date.getTime() + userTimezoneOffset);
     return new Intl.DateTimeFormat('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(localDate);
@@ -107,20 +110,25 @@
     return `${hour}:${m} ${ampm}`;
   }
 
+  // 🔥 FIX 5: Escudo de tiempo relativo
   function timeAgo(dateString) {
     if (!dateString) return 'Desconocido';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Desconocido';
     const now = new Date();
     const diffInSeconds = Math.floor((now - date) / 1000);
     if (diffInSeconds < 60) return 'Hace un momento';
     if (diffInSeconds < 3600) return `Hace ${Math.floor(diffInSeconds / 60)} min`;
-    if (diffInSeconds < 86400) return `Hace ${Math.floor(diffInSeconds / 3600)} hours`;
+    if (diffInSeconds < 86400) return `Hace ${Math.floor(diffInSeconds / 3600)} horas`;
     return `Hace ${Math.floor(diffInSeconds / 86400)} días`;
   }
 
+  // 🔥 FIX 6: Escudo lógico para recordatorios
   function isOverdue(dateString) {
     if (!dateString) return false;
-    return new Date(dateString) <= new Date();
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return false;
+    return date <= new Date();
   }
 
   function arrancar(event, id) {
