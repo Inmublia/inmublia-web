@@ -1,5 +1,7 @@
 <script>
   import { page } from '$app/stores';
+  // 🔥 FIX CRÍTICO: Importamos 'goto' para forzar la navegación programática
+  import { goto } from '$app/navigation';
   import { Bell, CalendarClock, ChevronRight, CheckCircle2, AlertTriangle } from 'lucide-svelte';
   import { slide } from 'svelte/transition';
 
@@ -12,6 +14,12 @@
 
   function handleClickOutside(event) {
     if (isOpen && !event.target.closest('.notification-widget')) isOpen = false;
+  }
+
+  // 🔥 EL MOTOR DE NAVEGACIÓN BLINDADO: Cierra la campana y te transporta sin fallos
+  async function navegarProgramaticamente(url) {
+    isOpen = false;
+    await goto(url);
   }
 
   function formatAlertTime(dateString) {
@@ -50,10 +58,10 @@
         {:else}
           <div class="flex flex-col">
             {#each pendingAlerts as alert}
-              <a 
-                href={alert.lead?.id ? `/admin/leads?open=${alert.lead.id}` : '/admin'}
-                onclick={(e) => { isOpen = false; }} 
-                class="flex items-start gap-4 p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors group relative"
+              <button 
+                type="button"
+                onclick={() => navegarProgramaticamente(alert.lead?.id ? `/admin/leads?open=${alert.lead.id}` : '/admin/alertas')}
+                class="w-full text-left flex items-start gap-4 p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors group relative cursor-pointer"
               >
                 <div class="mt-1.5 shrink-0">
                    {#if alert.tipo_alerta === 'recordatorio'}
@@ -77,7 +85,7 @@
                   </p>
                 </div>
                 <ChevronRight class="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transition-colors mt-4 shrink-0" />
-              </a>
+              </button>
             {/each}
           </div>
         {/if}
