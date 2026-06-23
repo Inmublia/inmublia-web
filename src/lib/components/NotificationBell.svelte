@@ -3,7 +3,8 @@
   import { Bell, CalendarClock, ChevronRight, CheckCircle2, AlertTriangle } from 'lucide-svelte';
   import { slide } from 'svelte/transition';
 
-  let pendingAlerts = $derived($page.data.alertas || []);
+  // 🔥 LEYENDO LA VARIABLE BLINDADA DEL SERVIDOR GLOBAL
+  let pendingAlerts = $derived($page.data.alertasGlobales || []);
   let unreadCount = $derived(pendingAlerts.length);
   
   let isOpen = $state(false);
