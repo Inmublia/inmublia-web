@@ -1,23 +1,28 @@
 <script>
-  import { page } from '$app/stores';
   import { enhance } from '$app/forms';
   import { onMount } from 'svelte';
   import { 
-    X, ChevronLeft, ChevronRight, Download, Facebook, Instagram, Linkedin, 
-    CheckCircle2, AlertCircle, LayoutGrid, Sparkles, MapPin, BedDouble, 
-    Bath, Maximize, Car, Compass, Play, Layers
+    X, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, 
+    LayoutGrid, Sparkles, MapPin, BedDouble, Bath, 
+    Maximize, Car, Layers 
   } from 'lucide-svelte';
+
+  // 🔥 SVELTE 5: Utilidades y Componentes Compartidos
+  import { formatearPrecio, obtenerIdYouTube, obtenerIdMatterport } from '$lib/utils/formatters';
+  import BotonWhatsApp from '$lib/components/shared/BotonWhatsApp.svelte';
 
   let { data, form } = $props();
   let propiedad = $derived(data.propiedad);
   let broker = $derived(data.broker);
 
-  // 🔥 CANDADO DE NEGOCIO: Validamos el Plan para el Smart Brochure
-  let urlPideBrochure = $derived($page.url.searchParams.get('brochure') === 'true');
-  let tienePlanPremium = $derived(broker?.plan_suscripcion === 'pro' || broker?.plan_suscripcion === 'elite');
-  let isBrochure = $derived(urlPideBrochure && tienePlanPremium);
-
   let enviando = $state(false);
+  let isGalleryOpen = $state(false);
+  let currentImageIndex = $state(0);
+  
+  let moneda = $derived(propiedad.moneda || "MXN");
+  let matterportId = $derived(obtenerIdMatterport(propiedad.recorrido_3d_url));
+  let videoId = $derived(obtenerIdYouTube(propiedad.video_url));
+  let allPhotos = $derived(propiedad.galeria_urls?.length ? [propiedad.imagen_url, ...propiedad.galeria_urls] : [propiedad.imagen_url]);
 
   // INYECCIÓN DE PÍXELES CON EVENTO DE VISUALIZACIÓN DE PRODUCTO
   const START_SCR = '<scr'+'ipt>';
@@ -25,23 +30,10 @@
 
   let metaPixel = $derived(broker?.pixel_fb ? `
     ${START_SCR}
-      !function(f,b,e,v,n,t,s)
-      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-      n.queue=[];t=b.createElement(e);t.async=!0;
-      t.src=v;s=b.getElementsByTagName(e)[0];
-      s.parentNode.insertBefore(t,s)}(window, document,'script',
-      'https://connect.facebook.net/en_US/fbevents.js');
+      !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');
       fbq('init', '${broker.pixel_fb}');
       fbq('track', 'PageView');
-      fbq('track', 'ViewContent', {
-        content_name: '${propiedad.titulo}',
-        content_ids: ['${propiedad.id}'],
-        content_type: 'product',
-        value: ${propiedad.precio},
-        currency: 'MXN'
-      });
+      fbq('track', 'ViewContent', { content_name: '${propiedad.titulo}', content_ids: ['${propiedad.id}'], content_type: 'product', value: ${propiedad.precio}, currency: '${moneda}' });
     ${END_SCR}
   ` : '');
 
@@ -52,103 +44,23 @@
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', '${broker.pixel_google}');
-      gtag('event', 'view_item', {
-        currency: 'MXN',
-        value: ${propiedad.precio},
-        items: [{ item_id: '${propiedad.id}', item_name: '${propiedad.titulo}' }]
-      });
+      gtag('event', 'view_item', { currency: '${moneda}', value: ${propiedad.precio}, items: [{ item_id: '${propiedad.id}', item_name: '${propiedad.titulo}' }] });
     ${END_SCR}
   ` : '');
 
   let tiktokPixel = $derived(broker?.pixel_tiktok ? `
     ${START_SCR}
-      !function (w, d, t) {
-        w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};
-        ttq.load('${broker.pixel_tiktok}');
-        ttq.page();
-        ttq.track('ViewContent', {
-          contents: [{ content_id: '${propiedad.id}', content_name: '${propiedad.titulo}', price: ${propiedad.precio}, quantity: 1 }],
-          value: ${propiedad.precio},
-          currency: 'MXN'
-        });
-      }(window, document, 'ttq');
+      !function (w, d, t) { w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)}; ttq.load('${broker.pixel_tiktok}'); ttq.page(); ttq.track('ViewContent', { contents: [{ content_id: '${propiedad.id}', content_name: '${propiedad.titulo}', price: ${propiedad.precio}, quantity: 1 }], value: ${propiedad.precio}, currency: '${moneda}' }); }(window, document, 'ttq');
     ${END_SCR}
   ` : '');
 
-  const formatearPrecio = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
-
-  const obtenerIdYouTube = (url) => {
-    if (!url) return null;
-    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/);
-    return match ? match[1] : null;
-  };
-
-  const obtenerIdMatterport = (url) => {
-    if (!url) return null;
-    const trimmed = url.trim();
-    if (/^[a-zA-Z0-9]{11}$/.test(trimmed)) return trimmed;
-    const match = trimmed.match(/(?:\/show\/\?m=|\/space\/|m=)([a-zA-Z0-9]{11})/);
-    return match ? match[1] : null;
-  };
-
-  let matterportId = $derived(obtenerIdMatterport(propiedad.recorrido_3d_url));
-  let videoId = $derived(obtenerIdYouTube(propiedad.video_url));
-
-  function descargarVCard() {
-    const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${broker.nombre_comercial}\nORG:Inmublia Exclusivas\nTITLE:Asesor Inmobiliario\nTEL;TYPE=CELL:${broker.whatsapp}\nNOTE:Especialista en ${propiedad.ubicacion}\nURL:https://${broker.subdominio}.inmublia.com\nEND:VCARD`;
-    const blob = new Blob([vcard], { type: 'text/vcard' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${broker.nombre_comercial.replace(/\s+/g, '_')}_Contacto.vcf`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  let schemaData = $derived({
-    "@context": "https://schema.org",
-    "@type": "RealEstateListing",
-    "name": propiedad.titulo,
-    "description": propiedad.descripcion,
-    "image": propiedad.imagen_url,
-    "offers": { "@type": "Offer", "price": propiedad.precio, "priceCurrency": "MXN" },
-    "accommodationCategory": propiedad.tipo,
-    "numberOfRooms": propiedad.recamaras,
-    "numberOfBathroomsTotal": propiedad.banos,
-    "floorSize": { "@type": "QuantitativeValue", "value": propiedad.m2_construccion, "unitCode": "MTK" }
-  });
-
-  let isGalleryOpen = $state(false);
-  let currentImageIndex = $state(0);
-  
-  let allPhotos = $derived(
-    propiedad.galeria_urls?.length 
-      ? [propiedad.imagen_url, ...propiedad.galeria_urls] 
-      : [propiedad.imagen_url]
-  );
-
-  function openGallery(index) {
-    currentImageIndex = index;
-    isGalleryOpen = true;
-  }
-
-  function closeGallery() {
-    isGalleryOpen = false;
-  }
-
-  function nextImage(e) {
-    if(e) e.stopPropagation();
-    currentImageIndex = (currentImageIndex + 1) % allPhotos.length;
-  }
-
-  function prevImage(e) {
-    if(e) e.stopPropagation();
-    currentImageIndex = (currentImageIndex - 1 + allPhotos.length) % allPhotos.length;
-  }
+  function openGallery(index) { currentImageIndex = index; isGalleryOpen = true; }
+  function closeGallery() { isGalleryOpen = false; }
+  function nextImage(e) { if(e) e.stopPropagation(); currentImageIndex = (currentImageIndex + 1) % allPhotos.length; }
+  function prevImage(e) { if(e) e.stopPropagation(); currentImageIndex = (currentImageIndex - 1 + allPhotos.length) % allPhotos.length; }
 </script>
 
 <style>
-  /* Scrollbar oculta para el panel lateral */
   .hide-scrollbar::-webkit-scrollbar { display: none; }
   .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
@@ -164,29 +76,15 @@
 <svelte:head>
   <title>{propiedad.titulo} | {broker.nombre_comercial}</title>
   <meta property="og:title" content="{propiedad.titulo} | Exclusiva" />
-  <meta property="og:description" content="{propiedad.operacion} en {propiedad.ubicacion} por {formatearPrecio(propiedad.precio)}." />
+  <meta property="og:description" content="{propiedad.operacion} en {propiedad.ubicacion} por {formatearPrecio(propiedad.precio, moneda)}." />
   <meta property="og:image" content={propiedad.imagen_url} />
   <meta property="og:type" content="website" />
-  <script type="application/ld+json">{@html JSON.stringify(schemaData)}</script>
-
   {#if metaPixel} {@html metaPixel} {/if}
   {#if googlePixel} {@html googlePixel} {/if}
   {#if tiktokPixel} {@html tiktokPixel} {/if}
 </svelte:head>
 
-{#snippet socialLinks(b)}
-  <div class="flex items-center gap-4">
-    {#if b.facebook}
-      <a href={b.facebook} target="_blank" class="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-indigo-500 text-white transition-all" aria-label="Facebook"><Facebook class="w-3.5 h-3.5" /></a>
-    {/if}
-    {#if b.instagram}
-      <a href={b.instagram} target="_blank" class="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-indigo-500 text-white transition-all" aria-label="Instagram"><Instagram class="w-3.5 h-3.5" /></a>
-    {/if}
-    {#if b.linkedin}
-      <a href={b.linkedin} target="_blank" class="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-indigo-500 text-white transition-all" aria-label="LinkedIn"><Linkedin class="w-3.5 h-3.5" /></a>
-    {/if}
-  </div>
-{/snippet}
+<BotonWhatsApp {broker} {propiedad} />
 
 {#if isGalleryOpen}
   <div class="fixed inset-0 z-[200] bg-black/98 backdrop-blur-md flex items-center justify-center animate-in fade-in duration-200" role="dialog" aria-modal="true" tabindex="-1">
@@ -220,20 +118,23 @@
         <span class="text-[10px] font-black uppercase tracking-[0.3em] text-white/90">{broker.nombre_comercial}</span>
       </div>
       
-      {#if !isBrochure}
-        <a href="https://{broker.subdominio}.inmublia.com" class="text-white/40 hover:text-white transition-colors p-2" aria-label="Cerrar">
-          <X class="w-5 h-5" />
-        </a>
-      {/if}
+      <a href="https://{broker.subdominio}.inmublia.com" class="text-white/40 hover:text-white transition-colors p-2" aria-label="Cerrar">
+        <X class="w-5 h-5" />
+      </a>
     </div>
 
     <div class="p-8 lg:p-12 flex-1 flex flex-col">
       
-      <div class="flex items-center gap-3 mb-6">
+      <div class="flex flex-wrap items-center gap-3 mb-6">
         <span class="bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded">
           {propiedad.operacion}
         </span>
-        <span class="text-zinc-500 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5">
+        {#if propiedad.destacada}
+          <span class="bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded flex items-center gap-1">
+            <Sparkles class="w-3 h-3" /> Exclusiva
+          </span>
+        {/if}
+        <span class="text-zinc-500 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 w-full mt-2">
           <MapPin class="w-3.5 h-3.5" /> {propiedad.ubicacion}
         </span>
       </div>
@@ -244,7 +145,7 @@
 
       <div class="mb-10">
         <p class="text-[9px] font-bold text-zinc-500 uppercase tracking-[0.3em] mb-1">Precio de Inversión</p>
-        <p class="text-3xl font-light text-white">{formatearPrecio(propiedad.precio)}</p>
+        <p class="text-3xl font-light text-white">{formatearPrecio(propiedad.precio, moneda)}</p>
       </div>
 
       <div class="grid grid-cols-2 gap-4 mb-12">
@@ -258,16 +159,39 @@
           <p class="text-xl font-black">{propiedad.banos || '-'}</p>
           <p class="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Baños</p>
         </div>
+        {#if propiedad.medio_bano > 0}
+          <div class="bg-white/5 border border-white/10 rounded-2xl p-4">
+            <Bath class="w-5 h-5 text-zinc-500 mb-2" />
+            <p class="text-xl font-black">{propiedad.medio_bano}</p>
+            <p class="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Medio Baño</p>
+          </div>
+        {/if}
         <div class="bg-white/5 border border-white/10 rounded-2xl p-4">
           <Maximize class="w-5 h-5 text-zinc-500 mb-2" />
           <p class="text-xl font-black">{propiedad.m2_construccion || '-'}</p>
           <p class="text-[9px] font-bold uppercase tracking-widest text-zinc-500">M² Interiores</p>
         </div>
+        {#if propiedad.m2_terreno > 0}
+          <div class="bg-white/5 border border-white/10 rounded-2xl p-4">
+            <Maximize class="w-5 h-5 text-zinc-500 mb-2" />
+            <p class="text-xl font-black">{propiedad.m2_terreno}</p>
+            <p class="text-[9px] font-bold uppercase tracking-widest text-zinc-500">M² Terreno</p>
+          </div>
+        {/if}
         <div class="bg-white/5 border border-white/10 rounded-2xl p-4">
           <Car class="w-5 h-5 text-zinc-500 mb-2" />
           <p class="text-xl font-black">{propiedad.estacionamientos || '-'}</p>
           <p class="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Garaje</p>
         </div>
+        {#if propiedad.antiguedad}
+          <div class="col-span-2 bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+            <div>
+              <p class="text-xl font-black">{propiedad.antiguedad}</p>
+              <p class="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Antigüedad</p>
+            </div>
+            <Sparkles class="w-5 h-5 text-zinc-500" />
+          </div>
+        {/if}
       </div>
 
       <div class="mb-12">
@@ -281,51 +205,48 @@
         <LayoutGrid class="w-4 h-4" /> Visualizar {allPhotos.length} Fotografías
       </button>
 
-      {#if !isBrochure}
-        <div class="mt-auto pt-8 border-t border-white/10">
-          <h3 class="text-lg font-black mb-2 text-white">Solicitar Recorrido</h3>
-          <p class="text-[11px] font-medium text-zinc-500 mb-6 leading-relaxed">Conecte directamente con {broker.nombre_comercial} para acceso privado o información financiera.</p>
-          
-          {#if form?.success}
-            <div class="p-3 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 mb-6 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><CheckCircle2 class="w-4 h-4" /> Solicitud Procesada</div>
-          {:else if form?.error}
-            <div class="p-3 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 mb-6 bg-rose-500/10 text-rose-400 border border-rose-500/20"><AlertCircle class="w-4 h-4" /> {form.error}</div>
-          {/if}
+      <div class="mt-auto pt-8 border-t border-white/10">
+        <h3 class="text-lg font-black mb-2 text-white">Solicitar Recorrido</h3>
+        <p class="text-[11px] font-medium text-zinc-500 mb-6 leading-relaxed">Conecte directamente con {broker.nombre_comercial} para acceso privado o información financiera.</p>
+        
+        {#if form?.success}
+          <div class="p-3 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 mb-6 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><CheckCircle2 class="w-4 h-4" /> Solicitud Procesada</div>
+        {:else if form?.error}
+          <div class="p-3 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 mb-6 bg-rose-500/10 text-rose-400 border border-rose-500/20"><AlertCircle class="w-4 h-4" /> {form.error}</div>
+        {/if}
 
-          <form method="POST" action="?/contacto" use:enhance={() => { enviando = true; return async ({ update }) => { enviando = false; update({ reset: form?.success }); }; }} class="space-y-4">
-            <input type="hidden" name="propiedad_id" value={propiedad.id}>
-            <input type="hidden" name="broker_id" value={broker.id}>
-            <input type="hidden" name="propiedad_titulo" value={propiedad.titulo}>
-            
-            <input type="text" name="nombre" required class="w-full h-12 rounded-xl bg-zinc-900 border border-zinc-800 focus:border-indigo-500 px-4 text-xs font-medium text-white placeholder:text-zinc-600 outline-none transition-colors" placeholder="Nombre completo">
-            <input type="email" name="correo" required class="w-full h-12 rounded-xl bg-zinc-900 border border-zinc-800 focus:border-indigo-500 px-4 text-xs font-medium text-white placeholder:text-zinc-600 outline-none transition-colors" placeholder="Correo electrónico">
-            <input type="tel" name="telefono" required class="w-full h-12 rounded-xl bg-zinc-900 border border-zinc-800 focus:border-indigo-500 px-4 text-xs font-medium text-white placeholder:text-zinc-600 outline-none transition-colors" placeholder="WhatsApp / Celular">
-            
-            <button type="submit" disabled={enviando} class="w-full h-14 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-colors mt-2">
-              {#if enviando}Procesando...{:else}Agendar Visita{/if}
-            </button>
-            
-            <a href="https://wa.me/{broker.whatsapp}?text=Hola,%20me%20interesa%20la%20propiedad:%20{propiedad.titulo}" target="_blank" class="w-full h-14 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-white bg-[#25D366]/20 border border-[#25D366]/30 hover:bg-[#25D366]/30 transition-colors flex items-center justify-center gap-2 mt-3">
-              Contactar vía WhatsApp
+        <form method="POST" action="?/contacto" use:enhance={() => { enviando = true; return async ({ update }) => { enviando = false; update({ reset: form?.success }); }; }} class="space-y-4">
+          <input type="hidden" name="propiedad_id" value={propiedad.id}>
+          <input type="hidden" name="broker_id" value={broker.id}>
+          <input type="hidden" name="propiedad_titulo" value={propiedad.titulo}>
+          
+          <input type="text" name="nombre" required class="w-full h-12 rounded-xl bg-zinc-900 border border-zinc-800 focus:border-indigo-500 px-4 text-xs font-medium text-white placeholder:text-zinc-600 outline-none transition-colors" placeholder="Nombre completo">
+          <input type="email" name="correo" required class="w-full h-12 rounded-xl bg-zinc-900 border border-zinc-800 focus:border-indigo-500 px-4 text-xs font-medium text-white placeholder:text-zinc-600 outline-none transition-colors" placeholder="Correo electrónico">
+          <input type="tel" name="telefono" required class="w-full h-12 rounded-xl bg-zinc-900 border border-zinc-800 focus:border-indigo-500 px-4 text-xs font-medium text-white placeholder:text-zinc-600 outline-none transition-colors" placeholder="WhatsApp / Celular">
+          
+          <button type="submit" disabled={enviando} class="w-full h-14 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-colors mt-2">
+            {#if enviando}Procesando...{:else}Agendar Visita{/if}
+          </button>
+          
+          {#if broker.whatsapp}
+            <a href="https://wa.me/{broker.whatsapp}?text=Hola,%20me%20interesa%20agendar%20un%20recorrido%20para:%20{propiedad.titulo}" target="_blank" class="w-full h-14 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-white bg-[#25D366]/10 border border-[#25D366]/30 hover:bg-[#25D366]/20 transition-colors flex items-center justify-center gap-2 mt-3">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg> Contactar vía WhatsApp
             </a>
-          </form>
-        </div>
-      {/if}
+          {/if}
+        </form>
+      </div>
 
     </div>
   </aside>
 
   <div class="flex-1 relative h-[50vh] lg:h-screen bg-black z-10 order-1 lg:order-2">
     
-    {#if isBrochure}
+    {#if matterportId}
       <div class="absolute top-6 right-6 z-30 pointer-events-none">
         <span class="bg-black/60 backdrop-blur-md text-white text-[9px] font-bold uppercase tracking-widest px-4 py-2 rounded border border-white/10 shadow-lg flex items-center gap-2">
-          <Layers class="w-3.5 h-3.5 text-indigo-400" /> Panoramic 3D
+          <Layers class="w-3.5 h-3.5 text-indigo-400" /> Tour 3D
         </span>
       </div>
-    {/if}
-
-    {#if matterportId}
       <iframe title="Recorrido 3D Interactivo" src="https://my.matterport.com/show/?m={matterportId}&play=1&qs=1" class="absolute inset-0 w-full h-full border-0" allowfullscreen allow="xr-spatial-tracking"></iframe>
     {:else if videoId}
       <iframe class="absolute inset-0 w-full h-full border-0" src="https://www.youtube.com/embed/{videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist={videoId}&modestbranding=1" title="Video Background" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
