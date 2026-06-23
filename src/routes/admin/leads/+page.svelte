@@ -1,7 +1,6 @@
 <script>
   import { invalidateAll, goto } from '$app/navigation';
   import { enhance } from '$app/forms';
-  // 🔥 FIX 1: Adiós a $app/stores. El estándar de Svelte 5 exige $app/state
   import { page } from '$app/state'; 
   import { 
     Search, X, Phone, Mail, Home, Send, Trash2, Clock, UserCircle,
@@ -49,14 +48,11 @@
     }
   });
 
-  // 🔥 FIX 2: Sincronización segura del estado
   $effect(() => {
     leads = data.leads || [];
   });
 
-  // 🔥 FIX 3: Deep Linking sin bucles de la muerte (Svelte 5 Nativo)
   $effect(() => {
-    // Usamos page directo, sin el signo de dólar ($)
     const leadIdToOpen = page.url.searchParams.get('open');
     if (leadIdToOpen && leads.length > 0) {
       const leadToOpen = leads.find(l => l.id === leadIdToOpen);
@@ -92,11 +88,10 @@
     return col ? col.badge : 'bg-slate-100 text-slate-600 border-slate-200';
   }
 
-  // 🔥 FIX 4: El escudo contra el Vite Error Overlay (Invalid Date)
   function formatDateTime(dateString) {
     if (!dateString) return '';
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return ''; // Escudo protector
+    if (isNaN(date.getTime())) return '';
     const userTimezoneOffset = date.getTimezoneOffset() * 60000;
     const localDate = new Date(date.getTime() + userTimezoneOffset);
     return new Intl.DateTimeFormat('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(localDate);
@@ -110,7 +105,6 @@
     return `${hour}:${m} ${ampm}`;
   }
 
-  // 🔥 FIX 5: Escudo de tiempo relativo
   function timeAgo(dateString) {
     if (!dateString) return 'Desconocido';
     const date = new Date(dateString);
@@ -123,7 +117,6 @@
     return `Hace ${Math.floor(diffInSeconds / 86400)} días`;
   }
 
-  // 🔥 FIX 6: Escudo lógico para recordatorios
   function isOverdue(dateString) {
     if (!dateString) return false;
     const date = new Date(dateString);
@@ -169,7 +162,8 @@
     draggedLeadId = null;
   }
 
-  function confirmarCierre() {
+  // 🔥 FIX: Actualizado para disparar invalidateAll
+  async function confirmarCierre() {
     const leadId = leadPorCerrar.id;
     
     leads = leads.map(lead => {
@@ -183,20 +177,24 @@
     if (precioCierreFinal) formData.append('precio_cierre', precioCierreFinal);
     if (comisionCobrada) formData.append('comision_cierre', comisionCobrada);
     
-    fetch('?/actualizar', {
-      method: 'POST',
-      body: formData,
-      headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' }
-    }).catch(err => {
+    try {
+      await fetch('?/actualizar', {
+        method: 'POST',
+        body: formData,
+        headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' }
+      });
+      invalidateAll();
+    } catch (err) {
       console.error("Error guardando estado:", err);
-    });
+    }
 
     showModalCierre = false;
     leadPorCerrar = null;
     draggedLeadId = null;
   }
 
-  function actualizarEstadoLocalYBD(leadId, nuevoEstado) {
+  // 🔥 FIX: Actualizado para disparar invalidateAll
+  async function actualizarEstadoLocalYBD(leadId, nuevoEstado) {
     leads = leads.map(lead => {
       if (lead.id === leadId) return { ...lead, estado: nuevoEstado };
       return lead;
@@ -206,17 +204,21 @@
     formData.append('id', leadId);
     formData.append('estado', nuevoEstado);
     
-    fetch('?/actualizar', {
-      method: 'POST',
-      body: formData,
-      headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' }
-    }).catch(err => {
+    try {
+      await fetch('?/actualizar', {
+        method: 'POST',
+        body: formData,
+        headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' }
+      });
+      invalidateAll();
+    } catch (err) {
       console.error("Error guardando estado:", err);
       alert('Falló la sincronización con el CRM.');
-    });
+    }
   }
 
-  function completarRecordatorio(notaId) {
+  // 🔥 LA MAGIA ESTÁ AQUÍ: Función asíncrona que avisa al Layout Global que actualice la campana
+  async function completarRecordatorio(notaId) {
     const leadIndex = leads.findIndex(l => l.id === selectedLead.id);
     if (leadIndex !== -1) {
       const notaIndex = leads[leadIndex].lead_notas.findIndex(n => n.id === notaId);
@@ -234,7 +236,20 @@
 
     const formData = new FormData();
     formData.append('nota_id', notaId);
-    fetch('?/completarRecordatorio', { method: 'POST', body: formData, headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' }});
+    
+    try {
+      await fetch('?/completarRecordatorio', { 
+        method: 'POST', 
+        body: formData, 
+        headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' }
+      });
+      
+      // Le ordenamos a SvelteKit que recargue los datos del Layout Global
+      // ¡Esto apagará la alerta de la campana al instante!
+      invalidateAll();
+    } catch (err) {
+      console.error("Error al completar el recordatorio:", err);
+    }
   }
 
   function abrirPanel(lead) {
@@ -297,6 +312,7 @@
         esRecordatorio = false;
         fechaRecordatorio = '';
         horaRecordatorio = '';
+        // Al usar update(), SvelteKit ya hace invalidateAll() por detrás de forma automática.
         await update(); 
         
         const leadActualizado = data.leads.find(l => l.id === selectedLead.id);
@@ -309,12 +325,18 @@
     };
   }
 
-  function eliminarLead(id) {
+  // 🔥 FIX: Actualizado para disparar invalidateAll
+  async function eliminarLead(id) {
     if (confirm('¿Eliminar prospecto permanentemente?')) {
       leads = leads.filter(l => l.id !== id);
       const formData = new FormData();
       formData.append('id', id);
-      fetch('?/eliminar', { method: 'POST', body: formData, headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' } });
+      try {
+        await fetch('?/eliminar', { method: 'POST', body: formData, headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' } });
+        invalidateAll();
+      } catch (err) {
+        console.error("Error al eliminar lead:", err);
+      }
     }
   }
 
