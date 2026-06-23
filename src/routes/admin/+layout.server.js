@@ -1,7 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 
 export async function load({ locals, setHeaders, url, depends }) {
-  // 1. EL SELLO DE SEGURIDAD SVELTEKIT
   depends('supabase:auth');
 
   setHeaders({
@@ -28,8 +27,7 @@ export async function load({ locals, setHeaders, url, depends }) {
     if (brokerError || !broker) throw new Error("Broker no encontrado");
 
     const now = new Date().toISOString();
-
-    // 2. MOTOR DE LÍNEA DE TIEMPO
+    
     const { data: recordatorios, error: errRec } = await locals.supabase
       .from('lead_notas')
       .select('id, contenido, fecha_recordatorio, completado, leads(id, nombre)')
@@ -43,24 +41,29 @@ export async function load({ locals, setHeaders, url, depends }) {
     const { data: notificaciones, error: errNotif } = await locals.supabase
       .from('notificaciones_agente')
       .select('id, titulo, mensaje, creado_en, leida, leads(id, nombre)')
-      .eq('broker_id', broker.id) 
+      .eq('broker_id', broker.id)
       .eq('leida', false);
 
     if (errNotif) console.error("Error en notificaciones:", errNotif);
 
-    // Formateador de fechas
+    // 🔥 FIX ABSOLUTO: El escudo contra fechas corruptas (Invalid Date)
     const formatter = new Intl.DateTimeFormat('es-MX', {
       timeZone: 'America/Mexico_City',
       weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
     });
 
-    // 🔥 FIX DE SUPABASE: Esta función garantiza que siempre tengamos un objeto limpio y nunca un arreglo que rompa el ID
+    const formatSafe = (dateString) => {
+      if (!dateString) return ''; // Bloquea undefined/null
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return ''; // 🔥 EL ESCUDO: Bloquea 'Invalid Date' y evita el RangeError
+      return formatter.format(d);
+    };
+
     const extraerLead = (leadData) => {
       if (!leadData) return null;
       return Array.isArray(leadData) ? leadData[0] : leadData;
     };
 
-    // 3. Formatear y Unificar
     const alertasUnificadas = [
       ...(recordatorios || []).map(r => ({
         id: r.id,
@@ -68,8 +71,8 @@ export async function load({ locals, setHeaders, url, depends }) {
         titulo: 'Seguimiento Pendiente',
         mensaje: r.contenido,
         fecha: r.fecha_recordatorio,
-        fecha_formateada: r.fecha_recordatorio ? formatter.format(new Date(r.fecha_recordatorio)) : '',
-        lead: extraerLead(r.leads) // <-- Aquí aplicamos el seguro antibloqueos
+        fecha_formateada: formatSafe(r.fecha_recordatorio), // Parseo 100% seguro
+        lead: extraerLead(r.leads)
       })),
       ...(notificaciones || []).map(n => ({
         id: n.id,
@@ -77,8 +80,8 @@ export async function load({ locals, setHeaders, url, depends }) {
         titulo: n.titulo,
         mensaje: n.mensaje,
         fecha: n.creado_en,
-        fecha_formateada: n.creado_en ? formatter.format(new Date(n.creado_en)) : '',
-        lead: extraerLead(n.leads) // <-- Aquí aplicamos el seguro antibloqueos
+        fecha_formateada: formatSafe(n.creado_en), // Parseo 100% seguro
+        lead: extraerLead(n.leads)
       }))
     ].sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
 
