@@ -1,18 +1,24 @@
 <script>
   import { page } from '$app/stores';
   import { Bell, CalendarClock, ChevronRight, CheckCircle2, AlertTriangle } from 'lucide-svelte';
-  import { slide } from 'svelte/transition';
+  // 🔥 FIX 1: Cambiamos 'slide' por 'fly' para evitar el colapso visual de altura
+  import { fly } from 'svelte/transition';
 
-  // Leemos el Timeline Unificado del servidor
   let pendingAlerts = $derived($page.data.alertas || []);
   let unreadCount = $derived(pendingAlerts.length);
   
   let isOpen = $state(false);
 
-  function toggleDropdown() { isOpen = !isOpen; }
+  function toggleDropdown(e) {
+    // 🔥 FIX 2: Matamos el "doble clic fantasma" frenando la propagación al window
+    e.stopPropagation();
+    isOpen = !isOpen;
+  }
 
   function handleClickOutside(event) {
-    if (isOpen && !event.target.closest('.notification-widget')) isOpen = false;
+    if (isOpen && !event.target.closest('.notification-widget')) {
+      isOpen = false;
+    }
   }
 
   function formatAlertTime(dateString) {
@@ -30,7 +36,7 @@
 <div class="relative notification-widget font-sans z-[100]">
   {#if isOpen}
     <div 
-      transition:slide={{ duration: 250, axis: 'y' }}
+      transition:fly={{ y: 15, duration: 250 }}
       class="absolute bottom-full right-0 lg:bottom-auto lg:top-full lg:mt-4 mb-4 lg:mb-0 w-[340px] sm:w-[380px] bg-white rounded-3xl shadow-[0_10px_50px_-10px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden transform origin-bottom-right lg:origin-top-right"
     >
       <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
@@ -40,7 +46,7 @@
         {/if}
       </div>
 
-      <div class="max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
+      <div class="max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200" onclick={(e) => e.stopPropagation()}>
         {#if unreadCount === 0}
           <div class="flex flex-col items-center justify-center p-10 text-center opacity-70">
             <CheckCircle2 class="w-12 h-12 text-emerald-500 mb-4" />
@@ -51,7 +57,7 @@
           <div class="flex flex-col divide-y divide-slate-50">
             {#each pendingAlerts as alert}
               <a 
-                href="/admin/leads?open={alert.lead?.id}"
+                href={alert.lead?.id ? `/admin/leads?open=${alert.lead.id}` : '#'}
                 onclick={() => isOpen = false}
                 class="flex items-start gap-4 p-5 hover:bg-slate-50 transition-colors group relative"
               >
@@ -66,7 +72,7 @@
                 <div class="flex-1 min-w-0">
                   <div class="flex items-start justify-between gap-2 mb-1">
                     <p class="text-xs font-black text-slate-900 truncate">
-                      {alert.lead?.nombre || 'Prospecto General'}
+                      {alert.lead?.nombre || 'Alerta del Sistema'}
                     </p>
                     <span class="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0 border {alert.tipo_alerta === 'recordatorio' ? 'text-amber-600 bg-amber-50 border-amber-100' : 'text-rose-600 bg-rose-50 border-rose-100'}">
                       {alert.tipo_alerta === 'recordatorio' ? 'Recordatorio' : 'Alerta'}
