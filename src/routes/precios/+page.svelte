@@ -1,204 +1,179 @@
 <script>
-  // Paso del Wizard: 1 = Planes, 2 = Formulario
-  let step = $state(1);
-  let selectedPlan = $state(null);
+  // SVELTE 5: Estado reactivo para el toggle de facturación
+  import { Check, X, Zap, Crown, Building2, ArrowRight } from 'lucide-svelte';
 
-  // Estados del formulario
-  let nombreComercial = $state('');
-  let subdominioDeseado = $state('');
-  let loading = $state(false);
-  let errorMessage = $state('');
+  let facturacionAnual = $state(true);
 
-  // Estructura de tus paquetes (REEMPLAZA los priceId con los que te dé Stripe para cada uno)
+  // Mapeo directo a tu base de datos: plan_suscripcion ('basico', 'pro', 'elite')
   const planes = [
     {
-      id: 'asesor',
-      priceId: 'prod_UeShlvnXgWJkO8',
-      nombre: 'Asesor',
-      precio: 549,
-      descripcion: 'Para agentes independientes que buscan digitalizar su inventario.',
-      beneficios: ['1 Usuario', 'Smart Brochures', 'Gestión de Leads Básica']
+      id: 'basico',
+      nombre: 'Básico',
+      descripcion: 'Para asesores independientes que van comenzando.',
+      precioMensual: 499,
+      precioAnual: 399,
+      icono: Building2,
+      color: 'slate',
+      destacado: false,
+      features: [
+        { texto: 'Subdominio personalizado (.inmublia.com)', incluido: true },
+        { texto: 'CRM Gestión de Interesados (Leads)', incluido: true },
+        { texto: '5 Créditos de IA mensuales', incluido: true },
+        { texto: 'Inventario hasta 10 propiedades', incluido: true },
+        { texto: 'Bóveda Matchmaking', incluido: false },
+        { texto: 'Dominio propio personalizado', incluido: false }
+      ],
+      linkId: 'price_basico_test' // Aquí irá tu ID de Stripe
     },
     {
-      id: 'broker',
-      priceId: 'prod_UeTFPaHYkKViQE',
-      nombre: 'Broker',
-      precio: 749,
+      id: 'pro',
+      nombre: 'Profesional',
+      descripcion: 'El ecosistema completo para cerrar más ventas.',
+      precioMensual: 899,
+      precioAnual: 749,
+      icono: Zap,
+      color: 'indigo',
       destacado: true,
-      descripcion: 'El estándar de la industria. Para agencias en crecimiento.',
-      beneficios: ['Multiusuario', 'Open House System', 'Estadísticas Avanzadas', 'Soporte Prioritario']
+      badge: 'Más Popular',
+      features: [
+        { texto: 'Subdominio personalizado (.inmublia.com)', incluido: true },
+        { texto: 'CRM Avanzado con Semáforo de Abandono', incluido: true },
+        { texto: '50 Créditos de IA mensuales', incluido: true },
+        { texto: 'Inventario de propiedades ilimitado', incluido: true },
+        { texto: 'Bóveda & Matchmaking Inteligente', incluido: true },
+        { texto: 'Dominio propio personalizado', incluido: false }
+      ],
+      linkId: 'price_pro_test' // Aquí irá tu ID de Stripe
     },
     {
-      id: 'socio',
-      priceId: 'prod_UeTGbmV8p4Guo1',
-      nombre: 'Socio',
-      precio: 1399,
-      descripcion: 'Control total. Escalabilidad y marca blanca corporativa.',
-      beneficios: ['Usuarios Ilimitados', 'Marca Blanca Total', 'API Access', 'Onboarding Dedicado']
+      id: 'elite',
+      nombre: 'Élite',
+      descripcion: 'Para agencias e inmobiliarias de alto volumen.',
+      precioMensual: 1499,
+      precioAnual: 1199,
+      icono: Crown,
+      color: 'emerald',
+      destacado: false,
+      features: [
+        { texto: 'Subdominio personalizado (.inmublia.com)', incluido: true },
+        { texto: 'CRM Multiusuario (Hasta 5 asesores)', incluido: true },
+        { texto: 'Créditos de IA Ilimitados', incluido: true },
+        { texto: 'Inventario de propiedades ilimitado', incluido: true },
+        { texto: 'Bóveda & Matchmaking Inteligente', incluido: true },
+        { texto: 'Dominio propio personalizado', incluido: true }
+      ],
+      linkId: 'price_elite_test' // Aquí irá tu ID de Stripe
     }
   ];
-
-  // Limpieza en tiempo real del subdominio
-  let subdominioLimpio = $derived(
-    subdominioDeseado
-      .toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '')
-  );
-
-  function seleccionarPlan(plan) {
-    selectedPlan = plan;
-    step = 2;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  async function procesarPago(e) {
-    e.preventDefault();
-    if (loading) return;
-    
-    if (!nombreComercial.trim() || !subdominioLimpio) {
-      errorMessage = 'Por favor, completa los datos de tu agencia.';
-      return;
-    }
-
-    loading = true;
-    errorMessage = '';
-
-    try {
-      const payload = {
-        authUserId: 'usr_test_provisional_12345', // En el futuro será el ID real de Supabase
-        email: 'cliente_demo@inmublia.com',
-        nombreComercial: nombreComercial.trim(),
-        subdominioDeseado: subdominioLimpio,
-        priceId: selectedPlan.priceId // Manda el ID correcto según el paquete que eligió
-      };
-
-      const response = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Error al conectar con la pasarela de pagos.');
-      }
-
-      if (result.url) {
-        window.location.href = result.url;
-      } else {
-        throw new Error('No se recibió la URL de redirección.');
-      }
-
-    } catch (err) {
-      console.error('🔥 Error en Checkout:', err);
-      errorMessage = err.message;
-      loading = false;
-    }
-  }
 </script>
 
-<div class="min-h-screen bg-slate-50 py-16 px-4 sm:px-6 lg:px-8 font-sans transition-all duration-500">
+<svelte:head>
+  <title>Planes y Precios | Inmublia</title>
+</svelte:head>
+
+<main class="min-h-screen bg-slate-50 font-sans selection:bg-indigo-500 selection:text-white pb-24">
   
-  {#if step === 1}
-    <div class="max-w-7xl mx-auto animate-[fadeIn_0.3s_ease-out]">
-      <div class="text-center max-w-3xl mx-auto mb-16">
-        <h1 class="text-4xl font-black text-slate-900 tracking-tight sm:text-5xl">Invierte en tu Escalabilidad</h1>
-        <p class="mt-4 text-lg text-slate-500 font-medium">Elige el paquete que defina el nivel de tu agencia.</p>
-      </div>
+  <div class="pt-20 pb-16 px-6 text-center">
+    <h1 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
+      Invierte en tu <span class="text-indigo-600">Productividad</span>
+    </h1>
+    <p class="text-lg text-slate-600 max-w-2xl mx-auto font-medium mb-10">
+      Elige el plan que mejor se adapte al volumen de tus operaciones. Cancela en cualquier momento.
+    </p>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-        {#each planes as plan}
-          <div class="relative flex flex-col p-8 bg-white rounded-3xl border {plan.destacado ? 'border-slate-900 shadow-2xl scale-105 z-10' : 'border-slate-200 shadow-sm'} transition-transform">
-            {#if plan.destacado}
-              <div class="absolute -top-4 left-1/2 -translate-x-1/2">
-                <span class="bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest py-1 px-3 rounded-full">Más Popular</span>
-              </div>
-            {/if}
-            
-            <div class="mb-8">
-              <h3 class="text-xl font-bold text-slate-900">{plan.nombre}</h3>
-              <p class="mt-2 text-sm text-slate-500">{plan.descripcion}</p>
-              <div class="mt-6 flex items-baseline text-slate-900">
-                <span class="text-5xl font-black tracking-tight">${plan.precio}</span>
-                <span class="ml-1 text-sm font-semibold text-slate-500 uppercase">/ mes</span>
-              </div>
-            </div>
-
-            <ul class="flex-1 space-y-4 mb-8">
-              {#each plan.beneficios as beneficio}
-                <li class="flex items-start">
-                  <svg class="h-5 w-5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                  <span class="ml-3 text-sm text-slate-600">{beneficio}</span>
-                </li>
-              {/each}
-            </ul>
-
-            <button onclick={() => seleccionarPlan(plan)} class="w-full py-4 px-6 rounded-xl text-sm font-bold transition-all {plan.destacado ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-slate-50 text-slate-900 hover:bg-slate-100 border border-slate-200'}">
-              Seleccionar {plan.nombre}
-            </button>
-          </div>
-        {/each}
+    <div class="flex items-center justify-center gap-4">
+      <span class="text-sm font-bold {facturacionAnual ? 'text-slate-400' : 'text-slate-900'} transition-colors">Mensual</span>
+      
+      <button 
+        type="button"
+        onclick={() => facturacionAnual = !facturacionAnual}
+        class="relative inline-flex h-7 w-14 items-center rounded-full bg-slate-900 transition-colors focus:outline-none focus:ring-4 focus:ring-slate-900/20"
+        aria-pressed={facturacionAnual}
+      >
+        <span class="sr-only">Cambiar facturación anual</span>
+        <span class="inline-block h-5 w-5 transform rounded-full bg-white transition-transform duration-300 shadow-sm {facturacionAnual ? 'translate-x-8' : 'translate-x-1'}"></span>
+      </button>
+      
+      <div class="flex items-center gap-2">
+        <span class="text-sm font-bold {facturacionAnual ? 'text-slate-900' : 'text-slate-400'} transition-colors">Anual</span>
+        <span class="bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">Ahorra 20%</span>
       </div>
     </div>
-  
-  {:else if step === 2}
-    <div class="max-w-xl mx-auto animate-[fadeIn_0.3s_ease-out]">
-      <button onclick={() => step = 1} class="mb-8 text-sm font-bold text-slate-400 hover:text-slate-900 transition-colors flex items-center gap-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-        Cambiar Plan
-      </button>
+  </div>
 
-      <div class="text-center mb-8">
-        <h2 class="text-3xl font-black text-slate-900 tracking-tight">Crea tu Agencia</h2>
-        <p class="mt-2 text-sm text-slate-500">Configura tu espacio bajo el plan <strong>{selectedPlan.nombre}</strong>.</p>
-      </div>
-
-      <div class="bg-white py-8 px-6 shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 rounded-3xl sm:px-10">
-        <div class="flex justify-between items-center mb-8 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-          <div>
-            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Plan Seleccionado</p>
-            <p class="text-lg font-black text-slate-900 mt-1">{selectedPlan.nombre}</p>
+  <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+    {#each planes as plan}
+      <div class="relative bg-white rounded-3xl p-8 border {plan.destacado ? 'border-indigo-500 shadow-2xl shadow-indigo-500/10 scale-100 md:scale-105 z-10' : 'border-slate-200 shadow-xl shadow-slate-200/50'} flex flex-col h-full transition-transform duration-300">
+        
+        {#if plan.destacado}
+          <div class="absolute -top-4 left-0 right-0 flex justify-center">
+            <span class="bg-indigo-500 text-white text-xs font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-md">
+              {plan.badge}
+            </span>
           </div>
-          <div class="text-right">
-            <p class="text-2xl font-black text-slate-900">${selectedPlan.precio} <span class="text-xs font-semibold text-slate-500 uppercase">MXN</span></p>
+        {/if}
+
+        <div class="flex items-center gap-4 mb-6">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center {plan.destacado ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-600'}">
+            <plan.icono class="w-6 h-6" />
+          </div>
+          <div>
+            <h3 class="text-xl font-black text-slate-900">{plan.nombre}</h3>
           </div>
         </div>
 
-        <form onsubmit={procesarPago} class="space-y-6">
-          <div>
-            <label for="agency-name" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre de tu Agencia</label>
-            <input type="text" id="agency-name" bind:value={nombreComercial} required placeholder="Ej. Uribe Bienes Raíces" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
+        <div class="mb-4">
+          <div class="flex items-baseline gap-1">
+            <span class="text-3xl font-black text-slate-900">$</span>
+            <span class="text-5xl font-black text-slate-900 tracking-tight">
+              {facturacionAnual ? plan.precioAnual : plan.precioMensual}
+            </span>
+            <span class="text-sm font-bold text-slate-400">MXN / mes</span>
           </div>
-
-          <div>
-            <label for="subdomain" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tu Subdominio Exclusivo</label>
-            <div class="relative rounded-xl shadow-sm flex items-center bg-slate-50 border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 overflow-hidden px-4 py-3">
-              <input type="text" id="subdomain" bind:value={subdominioDeseado} required placeholder="tu-marca" class="w-full bg-transparent text-sm text-slate-900 outline-none">
-              <span class="text-xs font-bold text-slate-400 lowercase select-none">.inmublia.com</span>
-            </div>
-            {#if subdominioLimpio}
-              <p class="text-[10px] text-slate-400 font-medium mt-2 px-1">Tu URL será: <span class="text-blue-600 font-bold">{subdominioLimpio}.inmublia.com</span></p>
-            {/if}
-          </div>
-
-          {#if errorMessage}
-            <div class="p-3 bg-red-50 border border-red-100 rounded-xl text-xs font-medium text-red-600 text-center">{errorMessage}</div>
+          {#if facturacionAnual}
+            <p class="text-xs font-bold text-emerald-600 mt-2 flex items-center gap-1">
+              <Check class="w-3 h-3" /> Facturado anualmente (${plan.precioAnual * 12})
+            </p>
+          {:else}
+            <p class="text-xs font-bold text-slate-400 mt-2">Facturado mensualmente</p>
           {/if}
+        </div>
 
-          <button type="submit" disabled={loading} class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-4 rounded-xl text-sm transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2 mt-4">
-            {#if loading}
-              <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              Abriendo pasarela...
-            {:else}
-              Continuar al Pago Seguro
-            {/if}
-          </button>
-        </form>
+        <p class="text-sm font-medium text-slate-600 mb-8">{plan.descripcion}</p>
+
+        <ul class="space-y-4 mb-8 flex-1">
+          {#each plan.features as feature}
+            <li class="flex items-start gap-3">
+              {#if feature.incluido}
+                <div class="mt-0.5 shrink-0 w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+                  <Check class="w-3 h-3 stroke-[3]" />
+                </div>
+                <span class="text-sm font-bold text-slate-700">{feature.texto}</span>
+              {:else}
+                <div class="mt-0.5 shrink-0 w-5 h-5 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+                  <X class="w-3 h-3 stroke-[3]" />
+                </div>
+                <span class="text-sm font-medium text-slate-400">{feature.texto}</span>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+
+        <a 
+          href="/registro?plan={plan.id}&ciclo={facturacionAnual ? 'anual' : 'mensual'}"
+          class="w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-200 {plan.destacado ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.4)]' : 'bg-slate-900 hover:bg-slate-800 text-white shadow-md'}"
+        >
+          Comenzar Prueba
+          <ArrowRight class="w-4 h-4" />
+        </a>
       </div>
-    </div>
-  {/if}
-</div>
+    {/each}
+  </div>
+
+  <div class="max-w-3xl mx-auto mt-20 text-center px-6">
+    <p class="text-sm font-bold text-slate-500 flex items-center justify-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+      Incluye 14 días de prueba sin compromiso en todos los planes.
+    </p>
+  </div>
+</main>
