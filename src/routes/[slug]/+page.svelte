@@ -2,7 +2,10 @@
   import { page } from '$app/stores';
   import PropertySeo from '$lib/components/PropertySeo.svelte';
   
-  // 🔥 NUEVO: Componente unificado para la experiencia Brochure
+  // 🔥 Componente que inyecta Meta, GA4 y TikTok Pixel dinámicamente (NUEVO)
+  import AnalyticsScripts from '$lib/components/AnalyticsScripts.svelte';
+
+  // 🔥 Componente unificado para la experiencia Brochure
   import SmartBrochure from '$lib/components/shared/SmartBrochure.svelte';
 
   // ==========================================
@@ -46,6 +49,9 @@
 
 {#if propiedad.id && broker.id}
   <PropertySeo {propiedad} {broker} {urlActual} />
+  
+  <!-- Inyección segura SSR de los Píxeles de Tracking -->
+  <AnalyticsScripts {broker} />
 {/if}
 
 {#if isBrochure}
