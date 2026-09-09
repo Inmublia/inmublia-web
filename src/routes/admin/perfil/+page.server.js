@@ -39,9 +39,9 @@ export const actions = {
       const linkedin = formData.get('linkedin')?.toString().trim() || null;
       const tiktok = formData.get('tiktok')?.toString().trim() || null;
 
-      // NUEVO: Captura de la comisión desde el formulario
+      // NUEVO: Captura de la comisión con conversión estricta
       const comisionStr = formData.get('comision_default');
-      const comision_default = comisionStr ? parseFloat(comisionStr) : 5;
+      const comision_default = comisionStr ? parseFloat(comisionStr.toString().trim()) : 5.0;
 
       if (!nombre_comercial || !whatsapp || !subdominio) {
         return fail(400, { error: 'El nombre, WhatsApp y subdominio son obligatorios.' });
