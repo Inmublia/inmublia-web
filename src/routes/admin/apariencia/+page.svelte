@@ -25,7 +25,7 @@
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import { CheckCircle2, AlertCircle, Save, Palette, LayoutTemplate, Smartphone, ShieldCheck, Lock } from 'lucide-svelte'; 
-  import TemplateCard from '$lib/components/admin/TemplateCard.svelte'; // 🔥 IMPORTACIÓN DEL COMPONENTE
+  import TemplateCard from '$lib/components/admin/TemplateCard.svelte';
 
   let { data, form } = $props();
   
@@ -150,9 +150,10 @@
                 plan={template.minPlan}
                 activo={activo}
                 urlPreview={`https://${subdominio}.inmublia.com/?preview=${template.id}&sandbox=true`}
+                urlFullDemo={autorizado ? `https://${subdominio}.inmublia.com/?preview=${template.id}` : ''}
               />
               {#if !autorizado}
-                <div class="absolute inset-0 z-40 bg-slate-900/10 backdrop-blur-[1px] rounded-2xl flex items-center justify-center">
+                <div class="absolute inset-0 z-40 bg-slate-900/10 backdrop-blur-[1px] rounded-2xl flex items-center justify-center pointer-events-none">
                   <span class="bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
                     <Lock class="w-3.5 h-3.5" /> Requiere Plan {template.minPlan}
                   </span>
@@ -193,9 +194,10 @@
                 plan={propTemplate.minPlan}
                 activo={activoLanding}
                 urlPreview={`https://${subdominio}.inmublia.com/${previewSlug}?template=${propTemplate.id}&sandbox=true`}
+                urlFullDemo={autorizado ? (previewSlug ? `https://${subdominio}.inmublia.com/${previewSlug}?template=${propTemplate.id}` : `https://${subdominio}.inmublia.com/`) : ''}
               />
               {#if !autorizado}
-                <div class="absolute inset-0 z-40 bg-slate-900/10 backdrop-blur-[1px] rounded-2xl flex items-center justify-center">
+                <div class="absolute inset-0 z-40 bg-slate-900/10 backdrop-blur-[1px] rounded-2xl flex items-center justify-center pointer-events-none">
                   <span class="bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
                     <Lock class="w-3.5 h-3.5" /> Requiere Plan {propTemplate.minPlan}
                   </span>
