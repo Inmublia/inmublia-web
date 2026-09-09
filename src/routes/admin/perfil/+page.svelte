@@ -8,8 +8,7 @@
   let { data, form } = $props();
   let broker = $state(data.broker || {});
 
-  // 🔥 SOLUCIÓN FRONTEND: Forzamos a la variable de estado a sincronizarse 
-  // con los datos frescos del servidor después de cada guardado.
+  // Forzamos a la variable de estado a sincronizarse con los datos frescos del servidor
   $effect(() => {
     if (data.broker) {
       broker = data.broker;
@@ -95,6 +94,19 @@
     </div>
   </header>
 
+  <!-- 🔥 TOAST FLOTANTE SAAS (Reemplaza a la alerta estática) -->
+  {#if showSuccess}
+    <div class="fixed bottom-10 right-10 z-[100] p-5 bg-slate-900 rounded-2xl flex items-center gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-700 animate-[fadeIn_0.3s_ease-out]" role="alert">
+      <div class="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center shrink-0 border border-emerald-500/30">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+      </div>
+      <div class="pr-4">
+        <p class="text-sm font-black text-white tracking-wide">¡Guardado con éxito!</p>
+        <p class="text-xs font-medium text-slate-400 mt-0.5">Tu configuración está activa y sincronizada.</p>
+      </div>
+    </div>
+  {/if}
+
   <div class="p-10 flex-1 overflow-auto pb-32">
     <div class="max-w-5xl mx-auto">
 
@@ -102,15 +114,6 @@
          <div class="mb-6 bg-red-100 text-red-800 font-bold p-6 rounded-xl border-2 border-red-300 text-sm whitespace-pre-wrap shadow-lg" role="alert">
            ⚠️ DIAGNÓSTICO: {form.error}
          </div>
-      {/if}
-      
-      {#if showSuccess}
-        <div class="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-3 animate-[fadeIn_0.3s_ease-out]" role="alert">
-          <div class="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
-          </div>
-          <p class="text-sm font-bold text-emerald-800">Perfil actualizado correctamente.</p>
-        </div>
       {/if}
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -375,3 +378,10 @@
     </div>
   </div>
 </main>
+
+<style>
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
