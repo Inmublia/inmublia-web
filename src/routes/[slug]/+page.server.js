@@ -4,35 +4,47 @@ import { error, fail } from '@sveltejs/kit';
 export async function load({ params, url }) {
   const { slug } = params;
   const templateForzado = url.searchParams.get('template')?.toString().trim() || null;
+  const isSandbox = url.searchParams.get('sandbox') === 'true';
 
-  // INTERCEPCIÓN QUIRÚRGICA: Si entra la maqueta de rescate, inyectamos data mock de alta fidelidad directamente.
-  if (slug === 'propiedad-demo') {
+  // 🔥 INTERCEPCIÓN QUIRÚRGICA Y SANDBOX
+  if (slug === 'propiedad-demo' || isSandbox) {
     return {
       propiedad: {
         id: 'demo-id',
-        titulo: 'Ficha Inmobiliaria Elite (Demostración)',
-        descripcion: 'Esta es una propiedad de demostración generada para previsualizar los acabados del catálogo de diseños. Cuenta con una arquitectura contemporánea y acabados de lujo.',
-        precio: 8900000,
+        titulo: 'Residencia Signature de Alto Diseño',
+        descripcion: 'Esta es una propiedad de demostración generada para previsualizar los acabados del catálogo de diseños de Inmublia. Arquitectura contemporánea y espacios optimizados.',
+        precio: 18500000,
         moneda: 'MXN',
-        habitaciones: 3,
+        operacion: 'Venta',
+        ubicacion: 'Puerta de Hierro, Zapopan',
+        recamaras: 4,
         banos: 4,
-        estacionamientos: 3,
-        metros_construccion: 380,
-        metros_terreno: 420,
+        medio_bano: 1,
+        estacionamientos: 4,
+        m2_construccion: 450,
+        m2_terreno: 500,
+        antiguedad: 'Nuevo',
         imagen_url: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=2000',
         galeria_urls: [
           'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200',
-          'https://images.unsplash.com/photo-1600607687931-cece5ce21460?auto=format&fit=crop&q=80&w=1200'
+          'https://images.unsplash.com/photo-1600607687931-cece5ce21460?auto=format&fit=crop&q=80&w=1200',
+          'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=1200'
         ],
-        amenidades: ['Seguridad Privada', 'Roof Garden', 'Acabados en Marmol'],
+        video_url: null, // Apagado por seguridad en Sandbox (Ahorra RAM)
+        recorrido_3d_url: null, // Apagado por seguridad en Sandbox
         estatus: 'Activa',
         tipo_operacion: 'Venta',
         tipo_inmueble: 'Casa'
       },
       broker: {
         id: 'demo-broker-id',
-        nombre_comercial: 'Inmublia Broker',
-        subdominio: 'demo'
+        nombre_comercial: 'Inmublia Premium Properties',
+        subdominio: 'demo',
+        avatar_url: 'https://ui-avatars.com/api/?name=Premium&background=0f172a&color=fff',
+        whatsapp: '523312345678', // Habilita el dibujo del botón WhatsApp
+        pixel_fb: null, // Píxeles en null para garantizar que no haya métricas fantasma
+        pixel_google: null,
+        pixel_tiktok: null
       },
       templateForzado
     };
