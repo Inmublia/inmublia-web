@@ -34,6 +34,36 @@
 
   function nextImage() { currentImageIndex = (currentImageIndex + 1) % allPhotos.length; }
   function prevImage() { currentImageIndex = (currentImageIndex - 1 + allPhotos.length) % allPhotos.length; }
+  
+  // INYECCIÓN DE PÍXELES CON EVENTO DE VISUALIZACIÓN DE PRODUCTO
+  const START_SCR = '<scr'+'ipt>';
+  const END_SCR = '</scr'+'ipt>';
+
+  let metaPixel = $derived(broker?.pixel_fb ? `
+    ${START_SCR}
+      !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '${broker.pixel_fb}');
+      fbq('track', 'PageView');
+      fbq('track', 'ViewContent', { content_name: '${propiedad.titulo}', content_ids: ['${propiedad.id}'], content_type: 'product', value: ${propiedad.precio}, currency: '${moneda}' });
+    ${END_SCR}
+  ` : '');
+
+  let googlePixel = $derived(broker?.pixel_google ? `
+    <script async src="https://www.googletagmanager.com/gtag/js?id=${broker.pixel_google}"><\/script>
+    ${START_SCR}
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '${broker.pixel_google}');
+      gtag('event', 'view_item', { currency: '${moneda}', value: ${propiedad.precio}, items: [{ item_id: '${propiedad.id}', item_name: '${propiedad.titulo}' }] });
+    ${END_SCR}
+  ` : '');
+
+  let tiktokPixel = $derived(broker?.pixel_tiktok ? `
+    ${START_SCR}
+      !function (w, d, t) { w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)}; ttq.load('${broker.pixel_tiktok}'); ttq.page(); ttq.track('ViewContent', { contents: [{ content_id: '${propiedad.id}', content_name: '${propiedad.titulo}', price: ${propiedad.precio}, quantity: 1 }], value: ${propiedad.precio}, currency: '${moneda}' }); }(window, document, 'ttq');
+    ${END_SCR}
+  ` : '');
 </script>
 
 <style>
@@ -56,6 +86,12 @@
     if (e.key === 'ArrowLeft') prevImage();
   }
 }}/>
+
+<svelte:head>
+  {#if metaPixel} {@html metaPixel} {/if}
+  {#if googlePixel} {@html googlePixel} {/if}
+  {#if tiktokPixel} {@html tiktokPixel} {/if}
+</svelte:head>
 
 {#if isGalleryOpen}
   <div class="fixed inset-0 z-[200] bg-white/95 backdrop-blur-2xl flex items-center justify-center animate-in fade-in duration-300">
@@ -192,9 +228,31 @@
             <div class="bg-rose-950/50 text-rose-400 p-6 rounded-2xl font-bold mb-8 flex items-center justify-center gap-3 border border-rose-500/30"><AlertCircle class="w-5 h-5" /> {form.error}</div>
           {/if}
 
-          <form method="POST" action="?/contacto" use:enhance={() => { enviando = true; return async ({ update }) => { enviando = false; update(); }; }} class="space-y-6">
+          <form method="POST" action="?/contacto" use:enhance={() => { 
+            enviando = true; 
+
+            // 🔥 TRACKING ENTERPRISE DEL FORMULARIO ELITE2
+            try {
+              if (typeof window.fbq === 'function' && broker?.pixel_fb) {
+                window.fbq('track', 'Lead', { content_name: propiedad.titulo, value: propiedad.precio, currency: moneda });
+              }
+              if (typeof window.gtag === 'function' && broker?.pixel_google) {
+                window.gtag('event', 'generate_lead', { item_name: propiedad.titulo, value: propiedad.precio, currency: moneda });
+              }
+              if (typeof window.ttq === 'object' && typeof window.ttq.track === 'function' && broker?.pixel_tiktok) {
+                window.ttq.track('Contact', { content_name: propiedad.titulo, value: propiedad.precio, currency: moneda });
+              }
+              console.log('🔥 Formulario Elite2: Lead Disparado');
+            } catch(e) { console.error('Error en tracking de formulario', e); }
+
+            return async ({ update }) => { 
+              enviando = false; 
+              update({ reset: form?.success }); 
+            }; 
+          }} class="space-y-6">
             <input type="hidden" name="propiedad_id" value={propiedad.id}>
             <input type="hidden" name="broker_id" value={broker.id}>
+            <input type="hidden" name="propiedad_titulo" value={propiedad.titulo}>
             <div class="space-y-4 max-w-xl mx-auto">
               <input type="text" name="nombre" required class="w-full bg-zinc-900/80 border border-white/5 rounded-2xl py-5 px-8 text-sm focus:ring-2 focus:ring-indigo-500 transition-all text-white placeholder:text-zinc-500 outline-none" placeholder="Nombre completo">
               <input type="tel" name="telefono" required class="w-full bg-zinc-900/80 border border-white/5 rounded-2xl py-5 px-8 text-sm focus:ring-2 focus:ring-indigo-500 transition-all text-white placeholder:text-zinc-500 outline-none" placeholder="WhatsApp / Teléfono">
