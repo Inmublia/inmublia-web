@@ -71,7 +71,7 @@ export async function load({ locals, setHeaders, url, depends }) {
       return Array.isArray(leadData) ? leadData[0] : leadData;
     };
 
-    // Evaluamos el tiempo transcurrido para generar alertas crudas en memoria
+    // Evaluamos el tiempo transcurrido para generar alertas crudas en memoria con texto dinámico
     const alertasAbandono = (leadsActivos || []).filter(lead => {
        if (!lead.ultima_actividad) return false;
        const act = new Date(lead.ultima_actividad);
@@ -81,15 +81,24 @@ export async function load({ locals, setHeaders, url, depends }) {
        if (['contactado', 'visita', 'negociacion'].includes(lead.estado) && diffHours >= 72) return true;
        
        return false;
-    }).map(lead => ({
-       id: `abandono-${lead.id}`, 
-       tipo_alerta: 'sistema',
-       titulo: lead.estado === 'nuevo' ? '¡Atención Crítica (24h)!' : 'Riesgo de Enfriamiento (72h)',
-       mensaje: lead.estado === 'nuevo' ? 'Prospecto nuevo sin contactar.' : 'Han pasado 3 días sin actividad.',
-       fecha: lead.ultima_actividad, 
-       fecha_formateada: formatSafe(lead.ultima_actividad),
-       lead: lead
-    }));
+    }).map(lead => {
+       const act = new Date(lead.ultima_actividad);
+       const diffHours = (now - act) / (1000 * 60 * 60);
+       const diasPasados = Math.floor(diffHours / 24);
+       const textoDias = diasPasados === 1 ? 'día' : 'días';
+
+       return {
+           id: `abandono-${lead.id}`, 
+           tipo_alerta: 'sistema',
+           titulo: lead.estado === 'nuevo' ? '¡Atención Crítica!' : 'Riesgo de Enfriamiento',
+           mensaje: lead.estado === 'nuevo' 
+                    ? `Prospecto nuevo abandonado hace ${diasPasados} ${textoDias}.` 
+                    : `Han pasado ${diasPasados} ${textoDias} sin actividad.`,
+           fecha: lead.ultima_actividad, 
+           fecha_formateada: formatSafe(lead.ultima_actividad),
+           lead: lead
+       };
+    });
 
     // 4. Unificar, ordenar y aplicar Paginación Estricta (Top 20)
     const alertasUnificadas = [
