@@ -1,5 +1,5 @@
 <script>
-  import { CheckCircle2, ArrowRight } from 'lucide-svelte';
+  import { CheckCircle2, ArrowRight, ExternalLink } from 'lucide-svelte';
 
   let { 
     id = '',
@@ -7,7 +7,8 @@
     descripcion = '',
     plan = 'basico',
     activo = false,
-    urlPreview = '' 
+    urlPreview = '', // URL con Sandbox para el Iframe
+    urlFullDemo = '' // URL real para la pestaña nueva
   } = $props();
 
   let iframeLoaded = $state(false);
@@ -30,7 +31,9 @@
       </div>
     {/if}
 
-    <div class="absolute inset-0 z-20 bg-transparent group-hover:bg-slate-900/20 transition-colors duration-500 flex flex-col items-center justify-center pointer-events-none">
+    <div class="absolute inset-0 z-20 bg-transparent group-hover:bg-slate-900/30 transition-colors duration-500 flex flex-col items-center justify-center pointer-events-none">
+      
+      <!-- BOTÓN PRIMARIO: Seleccionar -->
       <button class="opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 ease-out bg-slate-900 text-white text-xs font-bold px-6 py-3 rounded-full flex items-center gap-2 shadow-2xl pointer-events-auto">
         {#if activo}
           Plantilla Actual <CheckCircle2 class="w-4 h-4" />
@@ -38,6 +41,20 @@
           Seleccionar Diseño <ArrowRight class="w-4 h-4" />
         {/if}
       </button>
+
+      <!-- BOTÓN SECUNDARIO: Ver Pantalla Completa -->
+      {#if urlFullDemo}
+        <a 
+          href={urlFullDemo} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          onclick={(e) => e.stopPropagation()} 
+          class="mt-3 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 delay-75 ease-out bg-white/95 hover:bg-white text-slate-900 text-[10px] font-bold uppercase tracking-widest px-5 py-2.5 rounded-full flex items-center gap-1.5 shadow-xl pointer-events-auto"
+        >
+          <ExternalLink class="w-3.5 h-3.5" /> Ver Completa
+        </a>
+      {/if}
+
     </div>
 
     <!-- 🚀 MAGIA: SSR Dead-Drop Sandbox -->
