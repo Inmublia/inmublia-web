@@ -1,14 +1,31 @@
 <script>
   import { page } from '$app/state';
-  import { Bell, CalendarClock, ChevronRight, CheckCircle2, AlertTriangle } from 'lucide-svelte';
+  import { Bell, CalendarClock, ChevronRight, CheckCircle2, AlertTriangle, Clock } from 'lucide-svelte';
   import { slide } from 'svelte/transition';
 
   // 1. LEEMOS LOS DATOS BLINDADOS DEL SERVIDOR
   let pendingAlerts = $derived(page.data.alertasGlobales || []);
   let unreadCount = $derived(pendingAlerts.length);
   
-  // 2. TU LÓGICA VISUAL ORIGINAL (La que SÍ funciona)
+  // 2. TU LÓGICA VISUAL ORIGINAL
   let isOpen = $state(false);
+
+  // 3. RELOJ REACTIVO: Actualiza la hora local cada 30 segundos
+  let currentTime = $state(new Date());
+
+  $effect(() => {
+    const timer = setInterval(() => {
+      currentTime = new Date();
+    }, 30000);
+    return () => clearInterval(timer);
+  });
+
+  // 4. FUNCIÓN EVALUADORA: Compara la fecha de la alerta contra el reloj local
+  function isPast(dateString) {
+    if (!dateString) return true;
+    const alertDate = new Date(dateString);
+    return alertDate < currentTime;
+  }
 
   function toggleDropdown() { 
     isOpen = !isOpen; 
@@ -54,7 +71,11 @@
               >
                 <div class="mt-1.5 shrink-0">
                    {#if alert.tipo_alerta === 'recordatorio'}
-                      <div class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></div>
+                     {#if isPast(alert.fecha)}
+                       <div class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></div>
+                     {:else}
+                       <div class="w-2.5 h-2.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.6)] animate-pulse"></div>
+                     {/if}
                    {:else}
                       <AlertTriangle class="w-4 h-4 text-rose-500" />
                    {/if}
@@ -63,15 +84,28 @@
                 <div class="flex-1 min-w-0">
                   <p class="text-xs font-black text-slate-900 truncate mb-0.5 flex items-center justify-between">
                     {alert.lead?.nombre || 'Alerta del Sistema'}
-                    <span class="text-[9px] font-bold uppercase tracking-widest text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
-                      {alert.tipo_alerta === 'recordatorio' ? 'Vencido' : 'Alerta'}
-                    </span>
+                    
+                    {#if alert.tipo_alerta === 'recordatorio'}
+                      {#if isPast(alert.fecha)}
+                        <span class="text-[9px] font-bold uppercase tracking-widest text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
+                          Vencido
+                        </span>
+                      {:else}
+                        <span class="text-[9px] font-bold uppercase tracking-widest text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                          <Clock class="w-2.5 h-2.5" /> Próximo
+                        </span>
+                      {/if}
+                    {:else}
+                      <span class="text-[9px] font-bold uppercase tracking-widest text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
+                        Alerta
+                      </span>
+                    {/if}
                   </p>
                   <p class="text-[11px] text-slate-600 line-clamp-2 leading-relaxed font-medium mb-2">{alert.mensaje || alert.titulo}</p>
                   
                   {#if alert.fecha_formateada}
                     <p class="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                      <CalendarClock class="w-3 h-3 text-rose-400" /> 
+                      <CalendarClock class="w-3 h-3 {alert.tipo_alerta === 'recordatorio' && !isPast(alert.fecha) ? 'text-indigo-400' : 'text-rose-400'}" /> 
                       <time datetime={alert.fecha}>{alert.fecha_formateada}</time>
                     </p>
                   {/if}
