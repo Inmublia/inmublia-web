@@ -67,13 +67,6 @@
     }
   });
 
-  const timeSlots = [];
-  for (let i = 7; i <= 21; i++) { 
-    const hour = i.toString().padStart(2, '0');
-    timeSlots.push(`${hour}:00`);
-    timeSlots.push(`${hour}:30`);
-  }
-
   const columnas = [
     { id: 'nuevo', titulo: 'Nuevos', dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
     { id: 'contactado', titulo: 'Contactados', dot: 'bg-blue-500', badge: 'bg-blue-50 text-blue-600 border-blue-200' },
@@ -88,21 +81,19 @@
     return col ? col.badge : 'bg-slate-100 text-slate-600 border-slate-200';
   }
 
+  // FIX: Formateo de fecha robusto delegando el timezone al navegador
   function formatDateTime(dateString) {
     if (!dateString) return '';
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return '';
-    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-    const localDate = new Date(date.getTime() + userTimezoneOffset);
-    return new Intl.DateTimeFormat('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(localDate);
-  }
-
-  function formatTimeSlot(time24) {
-    const [h, m] = time24.split(':');
-    let hour = parseInt(h);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    hour = hour % 12 || 12; 
-    return `${hour}:${m} ${ampm}`;
+    
+    return new Intl.DateTimeFormat('es-MX', { 
+      month: 'short', 
+      day: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      hour12: true 
+    }).format(date);
   }
 
   function timeAgo(dateString) {
@@ -162,7 +153,6 @@
     draggedLeadId = null;
   }
 
-  // 🔥 FIX: Actualizado para disparar invalidateAll
   async function confirmarCierre() {
     const leadId = leadPorCerrar.id;
     
@@ -193,7 +183,6 @@
     draggedLeadId = null;
   }
 
-  // 🔥 FIX: Actualizado para disparar invalidateAll
   async function actualizarEstadoLocalYBD(leadId, nuevoEstado) {
     leads = leads.map(lead => {
       if (lead.id === leadId) return { ...lead, estado: nuevoEstado };
@@ -217,7 +206,6 @@
     }
   }
 
-  // 🔥 LA MAGIA ESTÁ AQUÍ: Función asíncrona que avisa al Layout Global que actualice la campana
   async function completarRecordatorio(notaId) {
     const leadIndex = leads.findIndex(l => l.id === selectedLead.id);
     if (leadIndex !== -1) {
@@ -244,8 +232,6 @@
         headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' }
       });
       
-      // Le ordenamos a SvelteKit que recargue los datos del Layout Global
-      // ¡Esto apagará la alerta de la campana al instante!
       invalidateAll();
     } catch (err) {
       console.error("Error al completar el recordatorio:", err);
@@ -283,7 +269,12 @@
     
     let fechaFinalFormateada = null;
     if (esRecordatorio) {
-      fechaFinalFormateada = `${fechaRecordatorio}T${horaRecordatorio}:00`;
+      // FIX: Aseguramos que la fecha se procese en la zona horaria local antes de enviarla
+      const [year, month, day] = fechaRecordatorio.split('-');
+      const [hour, minute] = horaRecordatorio.split(':');
+      
+      const localDate = new Date(year, month - 1, day, hour, minute);
+      fechaFinalFormateada = localDate.toISOString();
     }
 
     formData.append('is_recordatorio', esRecordatorio);
@@ -312,7 +303,6 @@
         esRecordatorio = false;
         fechaRecordatorio = '';
         horaRecordatorio = '';
-        // Al usar update(), SvelteKit ya hace invalidateAll() por detrás de forma automática.
         await update(); 
         
         const leadActualizado = data.leads.find(l => l.id === selectedLead.id);
@@ -325,7 +315,6 @@
     };
   }
 
-  // 🔥 FIX: Actualizado para disparar invalidateAll
   async function eliminarLead(id) {
     if (confirm('¿Eliminar prospecto permanentemente?')) {
       leads = leads.filter(l => l.id !== id);
@@ -541,15 +530,8 @@
                   <input type="date" bind:value={fechaRecordatorio} class="w-full bg-white border border-amber-200/60 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none shadow-inner transition-colors">
                 </div>
                 <div class="w-full sm:w-1/2 relative">
-                  <select bind:value={horaRecordatorio} class="w-full bg-white border border-amber-200/60 rounded-xl pl-3 pr-10 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none shadow-inner cursor-pointer appearance-none transition-colors">
-                    <option value="" disabled selected>Selecciona la hora...</option>
-                    {#each timeSlots as slot}
-                      <option value={slot}>{formatTimeSlot(slot)}</option>
-                    {/each}
-                  </select>
-                  <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <ChevronDown class="w-4 h-4 text-amber-500" />
-                  </div>
+                  <!-- FIX: Uso del control de tiempo nativo sin restricciones de bloques de 30 mins -->
+                  <input type="time" bind:value={horaRecordatorio} class="w-full bg-white border border-amber-200/60 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none shadow-inner transition-colors cursor-text">
                 </div>
               </div>
             </div>
