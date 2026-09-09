@@ -39,8 +39,17 @@ export const actions = {
       const linkedin = formData.get('linkedin')?.toString().trim() || null;
       const tiktok = formData.get('tiktok')?.toString().trim() || null;
 
+      // NUEVO: Captura de la comisión desde el formulario
+      const comisionStr = formData.get('comision_default');
+      const comision_default = comisionStr ? parseFloat(comisionStr) : 5;
+
       if (!nombre_comercial || !whatsapp || !subdominio) {
         return fail(400, { error: 'El nombre, WhatsApp y subdominio son obligatorios.' });
+      }
+
+      // NUEVO: Validación de la comisión
+      if (isNaN(comision_default) || comision_default < 0 || comision_default > 100) {
+        return fail(400, { error: 'El porcentaje de comisión debe ser un número válido entre 0 y 100.' });
       }
 
       const { data: brokerActual, error: brokerError } = await locals.supabase
@@ -53,7 +62,8 @@ export const actions = {
 
       const updatePayload = {
         nombre_comercial, whatsapp, subdominio, bio,
-        facebook, instagram, linkedin, tiktok
+        facebook, instagram, linkedin, tiktok,
+        comision_default // NUEVO: Se inyecta en el payload para Supabase
       };
 
       const plan = brokerActual.plan_suscripcion || 'basico';
