@@ -1,20 +1,20 @@
 <script>
   let { broker, propiedad } = $props();
 
-  // Función asíncrona para atrapar el Lead antes de que el usuario salte a WhatsApp
-  function registrarLeadMetaYTikTok() {
+  // 🔥 SOLUCIÓN ENTERPRISE: Intercepción y espera de red (300ms)
+  function registrarLeadMetaYTikTok(e) {
+    e.preventDefault(); 
+    const url = e.currentTarget.href;
+
     try {
-      // 1. Meta (Facebook) Pixel Lead Event
       if (typeof window.fbq === 'function' && broker?.pixel_fb) {
         window.fbq('track', 'Lead', {
           content_name: propiedad?.titulo,
-          content_category: 'Bienes Raíces',
           currency: propiedad?.moneda || 'MXN',
           value: propiedad?.precio || 0
         });
       }
       
-      // 2. Google Analytics (GA4) generate_lead Event
       if (typeof window.gtag === 'function' && broker?.pixel_google) {
         window.gtag('event', 'generate_lead', {
           currency: propiedad?.moneda || 'MXN',
@@ -24,7 +24,6 @@
         });
       }
 
-      // 3. TikTok Pixel Contact Event
       if (typeof window.ttq === 'object' && typeof window.ttq.track === 'function' && broker?.pixel_tiktok) {
         window.ttq.track('Contact', {
           content_name: propiedad?.titulo,
@@ -33,12 +32,15 @@
           currency: propiedad?.moneda || 'MXN'
         });
       }
-      
-      // Console log para desarrollo (comprobable desde F12 en Chrome)
-      console.log('🔥 Lead Disparado:', propiedad.titulo);
-    } catch (e) {
-      console.error('Error al disparar píxeles de conversión:', e);
+      console.log('🔥 Píxeles disparados, abriendo WhatsApp...');
+    } catch (err) {
+      console.error('Error silencioso en píxeles:', err);
     }
+
+    // El retraso de 300ms garantiza que la petición de red termine antes de cambiar de app
+    setTimeout(() => {
+      window.open(url, '_blank');
+    }, 300);
   }
 </script>
 
