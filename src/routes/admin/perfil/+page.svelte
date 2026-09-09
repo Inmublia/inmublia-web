@@ -2,7 +2,7 @@
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import imageCompression from 'browser-image-compression';
-  import { Settings, ShieldCheck, Loader2 } from 'lucide-svelte'; 
+  import { Settings, ShieldCheck, Loader2, Calculator, Percent } from 'lucide-svelte'; 
   import { onDestroy } from 'svelte';
 
   let { data, form } = $props();
@@ -16,7 +16,7 @@
   let testingWebhook = $state(false);
   let webhookSuccess = $state(false);
 
-  // NUEVO: Variables para Stripe y bloqueos
+  // Variables para Stripe y bloqueos
   let redirigiendoStripe = $state(false);
   let planActual = broker.plan_suscripcion || 'basico';
   let isPro = planActual === 'pro' || planActual === 'elite';
@@ -58,7 +58,7 @@
     testingWebhook = false;
   }
 
-  // NUEVO: Manejador para el botón de facturación
+  // Manejador para el botón de facturación
   function manejadorPortal() {
     redirigiendoStripe = true;
     return async ({ result, update }) => {
@@ -136,6 +136,7 @@
             };
           }}>
             
+            <!-- IDENTIDAD DE MARCA -->
             <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
               <div class="flex items-center gap-3 mb-6">
                 <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
@@ -178,6 +179,7 @@
               </div>
             </div>
 
+            <!-- REDES Y DOMINIO -->
             <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
               <div class="flex items-center gap-3 mb-6">
                 <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
@@ -213,6 +215,34 @@
               </div>
             </div>
 
+            <!-- FINANZAS Y OPERACIONES (NUEVO) -->
+            <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
+              <div class="flex items-center gap-3 mb-6">
+                <Calculator class="w-5 h-5 text-emerald-500" />
+                <h3 class="text-lg font-black text-slate-900">Finanzas y Operaciones</h3>
+              </div>
+
+              <div class="space-y-6">
+                <div>
+                  <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Comisión Promedio de Agencia</span>
+                  <p class="text-[11px] text-slate-400 mb-3">Este porcentaje alimenta automáticamente tu panel de reportes e inteligencia.</p>
+                  <div class="relative max-w-xs">
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      min="0" 
+                      max="100" 
+                      name="comision_default" 
+                      bind:value={broker.comision_default} 
+                      class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-10 py-3 text-lg font-black text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none" 
+                    />
+                    <Percent class="absolute right-4 top-3.5 w-5 h-5 text-slate-400" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- MARKETING & TRACKING -->
             <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
               <div class="flex items-center gap-3 mb-6">
                 <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
