@@ -3,10 +3,11 @@ import { redirect } from '@sveltejs/kit';
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
 
+  // CORRECCIÓN: Unificando la identidad. Buscar por auth_user_id en lugar de email.
   const { data: broker, error: brokerError } = await locals.supabase
     .from('brokers')
     .select('*')
-    .eq('email', locals.user.email)
+    .eq('auth_user_id', locals.user.id) 
     .single();
 
   if (brokerError || !broker) throw redirect(303, '/login');
