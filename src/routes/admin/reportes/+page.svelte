@@ -21,22 +21,26 @@
   let leads = $derived(data.leads || []);
   let propiedades = $derived(data.propiedades || []);
 
-  const COMISION_PROMEDIO = 0.05;
+  // FIX: Convertimos la comisión estática a una variable reactiva conectada al perfil del Broker
+  let comisionBroker = $derived((broker.comision_default || 5) / 100);
+  
   const formatearDinero = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
 
   let totalLeads = $derived(leads.length);
   let leadsGanados = $derived(leads.filter(l => l.estado === 'cerrado').length);
   let tasaCierre = $derived(totalLeads > 0 ? ((leadsGanados / totalLeads) * 100).toFixed(1) : 0);
   
+  // FIX: Matemáticas dinámicas basadas en la comisión del broker
   let pipelineValue = $derived(leads.reduce((acc, lead) => {
     if (lead.estado !== 'descartado' && lead.estado !== 'cerrado' && lead.propiedades?.precio) {
-      return acc + (lead.propiedades.precio * COMISION_PROMEDIO);
+      return acc + (lead.propiedades.precio * comisionBroker);
     }
     return acc;
   }, 0));
 
+  // FIX: Matemáticas dinámicas para ingresos cobrados
   let revenueWon = $derived(leads.filter(l => l.estado === 'cerrado').reduce((acc, lead) => {
-    return acc + (lead.propiedades?.precio * COMISION_PROMEDIO || 0);
+    return acc + (lead.propiedades?.precio * comisionBroker || 0);
   }, 0));
 
   let funnel = $derived({
@@ -99,7 +103,8 @@
         <div class="bg-zinc-950 p-8 rounded-3xl shadow-xl shadow-zinc-900/10 text-white relative overflow-hidden border border-zinc-800 flex flex-col justify-between">
           <div class="absolute top-0 right-0 -mt-8 -mr-8 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
           <div class="relative z-10 flex items-center justify-between mb-4">
-            <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Comisiones Potenciales (5%)</p>
+            <!-- FIX: Texto dinámico que muestra la comisión real configurada -->
+            <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Comisiones Potenciales ({broker.comision_default || 5}%)</p>
             <DollarSign class="w-5 h-5 text-indigo-400" />
           </div>
           <div class="relative z-10">
