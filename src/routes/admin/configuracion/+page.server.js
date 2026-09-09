@@ -59,7 +59,33 @@ export const actions = {
     return { success: true };
   },
 
-  // 4. NUEVA ACCIÓN: Conectar con el Customer Portal de Stripe
+  // NUEVA ACCIÓN: Guardar la comisión predeterminada del broker
+  guardarComision: async ({ request, locals }) => {
+    const user = locals.user;
+    if (!user) throw redirect(303, '/login');
+
+    const formData = await request.formData();
+    const comisionStr = formData.get('comision_default');
+    const comision = parseFloat(comisionStr);
+
+    if (isNaN(comision) || comision < 0 || comision > 100) {
+      return fail(400, { error: 'Porcentaje de comisión inválido.' });
+    }
+
+    const { error } = await locals.supabase
+      .from('brokers')
+      .update({ comision_default: comision })
+      .eq('auth_user_id', user.id);
+
+    if (error) {
+      console.error("Error al actualizar la comisión:", error);
+      return fail(500, { error: 'Hubo un error al actualizar la comisión.' });
+    }
+
+    return { successComision: true };
+  },
+
+  // 4. Conectar con el Customer Portal de Stripe
   abrirPortalFacturacion: async ({ locals }) => {
     const { user } = await locals.safeGetSession();
     if (!user) return fail(401, { error: 'No autorizado' });
