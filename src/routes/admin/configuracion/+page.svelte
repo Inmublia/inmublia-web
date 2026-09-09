@@ -8,7 +8,9 @@
     Loader2, 
     ShieldCheck,
     Settings,
-    CreditCard
+    CreditCard,
+    Calculator,
+    Percent
   } from 'lucide-svelte';
 
   let { data, form } = $props();
@@ -16,8 +18,9 @@
   let broker = $derived(data.broker || {});
   let planConfig = $derived(data.planConfig || { templates_autorizados: ['classic'] });
   let loading = $state(false);
+  let loadingComision = $state(false); // Estado de carga independiente para las finanzas
 
-  // NUEVO: Variables para la nueva lógica de facturación y webhooks
+  // Variables para la nueva lógica de facturación y webhooks
   let redirigiendoStripe = $state(false);
   let esPlanBasico = $derived(broker.plan_suscripcion === 'basico');
 
@@ -48,7 +51,7 @@
     }
   ];
 
-  // NUEVO: Manejador para el botón de facturación
+  // Manejador para el botón de facturación
   function manejadorPortal() {
     redirigiendoStripe = true;
     return async ({ update }) => {
@@ -77,6 +80,7 @@
   <div class="p-6 sm:p-10 flex-1 overflow-auto pb-32 animate-[fadeIn_0.4s_ease-out]">
     <div class="max-w-[1200px] mx-auto">
       
+      <!-- SECCIÓN: Arquitectura Visual -->
       <div class="mb-10">
         <h2 class="text-2xl font-bold tracking-tight text-slate-900">Arquitectura Visual</h2>
         <p class="text-sm text-slate-500 mt-2 max-w-2xl leading-relaxed">
@@ -164,7 +168,66 @@
         </div>
       </form>
 
-      <div class="mt-20 pt-16 border-t border-slate-200">
+      <!-- SECCIÓN: Finanzas y Operaciones (NUEVO) -->
+      <div class="mt-16 pt-16 border-t border-slate-200">
+        <div class="mb-10">
+          <h2 class="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+            <Calculator class="w-6 h-6 text-slate-400" /> Finanzas y Operaciones
+          </h2>
+          <p class="text-sm text-slate-500 mt-2 max-w-2xl leading-relaxed">
+            Ajusta los parámetros financieros predeterminados para alimentar tu Panel de Rendimiento con datos precisos.
+          </p>
+        </div>
+
+        {#if form?.successComision}
+          <div class="mb-8 bg-blue-500/10 border border-blue-500/20 text-blue-700 font-bold p-4 rounded-xl text-sm flex items-center gap-3 shadow-sm animate-[fadeIn_0.3s_ease-out]">
+            <CheckCircle2 class="w-5 h-5 text-blue-500" />
+            ¡Tu porcentaje de comisión ha sido actualizado exitosamente!
+          </div>
+        {/if}
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 flex flex-col justify-between">
+            <div>
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">COMISIÓN PROMEDIO DE AGENCIA</p>
+              <p class="text-sm text-slate-500 font-medium leading-relaxed mb-6">
+                Este valor se utilizará como base para proyectar tus comisiones potenciales y ganadas dentro de tu dashboard de inteligencia.
+              </p>
+            </div>
+            
+            <form method="POST" action="?/guardarComision" use:enhance={() => { loadingComision = true; return async ({ update }) => { loadingComision = false; update(); }; }}>
+              <div class="flex gap-4 items-end">
+                <div class="flex-1 relative">
+                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Porcentaje Global</label>
+                  <div class="relative">
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      min="0" 
+                      max="100" 
+                      name="comision_default" 
+                      value={broker.comision_default || 5} 
+                      class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-10 py-3 text-lg font-black text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none shadow-inner" 
+                      required
+                    />
+                    <Percent class="absolute right-4 top-3.5 w-5 h-5 text-slate-400" />
+                  </div>
+                </div>
+                <button type="submit" disabled={loadingComision} class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-6 rounded-xl text-sm transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[120px]">
+                  {#if loadingComision}
+                    <Loader2 class="w-4 h-4 animate-spin" />
+                  {:else}
+                    Guardar
+                  {/if}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN: Ajustes Avanzados -->
+      <div class="mt-16 pt-16 border-t border-slate-200">
         <div class="mb-10">
           <h2 class="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
             <Settings class="w-6 h-6 text-slate-400" /> Ajustes Avanzados
@@ -268,3 +331,10 @@
     </div>
   </div>
 </main>
+
+<style>
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
