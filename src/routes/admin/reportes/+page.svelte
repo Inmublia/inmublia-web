@@ -21,7 +21,7 @@
   let leads = $derived(data.leads || []);
   let propiedades = $derived(data.propiedades || []);
 
-  // FIX: Convertimos la comisión estática a una variable reactiva conectada al perfil del Broker
+  // Convertimos la comisión estática a una variable reactiva conectada al perfil del Broker
   let comisionBroker = $derived((broker.comision_default || 5) / 100);
   
   const formatearDinero = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
@@ -30,7 +30,7 @@
   let leadsGanados = $derived(leads.filter(l => l.estado === 'cerrado').length);
   let tasaCierre = $derived(totalLeads > 0 ? ((leadsGanados / totalLeads) * 100).toFixed(1) : 0);
   
-  // FIX: Matemáticas dinámicas basadas en la comisión del broker
+  // Matemáticas dinámicas basadas en la comisión del broker
   let pipelineValue = $derived(leads.reduce((acc, lead) => {
     if (lead.estado !== 'descartado' && lead.estado !== 'cerrado' && lead.propiedades?.precio) {
       return acc + (lead.propiedades.precio * comisionBroker);
@@ -38,7 +38,7 @@
     return acc;
   }, 0));
 
-  // FIX: Matemáticas dinámicas para ingresos cobrados
+  // Matemáticas dinámicas para ingresos cobrados
   let revenueWon = $derived(leads.filter(l => l.estado === 'cerrado').reduce((acc, lead) => {
     return acc + (lead.propiedades?.precio * comisionBroker || 0);
   }, 0));
@@ -68,17 +68,29 @@
     return Object.values(conteo).sort((a, b) => b.totalLeads - a.totalLeads).slice(0, 5);
   });
 
+  // 🔥 FIX: Atribución Real (Eliminada la simulación matemática)
   let fuentesLeads = $derived(() => {
     let organico = 0, redes = 0, directo = 0;
-    leads.forEach((l, i) => {
-      const f = l.fuente || (i % 3 === 0 ? 'redes' : i % 2 === 0 ? 'directo' : 'organico'); 
-      if(f === 'redes') redes++; else if(f === 'directo') directo++; else organico++;
+    
+    leads.forEach((l) => {
+      // Leemos la fuente real de la BD. Si está vacía (no hay UTMs ni Píxeles), es tráfico directo real.
+      const f = (l.fuente || l.origen || 'directo').toLowerCase().trim();
+
+      if (['facebook', 'fb', 'instagram', 'ig', 'meta', 'tiktok', 'redes', 'ads', 'pixel'].some(kw => f.includes(kw))) {
+        redes++;
+      } else if (['google', 'seo', 'organico', 'búsqueda', 'busqueda'].some(kw => f.includes(kw))) {
+        organico++;
+      } else {
+        directo++;
+      }
     });
-    const total = leads.length || 1;
+    
+    const total = leads.length > 0 ? leads.length : 1; 
+    
     return {
-      organico: { valor: organico, pct: ((organico/total)*100).toFixed(0) },
-      redes: { valor: redes, pct: ((redes/total)*100).toFixed(0) },
-      directo: { valor: directo, pct: ((directo/total)*100).toFixed(0) }
+      organico: { valor: organico, pct: leads.length === 0 ? 0 : ((organico/total)*100).toFixed(0) },
+      redes: { valor: redes, pct: leads.length === 0 ? 0 : ((redes/total)*100).toFixed(0) },
+      directo: { valor: directo, pct: leads.length === 0 ? 0 : ((directo/total)*100).toFixed(0) }
     };
   });
 </script>
@@ -103,7 +115,6 @@
         <div class="bg-zinc-950 p-8 rounded-3xl shadow-xl shadow-zinc-900/10 text-white relative overflow-hidden border border-zinc-800 flex flex-col justify-between">
           <div class="absolute top-0 right-0 -mt-8 -mr-8 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
           <div class="relative z-10 flex items-center justify-between mb-4">
-            <!-- FIX: Texto dinámico que muestra la comisión real configurada -->
             <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Comisiones Potenciales ({broker.comision_default || 5}%)</p>
             <DollarSign class="w-5 h-5 text-indigo-400" />
           </div>
