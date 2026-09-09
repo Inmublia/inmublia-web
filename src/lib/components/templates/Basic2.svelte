@@ -19,7 +19,7 @@
   let enviando = $state(false);
   let isGalleryOpen = $state(false);
   let currentImageIndex = $state(0);
-  
+
   let moneda = $derived(propiedad.moneda || "MXN");
   let videoId = $derived(obtenerIdYouTube(propiedad.video_url));
   let allPhotos = $derived(propiedad.galeria_urls?.length ? [propiedad.imagen_url, ...propiedad.galeria_urls] : [propiedad.imagen_url]);
@@ -113,7 +113,7 @@
 {/if}
 
 <main class="min-h-screen {isNight ? 'bg-zinc-950 text-zinc-50' : 'bg-slate-50 text-slate-900'} font-sans pb-32 transition-colors duration-1000">
-  
+
   <nav class="fixed top-0 w-full z-40 backdrop-blur-xl border-b {isNight ? 'bg-zinc-950/80 border-zinc-800' : 'bg-white/80 border-slate-200'}">
     <div class="max-w-[1400px] mx-auto px-6 h-20 flex justify-between items-center">
       <span class="text-sm font-black uppercase tracking-[0.1em] {isNight ? 'text-white' : 'text-slate-900'}">{broker.nombre_comercial}</span>
@@ -133,7 +133,7 @@
   </div>
 
   <div class="max-w-[1200px] mx-auto px-6 pt-10 pb-16">
-    
+
     <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
       <div class="flex-1">
         <div class="flex items-center gap-3 mb-4 flex-wrap">
@@ -224,7 +224,7 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
-      
+
       <div class="lg:col-span-4 rounded-3xl p-8 flex flex-col items-center text-center shadow-sm transition-colors {isNight ? 'bg-zinc-900 border border-zinc-800' : 'bg-white border border-slate-200'}">
         <div class="w-28 h-28 rounded-full mb-6 overflow-hidden shadow-md {isNight ? 'bg-zinc-800 border-2 border-zinc-700' : 'bg-slate-100 border-2 border-white'}">
           {#if broker.avatar_url}
@@ -238,7 +238,7 @@
         {#if broker.bio}<p class="text-sm font-medium mb-8 leading-relaxed {isNight ? 'text-zinc-400' : 'text-slate-500'}">"{broker.bio}"</p>{/if}
 
         {@render socialLinks(broker)}
-        
+
         <button onclick={() => descargarVCardAgente(broker, propiedad.ubicacion)} aria-label="Descargar tarjeta de contacto" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-xs font-bold transition-all h-12 px-6 w-full shadow-sm {isNight ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-900'}">
           <Download class="w-4 h-4" /> Guardar VCard
         </button>
@@ -249,18 +249,39 @@
           <h2 class="text-2xl font-black tracking-tight mb-2 {isNight ? 'text-white' : 'text-slate-900'}">Solicitar Información</h2>
           <p class="text-sm font-medium {isNight ? 'text-zinc-400' : 'text-slate-500'}">Completa tus datos para recibir el dossier completo y agendar un recorrido privado.</p>
         </div>
-        
+
         {#if form?.success}
           <div class="font-medium p-4 rounded-xl text-sm flex items-center gap-3 mb-8 {isNight ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border border-emerald-100 text-emerald-700'}" role="alert"><CheckCircle2 class="w-5 h-5 shrink-0" /> Su solicitud ha sido enviada exitosamente.</div>
         {:else if form?.error}
           <div class="font-medium p-4 rounded-xl text-sm flex items-center gap-3 mb-8 {isNight ? 'bg-red-500/10 border border-red-500/20 text-red-400' : 'bg-red-50 border border-red-100 text-red-700'}" role="alert"><AlertCircle class="w-5 h-5 shrink-0" /> {form.error}</div>
         {/if}
 
-        <form method="POST" action="?/contacto" use:enhance={() => { enviando = true; return async ({ update }) => { enviando = false; update({ reset: form?.success }); }; }} class="space-y-5">
+        <form method="POST" action="?/contacto" use:enhance={() => { 
+          enviando = true; 
+          
+          // 🔥 TRACKING ENTERPRISE DEL FORMULARIO
+          try {
+            if (typeof window.fbq === 'function' && broker?.pixel_fb) {
+              window.fbq('track', 'Lead', { content_name: propiedad.titulo, value: propiedad.precio, currency: moneda });
+            }
+            if (typeof window.gtag === 'function' && broker?.pixel_google) {
+              window.gtag('event', 'generate_lead', { item_name: propiedad.titulo, value: propiedad.precio, currency: moneda });
+            }
+            if (typeof window.ttq === 'object' && typeof window.ttq.track === 'function' && broker?.pixel_tiktok) {
+              window.ttq.track('Contact', { content_name: propiedad.titulo, value: propiedad.precio, currency: moneda });
+            }
+            console.log('🔥 Formulario: Lead Disparado');
+          } catch(e) { console.error('Error en tracking de formulario', e); }
+
+          return async ({ update, result }) => { 
+            enviando = false; 
+            update({ reset: form?.success }); 
+          }; 
+        }} class="space-y-5">
           <input type="hidden" name="propiedad_id" value={propiedad.id}>
           <input type="hidden" name="broker_id" value={broker.id}>
           <input type="hidden" name="propiedad_titulo" value={propiedad.titulo}>
-          
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label for="nombre" class="block text-[10px] font-bold uppercase tracking-widest mb-2 {isNight ? 'text-zinc-500' : 'text-slate-500'}">Nombre Completo</label>
@@ -275,7 +296,7 @@
             <label for="correo" class="block text-[10px] font-bold uppercase tracking-widest mb-2 {isNight ? 'text-zinc-500' : 'text-slate-500'}">Correo Electrónico</label>
             <input type="email" id="correo" name="correo" required class="flex h-12 w-full rounded-xl border px-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors {isNight ? 'border-zinc-800 bg-zinc-950 text-white focus:border-indigo-500' : 'border-slate-200 bg-slate-50 text-slate-900 focus:border-indigo-500'}" placeholder="correo@ejemplo.com">
           </div>
-          
+
           <button type="submit" disabled={enviando} class="flex items-center justify-center gap-2 rounded-xl text-sm font-bold transition-all disabled:pointer-events-none disabled:opacity-50 h-14 w-full mt-4 shadow-sm active:scale-95 {isNight ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white'}">
             {#if enviando}Enviando Datos...{:else}Agendar Recorrido{/if}
           </button>
