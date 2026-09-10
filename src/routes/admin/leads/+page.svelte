@@ -248,14 +248,13 @@
   function handleKeyDown(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); if (nuevaNotaTexto.trim() && submitBtn) submitBtn.click(); }
   }
-</script>
 
-<style>
-  /* Ocultar barra de scroll horizontal para look de App Nativa */
-  .kanban-board::-webkit-scrollbar { display: none; }
-  .kanban-board { -ms-overflow-style: none; scrollbar-width: none; cursor: grab; }
-  .kanban-board:active { cursor: grabbing; }
-</style>
+  // Se añade helper para badge compatible con tu diseño viejo pero colores nuevos
+  function getBadgeColor(estado) {
+    const col = columnas.find(c => c.id === estado);
+    return col ? `${col.bgCol} ${col.text} ${col.border}` : 'bg-slate-100 text-slate-600 border-slate-200';
+  }
+</script>
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F8FAFC] font-sans text-slate-900">
   
@@ -282,7 +281,7 @@
     </div>
   </header>
 
-  <!-- EL TABLERO KANBAN: Scroll horizontal oculto -->
+  <!-- EL TABLERO KANBAN: Scroll horizontal oculto mediante CSS al final del componente -->
   <div class="flex-1 overflow-auto kanban-board p-6 md:p-8">
     <div class="flex gap-6 items-start h-full pb-10 min-w-max">
       
@@ -392,7 +391,7 @@
 
   <!-- THE QUICK-PEEK DRAWER (Glassmorphism) -->
   {#if isPanelOpen}
-    <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm z-[105] transition-opacity" onclick={cerrarPanel}></div>
+    <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm z-[105] transition-opacity" onclick={cerrarPanel} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') cerrarPanel(); }}></div>
   {/if}
 
   <div class="absolute top-0 right-0 h-full w-full sm:w-[500px] bg-white/95 backdrop-blur-2xl shadow-[0_0_80px_rgba(0,0,0,0.15)] z-[110] transform transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] border-l border-white flex flex-col {isPanelOpen ? 'translate-x-0' : 'translate-x-full'}">
@@ -559,6 +558,11 @@
 </main>
 
 <style>
+  /* Ocultar barra de scroll horizontal para look de App Nativa */
+  .kanban-board::-webkit-scrollbar { display: none; }
+  .kanban-board { -ms-overflow-style: none; scrollbar-width: none; cursor: grab; }
+  .kanban-board:active { cursor: grabbing; }
+
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
