@@ -28,7 +28,7 @@
     if (hora >= 19 || hora < 6) isNight = true;
   });
 
-  // INYECCIÓN DE PÍXELES
+  // INYECCIÓN DE PÍXELES CON EVENTO DE VISUALIZACIÓN DE PRODUCTO
   const START_SCR = '<scr'+'ipt>';
   const END_SCR = '</scr'+'ipt>';
 
@@ -259,7 +259,27 @@
           <div class="p-4 rounded text-xs text-center font-bold mb-6 bg-red-500/10 text-red-600"><AlertCircle class="w-4 h-4 inline mr-1" /> {form.error}</div>
         {/if}
 
-        <form method="POST" action="?/contacto" use:enhance={() => { enviando = true; return async ({ update }) => { enviando = false; update({ reset: form?.success }); }; }} class="space-y-4 font-sans">
+        <form method="POST" action="?/contacto" use:enhance={() => { 
+          enviando = true; 
+          
+          // 🔥 TRACKING PRO3
+          try {
+            if (typeof window.fbq === 'function' && broker?.pixel_fb) {
+              window.fbq('track', 'Lead', { content_name: propiedad.titulo, value: propiedad.precio, currency: moneda });
+            }
+            if (typeof window.gtag === 'function' && broker?.pixel_google) {
+              window.gtag('event', 'generate_lead', { item_name: propiedad.titulo, value: propiedad.precio, currency: moneda });
+            }
+            if (typeof window.ttq === 'object' && typeof window.ttq.track === 'function' && broker?.pixel_tiktok) {
+              window.ttq.track('Contact', { content_name: propiedad.titulo, value: propiedad.precio, currency: moneda });
+            }
+          } catch(e) { console.error('Error silencioso en tracking de formulario', e); }
+
+          return async ({ update }) => { 
+            enviando = false; 
+            update({ reset: form?.success }); 
+          }; 
+        }} class="space-y-4 font-sans">
           <input type="hidden" name="propiedad_id" value={propiedad.id}>
           <input type="hidden" name="broker_id" value={broker.id}>
           <input type="hidden" name="propiedad_titulo" value={propiedad.titulo}>
