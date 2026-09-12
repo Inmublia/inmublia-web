@@ -15,7 +15,8 @@
     Video,
     BadgeDollarSign,
     LayoutTemplate,
-    AlertTriangle
+    AlertTriangle,
+    Eye
   } from 'lucide-svelte';
 
   let { form, data } = $props();
@@ -48,16 +49,17 @@
   let valEstacionamientos = $state('');
   let valAntiguedad = $state(''); 
 
+  // Imágenes robustas seleccionadas manualmente para asegurar disponibilidad
   const catalogoTemplates = [
-    { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=400&h=250' },
-    { id: 'prop_basic_2', nombre: 'Clean Showcase', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=400&h=250' },
-    { id: 'prop_pro_1', nombre: 'Lead Magnet', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1600607687931-cece5ce21460?auto=format&fit=crop&q=80&w=400&h=250' },
-    { id: 'prop_pro_2', nombre: 'Modern Asymmetric', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=400&h=250' },
-    { id: 'prop_pro_3', nombre: 'Editorial Story', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=400&h=250' },
-    { id: 'prop_elite_1', nombre: 'Luxury Immersive', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600585154526-990dced4ea0d?auto=format&fit=crop&q=80&w=400&h=250' },
-    { id: 'prop_elite_2', nombre: 'Cinematic Tour', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600047509807-ba8f99c2cdde?auto=format&fit=crop&q=80&w=400&h=250' },
-    { id: 'prop_elite_3', nombre: 'Prestige Dark', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?auto=format&fit=crop&q=80&w=400&h=250' },
-    { id: 'prop_elite_4', nombre: 'Panoramic 3D', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=400&h=250' }
+    { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80' },
+    { id: 'prop_basic_2', nombre: 'Clean Showcase', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80' },
+    { id: 'prop_pro_1', nombre: 'Lead Magnet', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1628012198051-5123fcdd0fba?w=600&q=80' },
+    { id: 'prop_pro_2', nombre: 'Modern Asymmetric', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&q=80' },
+    { id: 'prop_pro_3', nombre: 'Editorial Story', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=80' },
+    { id: 'prop_elite_1', nombre: 'Luxury Immersive', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=600&q=80' },
+    { id: 'prop_elite_2', nombre: 'Cinematic Tour', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1505843513577-22bb7abd5112?w=600&q=80' },
+    { id: 'prop_elite_3', nombre: 'Prestige Dark', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=600&q=80' },
+    { id: 'prop_elite_4', nombre: 'Panoramic 3D', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&q=80' }
   ];
 
   function puedeUsarTemplate(minPlan) {
@@ -133,7 +135,6 @@
         creditosIA--;
         generandoIA = false;
         
-        // AUTO-LLENADO EN TIEMPO REAL: Se asocia directamente a la sección de Publicación Oficial
         valTitulo = result.data.titulo;
         valDescripcion = result.data.descripcion;
 
@@ -476,9 +477,9 @@
 
               <!-- DISCLAIMER LEGAL IA -->
               <div class="mt-6 flex justify-center animate-[fadeIn_0.4s_ease-out]">
-                <p class="text-[10px] text-slate-400 font-medium flex items-center gap-1.5 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/50">
-                  <AlertTriangle class="w-3.5 h-3.5 text-amber-500" />
-                  El contenido es generado por Inteligencia Artificial y puede contener imprecisiones. Por favor, revisa y ajusta los textos antes de realizar tu publicación.
+                <p class="text-[10px] text-slate-400 font-medium flex items-center gap-1.5 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/50 text-center max-w-2xl">
+                  <AlertTriangle class="w-4 h-4 text-amber-500 shrink-0" />
+                  El contenido es generado por Inteligencia Artificial y puede contener imprecisiones. Por favor, revisa y ajusta los textos en la sección inferior antes de publicarlos.
                 </p>
               </div>
             {/if}
@@ -511,6 +512,7 @@
           </div>
         </section>
 
+        <!-- SECCIÓN 4: MEJORA VISUAL Y DEMOS -->
         <section class="space-y-6 pt-10 border-t border-slate-100">
           <div class="border-b border-slate-100 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -538,12 +540,19 @@
                    <img 
                       src={template.img} 
                       alt={template.nombre} 
-                      onerror={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/1e293b/ffffff?text=Inmublia+Template'; }}
-                      class="w-full h-full object-cover transition-transform duration-500 {autorizado && !activo ? 'group-hover:scale-105' : ''}" 
+                      onerror={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1e293b/ffffff?text=Inmublia+Template'; }}
+                      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                    />
                    {#if activo}
                      <div class="absolute inset-0 bg-indigo-600/15 mix-blend-multiply transition-colors"></div>
                    {/if}
+
+                   <!-- OVERLAY: BOTÓN VER DEMO -->
+                   <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-sm z-20">
+                     <a href="/propiedad-demo?template={template.id}&sandbox=true" target="_blank" onclick={(e) => e.stopPropagation()} class="bg-white text-slate-900 text-[10px] font-bold px-4 py-2 rounded-full flex items-center gap-1.5 hover:bg-slate-100 transition-transform hover:scale-105 shadow-xl">
+                       <Eye class="w-3.5 h-3.5" /> Ver Demo
+                     </a>
+                   </div>
                 </div>
 
                 <div class="p-4 flex flex-col justify-between flex-1 bg-white">
