@@ -31,7 +31,7 @@ export const actions = {
     if (!user) return fail(401, { error: 'No autorizado' });
 
     if (!platform?.env?.AI) {
-      return fail(500, { error: '🚨 Falla de Servidor: El Binding "AI" no está conectado en Cloudflare Pages.' });
+      return fail(500, { error: '🚨 Falla de Servidor: El Binding "AI" no está conectado en Cloudflare.' });
     }
 
     const { data: broker } = await locals.supabase
@@ -58,59 +58,60 @@ export const actions = {
     const estacionamientos = formData.get('estacionamientos') || '0';
     const antiguedad = formData.get('antiguedad') || 'No especificada';
 
-    if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación para generar el texto.' });
+    if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
-    let systemPrompt = `Eres un estratega de marketing inmobiliario de alto nivel. Tu única función es crear material de ventas para propiedades.
-    Tono requerido: ${tono === 'lujo' ? 'Exclusivo, aspiracional y elegante.' : tono === 'familiar' ? 'Cálido, seguro y enfocado en la familia.' : 'Analítico, enfocado en plusvalía y retorno de inversión.'}
-    IMPORTANTE: Responde EXCLUSIVAMENTE proporcionando un objeto JSON puro.`;
+    let systemPrompt = `Eres un copywriter inmobiliario de élite. Tono: ${tono}.
+    REGLA ABSOLUTA: Responde ÚNICAMENTE con un objeto JSON. Cero palabras antes, cero palabras después.`;
 
     const userPrompt = `
-      Crea una campaña persuasiva para esta propiedad:
-      - Operación: ${operacion}
-      - Tipo: ${tipo}
-      - Ubicación: ${ubicacion}
-      - Precio: $${precio} MXN
+      Crea campaña para: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
+      Specs: ${recamaras} Rec, ${banos} Baños, ${medio_bano} Medios, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
       
-      Especificaciones Técnicas (Destaca de manera atractiva las que sean mayores a 0 o relevantes):
-      - Recámaras: ${recamaras}
-      - Baños completos: ${banos}
-      - Medios baños: ${medio_bano}
-      - Estacionamientos: ${estacionamientos}
-      - Antigüedad: ${antiguedad}
-      
-      Devuelve ÚNICAMENTE un objeto JSON válido con estas 4 llaves exactas (sin etiquetas markdown, solo JSON):
-      "titulo": Un título SEO corto y muy atractivo (max 10 palabras).
-      "descripcion": Descripción editorial de 2 a 3 párrafos, vendiendo el estilo de vida.
-      "whatsapp": Un mensaje corto, persuasivo, con emojis y saltos de línea para enviar por WhatsApp.
-      "tiktok": Un guion para un video vertical (Short/Reel/TikTok) dividido en [Gancho], [Desarrollo] y [Llamado a la Acción].
+      Devuelve ESTE FORMATO EXACTO EN JSON PURO:
+      {
+        "titulo": "Título atractivo max 10 palabras",
+        "descripcion": "Descripción comercial vendiendo estilo de vida",
+        "whatsapp": "Mensaje para enviar por chat con emojis",
+        "tiktok": "Guion corto de video vertical"
+      }
     `;
 
     try {
-      // FIX: Uso del modelo activo y activación del JSON Mode estricto en la API nativa
-      const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
+      const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
-        ],
-        response_format: {
-          type: "json_object"
-        }
+        ]
       });
 
       let iaText = response.response;
-      let parsedContent;
+      if (typeof iaText !== 'string') iaText = JSON.stringify(iaText);
 
+      let parsedContent;
+      
+      // PARSER INDESTRUCTIBLE: Limpieza y Extracción Forzada
+      let cleanText = iaText.replace(/```json/gi, '').replace(/```/g, '').trim();
+      
       try {
-        // La API ahora debe devolver JSON puro por defecto
-        parsedContent = JSON.parse(iaText);
-      } catch (err) {
-        // Filtro de seguridad por si el modelo inyectó código Markdown residual
-        const jsonMatch = iaText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          console.error("Fallo de JSON Mode:", iaText);
-          return fail(500, { error: 'El servidor no pudo estructurar la información. Por favor, intenta de nuevo.' });
+        parsedContent = JSON.parse(cleanText);
+      } catch (err1) {
+        // Si falla, extraemos solo lo que esté entre corchetes { }
+        const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            parsedContent = JSON.parse(jsonMatch[0]);
+          } catch (err2) {
+            console.error("JSON Corrupto extraído:", jsonMatch[0]);
+            return fail(500, { error: 'La IA devolvió un formato inválido. Reintenta.' });
+          }
+        } else {
+          console.error("Respuesta cruda de IA:", iaText);
+          return fail(500, { error: `La IA no generó JSON. Respuesta recibida: ${iaText.substring(0, 50)}...` });
         }
-        parsedContent = JSON.parse(jsonMatch[0]);
+      }
+
+      if (!parsedContent.titulo || !parsedContent.descripcion) {
+         return fail(500, { error: 'El contenido generado está incompleto. Intenta de nuevo.' });
       }
 
       await locals.supabase
@@ -126,8 +127,8 @@ export const actions = {
       };
 
     } catch (e) {
-      console.error("Error en Workers AI:", e);
-      return fail(500, { error: `Falla interna procesando el modelo de IA: ${e.message}` });
+      console.error("Fallo General Workers AI:", e);
+      return fail(500, { error: `Error conectando con Cloudflare: ${e.message}` });
     }
   },
 
