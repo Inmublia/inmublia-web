@@ -58,10 +58,11 @@ export const actions = {
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
-    const systemPrompt = `Eres un sistema backend. Tu única tarea es devolver un objeto JSON válido.
-    REGLA 1: NO uses bloques de código markdown (como \`\`\`json).
-    REGLA 2: NO uses saltos de línea (Enters) dentro del texto. Escribe todo en un solo bloque continuo.
-    REGLA 3: Usa comillas simples dentro de las descripciones si necesitas enfatizar algo, NUNCA comillas dobles.`;
+    // REGLAS ESTRICTAS PARA PREVENIR ERRORES DE PARSEO
+    const systemPrompt = `Eres un sistema backend de Inmublia. Generas JSON válido y minificado.
+    REGLA 1: Escribe todo en una sola línea continua. NO uses saltos de línea (Enters).
+    REGLA 2: No uses comillas dobles dentro de las descripciones, usa comillas simples.
+    REGLA 3: Solo devuelve el JSON puro, sin explicaciones ni markdown.`;
 
     const userPrompt = `
       Genera textos comerciales. Tono: ${tono}. Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
@@ -70,9 +71,9 @@ export const actions = {
       Devuelve ESTE FORMATO EXACTO:
       {
         "titulo": "Escribe un titulo corto aqui",
-        "descripcion": "Escribe la descripcion continua aqui",
-        "whatsapp": "Escribe el mensaje de whatsapp continuo aqui",
-        "tiktok": "Escribe el guion continuo aqui"
+        "descripcion": "Escribe la descripcion aqui",
+        "whatsapp": "Escribe el mensaje de whatsapp aqui",
+        "tiktok": "Escribe el guion de tiktok aqui"
       }
     `;
 
@@ -97,17 +98,18 @@ export const actions = {
         const lastBrace = cleanText.lastIndexOf('}');
         
         if (firstBrace === -1 || lastBrace === -1) {
-          return fail(500, { error: 'La IA no generó la estructura JSON.' });
+          return fail(500, { error: 'La IA no generó la estructura JSON esperada.' });
         }
 
         cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+        // SANITIZADOR UNICODE BASADO EN MDN: Reemplaza cualquier caracter de control oculto.
         cleanText = cleanText.replace(/[\u0000-\u001F]+/g, ' '); 
 
         try {
           parsedContent = JSON.parse(cleanText);
         } catch (err) {
           console.error("JSON PARSE ERROR:", cleanText);
-          return fail(500, { error: `La IA generó caracteres incompatibles: ${err.message}` });
+          return fail(500, { error: `Error de formato de IA: ${err.message}` });
         }
       }
 
@@ -116,16 +118,16 @@ export const actions = {
         .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
         .eq('id', broker.id);
 
-      // FIX ANTIBOMBAS: Mapeo agresivo por si la IA cambia las mayúsculas o no manda algo
+      // MAPEO DEFENSIVO
       return {
         titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad Exclusiva',
         descripcion: parsedContent.descripcion || parsedContent.Descripcion || 'Contacta al broker para más detalles.',
         whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto esta increíble propiedad...',
-        tiktok: parsedContent.tiktok || parsedContent.TikTok || parsedContent.Tiktok || '[Gancho] ¡Mira esta increíble propiedad! [CTA] Contáctame.'
+        tiktok: parsedContent.tiktok || parsedContent.TikTok || parsedContent.Tiktok || '[Gancho] ¡Mira esta propiedad! [Desarrollo] Contáctame.'
       };
 
     } catch (e) {
-      return fail(500, { error: `Fallo de conexión Cloudflare AI: ${e.message}` });
+      return fail(500, { error: `Fallo en el servicio de IA: ${e.message}` });
     }
   },
 
