@@ -121,7 +121,7 @@ export const actions = {
     
     const titulo = formData.get('titulo');
     const precio = formData.get('precio');
-    const comisionStr = formData.get('comision'); // Nivel 2
+    const comisionStr = formData.get('comision'); 
     const descripcion = formData.get('descripcion');
     const operacion = formData.get('operacion');
     const tipo = formData.get('tipo');
@@ -139,7 +139,7 @@ export const actions = {
     
     const video_url = formData.get('video_url') || null;
     const recorrido_3d_url = formData.get('recorrido_3d_url') || null;
-    const template_id = formData.get('template_id') || 'classic';
+    const template_id = formData.get('template_id') || 'prop_basic_1'; // Recibimos el template del diseño visual
 
     const imagen = formData.get('imagen'); 
     const galeriaArchivos = formData.getAll('galeria'); 
@@ -158,6 +158,7 @@ export const actions = {
 
     const comisionFinal = comisionStr ? parseFloat(comisionStr) : (broker.comision_default || 5);
 
+    // 1. Subir la imagen principal
     const fileExt = imagen.name.split('.').pop();
     const fileName = `${broker.id}/${Date.now()}-main.${fileExt}`;
     const buffer = await imagen.arrayBuffer();
@@ -172,27 +173,34 @@ export const actions = {
       .from('propiedades')
       .getPublicUrl(fileName);
 
-    let galeriaUrls = [];
-    for (const file of galeriaArchivos) {
-      if (file && file.size > 0) {
-        const ext = file.name.split('.').pop();
-        const gName = `${broker.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
-        const gBuffer = await file.arrayBuffer();
-        
-        const { error: gError } = await locals.supabase.storage
+    // 2. Subir la galería en paralelo (Mejora de Rendimiento)
+    const validGaleriaArchivos = galeriaArchivos.filter(file => file && file.size > 0);
+    
+    const galeriaPromises = validGaleriaArchivos.map(async (file) => {
+      const ext = file.name.split('.').pop();
+      const gName = `${broker.id}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      const gBuffer = await file.arrayBuffer();
+      
+      const { error: gError } = await locals.supabase.storage
+        .from('propiedades')
+        .upload(gName, gBuffer, { contentType: file.type });
+      
+      if (!gError) {
+        const { data: { publicUrl } } = locals.supabase.storage
           .from('propiedades')
-          .upload(gName, gBuffer, { contentType: file.type });
-        
-        if (!gError) {
-          const { data: { publicUrl } } = locals.supabase.storage
-            .from('propiedades')
-            .getPublicUrl(gName);
-          galeriaUrls.push(publicUrl);
-        }
+          .getPublicUrl(gName);
+        return publicUrl;
       }
-    }
+      return null;
+    });
 
-    const slug = titulo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const galeriaResults = await Promise.all(galeriaPromises);
+    const galeriaUrls = galeriaResults.filter(url => url !== null);
+
+    // 3. Generación de Slug Anti-Colisiones (Mejora de Estabilidad)
+    const baseSlug = titulo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const sufijoUnico = Math.random().toString(36).substring(2, 6);
+    const slug = `${baseSlug}-${sufijoUnico}`;
 
     const cleanNumber = (val) => {
         if (!val) return 0;
@@ -200,6 +208,7 @@ export const actions = {
         return parseFloat(cleaned) || 0;
     };
 
+    // 4. Inserción en Base de Datos
     const { error: insertError } = await locals.supabase
       .from('propiedades')
       .insert({
@@ -224,7 +233,7 @@ export const actions = {
         galeria_urls: galeriaUrls, 
         video_url,
         recorrido_3d_url,
-        template_id
+        template_id // Guardamos el diseño elegido
       });
 
     if (insertError) return fail(500, { error: `Error SQL: ${insertError.message}` });
