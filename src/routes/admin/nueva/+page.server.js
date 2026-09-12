@@ -60,8 +60,9 @@ export const actions = {
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación para generar el texto.' });
 
-    let systemPrompt = `Eres un estratega de marketing inmobiliario de alto nivel. Tu única función es crear material de ventas para propiedades. Si te preguntan algo ajeno, responde: "Solo redacto textos inmobiliarios."
-    Tono requerido: ${tono === 'lujo' ? 'Exclusivo, aspiracional y elegante.' : tono === 'familiar' ? 'Cálido, seguro y enfocado en la familia.' : 'Analítico, enfocado en plusvalía y retorno de inversión.'}`;
+    let systemPrompt = `Eres un estratega de marketing inmobiliario de alto nivel. Tu única función es crear material de ventas para propiedades.
+    Tono requerido: ${tono === 'lujo' ? 'Exclusivo, aspiracional y elegante.' : tono === 'familiar' ? 'Cálido, seguro y enfocado en la familia.' : 'Analítico, enfocado en plusvalía y retorno de inversión.'}
+    IMPORTANTE: Responde EXCLUSIVAMENTE proporcionando un objeto JSON puro.`;
 
     const userPrompt = `
       Crea una campaña persuasiva para esta propiedad:
@@ -77,31 +78,40 @@ export const actions = {
       - Estacionamientos: ${estacionamientos}
       - Antigüedad: ${antiguedad}
       
-      Debes devolver ÚNICAMENTE un objeto JSON válido con estas 4 llaves exactas:
-      1. "titulo": Un título SEO corto y muy atractivo (max 10 palabras).
-      2. "descripcion": Descripción editorial de 2 a 3 párrafos, vendiendo el estilo de vida.
-      3. "whatsapp": Un mensaje corto, persuasivo, con emojis y saltos de línea para enviar por listas de difusión de WhatsApp.
-      4. "tiktok": Un guion para un video vertical (Short/Reel/TikTok) dividido en [Gancho], [Desarrollo] y [Llamado a la Acción].
+      Devuelve ÚNICAMENTE un objeto JSON válido con estas 4 llaves exactas (sin etiquetas markdown, solo JSON):
+      "titulo": Un título SEO corto y muy atractivo (max 10 palabras).
+      "descripcion": Descripción editorial de 2 a 3 párrafos, vendiendo el estilo de vida.
+      "whatsapp": Un mensaje corto, persuasivo, con emojis y saltos de línea para enviar por WhatsApp.
+      "tiktok": Un guion para un video vertical (Short/Reel/TikTok) dividido en [Gancho], [Desarrollo] y [Llamado a la Acción].
     `;
 
     try {
-      // FIX: Actualizado a fp8 según el catálogo de Cloudflare
-      const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
+      // FIX: Uso del modelo activo y activación del JSON Mode estricto en la API nativa
+      const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
-        ]
+        ],
+        response_format: {
+          type: "json_object"
+        }
       });
 
       let iaText = response.response;
-      
-      const jsonMatch = iaText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        console.error("Respuesta cruda de IA sin JSON:", iaText);
-        return fail(500, { error: 'La IA devolvió texto conversacional en lugar del formato estructurado. Intenta de nuevo.' });
-      }
+      let parsedContent;
 
-      const parsedContent = JSON.parse(jsonMatch[0]);
+      try {
+        // La API ahora debe devolver JSON puro por defecto
+        parsedContent = JSON.parse(iaText);
+      } catch (err) {
+        // Filtro de seguridad por si el modelo inyectó código Markdown residual
+        const jsonMatch = iaText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          console.error("Fallo de JSON Mode:", iaText);
+          return fail(500, { error: 'El servidor no pudo estructurar la información. Por favor, intenta de nuevo.' });
+        }
+        parsedContent = JSON.parse(jsonMatch[0]);
+      }
 
       await locals.supabase
         .from('brokers')
