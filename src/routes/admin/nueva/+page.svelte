@@ -12,7 +12,6 @@
     Building2, 
     MapPin, 
     MessageCircle, 
-    Video,
     BadgeDollarSign,
     LayoutTemplate,
     AlertTriangle,
@@ -21,7 +20,6 @@
   } from 'lucide-svelte';
 
   let { form, data } = $props();
-  // El frontend asume la nueva arquitectura de créditos sugerida
   let creditosIA = $state(data?.creditos_ia ?? 15);
   let planSuscripcion = $derived(data?.plan_suscripcion ?? 'basico'); 
   
@@ -36,7 +34,6 @@
   let tonoIA = $state('lujo');
   
   let textoGeneradoWhatsapp = $state('');
-  let textoGeneradoTiktok = $state('');
 
   let valTitulo = $state('');
   let valDescripcion = $state('');
@@ -98,7 +95,7 @@
       return;
     }
 
-    if (creditosIA <= 0) return; // Validación de seguridad frontend
+    if (creditosIA <= 0) return; 
 
     generandoIA = true;
     iaEjecutada = true;
@@ -106,7 +103,6 @@
     valTitulo = '';
     valDescripcion = '';
     textoGeneradoWhatsapp = '';
-    textoGeneradoTiktok = '';
 
     document.getElementById('seccion-oficial')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
@@ -141,8 +137,7 @@
         await Promise.all([
           typeWriter(result.data.titulo, (v) => valTitulo = v, 25),
           typeWriter(result.data.descripcion, (v) => valDescripcion = v, 5),
-          typeWriter(result.data.whatsapp, (v) => textoGeneradoWhatsapp = v, 10),
-          typeWriter(result.data.tiktok, (v) => textoGeneradoTiktok = v, 8)
+          typeWriter(result.data.whatsapp, (v) => textoGeneradoWhatsapp = v, 10)
         ]);
       } else {
         generandoIA = false;
@@ -151,7 +146,7 @@
     } catch (e) {
       console.error(e);
       generandoIA = false;
-      alert(`Fallo de conexión en el cliente: ${e.message}`);
+      alert(`Fallo de conexión: ${e.message}`);
     }
   }
 
@@ -330,7 +325,7 @@
           </div>
         </section>
 
-        <!-- SECCIÓN DE IA OPTIMIZADA CON PAYWALL -->
+        <!-- SECCIÓN DE IA OPTIMIZADA CON PAYWALL DINÁMICO -->
         <section class="relative">
           <div class="bg-slate-800 rounded-[2rem] p-6 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
             
@@ -346,7 +341,7 @@
                   </span>
                 </h2>
                 <p class="text-sm text-slate-400 mt-4 leading-relaxed max-w-2xl text-center font-medium">
-                  Autogenera la descripción comercial de alta conversión, copy para WhatsApp y guiones para redes sociales. 
+                  Autogenera descripción comercial de alta conversión y copy profesional para WhatsApp basado en tus datos numéricos. 
                 </p>
               </div>
 
@@ -387,37 +382,57 @@
                   </div>
                 </div>
               {:else}
-                <!-- PAYWALL B2B: Diseño persuasivo de Product-Led Growth -->
+                <!-- PAYWALL B2B: Lógica condicional basada en el plan real -->
                 <div class="w-full max-w-3xl mx-auto bg-gradient-to-br from-indigo-900/50 to-slate-900/80 border border-indigo-500/30 rounded-2xl p-8 shadow-2xl text-center relative overflow-hidden">
                   <Zap class="w-12 h-12 text-amber-400 mx-auto mb-4 animate-bounce" />
-                  <h3 class="text-xl font-bold text-white mb-2">Has agotado tus créditos del plan {planSuscripcion.charAt(0).toUpperCase() + planSuscripcion.slice(1)}</h3>
-                  <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
-                    La Inteligencia Artificial es el motor de las agencias top. Mejora tu plan a <strong>Pro (125 créditos)</strong> o <strong>Elite (500 créditos)</strong> para dominar el mercado sin límites.
-                  </p>
-                  <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
-                    <Sparkles class="w-4 h-4" /> Desbloquear Estudio Creativo
-                  </a>
+                  
+                  {#if planSuscripcion === 'elite'}
+                    <h3 class="text-xl font-bold text-white mb-2">Límite Mensual Alcanzado (Plan Elite)</h3>
+                    <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
+                      Has utilizado tus 500 créditos. Adquiere un paquete de recarga extra (Top-Up) para continuar redactando campañas sin interrupciones este mes.
+                    </p>
+                    <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
+                      <Zap class="w-4 h-4" /> Adquirir Top-Up IA
+                    </a>
+                  {:else if planSuscripcion === 'pro'}
+                    <h3 class="text-xl font-bold text-white mb-2">Límite Mensual Alcanzado (Plan Pro)</h3>
+                    <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
+                      Has utilizado tus 150 créditos. Mejora al plan <strong>Elite (500 créditos)</strong> o adquiere una recarga para operar sin límites.
+                    </p>
+                    <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
+                      <Sparkles class="w-4 h-4" /> Mejorar a Plan Elite
+                    </a>
+                  {:else}
+                    <h3 class="text-xl font-bold text-white mb-2">Has agotado tus créditos (Plan Básico)</h3>
+                    <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
+                      La Inteligencia Artificial es el motor de las agencias top. Mejora tu plan a <strong>Pro (150 créditos)</strong> o <strong>Elite (500 créditos)</strong> para dominar el mercado.
+                    </p>
+                    <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
+                      <Sparkles class="w-4 h-4" /> Desbloquear Estudio Creativo
+                    </a>
+                  {/if}
                 </div>
               {/if}
             </div>
 
-            <!-- RESULTADOS SOCIALES (Sin duplicar Título/Descripción) -->
-            {#if iaEjecutada && creditosIA >= 0}
-              <div class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-5 animate-[fadeIn_0.4s_ease-out] relative z-10">
-                <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 flex flex-col">
+            <!-- RESULTADO ÚNICO Y ELEGANTE PARA WHATSAPP -->
+            {#if iaEjecutada && textoGeneradoWhatsapp}
+              <div class="mt-8 animate-[fadeIn_0.4s_ease-out] relative z-10 max-w-2xl mx-auto">
+                <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col">
                   <div class="flex items-center justify-between mb-4">
                     <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
                       <MessageCircle class="w-4 h-4 text-emerald-400" />
-                      Campaña WhatsApp
+                      Campaña WhatsApp Profesional
                     </h4>
-                    {#if !generandoIA && textoGeneradoWhatsapp}
-                      <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-slate-400 hover:text-white transition-colors" title="Copiar">
-                        <Copy class="w-4 h-4" />
+                    {#if !generandoIA}
+                      <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600/50">
+                        <Copy class="w-3.5 h-3.5" />
+                        Copiar Mensaje
                       </button>
                     {/if}
                   </div>
-                  <div class="text-sm text-slate-300 whitespace-pre-line leading-relaxed flex-1">
-                    {#if generandoIA && !textoGeneradoWhatsapp}
+                  <div class="text-sm text-slate-300 whitespace-pre-line leading-relaxed">
+                    {#if generandoIA}
                        <div class="space-y-2 mt-1">
                          <div class="h-3 bg-slate-700/50 rounded w-full animate-pulse"></div>
                          <div class="h-3 bg-slate-700/50 rounded w-5/6 animate-pulse"></div>
@@ -425,31 +440,6 @@
                        </div>
                     {:else}
                       {textoGeneradoWhatsapp}
-                    {/if}
-                  </div>
-                </div>
-
-                <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 flex flex-col">
-                  <div class="flex items-center justify-between mb-4">
-                    <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
-                      <Video class="w-4 h-4 text-rose-400" />
-                      Guion TikTok / Reels
-                    </h4>
-                    {#if !generandoIA && textoGeneradoTiktok}
-                      <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoTiktok)} class="text-slate-400 hover:text-white transition-colors" title="Copiar">
-                        <Copy class="w-4 h-4" />
-                      </button>
-                    {/if}
-                  </div>
-                  <div class="text-sm text-slate-300 whitespace-pre-line leading-relaxed flex-1">
-                    {#if generandoIA && !textoGeneradoTiktok}
-                       <div class="space-y-2 mt-1">
-                         <div class="h-3 bg-slate-700/50 rounded w-full animate-pulse"></div>
-                         <div class="h-3 bg-slate-700/50 rounded w-full animate-pulse"></div>
-                         <div class="h-3 bg-slate-700/50 rounded w-3/4 animate-pulse"></div>
-                       </div>
-                    {:else}
-                      {textoGeneradoTiktok}
                     {/if}
                   </div>
                 </div>
