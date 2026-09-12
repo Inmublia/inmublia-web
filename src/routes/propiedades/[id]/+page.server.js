@@ -16,7 +16,7 @@ export async function load({ params, locals }) {
 }
 
 export const actions = {
-  contactar: async ({ request, locals, platform, params }) => {
+  contactar: async ({ request, locals, params }) => {
     const formData = await request.formData();
     
     const leadData = {
@@ -33,6 +33,7 @@ export const actions = {
       return fail(400, { formId: 'contacto', error: 'Por favor, llena los campos obligatorios.' });
     }
 
+    // 1. Guardar Lead (Sabemos que esto funciona porque aparecen en tu pipeline)
     const { data: lead, error: dbError } = await locals.supabase
       .from('leads')
       .insert(leadData)
@@ -40,104 +41,94 @@ export const actions = {
       .single();
 
     if (dbError) {
-      console.error("Error BD Guardando lead:", dbError);
-      return fail(500, { formId: 'contacto', error: 'Hubo un problema al enviar tu mensaje.' });
+      return fail(500, { formId: 'contacto', error: `ERROR_DB_LEAD: ${dbError.message}` });
     }
 
+    // 2. Buscar al broker destino
     const { data: brokerDestino, error: brokerError } = await locals.supabase
       .from('brokers')
       .select('auth_user_id')
       .eq('id', leadData.agency_id)
       .single();
 
-    if (brokerError) {
-      console.error("Error buscando al broker destino:", brokerError);
+    if (brokerError || !brokerDestino?.auth_user_id) {
+      return fail(500, { formId: 'contacto', error: `ERROR_BROKER_DESTINO: No se encontró auth_user_id para agency_id ${leadData.agency_id}` });
     }
 
-    if (brokerDestino?.auth_user_id) {
-      if (platform?.context?.waitUntil) {
-        platform.context.waitUntil(
-          despacharWebhookN8n(locals.supabase, brokerDestino.auth_user_id, lead)
-        );
-      } else {
-        despacharWebhookN8n(locals.supabase, brokerDestino.auth_user_id, lead).catch(console.error);
-      }
+    // 3. MODO DEBUG LOUD (Síncrono) - SvelteKit esperará a que esto termine
+    const debugResult = await despacharWebhookN8nLoud(locals.supabase, brokerDestino.auth_user_id, lead);
+
+    // Si el resultado no es "OK", mostramos el error técnico en la pantalla al usuario
+    if (debugResult !== "OK") {
+      return fail(500, { formId: 'contacto', error: `🚨 DIAGNÓSTICO WEBHOOK: ${debugResult}` });
     }
 
     return { formId: 'contacto', success: true };
   }
 };
 
-// --- EL MOTOR EDGE DE WEBHOOKS (REFACTORIZADO) ---
-async function despacharWebhookN8n(supabase, auth_user_id, lead) {
-  // 1. DIAGNÓSTICO ESTRICTO DE ENTORNO
+// --- MOTOR DE WEBHOOKS (MODO DIAGNÓSTICO ESTRICTO) ---
+// En lugar de hacer console.log, esta función devuelve textos exactos para la pantalla.
+async function despacharWebhookN8nLoud(supabase, auth_user_id, lead) {
+  
+  // PRUEBA 1: ¿Existe la variable de entorno de Cloudflare?
   if (!env.N8N_MASTER_WEBHOOK) {
-    console.error("🔥 ERROR CRÍTICO: La variable N8N_MASTER_WEBHOOK no está definida en Cloudflare Pages.");
-    return;
+    return "FALTA_VAR_ENTORNO: La variable N8N_MASTER_WEBHOOK no existe o está vacía en Cloudflare.";
   }
 
-  // 2. BYPASS DE RLS CON RPC (SECURITY DEFINER)
-  // Como el usuario es anónimo, usamos la función SQL para leer la URL de forma segura
+  // PRUEBA 2: ¿El RPC funciona y encuentra el webhook del usuario?
   const { data: webhooks, error: webhookError } = await supabase
     .rpc('get_active_webhook', { broker_auth_id: auth_user_id });
 
-  // Validamos si falló o si el array viene vacío
-  if (webhookError || !webhooks || webhooks.length === 0) {
-    console.log(`Abortado: Sin webhook activo o fallo RLS para agencia: ${auth_user_id}`);
-    return; 
+  if (webhookError) {
+    return `FALLO_RPC_SUPABASE: ${webhookError.message}`;
   }
 
-  const webhook = webhooks[0]; // Extraemos el primer resultado del RPC
+  if (!webhooks || webhooks.length === 0) {
+    return `SIN_WEBHOOK_CONFIGURADO: Supabase devolvió 0 resultados para el usuario ${auth_user_id}. ¿Está el webhook inactivo o guardado bajo otro usuario?`;
+  }
 
-  const payloadStr = JSON.stringify({
-    event: 'lead.created',
-    timestamp: new Date().toISOString(),
-    data: lead
-  });
+  const webhook = webhooks[0];
 
-  // 3. Firma Criptográfica
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(webhook.secret_token),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  
-  const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadStr));
-  const signature = Array.from(new Uint8Array(signatureBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
+  // PRUEBA 3: Encriptación
+  let signature = "";
+  try {
+    const payloadStr = JSON.stringify({ event: 'lead.created', data: lead });
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw', encoder.encode(webhook.secret_token), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    );
+    const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadStr));
+    signature = Array.from(new Uint8Array(signatureBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch (e) {
+    return `FALLO_CRIPTOGRAFIA: ${e.message}`;
+  }
 
-  const n8nPayload = {
-    target_url: webhook.endpoint_url,
-    signature: signature,
-    idempotency_key: `lead_${lead.id}`,
-    payload_body: JSON.parse(payloadStr)
-  };
-
-  console.log(`Intentando despachar a n8n: ${env.N8N_MASTER_WEBHOOK}`);
-
+  // PRUEBA 4: Petición HTTP al Orquestador
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000); 
+    const timeoutId = setTimeout(() => controller.abort(), 8000); 
 
     const res = await fetch(env.N8N_MASTER_WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(n8nPayload),
+      body: JSON.stringify({
+        target_url: webhook.endpoint_url,
+        signature: signature,
+        idempotency_key: `lead_${lead.id}`,
+        payload_body: { event: 'lead.created', data: lead }
+      }),
       signal: controller.signal
     });
 
+    clearTimeout(timeoutId);
+
     if (!res.ok) {
-      console.error(`🔥 Error HTTP de n8n. Status: ${res.status}`);
-    } else {
-      console.log(`✅ Webhook despachado con éxito a n8n para lead ${lead.id}`);
+      return `FALLO_HTTP_N8N: El servidor maestro (Cloudflare var) rechazó la conexión. Código HTTP: ${res.status}`;
     }
 
-    clearTimeout(timeoutId);
+    return "OK";
   } catch (err) {
-    console.error(`🔥 Fallo de red disparando webhook maestro para ${auth_user_id}:`, err);
+    return `FALLO_DE_RED: El fetch hacia N8N_MASTER_WEBHOOK crasheó -> ${err.message}`;
   }
 }
