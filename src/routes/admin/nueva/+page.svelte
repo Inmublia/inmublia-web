@@ -49,17 +49,17 @@
   let valEstacionamientos = $state('');
   let valAntiguedad = $state(''); 
 
-  // Imágenes robustas validadas. Si alguna llegara a fallar, el fallback de Picsum entrará sin romper la UI.
+  // Imágenes renovadas y estables. Usamos fotos de Pexels/Unsplash validadas para evitar el error de red
   const catalogoTemplates = [
     { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80' },
     { id: 'prop_basic_2', nombre: 'Clean Showcase', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80' },
-    { id: 'prop_pro_1', nombre: 'Lead Magnet', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1600607687931-cece5ce21460?w=600&q=80' },
+    { id: 'prop_pro_1', nombre: 'Lead Magnet', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=80' },
     { id: 'prop_pro_2', nombre: 'Modern Asymmetric', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&q=80' },
-    { id: 'prop_pro_3', nombre: 'Editorial Story', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=80' },
-    { id: 'prop_elite_1', nombre: 'Luxury Immersive', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600585154526-990dced4ea0d?w=600&q=80' },
-    { id: 'prop_elite_2', nombre: 'Cinematic Tour', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=600&q=80' },
-    { id: 'prop_elite_3', nombre: 'Prestige Dark', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=600&q=80' },
-    { id: 'prop_elite_4', nombre: 'Panoramic 3D', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&q=80' }
+    { id: 'prop_pro_3', nombre: 'Editorial Story', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1600607687931-cece5ce21460?w=600&q=80' },
+    { id: 'prop_elite_1', nombre: 'Luxury Immersive', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=600&q=80' },
+    { id: 'prop_elite_2', nombre: 'Cinematic Tour', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=600&q=80' },
+    { id: 'prop_elite_3', nombre: 'Prestige Dark', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&q=80' },
+    { id: 'prop_elite_4', nombre: 'Panoramic 3D', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=600&q=80' }
   ];
 
   function puedeUsarTemplate(minPlan) {
@@ -135,7 +135,6 @@
         creditosIA--;
         generandoIA = false;
         
-        // AUTO-LLENADO EN TIEMPO REAL
         valTitulo = result.data.titulo;
         valDescripcion = result.data.descripcion;
 
@@ -152,7 +151,7 @@
     } catch (e) {
       console.error(e);
       generandoIA = false;
-      alert(`Fallo crítico de red o de parseo JSON: ${e.message}`);
+      alert(`Fallo de red: ${e.message}`);
     }
   }
 
@@ -402,7 +401,7 @@
                     {#if !generandoIA && textoGeneradoFicha.titulo}
                       <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-500/20 flex items-center gap-1.5">
                         <CheckCircle2 class="w-3.5 h-3.5" />
-                        Autocompletado en el formulario
+                        Autocompletado
                       </span>
                     {/if}
                   </div>
@@ -513,7 +512,7 @@
           </div>
         </section>
 
-        <!-- SECCIÓN 4: MEJORA VISUAL Y BOTÓN DE DEMO PERMANENTE -->
+        <!-- SECCIÓN 4: BOTONES DE PREVISUALIZACIÓN PERMANENTES -->
         <section class="space-y-6 pt-10 border-t border-slate-100">
           <div class="border-b border-slate-100 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -534,7 +533,7 @@
               {@const autorizado = puedeUsarTemplate(template.minPlan)}
               {@const activo = selectedTemplate === template.id}
               
-              <div class="flex flex-col gap-2">
+              <div class="flex flex-col gap-3">
                 <label class="relative border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group {activo ? 'border-indigo-600 ring-2 ring-indigo-600 shadow-md bg-indigo-50/10' : 'border-slate-200 hover:border-slate-300 bg-white'} {!autorizado ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-1 hover:shadow-lg'}">
                   <input type="radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
                   
@@ -542,7 +541,7 @@
                      <img 
                         src={template.img} 
                         alt={template.nombre} 
-                        onerror={(e) => { e.target.onerror = null; e.target.src = 'https://picsum.photos/seed/' + template.id + '/600/400'; }}
+                        onerror={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1e293b/ffffff?text=Inmublia+Template'; }}
                         class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                      />
                      {#if activo}
@@ -564,10 +563,10 @@
                   </div>
                 </label>
                 
-                <!-- BOTÓN DE DEMO PERMANENTE Y EVIDENTE -->
+                <!-- BOTÓN PERMANENTE Y EVIDENTE -->
                 {#if autorizado}
-                  <a href="/propiedad-demo?template={template.id}&sandbox=true" target="_blank" class="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500 hover:text-indigo-600 transition-colors py-1">
-                    <Eye class="w-3.5 h-3.5" /> Previsualizar Diseño
+                  <a href="/propiedad-demo?template={template.id}&sandbox=true" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 text-[11px] font-bold py-2 rounded-lg transition-colors border border-slate-200">
+                    <Eye class="w-3.5 h-3.5" /> Previsualizar
                   </a>
                 {/if}
               </div>
