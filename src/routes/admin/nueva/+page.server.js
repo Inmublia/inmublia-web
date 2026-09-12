@@ -12,16 +12,17 @@ export const load = async ({ locals }) => {
       .single();
 
     if (error || !broker) {
-      return { creditos_ia: 0, plan_suscripcion: 'basico', comision_global: 5 };
+      // Fallback seguro: Asumimos el nuevo límite básico de 15 si hay error de DB
+      return { creditos_ia: 15, plan_suscripcion: 'basico', comision_global: 5 };
     }
 
     return {
-      creditos_ia: broker.ia_creditos_disponibles ?? 5,
+      creditos_ia: broker.ia_creditos_disponibles ?? 15,
       plan_suscripcion: broker.plan_suscripcion || 'basico',
       comision_global: broker.comision_default || 5
     };
   } catch (err) {
-    return { creditos_ia: 0, plan_suscripcion: 'basico', comision_global: 5 };
+    return { creditos_ia: 15, plan_suscripcion: 'basico', comision_global: 5 };
   }
 };
 
@@ -40,8 +41,9 @@ export const actions = {
       .eq('auth_user_id', user.id)
       .single();
 
+    // Verificación estricta del paywall en el backend
     if (!broker || broker.ia_creditos_disponibles <= 0) {
-      return fail(403, { error: 'Te has quedado sin créditos de IA.' });
+      return fail(403, { error: 'Te has quedado sin créditos de IA. Mejora tu plan.' });
     }
 
     const formData = await request.formData();
@@ -59,11 +61,10 @@ export const actions = {
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
     const systemPrompt = `Eres el mejor copywriter inmobiliario de Norteamérica. 
-    REGLA 1: Tu respuesta DEBE ser un objeto JSON puro, en una sola línea, sin saltos de línea (usa \\n si es necesario).
+    REGLA 1: Tu respuesta DEBE ser un objeto JSON puro, en una sola línea, sin saltos de línea crudos (usa \\n si necesitas saltos).
     REGLA 2: No uses markdown (\`\`\`json).
-    REGLA 3: Usa comillas simples dentro de tus textos. NUNCA uses comillas dobles en los valores.`;
+    REGLA 3: Usa comillas simples dentro de tus textos. NUNCA uses comillas dobles en los valores internos.`;
 
-    // PROMPT AGRESIVO: Exigimos longitud y formato estructurado
     const userPrompt = `
       Crea campaña de Alto Valor. Tono: ${tono}. Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
       Características: ${recamaras} Recámaras, ${banos} Baños Completos, ${medio_bano} Medios Baños, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
