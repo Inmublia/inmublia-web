@@ -247,7 +247,7 @@ function drawFooter(pdf, broker) {
  
   pdf.setFontSize(8);
   pdf.setTextColor(148, 163, 184);
-  pdf.text('Generado por Inmublia SaaS', PAGE_W - MARGIN, fy + 20, { align: 'right' });
+  pdf.text('Generado por Inmublia', PAGE_W - MARGIN, fy + 20, { align: 'right' });
 }
  
 /** Dibuja la cuadrícula de características y retorna la nueva Y */
