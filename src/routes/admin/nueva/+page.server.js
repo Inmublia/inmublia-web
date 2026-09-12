@@ -87,16 +87,12 @@ export const actions = {
       });
 
       let rawResponse = response.response;
-      let parsedContent;
+      let parsedContent = {};
 
-      // VALIDACIÓN ESTRICTA DE TIPOS (La solución al error de indexOf)
       if (typeof rawResponse === 'object' && rawResponse !== null) {
-        // El SDK de Cloudflare ya auto-parseó el JSON exitosamente
         parsedContent = rawResponse;
       } else {
-        // Llegó como texto crudo, iniciamos el Parser de rescate
         let cleanText = String(rawResponse);
-        
         const firstBrace = cleanText.indexOf('{');
         const lastBrace = cleanText.lastIndexOf('}');
         
@@ -105,19 +101,14 @@ export const actions = {
         }
 
         cleanText = cleanText.substring(firstBrace, lastBrace + 1);
-        cleanText = cleanText.replace(/[\u0000-\u001F]+/g, ' '); // Limpieza de caracteres de control
+        cleanText = cleanText.replace(/[\u0000-\u001F]+/g, ' '); 
 
         try {
           parsedContent = JSON.parse(cleanText);
         } catch (err) {
-          console.error("JSON PARSE ERROR. Payload extraído:", cleanText);
+          console.error("JSON PARSE ERROR:", cleanText);
           return fail(500, { error: `La IA generó caracteres incompatibles: ${err.message}` });
         }
-      }
-
-      // Verificación final de integridad
-      if (!parsedContent.titulo || !parsedContent.descripcion) {
-         return fail(500, { error: 'El contenido JSON llegó incompleto.' });
       }
 
       await locals.supabase
@@ -125,11 +116,12 @@ export const actions = {
         .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
         .eq('id', broker.id);
 
+      // FIX ANTIBOMBAS: Mapeo agresivo por si la IA cambia las mayúsculas o no manda algo
       return {
-        titulo: parsedContent.titulo,
-        descripcion: parsedContent.descripcion,
-        whatsapp: parsedContent.whatsapp,
-        tiktok: parsedContent.tiktok
+        titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad Exclusiva',
+        descripcion: parsedContent.descripcion || parsedContent.Descripcion || 'Contacta al broker para más detalles.',
+        whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto esta increíble propiedad...',
+        tiktok: parsedContent.tiktok || parsedContent.TikTok || parsedContent.Tiktok || '[Gancho] ¡Mira esta increíble propiedad! [CTA] Contáctame.'
       };
 
     } catch (e) {
