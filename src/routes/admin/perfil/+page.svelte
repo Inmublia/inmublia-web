@@ -7,6 +7,9 @@
 
   let { data, form } = $props();
   let broker = $state(data.broker || {});
+  
+  // Derivamos los datos del webhook desde la base de datos (nueva tabla agency_webhooks)
+  let currentWebhook = $derived(data.webhook || {});
 
   // Forzamos a la variable de estado a sincronizarse con los datos frescos del servidor
   $effect(() => {
@@ -19,7 +22,9 @@
   let showSuccess = $state(false);
   let previewUrl = $state(null);
 
-  let webhookUrl = $state(broker.webhook_url || '');
+  // Estados específicos para el Webhook
+  let webhookUrl = $state(currentWebhook.endpoint_url || '');
+  let savingWebhook = $state(false);
   let testingWebhook = $state(false);
   let webhookSuccess = $state(false);
 
@@ -53,14 +58,16 @@
       const res = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ test: true, mensaje: "Ping desde Inmublia Elite" })
+        body: JSON.stringify({ test: true, mensaje: "Ping de prueba desde Inmublia" })
       });
-      if (res.ok) {
+      if (res.ok || res.type === 'opaque') { // opaque ayuda con respuestas sin CORS
         webhookSuccess = true;
         setTimeout(() => webhookSuccess = false, 3000);
-      } else alert('El endpoint no respondió correctamente.');
+      } else {
+        alert('El endpoint respondió con un error (HTTP ' + res.status + ').');
+      }
     } catch (e) {
-      alert('Error de conexión con el Webhook.');
+      alert('Error de conexión. Asegúrate de que la URL permite peticiones entrantes.');
     }
     testingWebhook = false;
   }
@@ -94,7 +101,7 @@
     </div>
   </header>
 
-  <!-- 🔥 TOAST FLOTANTE SAAS (Reemplaza a la alerta estática) -->
+  <!-- 🔥 TOAST FLOTANTE SAAS -->
   {#if showSuccess}
     <div class="fixed bottom-10 right-10 z-[100] p-5 bg-slate-900 rounded-2xl flex items-center gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-700 animate-[fadeIn_0.3s_ease-out]" role="alert">
       <div class="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center shrink-0 border border-emerald-500/30">
@@ -110,7 +117,8 @@
   <div class="p-10 flex-1 overflow-auto pb-32">
     <div class="max-w-5xl mx-auto">
 
-      {#if form?.error}
+      <!-- Mostrar error general solo si no es del webhook -->
+      {#if form?.error && form?.formId !== 'webhook'}
          <div class="mb-6 bg-red-100 text-red-800 font-bold p-6 rounded-xl border-2 border-red-300 text-sm whitespace-pre-wrap shadow-lg" role="alert">
            ⚠️ DIAGNÓSTICO: {form.error}
          </div>
@@ -139,9 +147,9 @@
 
             return async ({ update, result }) => {
               savingProfile = false;
-              if (result.type === 'failure') alert("❌ Validación: " + (result.data?.error || "Error"));
+              if (result.type === 'failure' && result.data?.formId !== 'webhook') alert("❌ Validación: " + (result.data?.error || "Error"));
               else if (result.type === 'error') alert("🔥 Caída Servidor: " + result.error.message);
-              else if (result.type === 'success') { showSuccess = true; setTimeout(() => showSuccess = false, 4000); await invalidateAll(); }
+              else if (result.type === 'success' && result.data?.formId !== 'webhook') { showSuccess = true; setTimeout(() => showSuccess = false, 4000); await invalidateAll(); }
               update({ reset: false });
             };
           }}>
@@ -241,7 +249,7 @@
                       max="100" 
                       name="comision_default" 
                       bind:value={broker.comision_default} 
-                      class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-10 py-3 text-lg font-black text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none" 
+                      class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-10 py-3 text-lg font-black text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-50 outline-none" 
                     />
                     <Percent class="absolute right-4 top-3.5 w-5 h-5 text-slate-400" />
                   </div>
@@ -331,7 +339,14 @@
             </form>
           </div>
 
-          <form method="POST" action="?/actualizarWebhook" use:enhance={() => { return async ({ update }) => { update({ reset: false }); alert("Webhook guardado correctamente."); }; }}>
+          <!-- 🔥 FORMULARIO WEBHOOK REFACCIONADO -->
+          <form method="POST" action="?/guardarWebhook" use:enhance={() => { 
+            savingWebhook = true; 
+            return async ({ update, result }) => { 
+              savingWebhook = false;
+              await update({ reset: false }); 
+            }; 
+          }}>
             <div class="bg-[#111827] text-white p-8 rounded-3xl shadow-xl relative overflow-hidden flex flex-col">
               <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white opacity-5 blur-2xl pointer-events-none"></div>
               
@@ -343,15 +358,39 @@
               
               <div class="space-y-4 relative z-10 flex-1 flex flex-col justify-end {esPlanBasico ? 'opacity-30 pointer-events-none' : ''} transition-opacity duration-300">
                 <div>
-                  <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2" for="webhook_url">URL del Endpoint</label>
-                  <input type="url" id="webhook_url" name="webhook_url" bind:value={webhookUrl} disabled={esPlanBasico} class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-inner placeholder:text-slate-600">
+                  <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2" for="endpoint_url">URL del Endpoint</label>
+                  <input type="url" id="endpoint_url" name="endpoint_url" bind:value={webhookUrl} disabled={esPlanBasico} class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-inner placeholder:text-slate-600">
                 </div>
-                <div class="flex gap-2">
-                  <button type="button" onclick={probarWebhook} disabled={testingWebhook || esPlanBasico} class="flex-1 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-colors border border-white/10 text-[11px] disabled:opacity-50">
+
+                <!-- Mensajes de feedback integrados en lugar de alerts -->
+                {#if form?.formId === 'webhook'}
+                  {#if form?.error}
+                    <p class="text-red-400 text-[10px] font-bold mb-1">{form.error}</p>
+                  {:else if form?.success}
+                    <p class="text-emerald-400 text-[10px] font-bold mb-1">Webhook guardado exitosamente.</p>
+                  {/if}
+                {/if}
+
+                <!-- Mostrar el token si existe (opcional pero recomendado) -->
+                {#if currentWebhook?.secret_token}
+                  <div class="pt-2">
+                    <p class="text-[9px] text-slate-500 font-mono mb-1">Secret Token (HMAC SHA-256):</p>
+                    <code class="px-2 py-1 bg-black/30 rounded border border-white/10 text-emerald-400 text-[10px] select-all block truncate">
+                      {currentWebhook.secret_token}
+                    </code>
+                  </div>
+                {/if}
+
+                <div class="flex gap-2 mt-2">
+                  <button type="button" onclick={probarWebhook} disabled={testingWebhook || esPlanBasico || !webhookUrl} class="flex-1 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-colors border border-white/10 text-[11px] disabled:opacity-50">
                     {#if testingWebhook} Probando... {:else if webhookSuccess} <span class="text-emerald-400">Exitosa</span> {:else} Probar {/if}
                   </button>
-                  <button type="submit" disabled={esPlanBasico} class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-3 rounded-xl transition-colors border border-transparent shadow-sm text-[11px] disabled:opacity-50">
-                    Guardar
+                  <button type="submit" disabled={esPlanBasico || savingWebhook} class="flex-1 flex items-center justify-center bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-3 rounded-xl transition-colors border border-transparent shadow-sm text-[11px] disabled:opacity-50">
+                    {#if savingWebhook}
+                      <Loader2 class="w-3 h-3 animate-spin mr-1" /> ...
+                    {:else}
+                      Guardar
+                    {/if}
                   </button>
                 </div>
               </div>
