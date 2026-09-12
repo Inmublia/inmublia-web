@@ -18,14 +18,21 @@ export async function load({ locals }) {
 
   if (error || !broker) throw redirect(303, '/login');
 
-  return { broker };
+  // NUEVO: Cargar configuración del webhook desde la tabla dedicada
+  const { data: webhook } = await locals.supabase
+    .from('agency_webhooks')
+    .select('*')
+    .eq('agency_id', user.id)
+    .single();
+
+  return { broker, webhook };
 }
 
 export const actions = {
   updateProfile: async ({ request, locals }) => {
     try {
       const user = locals.user;
-      if (!user) return fail(401, { error: 'Sesión expirada. Vuelve a iniciar sesión.' });
+      if (!user) return fail(401, { formId: 'profile', error: 'Sesión expirada. Vuelve a iniciar sesión.' });
 
       const formData = await request.formData();
       
@@ -39,17 +46,15 @@ export const actions = {
       const linkedin = formData.get('linkedin')?.toString().trim() || null;
       const tiktok = formData.get('tiktok')?.toString().trim() || null;
 
-      // NUEVO: Captura de la comisión con conversión estricta
       const comisionStr = formData.get('comision_default');
       const comision_default = comisionStr ? parseFloat(comisionStr.toString().trim()) : 5.0;
 
       if (!nombre_comercial || !whatsapp || !subdominio) {
-        return fail(400, { error: 'El nombre, WhatsApp y subdominio son obligatorios.' });
+        return fail(400, { formId: 'profile', error: 'El nombre, WhatsApp y subdominio son obligatorios.' });
       }
 
-      // NUEVO: Validación de la comisión
       if (isNaN(comision_default) || comision_default < 0 || comision_default > 100) {
-        return fail(400, { error: 'El porcentaje de comisión debe ser un número válido entre 0 y 100.' });
+        return fail(400, { formId: 'profile', error: 'El porcentaje de comisión debe ser un número válido entre 0 y 100.' });
       }
 
       const { data: brokerActual, error: brokerError } = await locals.supabase
@@ -58,12 +63,12 @@ export const actions = {
         .eq('auth_user_id', user.id)
         .single();
         
-      if (brokerError || !brokerActual) return fail(403, { error: `No se pudo obtener tu perfil: ${brokerError?.message}` });
+      if (brokerError || !brokerActual) return fail(403, { formId: 'profile', error: `No se pudo obtener tu perfil: ${brokerError?.message}` });
 
       const updatePayload = {
         nombre_comercial, whatsapp, subdominio, bio,
         facebook, instagram, linkedin, tiktok,
-        comision_default // NUEVO: Se inyecta en el payload para Supabase
+        comision_default 
       };
 
       const plan = brokerActual.plan_suscripcion || 'basico';
@@ -86,7 +91,7 @@ export const actions = {
         const { error: uploadError } = await locals.supabase
           .storage.from('agencias').upload(fileName, avatarFile, { upsert: true });
 
-        if (uploadError) return fail(400, { error: `FALLO EN STORAGE: ${uploadError.message}` });
+        if (uploadError) return fail(400, { formId: 'profile', error: `FALLO EN STORAGE: ${uploadError.message}` });
 
         const { data: { publicUrl } } = locals.supabase.storage.from('agencias').getPublicUrl(fileName);
         updatePayload.avatar_url = publicUrl;
@@ -96,36 +101,63 @@ export const actions = {
         .from('brokers').update(updatePayload).eq('id', brokerActual.id).select();
 
       if (updateError) {
-        if (updateError.code === '23505') return fail(400, { error: 'El subdominio ya existe.' });
-        return fail(500, { error: `FALLO EN BD: ${updateError.message}` });
+        if (updateError.code === '23505') return fail(400, { formId: 'profile', error: 'El subdominio ya existe.' });
+        return fail(500, { formId: 'profile', error: `FALLO EN BD: ${updateError.message}` });
       }
 
       if (!checkUpdate || checkUpdate.length === 0) {
-        return fail(500, { error: 'Fallo silencioso: La actualización no se reflejó.' });
+        return fail(500, { formId: 'profile', error: 'Fallo silencioso: La actualización no se reflejó.' });
       }
 
-      return { success: true };
+      // Retornamos el formId para que Svelte sepa qué alerta activar
+      return { formId: 'profile', success: true };
 
     } catch (err) {
       console.error("🔥 CRASH DEL SERVIDOR:", err);
-      return fail(500, { error: `CRASH CRÍTICO: ${err.message}` });
+      return fail(500, { formId: 'profile', error: `CRASH CRÍTICO: ${err.message}` });
     }
   },
 
-  actualizarWebhook: async ({ request, locals }) => {
+  // NUEVO: Acción nombrada y refactorizada para usar la tabla segura
+  guardarWebhook: async ({ request, locals }) => {
     const user = locals.user;
     if (!user) throw redirect(303, '/login');
 
     const formData = await request.formData();
-    const webhook_url = formData.get('webhook_url')?.toString().trim() || null;
+    const endpoint_url = formData.get('endpoint_url')?.toString().trim();
+    const is_active = true;
+
+    if (!endpoint_url) {
+       // Si el usuario vacía el input y guarda, eliminamos el webhook.
+       const { error: deleteError } = await locals.supabase
+         .from('agency_webhooks')
+         .delete()
+         .eq('agency_id', user.id);
+         
+       if (deleteError) return fail(500, { formId: 'webhook', error: 'No se pudo eliminar el webhook.' });
+       return { formId: 'webhook', success: true };
+    }
+
+    try {
+      new URL(endpoint_url);
+    } catch {
+      return fail(400, { formId: 'webhook', error: 'La URL es inválida. Debe incluir http:// o https://' });
+    }
 
     const { error } = await locals.supabase
-      .from('brokers')
-      .update({ webhook_url })
-      .eq('auth_user_id', user.id);
+      .from('agency_webhooks')
+      .upsert({ 
+        agency_id: user.id, 
+        endpoint_url, 
+        is_active 
+      }, { onConflict: 'agency_id' });
       
-    if (error) return fail(500, { error: `Error webhook: ${error.message}` });
-    return { success: true };
+    if (error) {
+      console.error("Error BD Webhook:", error);
+      return fail(500, { formId: 'webhook', error: 'Error al conectar base de datos.' });
+    }
+    
+    return { formId: 'webhook', success: true };
   },
 
   abrirPortalFacturacion: async ({ locals }) => {
@@ -160,7 +192,6 @@ export const actions = {
       return fail(500, { error: err.message || 'El portal de Stripe no respondió.' });
     }
 
-    // El redirect va estrictamente fuera del try/catch
     throw redirect(303, portalUrl);
   }
 };
