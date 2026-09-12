@@ -47,16 +47,17 @@
   let selectOperacion = $state(null);
   let inputRecamaras = $state(null);
 
+  // SE AGREGARON LAS IMÁGENES DE PREVIEW AL CATÁLOGO
   const catalogoTemplates = [
-    { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico' },
-    { id: 'prop_basic_2', nombre: 'Clean Showcase', minPlan: 'basico' },
-    { id: 'prop_pro_1', nombre: 'Lead Magnet', minPlan: 'pro' },
-    { id: 'prop_pro_2', nombre: 'Modern Asymmetric', minPlan: 'pro' },
-    { id: 'prop_pro_3', nombre: 'Editorial Story', minPlan: 'pro' },
-    { id: 'prop_elite_1', nombre: 'Luxury Immersive', minPlan: 'elite' },
-    { id: 'prop_elite_2', nombre: 'Cinematic Tour', minPlan: 'elite' },
-    { id: 'prop_elite_3', nombre: 'Prestige Dark', minPlan: 'elite' },
-    { id: 'prop_elite_4', nombre: 'Panoramic 3D', minPlan: 'elite' }
+    { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=400&h=250' },
+    { id: 'prop_basic_2', nombre: 'Clean Showcase', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=400&h=250' },
+    { id: 'prop_pro_1', nombre: 'Lead Magnet', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1600607687931-cece5ce21460?auto=format&fit=crop&q=80&w=400&h=250' },
+    { id: 'prop_pro_2', nombre: 'Modern Asymmetric', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=400&h=250' },
+    { id: 'prop_pro_3', nombre: 'Editorial Story', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=400&h=250' },
+    { id: 'prop_elite_1', nombre: 'Luxury Immersive', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600585154526-990dced4ea0d?auto=format&fit=crop&q=80&w=400&h=250' },
+    { id: 'prop_elite_2', nombre: 'Cinematic Tour', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600047509807-ba8f99c2cdde?auto=format&fit=crop&q=80&w=400&h=250' },
+    { id: 'prop_elite_3', nombre: 'Prestige Dark', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?auto=format&fit=crop&q=80&w=400&h=250' },
+    { id: 'prop_elite_4', nombre: 'Panoramic 3D', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=400&h=250' }
   ];
 
   function puedeUsarTemplate(minPlan) {
@@ -493,6 +494,7 @@
           </div>
         </section>
 
+        <!-- SECCIÓN 4 REFACTORIZADA CON PREVIEWS VISUALES -->
         <section class="space-y-6 pt-10 border-t border-slate-100">
           <div class="border-b border-slate-100 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -508,21 +510,32 @@
 
           <input type="hidden" name="template_id" value={selectedTemplate}>
 
-          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-5">
             {#each catalogoTemplates as template}
               {@const autorizado = puedeUsarTemplate(template.minPlan)}
               {@const activo = selectedTemplate === template.id}
-              <label class="relative border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 {activo ? 'border-indigo-600 ring-2 ring-indigo-600 shadow-md bg-indigo-50/10' : 'border-slate-200 hover:border-slate-300 bg-white'} {!autorizado ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
+              
+              <label class="relative border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group {activo ? 'border-indigo-600 ring-2 ring-indigo-600 shadow-md bg-indigo-50/10' : 'border-slate-200 hover:border-slate-300 bg-white'} {!autorizado ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-1 hover:shadow-lg'}">
                 <input type="radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
-                <div class="p-4 flex flex-col justify-between h-full min-h-[100px]">
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="font-bold text-sm {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
+                
+                <!-- Thumbnail con Hover Effect -->
+                <div class="aspect-video w-full bg-slate-100 relative overflow-hidden border-b border-slate-100">
+                   <img src={template.img} alt={template.nombre} class="w-full h-full object-cover transition-transform duration-500 {autorizado && !activo ? 'group-hover:scale-105' : ''}" />
+                   {#if activo}
+                     <div class="absolute inset-0 bg-indigo-600/15 mix-blend-multiply transition-colors"></div>
+                   {/if}
+                </div>
+
+                <!-- Footer de la Card -->
+                <div class="p-4 flex flex-col justify-between flex-1 bg-white">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="font-bold text-sm leading-tight {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
                     {#if !autorizado}
-                      <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-amber-100 text-amber-800">
+                      <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-slate-200 text-slate-500 shrink-0">
                         🔒 {template.minPlan}
                       </span>
                     {:else if activo}
-                      <CheckCircle2 class="w-4 h-4 text-indigo-600" />
+                      <CheckCircle2 class="w-5 h-5 text-indigo-600 shrink-0" />
                     {/if}
                   </div>
                 </div>
