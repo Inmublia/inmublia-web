@@ -12,7 +12,6 @@ export const load = async ({ locals }) => {
       .single();
 
     if (error || !broker) {
-      // Fallback seguro: Asumimos el nuevo límite básico de 15 si hay error de DB
       return { creditos_ia: 15, plan_suscripcion: 'basico', comision_global: 5 };
     }
 
@@ -41,9 +40,8 @@ export const actions = {
       .eq('auth_user_id', user.id)
       .single();
 
-    // Verificación estricta del paywall en el backend
     if (!broker || broker.ia_creditos_disponibles <= 0) {
-      return fail(403, { error: 'Te has quedado sin créditos de IA. Mejora tu plan.' });
+      return fail(403, { error: 'Has agotado tus créditos de IA.' });
     }
 
     const formData = await request.formData();
@@ -60,21 +58,23 @@ export const actions = {
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
-    const systemPrompt = `Eres el mejor copywriter inmobiliario de Norteamérica. 
-    REGLA 1: Tu respuesta DEBE ser un objeto JSON puro, en una sola línea, sin saltos de línea crudos (usa \\n si necesitas saltos).
+    // REGLAS ABSOLUTAS ANTI-ALUCINACIÓN
+    const systemPrompt = `Eres un copywriter inmobiliario corporativo de élite.
+    REGLA 1: Devuelve SOLO un objeto JSON puro, en una línea.
     REGLA 2: No uses markdown (\`\`\`json).
-    REGLA 3: Usa comillas simples dentro de tus textos. NUNCA uses comillas dobles en los valores internos.`;
+    REGLA 3: Usa comillas simples dentro de tus textos. NUNCA uses comillas dobles en los valores internos.
+    REGLA 4: CEÑIRSE ESTRICTAMENTE A LOS DATOS. PROHIBIDO alucinar, inventar amenidades, incluir electrodomésticos o muebles que no se mencionen.`;
 
+    // PROMPT REFINADO: Separación forzada de párrafos con \\n\\n
     const userPrompt = `
-      Crea campaña de Alto Valor. Tono: ${tono}. Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
-      Características: ${recamaras} Recámaras, ${banos} Baños Completos, ${medio_bano} Medios Baños, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
+      Genera contenido. Tono: ${tono}. Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
+      Características exactas (no inventes más): ${recamaras} Recámaras, ${banos} Baños Completos, ${medio_bano} Medios Baños, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
       
-      Debes devolver ESTRICTAMENTE este JSON rellenando cada llave bajo estas reglas inflexibles:
+      Devuelve ESTRICTAMENTE este JSON:
       {
-        "titulo": "(Máximo 10 palabras. Debe ser un gancho irresistible y aspiracional)",
-        "descripcion": "(OBLIGATORIO: Mínimo 150 palabras. Escribe 3 párrafos profundos. Párrafo 1: El gancho emocional y estilo de vida. Párrafo 2: Arquitectura, distribución detallada y comodidades. Párrafo 3: Ubicación estratégica, plusvalía y llamado a la acción poderoso)",
-        "whatsapp": "(Mensaje estructurado con viñetas de emojis. Resalta el precio, la ubicación y un Call to Action urgente para agendar cita hoy mismo)",
-        "tiktok": "(Guion hiper-detallado de 45 segundos. Formato estricto -> [0:00-0:05 VISUAL: toma rápida de fachada] AUDIO: Gancho agresivo. [0:05-0:30 VISUAL: Recorrido interior] AUDIO: Destaca lo mejor. [0:30-0:45 VISUAL: Vista de amenidades] AUDIO: Llamado a la acción con urgencia)"
+        "titulo": "(Máximo 10 palabras. Gancho profesional)",
+        "descripcion": "(Mínimo 150 palabras. Escribe exactamente 3 párrafos usando el texto literal '\\n\\n' para separarlos. Párrafo 1: Estilo de vida general. Párrafo 2: Arquitectura basada SOLO en los datos numéricos dados. Párrafo 3: Ubicación y cierre. NO INVENTES EXTRAS)",
+        "whatsapp": "(Mensaje profesional y elegante. Usa un máximo de 3 emojis en todo el texto. Separa las líneas con '\\n\\n'. Incluye un llamado a la acción claro)"
       }
     `;
 
@@ -103,7 +103,11 @@ export const actions = {
         }
 
         cleanText = cleanText.substring(firstBrace, lastBrace + 1);
-        cleanText = cleanText.replace(/[\u0000-\u001F]+/g, ' '); 
+        
+        // FIX DE SALTOS DE LÍNEA: Convertimos Enters crudos en la secuencia segura \n
+        cleanText = cleanText.replace(/\n/g, '\\n').replace(/\r/g, '');
+        // Borramos los otros caracteres de control que rompen el parser (excepto \n)
+        cleanText = cleanText.replace(/[\u0000-\u0009\u000B-\u001F]+/g, ' ');
 
         try {
           parsedContent = JSON.parse(cleanText);
@@ -121,8 +125,7 @@ export const actions = {
       return {
         titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad Exclusiva',
         descripcion: parsedContent.descripcion || parsedContent.Descripcion || 'Contacta al broker para más detalles.',
-        whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto esta increíble propiedad...',
-        tiktok: parsedContent.tiktok || parsedContent.TikTok || parsedContent.Tiktok || '[Gancho] ¡Mira esta propiedad! [Desarrollo] Contáctame.'
+        whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto esta increíble propiedad...'
       };
 
     } catch (e) {
