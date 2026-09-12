@@ -47,8 +47,8 @@
   let valBanos = $state('');
   let valMedioBano = $state('');
   let valEstacionamientos = $state('');
+  let valAntiguedad = $state(''); // NUEVO: Estado para Edad/Antigüedad
 
-  // Enlaces renovados y estables
   const catalogoTemplates = [
     { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=400&h=250' },
     { id: 'prop_basic_2', nombre: 'Clean Showcase', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=400&h=250' },
@@ -115,6 +115,7 @@
       formData.append('banos', valBanos || '0');
       formData.append('medio_bano', valMedioBano || '0');
       formData.append('estacionamientos', valEstacionamientos || '0');
+      formData.append('antiguedad', valAntiguedad || 'No especificada'); // NUEVO: Envío a IA
       formData.append('tono', tonoIA);
 
       const res = await fetch('?/generarCampañaIA', {
@@ -123,7 +124,6 @@
         headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' }
       });
 
-      // FIX: Alertas explícitas para saber exactamente qué falló en red
       if (!res.ok) {
         throw new Error(`Error HTTP: ${res.status}`);
       }
@@ -142,7 +142,6 @@
         ]);
       } else {
         generandoIA = false;
-        // Muestra el error exacto devuelto por el servidor, no uno genérico
         alert(result.data?.error || `Error del servidor: ${JSON.stringify(result)}`);
       }
     } catch (e) {
@@ -175,7 +174,7 @@
   </header>
 
   <main class="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 w-full">
-    <div class="w-full max-w-[900px] mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-10">
+    <div class="w-full max-w-[1000px] mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-10">
       
       {#if form?.error}
         <div class="mb-8 bg-red-50 text-red-600 font-semibold p-4 rounded-xl text-sm border border-red-100 animate-[fadeIn_0.3s_ease-out]">{form.error}</div>
@@ -275,13 +274,15 @@
               </div>
             </div>
 
-            <div class="col-span-2 grid grid-cols-3 sm:grid-cols-6 gap-4">
+            <!-- NUEVA ESTRUCTURA DE 7 COLUMNAS PARA INCLUIR LA ANTIGÜEDAD -->
+            <div class="col-span-2 grid grid-cols-3 sm:grid-cols-7 gap-4">
               <div><label for="recamaras" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Recámaras</label><input bind:value={valRecamaras} id="recamaras" type="number" name="recamaras" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
               <div><label for="banos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Baños</label><input bind:value={valBanos} id="banos" type="number" name="banos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
               <div><label for="medio_bano" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">1/2 Baños</label><input bind:value={valMedioBano} id="medio_bano" type="number" name="medio_bano" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
               <div><label for="estacionamientos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Autos</label><input bind:value={valEstacionamientos} id="estacionamientos" type="number" name="estacionamientos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
               <div><label for="m2_terreno" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Terreno</label><input id="m2_terreno" type="number" name="m2_terreno" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-              <div><label for="m2_construccion" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Interiores</label><input id="m2_construccion" type="number" name="m2_construccion" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+              <div><label for="m2_construccion" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Const.</label><input id="m2_construccion" type="number" name="m2_construccion" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+              <div><label for="antiguedad" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Antigüedad</label><input bind:value={valAntiguedad} id="antiguedad" type="text" name="antiguedad" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-300" placeholder="Ej. 5 años"></div>
             </div>
 
             <div class="sm:col-span-2 pt-2">
@@ -506,7 +507,7 @@
           </div>
         </section>
 
-        <!-- SECCIÓN 4 FIX: IMÁGENES A PRUEBA DE BALAS -->
+        <!-- SECCIÓN 4 FIX SVELTE 5: Función anónima en onerror -->
         <section class="space-y-6 pt-10 border-t border-slate-100">
           <div class="border-b border-slate-100 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -531,11 +532,11 @@
                 <input type="radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
                 
                 <div class="aspect-video w-full bg-slate-100 relative overflow-hidden border-b border-slate-100">
-                   <!-- FIX: Evento onerror nativo inyectado para que jamás haya un espacio en blanco -->
+                   <!-- FIX SVELTE: on:error dinámico para evitar error del compilador Rolldown -->
                    <img 
                       src={template.img} 
                       alt={template.nombre} 
-                      onerror="this.onerror=null; this.src='https://placehold.co/400x250/1e293b/ffffff?text=Inmublia+Template'" 
+                      onerror={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/1e293b/ffffff?text=Inmublia+Template'; }}
                       class="w-full h-full object-cover transition-transform duration-500 {autorizado && !activo ? 'group-hover:scale-105' : ''}" 
                    />
                    {#if activo}
