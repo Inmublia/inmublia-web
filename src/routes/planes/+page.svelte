@@ -1,10 +1,8 @@
 <script>
-  // SVELTE 5: Estado reactivo para el toggle de facturación
   import { Check, X, Zap, Crown, Building2, ArrowRight } from 'lucide-svelte';
 
   let facturacionAnual = $state(true);
 
-  // Mapeo directo a tu base de datos: plan_suscripcion ('basico', 'pro', 'elite')
   const planes = [
     {
       id: 'basico',
@@ -23,7 +21,7 @@
         { texto: 'Bóveda Matchmaking', incluido: false },
         { texto: 'Dominio propio personalizado', incluido: false }
       ],
-      linkId: 'price_basico_test' // Aquí irá tu ID de Stripe
+      linkId: 'price_basico_test'
     },
     {
       id: 'pro',
@@ -43,7 +41,7 @@
         { texto: 'Bóveda & Matchmaking Inteligente', incluido: true },
         { texto: 'Dominio propio personalizado', incluido: false }
       ],
-      linkId: 'price_pro_test' // Aquí irá tu ID de Stripe
+      linkId: 'price_pro_test'
     },
     {
       id: 'elite',
@@ -62,7 +60,7 @@
         { texto: 'Bóveda & Matchmaking Inteligente', incluido: true },
         { texto: 'Dominio propio personalizado (.com)', incluido: true }
       ],
-      linkId: 'price_elite_test' // Aquí irá tu ID de Stripe
+      linkId: 'price_elite_test'
     }
   ];
 </script>
@@ -72,8 +70,6 @@
 </svelte:head>
 
 <div class="min-h-screen bg-slate-50 font-sans selection:bg-indigo-500 selection:text-white pb-24">
-  
-  <!-- NAVEGACIÓN GLOBAL -->
   <header class="w-full h-20 flex items-center justify-between px-6 lg:px-12 bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200/50">
     <a href="/" class="flex items-center gap-2">
       <div class="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
@@ -172,22 +168,20 @@
           {/each}
         </ul>
 
-        <!-- EL BOTÓN QUE CONECTA EL EMBUDO -->
-        <a 
-          href="/registro?plan={plan.id}&ciclo={facturacionAnual ? 'anual' : 'mensual'}"
-          class="w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-200 {plan.destacado ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.4)]' : 'bg-slate-900 hover:bg-slate-800 text-white shadow-md'}"
-        >
-          Comenzar Prueba
-          <ArrowRight class="w-4 h-4" />
-        </a>
+        {#if plan.id === 'elite'}
+          <a href="/contacto" class="w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-200 bg-slate-900 hover:bg-slate-800 text-white shadow-md">
+            Contactar Ventas
+          </a>
+        {:else}
+          <a 
+            href="/registro?plan={plan.id}&ciclo={facturacionAnual ? 'anual' : 'mensual'}"
+            class="w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-200 {plan.destacado ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.4)]' : 'bg-slate-900 hover:bg-slate-800 text-white shadow-md'}"
+          >
+            Seleccionar Plan
+            <ArrowRight class="w-4 h-4" />
+          </a>
+        {/if}
       </div>
     {/each}
-  </div>
-
-  <div class="max-w-3xl mx-auto mt-20 text-center px-6">
-    <p class="text-sm font-bold text-slate-500 flex items-center justify-center gap-2">
-      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-      Incluye 14 días de prueba sin compromiso en todos los planes.
-    </p>
   </div>
 </div>
