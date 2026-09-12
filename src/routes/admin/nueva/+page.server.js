@@ -31,7 +31,7 @@ export const actions = {
     if (!user) return fail(401, { error: 'No autorizado' });
 
     if (!platform?.env?.AI) {
-      return fail(500, { error: '🚨 Falla de Servidor: El Binding "AI" no está conectado en Cloudflare Pages.' });
+      return fail(500, { error: 'Falla de Servidor: El Binding "AI" no está conectado en Cloudflare.' });
     }
 
     const { data: broker } = await locals.supabase
@@ -41,7 +41,7 @@ export const actions = {
       .single();
 
     if (!broker || broker.ia_creditos_disponibles <= 0) {
-      return fail(403, { error: '🔒 Te has quedado sin créditos de IA.' });
+      return fail(403, { error: 'Te has quedado sin créditos de IA.' });
     }
 
     const formData = await request.formData();
@@ -58,24 +58,27 @@ export const actions = {
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
-    const systemPrompt = `Eres un copywriter inmobiliario. Tono: ${tono}. 
-    INSTRUCCIÓN CRÍTICA: Responde EXCLUSIVAMENTE con un JSON válido. No uses markdown. Evita usar comillas dobles dentro de tus textos.`;
+    // DOCUMENTADO: Instrucciones estrictas anti-crashes de JSON
+    const systemPrompt = `Eres un sistema backend. Tu única tarea es devolver un objeto JSON válido.
+    REGLA 1: NO uses bloques de código markdown (como \`\`\`json).
+    REGLA 2: NO uses saltos de línea (Enters) dentro del texto. Escribe todo en un solo bloque continuo.
+    REGLA 3: Usa comillas simples dentro de las descripciones si necesitas enfatizar algo, NUNCA comillas dobles.`;
 
     const userPrompt = `
-      Campaña para: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
+      Genera textos comerciales. Tono: ${tono}. Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
       Specs: ${recamaras} Rec, ${banos} Baños, ${medio_bano} Medios, ${estacionamientos} Autos, Edad: ${antiguedad}.
       
-      Genera y devuelve ÚNICAMENTE este JSON exacto:
+      Devuelve ESTE FORMATO EXACTO:
       {
-        "titulo": "Título atractivo",
-        "descripcion": "Descripción comercial",
-        "whatsapp": "Mensaje para WhatsApp",
-        "tiktok": "Guion de video"
+        "titulo": "Escribe un titulo corto aqui",
+        "descripcion": "Escribe la descripcion continua aqui",
+        "whatsapp": "Escribe el mensaje de whatsapp continuo aqui",
+        "tiktok": "Escribe el guion continuo aqui"
       }
     `;
 
     try {
-      const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
+      const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -84,22 +87,31 @@ export const actions = {
         max_tokens: 2500
       });
 
-      let cleanText = response.response;
-      let parsedContent;
-
-      const start = cleanText.indexOf('{');
-      const end = cleanText.lastIndexOf('}');
-      if (start !== -1 && end !== -1) {
-        cleanText = cleanText.substring(start, end + 1);
+      let rawText = response.response;
+      
+      // PARSER SEGURO BASADO EN MDN:
+      const firstBrace = rawText.indexOf('{');
+      const lastBrace = rawText.lastIndexOf('}');
+      
+      if (firstBrace === -1 || lastBrace === -1) {
+        return fail(500, { error: 'La IA no generó la estructura JSON.' });
       }
 
-      cleanText = cleanText.replace(/\n/g, '\\n').replace(/\r/g, '');
+      let jsonString = rawText.substring(firstBrace, lastBrace + 1);
+      
+      // Sanitización recomendada contra caracteres de control invisibles que rompen JSON.parse()
+      jsonString = jsonString.replace(/[\u0000-\u001F]+/g, ' ');
 
+      let parsedContent;
       try {
-        parsedContent = JSON.parse(cleanText);
+        parsedContent = JSON.parse(jsonString);
       } catch (err) {
-        console.error("OUTPUT CRUDO QUE ROMPIÓ EL PARSER:", response.response);
-        return fail(500, { error: 'La IA devolvió un formato incompatible. Intenta generar de nuevo.' });
+        console.error("JSON PARSE ERROR. Payload extraído:", jsonString);
+        return fail(500, { error: `La IA generó caracteres incompatibles: ${err.message}` });
+      }
+
+      if (!parsedContent.titulo || !parsedContent.descripcion) {
+         return fail(500, { error: 'El contenido JSON llegó incompleto.' });
       }
 
       await locals.supabase
@@ -115,7 +127,7 @@ export const actions = {
       };
 
     } catch (e) {
-      return fail(500, { error: `Error conectando con la IA: ${e.message}` });
+      return fail(500, { error: `Fallo de conexión Cloudflare AI: ${e.message}` });
     }
   },
 
