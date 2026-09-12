@@ -49,15 +49,15 @@
   let valEstacionamientos = $state('');
   let valAntiguedad = $state(''); 
 
-  // Imágenes robustas seleccionadas manualmente para asegurar disponibilidad
+  // Imágenes robustas validadas. Si alguna llegara a fallar, el fallback de Picsum entrará sin romper la UI.
   const catalogoTemplates = [
     { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80' },
     { id: 'prop_basic_2', nombre: 'Clean Showcase', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80' },
-    { id: 'prop_pro_1', nombre: 'Lead Magnet', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1628012198051-5123fcdd0fba?w=600&q=80' },
+    { id: 'prop_pro_1', nombre: 'Lead Magnet', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1600607687931-cece5ce21460?w=600&q=80' },
     { id: 'prop_pro_2', nombre: 'Modern Asymmetric', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&q=80' },
     { id: 'prop_pro_3', nombre: 'Editorial Story', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=80' },
-    { id: 'prop_elite_1', nombre: 'Luxury Immersive', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=600&q=80' },
-    { id: 'prop_elite_2', nombre: 'Cinematic Tour', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1505843513577-22bb7abd5112?w=600&q=80' },
+    { id: 'prop_elite_1', nombre: 'Luxury Immersive', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600585154526-990dced4ea0d?w=600&q=80' },
+    { id: 'prop_elite_2', nombre: 'Cinematic Tour', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=600&q=80' },
     { id: 'prop_elite_3', nombre: 'Prestige Dark', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=600&q=80' },
     { id: 'prop_elite_4', nombre: 'Panoramic 3D', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&q=80' }
   ];
@@ -135,6 +135,7 @@
         creditosIA--;
         generandoIA = false;
         
+        // AUTO-LLENADO EN TIEMPO REAL
         valTitulo = result.data.titulo;
         valDescripcion = result.data.descripcion;
 
@@ -401,14 +402,14 @@
                     {#if !generandoIA && textoGeneradoFicha.titulo}
                       <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-500/20 flex items-center gap-1.5">
                         <CheckCircle2 class="w-3.5 h-3.5" />
-                        Autocompletado
+                        Autocompletado en el formulario
                       </span>
                     {/if}
                   </div>
                   
                   <div class="flex-1 space-y-5">
                     <div>
-                      <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5">Título</p>
+                      <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5">Título Generado</p>
                       {#if generandoIA && !textoGeneradoFicha.titulo}
                         <div class="h-6 bg-slate-700/50 rounded animate-pulse w-3/4"></div>
                       {:else}
@@ -416,7 +417,7 @@
                       {/if}
                     </div>
                     <div>
-                      <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5">Descripción</p>
+                      <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5">Descripción Generada</p>
                       {#if generandoIA && !textoGeneradoFicha.descripcion}
                         <div class="space-y-2">
                           <div class="h-3.5 bg-slate-700/50 rounded w-full animate-pulse"></div>
@@ -512,7 +513,7 @@
           </div>
         </section>
 
-        <!-- SECCIÓN 4: MEJORA VISUAL Y DEMOS -->
+        <!-- SECCIÓN 4: MEJORA VISUAL Y BOTÓN DE DEMO PERMANENTE -->
         <section class="space-y-6 pt-10 border-t border-slate-100">
           <div class="border-b border-slate-100 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -528,46 +529,48 @@
 
           <input type="hidden" name="template_id" value={selectedTemplate}>
 
-          <div class="grid grid-cols-2 md:grid-cols-3 gap-5">
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
             {#each catalogoTemplates as template}
               {@const autorizado = puedeUsarTemplate(template.minPlan)}
               {@const activo = selectedTemplate === template.id}
               
-              <label class="relative border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group {activo ? 'border-indigo-600 ring-2 ring-indigo-600 shadow-md bg-indigo-50/10' : 'border-slate-200 hover:border-slate-300 bg-white'} {!autorizado ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-1 hover:shadow-lg'}">
-                <input type="radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
-                
-                <div class="aspect-video w-full bg-slate-100 relative overflow-hidden border-b border-slate-100">
-                   <img 
-                      src={template.img} 
-                      alt={template.nombre} 
-                      onerror={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1e293b/ffffff?text=Inmublia+Template'; }}
-                      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                   />
-                   {#if activo}
-                     <div class="absolute inset-0 bg-indigo-600/15 mix-blend-multiply transition-colors"></div>
-                   {/if}
-
-                   <!-- OVERLAY: BOTÓN VER DEMO -->
-                   <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-sm z-20">
-                     <a href="/propiedad-demo?template={template.id}&sandbox=true" target="_blank" onclick={(e) => e.stopPropagation()} class="bg-white text-slate-900 text-[10px] font-bold px-4 py-2 rounded-full flex items-center gap-1.5 hover:bg-slate-100 transition-transform hover:scale-105 shadow-xl">
-                       <Eye class="w-3.5 h-3.5" /> Ver Demo
-                     </a>
-                   </div>
-                </div>
-
-                <div class="p-4 flex flex-col justify-between flex-1 bg-white">
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="font-bold text-sm leading-tight {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
-                    {#if !autorizado}
-                      <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-slate-200 text-slate-500 shrink-0">
-                        🔒 {template.minPlan}
-                      </span>
-                    {:else if activo}
-                      <CheckCircle2 class="w-5 h-5 text-indigo-600 shrink-0" />
-                    {/if}
+              <div class="flex flex-col gap-2">
+                <label class="relative border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group {activo ? 'border-indigo-600 ring-2 ring-indigo-600 shadow-md bg-indigo-50/10' : 'border-slate-200 hover:border-slate-300 bg-white'} {!autorizado ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-1 hover:shadow-lg'}">
+                  <input type="radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
+                  
+                  <div class="aspect-video w-full bg-slate-100 relative overflow-hidden border-b border-slate-100">
+                     <img 
+                        src={template.img} 
+                        alt={template.nombre} 
+                        onerror={(e) => { e.target.onerror = null; e.target.src = 'https://picsum.photos/seed/' + template.id + '/600/400'; }}
+                        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                     />
+                     {#if activo}
+                       <div class="absolute inset-0 bg-indigo-600/15 mix-blend-multiply transition-colors"></div>
+                     {/if}
                   </div>
-                </div>
-              </label>
+
+                  <div class="p-4 flex flex-col justify-between flex-1 bg-white">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="font-bold text-sm leading-tight {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
+                      {#if !autorizado}
+                        <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-slate-200 text-slate-500 shrink-0">
+                          🔒 {template.minPlan}
+                        </span>
+                      {:else if activo}
+                        <CheckCircle2 class="w-5 h-5 text-indigo-600 shrink-0" />
+                      {/if}
+                    </div>
+                  </div>
+                </label>
+                
+                <!-- BOTÓN DE DEMO PERMANENTE Y EVIDENTE -->
+                {#if autorizado}
+                  <a href="/propiedad-demo?template={template.id}&sandbox=true" target="_blank" class="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500 hover:text-indigo-600 transition-colors py-1">
+                    <Eye class="w-3.5 h-3.5" /> Previsualizar Diseño
+                  </a>
+                {/if}
+              </div>
             {/each}
           </div>
         </section>
