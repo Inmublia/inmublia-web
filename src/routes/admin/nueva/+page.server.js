@@ -26,10 +26,14 @@ export const load = async ({ locals }) => {
 };
 
 export const actions = {
-  // SE INYECTA 'platform' PARA ACCEDER AL MOTOR DE IA DE CLOUDFLARE EN EL EDGE
   generarCampañaIA: async ({ request, locals, platform }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
+
+    // FIX: Validación crítica de entorno. Si falta el binding, aborta con mensaje claro.
+    if (!platform?.env?.AI) {
+      return fail(500, { error: '🚨 Falla de Servidor: El Binding "AI" no está conectado en Cloudflare Pages.' });
+    }
 
     const { data: broker } = await locals.supabase
       .from('brokers')
@@ -42,10 +46,6 @@ export const actions = {
       return fail(403, { error: '🔒 Te has quedado sin créditos. Mejora tu plan a Pro o Elite.' });
     }
 
-    if (!platform?.env?.AI) {
-      return fail(500, { error: 'El motor de IA de Cloudflare no está vinculado. Revisa el Binding en el panel.' });
-    }
-
     const formData = await request.formData();
     const ubicacion = formData.get('ubicacion');
     const precio = formData.get('precio');
@@ -53,7 +53,6 @@ export const actions = {
     const operacion = formData.get('operacion');
     const tono = formData.get('tono');
     
-    // Capturamos las especificaciones técnicas para nutrir el Prompt
     const recamaras = formData.get('recamaras') || '0';
     const banos = formData.get('banos') || '0';
     const medio_bano = formData.get('medio_bano') || '0';
@@ -85,7 +84,6 @@ export const actions = {
     `;
 
     try {
-      // LLAMADA NATIVA AL EDGE DE CLOUDFLARE (0 Latencia, $0 Costo)
       const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
         messages: [
           { role: 'system', content: systemPrompt },
@@ -95,9 +93,14 @@ export const actions = {
 
       let iaText = response.response;
       
-      // Limpieza de formato por si la IA devuelve el JSON envuelto en Markdown
-      iaText = iaText.replace(/```json/g, '').replace(/```/g, '');
-      const parsedContent = JSON.parse(iaText);
+      // FIX ANTIBOMBAS: Extraer estrictamente el JSON, ignorando textos extra de la IA
+      const jsonMatch = iaText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.error("Respuesta cruda de IA sin JSON:", iaText);
+        return fail(500, { error: 'La IA devolvió texto conversacional en lugar del formato estructurado. Intenta de nuevo.' });
+      }
+
+      const parsedContent = JSON.parse(jsonMatch[0]);
 
       await locals.supabase
         .from('brokers')
@@ -113,7 +116,7 @@ export const actions = {
 
     } catch (e) {
       console.error("Error en Workers AI:", e);
-      return fail(500, { error: 'Error procesando la IA. Verifica que el modelo devuelva un JSON válido.' });
+      return fail(500, { error: `Falla interna procesando el modelo de IA: ${e.message}` });
     }
   },
 
