@@ -2,15 +2,13 @@ import { fail } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 
 export async function load({ params, locals }) {
-  // 1. Cargar los detalles de la propiedad usando el ID de la URL
   const { data: propiedad, error } = await locals.supabase
-    .from('propiedades') // Asegúrate de que este sea el nombre real de tu tabla
+    .from('propiedades') 
     .select('*, broker:brokers(id, nombre_comercial, avatar_url, whatsapp)')
     .eq('id', params.id)
     .single();
 
   if (error || !propiedad) {
-    // Si la propiedad no existe o fue eliminada
     return { status: 404, error: 'Propiedad no encontrada' };
   }
 
@@ -21,10 +19,9 @@ export const actions = {
   contactar: async ({ request, locals, platform, params }) => {
     const formData = await request.formData();
     
-    // Extraer y limpiar datos del formulario
     const leadData = {
       propiedad_id: params.id,
-      agency_id: formData.get('agency_id'), // OJO: Este es el ID de la tabla 'brokers', no el de auth.users
+      agency_id: formData.get('agency_id'), 
       nombre: formData.get('nombre')?.toString().trim(),
       email: formData.get('email')?.toString().trim(),
       telefono: formData.get('telefono')?.toString().trim(),
@@ -32,12 +29,10 @@ export const actions = {
       origen: 'Portal Web Inmublia'
     };
 
-    // Validaciones básicas
     if (!leadData.nombre || !leadData.email || !leadData.telefono) {
       return fail(400, { formId: 'contacto', error: 'Por favor, llena los campos obligatorios.' });
     }
 
-    // 1. Guardar el Lead en Inmublia (Supabase)
     const { data: lead, error: dbError } = await locals.supabase
       .from('leads')
       .insert(leadData)
@@ -46,11 +41,9 @@ export const actions = {
 
     if (dbError) {
       console.error("Error BD Guardando lead:", dbError);
-      return fail(500, { formId: 'contacto', error: 'Hubo un problema al enviar tu mensaje. Intenta de nuevo.' });
+      return fail(500, { formId: 'contacto', error: 'Hubo un problema al enviar tu mensaje.' });
     }
 
-    // --- INICIO DEL FIX DE IDENTIDADES (TRADUCCIÓN DE UUID) ---
-    // Buscamos el auth_user_id del broker al que le pertenece la propiedad
     const { data: brokerDestino, error: brokerError } = await locals.supabase
       .from('brokers')
       .select('auth_user_id')
@@ -61,38 +54,40 @@ export const actions = {
       console.error("Error buscando al broker destino:", brokerError);
     }
 
-    // 2. Disparo Asíncrono usando el auth_user_id correcto
     if (brokerDestino?.auth_user_id) {
       if (platform?.context?.waitUntil) {
         platform.context.waitUntil(
           despacharWebhookN8n(locals.supabase, brokerDestino.auth_user_id, lead)
         );
       } else {
-        // Fallback por si lo corres en Node localmente
         despacharWebhookN8n(locals.supabase, brokerDestino.auth_user_id, lead).catch(console.error);
       }
     }
-    // --- FIN DEL FIX ---
 
     return { formId: 'contacto', success: true };
   }
 };
 
-// --- EL MOTOR EDGE DE WEBHOOKS ---
+// --- EL MOTOR EDGE DE WEBHOOKS (REFACTORIZADO) ---
 async function despacharWebhookN8n(supabase, auth_user_id, lead) {
-  // 1. Revisar si la agencia tiene configurado y activo su Webhook Elite
-  // Ahora consultamos usando el auth_user_id correcto
-  const { data: webhook, error: webhookError } = await supabase
-    .from('agency_webhooks')
-    .select('endpoint_url, secret_token')
-    .eq('agency_id', auth_user_id)
-    .eq('is_active', true)
-    .single();
-
-  if (webhookError || !webhook) {
-    console.log(`Abortado: No hay webhook activo para el usuario: ${auth_user_id}`);
-    return; // Termina en silencio si no es agencia Pro/Elite o lo tiene apagado.
+  // 1. DIAGNÓSTICO ESTRICTO DE ENTORNO
+  if (!env.N8N_MASTER_WEBHOOK) {
+    console.error("🔥 ERROR CRÍTICO: La variable N8N_MASTER_WEBHOOK no está definida en Cloudflare Pages.");
+    return;
   }
+
+  // 2. BYPASS DE RLS CON RPC (SECURITY DEFINER)
+  // Como el usuario es anónimo, usamos la función SQL para leer la URL de forma segura
+  const { data: webhooks, error: webhookError } = await supabase
+    .rpc('get_active_webhook', { broker_auth_id: auth_user_id });
+
+  // Validamos si falló o si el array viene vacío
+  if (webhookError || !webhooks || webhooks.length === 0) {
+    console.log(`Abortado: Sin webhook activo o fallo RLS para agencia: ${auth_user_id}`);
+    return; 
+  }
+
+  const webhook = webhooks[0]; // Extraemos el primer resultado del RPC
 
   const payloadStr = JSON.stringify({
     event: 'lead.created',
@@ -100,7 +95,7 @@ async function despacharWebhookN8n(supabase, auth_user_id, lead) {
     data: lead
   });
 
-  // 2. Firma Criptográfica (Web Crypto API Nativa)
+  // 3. Firma Criptográfica
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     'raw',
@@ -115,7 +110,6 @@ async function despacharWebhookN8n(supabase, auth_user_id, lead) {
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 
-  // 3. Empaquetar para el Orquestador n8n
   const n8nPayload = {
     target_url: webhook.endpoint_url,
     signature: signature,
@@ -123,14 +117,12 @@ async function despacharWebhookN8n(supabase, auth_user_id, lead) {
     payload_body: JSON.parse(payloadStr)
   };
 
-  // DEBUGGER ACTIVO: Para monitorear en los logs de Cloudflare Pages
-  console.log(`Disparando a n8n: ${env.N8N_MASTER_WEBHOOK} para la agencia: ${auth_user_id}`);
+  console.log(`Intentando despachar a n8n: ${env.N8N_MASTER_WEBHOOK}`);
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6 segundos max.
+    const timeoutId = setTimeout(() => controller.abort(), 6000); 
 
-    // Lee la variable directamente de Cloudflare Pages
     const res = await fetch(env.N8N_MASTER_WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -139,13 +131,13 @@ async function despacharWebhookN8n(supabase, auth_user_id, lead) {
     });
 
     if (!res.ok) {
-      console.error(`Error HTTP de n8n. Status: ${res.status}`);
+      console.error(`🔥 Error HTTP de n8n. Status: ${res.status}`);
     } else {
-      console.log(`Webhook despachado con éxito a n8n para lead ${lead.id}`);
+      console.log(`✅ Webhook despachado con éxito a n8n para lead ${lead.id}`);
     }
 
     clearTimeout(timeoutId);
   } catch (err) {
-    console.error(`Fallo de red disparando webhook maestro para ${auth_user_id}:`, err);
+    console.error(`🔥 Fallo de red disparando webhook maestro para ${auth_user_id}:`, err);
   }
 }
