@@ -150,7 +150,7 @@
     } catch (e) {
       console.error(e);
       generandoIA = false;
-      alert(`Fallo crítico: ${e.message}`);
+      alert(`Fallo crítico de red o de parseo JSON: ${e.message}`);
     }
   }
 
@@ -562,7 +562,7 @@
                 
                 {#if autorizado}
                   <a href="/propiedad-demo?template={template.id}&sandbox=true" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 text-[11px] font-bold py-2 rounded-lg transition-colors border border-slate-200">
-                    <Eye class="w-3.5 h-3.5" /> Previsualizar
+                    <Eye class="w-3.5 h-3.5" /> Previsualizar Diseño
                   </a>
                 {/if}
               </div>
