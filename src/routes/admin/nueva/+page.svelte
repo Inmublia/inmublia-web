@@ -10,13 +10,13 @@
     Check, 
     CheckCircle2,
     Copy, 
-    EyeOff, 
     Building2, 
     MapPin, 
     MessageCircle, 
     Video,
     BadgeDollarSign,
-    LayoutTemplate
+    LayoutTemplate,
+    AlertTriangle
   } from 'lucide-svelte';
 
   let { form, data } = $props();
@@ -47,7 +47,7 @@
   let valBanos = $state('');
   let valMedioBano = $state('');
   let valEstacionamientos = $state('');
-  let valAntiguedad = $state(''); // NUEVO: Estado para Edad/Antigüedad
+  let valAntiguedad = $state(''); 
 
   const catalogoTemplates = [
     { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=400&h=250' },
@@ -115,7 +115,7 @@
       formData.append('banos', valBanos || '0');
       formData.append('medio_bano', valMedioBano || '0');
       formData.append('estacionamientos', valEstacionamientos || '0');
-      formData.append('antiguedad', valAntiguedad || 'No especificada'); // NUEVO: Envío a IA
+      formData.append('antiguedad', valAntiguedad || 'No especificada'); 
       formData.append('tono', tonoIA);
 
       const res = await fetch('?/generarCampañaIA', {
@@ -134,6 +134,10 @@
         creditosIA--;
         generandoIA = false;
         
+        // MAGIA: Llenado automático en el formulario en tiempo real
+        valTitulo = result.data.titulo;
+        valDescripcion = result.data.descripcion;
+
         Promise.all([
           typeWriterEffect(textoGeneradoFicha, 'titulo', result.data.titulo, 20),
           typeWriterEffect(textoGeneradoFicha, 'descripcion', result.data.descripcion, 5),
@@ -149,12 +153,6 @@
       generandoIA = false;
       alert(`Fallo crítico de red o de parseo JSON: ${e.message}`);
     }
-  }
-
-  function aplicarAlFormulario() {
-    if (textoGeneradoFicha.titulo) valTitulo = textoGeneradoFicha.titulo;
-    if (textoGeneradoFicha.descripcion) valDescripcion = textoGeneradoFicha.descripcion;
-    document.getElementById('seccion-oficial').scrollIntoView({ behavior: 'smooth' });
   }
 
   function copiarAlPortapapeles(texto) {
@@ -274,7 +272,6 @@
               </div>
             </div>
 
-            <!-- NUEVA ESTRUCTURA DE 7 COLUMNAS PARA INCLUIR LA ANTIGÜEDAD -->
             <div class="col-span-2 grid grid-cols-3 sm:grid-cols-7 gap-4">
               <div><label for="recamaras" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Recámaras</label><input bind:value={valRecamaras} id="recamaras" type="number" name="recamaras" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
               <div><label for="banos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Baños</label><input bind:value={valBanos} id="banos" type="number" name="banos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
@@ -402,10 +399,10 @@
                       Ficha Editorial
                     </h4>
                     {#if !generandoIA && textoGeneradoFicha.titulo}
-                      <button type="button" onclick={aplicarAlFormulario} class="text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600/50">
-                        <Check class="w-3.5 h-3.5" />
-                        Usar en Publicación
-                      </button>
+                      <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-500/20 flex items-center gap-1.5">
+                        <CheckCircle2 class="w-3.5 h-3.5" />
+                        Autocompletado
+                      </span>
                     {/if}
                   </div>
                   
@@ -477,6 +474,14 @@
                   </div>
                 </div>
               </div>
+
+              <!-- NUEVO: DISCLAIMER LEGAL IA -->
+              <div class="mt-6 flex justify-center animate-[fadeIn_0.4s_ease-out]">
+                <p class="text-[10px] text-slate-400 font-medium flex items-center gap-1.5 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/50">
+                  <AlertTriangle class="w-3.5 h-3.5 text-amber-500" />
+                  El contenido es generado por Inteligencia Artificial y puede contener imprecisiones. Por favor, revisa y ajusta los textos antes de realizar tu publicación.
+                </p>
+              </div>
             {/if}
           </div>
         </section>
@@ -488,12 +493,12 @@
 
           <div>
             <label for="titulo" class="block text-xs font-semibold text-slate-500 mb-1.5">Título de la Publicación (Obligatorio)</label>
-            <input bind:value={valTitulo} id="titulo" type="text" name="titulo" required class="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-slate-900 text-sm font-bold shadow-sm outline-none text-slate-900 placeholder:text-slate-300" placeholder="Ej. Residencia Minimalista en Puerta de Hierro">
+            <input bind:value={valTitulo} id="titulo" type="text" name="titulo" required class="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-slate-900 text-sm font-bold shadow-sm outline-none text-slate-900 placeholder:text-slate-300 transition-colors" placeholder="Ej. Residencia Minimalista en Puerta de Hierro">
           </div>
 
           <div>
             <label for="descripcion" class="block text-xs font-semibold text-slate-500 mb-1.5">Descripción Editorial (Obligatorio)</label>
-            <textarea bind:value={valDescripcion} id="descripcion" name="descripcion" rows="6" class="w-full bg-white border border-slate-200 rounded-lg p-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-slate-900 text-slate-800 leading-relaxed resize-y placeholder:text-slate-300" placeholder="Escribe aquí los detalles de la propiedad o usa el Estudio Creativo IA para redactar..."></textarea>
+            <textarea bind:value={valDescripcion} id="descripcion" name="descripcion" rows="6" class="w-full bg-white border border-slate-200 rounded-lg p-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-slate-900 text-slate-800 leading-relaxed resize-y placeholder:text-slate-300 transition-colors" placeholder="Escribe aquí los detalles de la propiedad o usa el Estudio Creativo IA para redactar..."></textarea>
           </div>
 
           <div class="flex items-start mt-4 p-5 bg-slate-50/50 rounded-xl border border-slate-200 shadow-inner">
@@ -507,7 +512,6 @@
           </div>
         </section>
 
-        <!-- SECCIÓN 4 FIX SVELTE 5: Función anónima en onerror -->
         <section class="space-y-6 pt-10 border-t border-slate-100">
           <div class="border-b border-slate-100 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -532,7 +536,6 @@
                 <input type="radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
                 
                 <div class="aspect-video w-full bg-slate-100 relative overflow-hidden border-b border-slate-100">
-                   <!-- FIX SVELTE: on:error dinámico para evitar error del compilador Rolldown -->
                    <img 
                       src={template.img} 
                       alt={template.nombre} 
