@@ -1,5 +1,4 @@
 import { redirect, fail } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private'; 
 
 export const load = async ({ locals }) => {
   const user = locals.user;
@@ -27,7 +26,8 @@ export const load = async ({ locals }) => {
 };
 
 export const actions = {
-  generarCampañaIA: async ({ request, locals }) => {
+  // SE INYECTA 'platform' PARA ACCEDER AL MOTOR DE IA DE CLOUDFLARE EN EL EDGE
+  generarCampañaIA: async ({ request, locals, platform }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
@@ -39,7 +39,11 @@ export const actions = {
 
     if (!broker) return fail(400, { error: 'Perfil no encontrado.' });
     if (broker.ia_creditos_disponibles <= 0) {
-      return fail(403, { error: '🔒 Te has quedado sin créditos. Mejora tu plan a Pro.' });
+      return fail(403, { error: '🔒 Te has quedado sin créditos. Mejora tu plan a Pro o Elite.' });
+    }
+
+    if (!platform?.env?.AI) {
+      return fail(500, { error: 'El motor de IA de Cloudflare no está vinculado. Revisa el Binding en el panel.' });
     }
 
     const formData = await request.formData();
@@ -47,23 +51,33 @@ export const actions = {
     const precio = formData.get('precio');
     const tipo = formData.get('tipo');
     const operacion = formData.get('operacion');
-    const recamaras = formData.get('recamaras');
     const tono = formData.get('tono');
+    
+    // Capturamos las especificaciones técnicas para nutrir el Prompt
+    const recamaras = formData.get('recamaras') || '0';
+    const banos = formData.get('banos') || '0';
+    const medio_bano = formData.get('medio_bano') || '0';
+    const estacionamientos = formData.get('estacionamientos') || '0';
 
-    if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
+    if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación para generar el texto.' });
 
     let systemPrompt = `Eres un estratega de marketing inmobiliario de alto nivel. Tu única función es crear material de ventas para propiedades. Si te preguntan algo ajeno, responde: "Solo redacto textos inmobiliarios."
     Tono requerido: ${tono === 'lujo' ? 'Exclusivo, aspiracional y elegante.' : tono === 'familiar' ? 'Cálido, seguro y enfocado en la familia.' : 'Analítico, enfocado en plusvalía y retorno de inversión.'}`;
 
     const userPrompt = `
-      Crea una campaña para esta propiedad:
+      Crea una campaña persuasiva para esta propiedad:
       - Operación: ${operacion}
       - Tipo: ${tipo}
       - Ubicación: ${ubicacion}
       - Precio: $${precio} MXN
-      - Recámaras: ${recamaras}
       
-      Debes devolver ÚNICAMENTE un objeto JSON válido con estas 4 llaves:
+      Especificaciones Técnicas (Destaca de manera atractiva las que sean mayores a 0):
+      - Recámaras: ${recamaras}
+      - Baños completos: ${banos}
+      - Medios baños: ${medio_bano}
+      - Estacionamientos: ${estacionamientos}
+      
+      Debes devolver ÚNICAMENTE un objeto JSON válido con estas 4 llaves exactas:
       1. "titulo": Un título SEO corto y muy atractivo (max 10 palabras).
       2. "descripcion": Descripción editorial de 2 a 3 párrafos, vendiendo el estilo de vida.
       3. "whatsapp": Un mensaje corto, persuasivo, con emojis y saltos de línea para enviar por listas de difusión de WhatsApp.
@@ -71,27 +85,17 @@ export const actions = {
     `;
 
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${env.OPENAI_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          temperature: 0.7,
-        })
+      // LLAMADA NATIVA AL EDGE DE CLOUDFLARE (0 Latencia, $0 Costo)
+      const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
       });
 
-      if (!response.ok) throw new Error('Fallo en la API de IA');
-
-      const iaData = await response.json();
-      let iaText = iaData.choices[0].message.content;
+      let iaText = response.response;
       
+      // Limpieza de formato por si la IA devuelve el JSON envuelto en Markdown
       iaText = iaText.replace(/```json/g, '').replace(/```/g, '');
       const parsedContent = JSON.parse(iaText);
 
@@ -108,8 +112,8 @@ export const actions = {
       };
 
     } catch (e) {
-      console.error("Error en IA:", e);
-      return fail(500, { error: 'Error procesando la IA. Revisa tu saldo o API Key.' });
+      console.error("Error en Workers AI:", e);
+      return fail(500, { error: 'Error procesando la IA. Verifica que el modelo devuelva un JSON válido.' });
     }
   },
 
@@ -139,7 +143,7 @@ export const actions = {
     
     const video_url = formData.get('video_url') || null;
     const recorrido_3d_url = formData.get('recorrido_3d_url') || null;
-    const template_id = formData.get('template_id') || 'prop_basic_1'; // Recibimos el template del diseño visual
+    const template_id = formData.get('template_id') || 'prop_basic_1'; 
 
     const imagen = formData.get('imagen'); 
     const galeriaArchivos = formData.getAll('galeria'); 
@@ -158,7 +162,6 @@ export const actions = {
 
     const comisionFinal = comisionStr ? parseFloat(comisionStr) : (broker.comision_default || 5);
 
-    // 1. Subir la imagen principal
     const fileExt = imagen.name.split('.').pop();
     const fileName = `${broker.id}/${Date.now()}-main.${fileExt}`;
     const buffer = await imagen.arrayBuffer();
@@ -173,7 +176,6 @@ export const actions = {
       .from('propiedades')
       .getPublicUrl(fileName);
 
-    // 2. Subir la galería en paralelo (Mejora de Rendimiento)
     const validGaleriaArchivos = galeriaArchivos.filter(file => file && file.size > 0);
     
     const galeriaPromises = validGaleriaArchivos.map(async (file) => {
@@ -197,7 +199,6 @@ export const actions = {
     const galeriaResults = await Promise.all(galeriaPromises);
     const galeriaUrls = galeriaResults.filter(url => url !== null);
 
-    // 3. Generación de Slug Anti-Colisiones (Mejora de Estabilidad)
     const baseSlug = titulo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
     const sufijoUnico = Math.random().toString(36).substring(2, 6);
     const slug = `${baseSlug}-${sufijoUnico}`;
@@ -208,7 +209,6 @@ export const actions = {
         return parseFloat(cleaned) || 0;
     };
 
-    // 4. Inserción en Base de Datos
     const { error: insertError } = await locals.supabase
       .from('propiedades')
       .insert({
@@ -233,7 +233,7 @@ export const actions = {
         galeria_urls: galeriaUrls, 
         video_url,
         recorrido_3d_url,
-        template_id // Guardamos el diseño elegido
+        template_id 
       });
 
     if (insertError) return fail(500, { error: `Error SQL: ${insertError.message}` });
