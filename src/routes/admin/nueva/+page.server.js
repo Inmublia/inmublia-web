@@ -31,17 +31,16 @@ export const actions = {
     if (!user) return fail(401, { error: 'No autorizado' });
 
     if (!platform?.env?.AI) {
-      return fail(500, { error: '🚨 Falla de Servidor: El Binding "AI" no está conectado en Cloudflare.' });
+      return fail(500, { error: '🚨 Falla de Servidor: El Binding "AI" no está conectado en Cloudflare Pages.' });
     }
 
     const { data: broker } = await locals.supabase
       .from('brokers')
-      .select('id, ia_creditos_disponibles, plan_suscripcion')
+      .select('id, ia_creditos_disponibles')
       .eq('auth_user_id', user.id)
       .single();
 
-    if (!broker) return fail(400, { error: 'Perfil no encontrado.' });
-    if (broker.ia_creditos_disponibles <= 0) {
+    if (!broker || broker.ia_creditos_disponibles <= 0) {
       return fail(403, { error: '🔒 Te has quedado sin créditos de IA.' });
     }
 
@@ -51,7 +50,6 @@ export const actions = {
     const tipo = formData.get('tipo');
     const operacion = formData.get('operacion');
     const tono = formData.get('tono');
-    
     const recamaras = formData.get('recamaras') || '0';
     const banos = formData.get('banos') || '0';
     const medio_bano = formData.get('medio_bano') || '0';
@@ -60,7 +58,8 @@ export const actions = {
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
-    let systemPrompt = `Eres un copywriter inmobiliario. Tono: ${tono}. Debes responder EXCLUSIVAMENTE con el JSON solicitado, sin texto extra, sin markdown.`;
+    const systemPrompt = `Eres un copywriter inmobiliario. Tono: ${tono}. 
+    INSTRUCCIÓN CRÍTICA: Responde EXCLUSIVAMENTE con un JSON válido. No uses markdown. Evita usar comillas dobles dentro de tus textos.`;
 
     const userPrompt = `
       Campaña para: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
@@ -82,19 +81,25 @@ export const actions = {
           { role: 'user', content: userPrompt }
         ],
         response_format: { type: "json_object" },
-        max_tokens: 2500 // 🔥 LA BALA DE PLATA: Evita que Cloudflare corte el JSON por la mitad
+        max_tokens: 2500
       });
 
-      let iaText = response.response;
+      let cleanText = response.response;
       let parsedContent;
 
+      const start = cleanText.indexOf('{');
+      const end = cleanText.lastIndexOf('}');
+      if (start !== -1 && end !== -1) {
+        cleanText = cleanText.substring(start, end + 1);
+      }
+
+      cleanText = cleanText.replace(/\n/g, '\\n').replace(/\r/g, '');
+
       try {
-        const jsonMatch = iaText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("No hay estructura JSON");
-        parsedContent = JSON.parse(jsonMatch[0]);
+        parsedContent = JSON.parse(cleanText);
       } catch (err) {
-        console.error("Fallo de parseo. Texto crudo:", iaText);
-        return fail(500, { error: 'El servidor no pudo estructurar la información. La IA devolvió texto corrupto.' });
+        console.error("OUTPUT CRUDO QUE ROMPIÓ EL PARSER:", response.response);
+        return fail(500, { error: 'La IA devolvió un formato incompatible. Intenta generar de nuevo.' });
       }
 
       await locals.supabase
@@ -110,7 +115,6 @@ export const actions = {
       };
 
     } catch (e) {
-      console.error("Fallo Cloudflare:", e);
       return fail(500, { error: `Error conectando con la IA: ${e.message}` });
     }
   },
