@@ -33,7 +33,6 @@
   let iaEjecutada = $state(false);
   let tonoIA = $state('lujo');
   
-  let textoGeneradoFicha = $state({ titulo: '', descripcion: '' });
   let textoGeneradoWhatsapp = $state('');
   let textoGeneradoTiktok = $state('');
 
@@ -104,10 +103,15 @@
 
     generandoIA = true;
     iaEjecutada = true;
-    textoGeneradoFicha.titulo = '';
-    textoGeneradoFicha.descripcion = '';
+    
+    // Reseteamos las variables objetivo
+    valTitulo = '';
+    valDescripcion = '';
     textoGeneradoWhatsapp = '';
     textoGeneradoTiktok = '';
+
+    // Scroll automático visual hacia la sección 3 para ver la magia de llenado
+    document.getElementById('seccion-oficial')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     try {
       const formData = new FormData();
@@ -130,7 +134,6 @@
 
       if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
 
-      // SOLUCIÓN OFICIAL SVELTEKIT: Usar deserialize para desempaquetar el objeto ActionResponse
       const textRes = await res.text();
       const result = deserialize(textRes);
       
@@ -138,12 +141,10 @@
         creditosIA--;
         generandoIA = false;
         
-        valTitulo = result.data.titulo;
-        valDescripcion = result.data.descripcion;
-
+        // Efecto de máquina de escribir directo en los inputs nativos
         await Promise.all([
-          typeWriter(result.data.titulo, (v) => textoGeneradoFicha.titulo = v, 20),
-          typeWriter(result.data.descripcion, (v) => textoGeneradoFicha.descripcion = v, 5),
+          typeWriter(result.data.titulo, (v) => valTitulo = v, 25),
+          typeWriter(result.data.descripcion, (v) => valDescripcion = v, 5),
           typeWriter(result.data.whatsapp, (v) => textoGeneradoWhatsapp = v, 10),
           typeWriter(result.data.tiktok, (v) => textoGeneradoTiktok = v, 8)
         ]);
@@ -333,13 +334,13 @@
           </div>
         </section>
 
+        <!-- SECCIÓN DE IA OPTIMIZADA -->
         <section class="relative">
           <div class="bg-slate-800 rounded-[2rem] p-6 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
             
             <div class="absolute -top-32 -right-32 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none"></div>
 
             <div class="relative z-10">
-              
               <div class="flex flex-col items-center w-full mb-8">
                 <h2 class="text-2xl font-black text-white tracking-tight flex items-center justify-center gap-2.5">
                   Estudio Creativo IA Inmublia
@@ -349,12 +350,11 @@
                   </span>
                 </h2>
                 <p class="text-sm text-slate-400 mt-4 leading-relaxed max-w-2xl text-justify font-medium">
-                  Autogenera la descripción comercial, mensajes estructurados para WhatsApp y guiones para redes sociales basándote en los datos de la Sección 1.
+                  Autogenera la descripción comercial, mensajes estructurados para WhatsApp y guiones para redes sociales. El título y la descripción se completarán automáticamente en los campos de publicación.
                 </p>
               </div>
 
               <div class="flex flex-col sm:flex-row items-end justify-center gap-4 sm:gap-6 w-full max-w-3xl mx-auto bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-4 shadow-inner">
-                
                 <div class="flex flex-col items-center gap-2 w-full sm:w-1/3">
                   <label for="tono-ia" class="text-[10px] font-bold text-slate-300 uppercase tracking-widest text-center w-full">Tono de Redacción</label>
                   <div class="relative w-full">
@@ -381,7 +381,7 @@
                   <button type="button" onclick={generarCampañaIA} disabled={generandoIA} class="w-full relative overflow-hidden group bg-white text-slate-900 font-bold px-6 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 flex items-center justify-center gap-2 text-sm shadow-sm active:scale-95">
                     {#if generandoIA}
                       <Loader2 class="animate-spin w-4 h-4 text-slate-900" />
-                      Procesando...
+                      Redactando...
                     {:else}
                       <Sparkles class="w-4 h-4 text-slate-900" />
                       Generar Contenido
@@ -389,91 +389,58 @@
                   </button>
                 </div>
               </div>
-
             </div>
 
+            <!-- RESULTADOS SOCIALES: Ya no mostramos Título ni Descripción aquí -->
             {#if iaEjecutada}
-              <div class="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-5 animate-[fadeIn_0.4s_ease-out] relative z-10">
-                
-                <div class="lg:col-span-2 bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col">
-                  <div class="flex items-center justify-between mb-5">
-                    <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-2">
-                      <Building2 class="w-4 h-4 text-indigo-400" />
-                      Ficha Editorial
+              <div class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-5 animate-[fadeIn_0.4s_ease-out] relative z-10">
+                <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 flex flex-col">
+                  <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
+                      <MessageCircle class="w-4 h-4 text-emerald-400" />
+                      Campaña WhatsApp
                     </h4>
-                    {#if !generandoIA && textoGeneradoFicha.titulo}
-                      <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-500/20 flex items-center gap-1.5">
-                        <CheckCircle2 class="w-3.5 h-3.5" />
-                        Autocompletado en el formulario
-                      </span>
+                    {#if !generandoIA && textoGeneradoWhatsapp}
+                      <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-slate-400 hover:text-white transition-colors" title="Copiar">
+                        <Copy class="w-4 h-4" />
+                      </button>
                     {/if}
                   </div>
-                  
-                  <div class="flex-1 space-y-5">
-                    <div>
-                      <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5">Título Generado</p>
-                      {#if generandoIA && !textoGeneradoFicha.titulo}
-                        <div class="h-6 bg-slate-700/50 rounded animate-pulse w-3/4"></div>
-                      {:else}
-                        <p class="text-base font-bold text-white leading-tight">{textoGeneradoFicha.titulo}</p>
-                      {/if}
-                    </div>
-                    <div>
-                      <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5">Descripción Generada</p>
-                      {#if generandoIA && !textoGeneradoFicha.descripcion}
-                        <div class="space-y-2">
-                          <div class="h-3.5 bg-slate-700/50 rounded w-full animate-pulse"></div>
-                          <div class="h-3.5 bg-slate-700/50 rounded w-full animate-pulse"></div>
-                          <div class="h-3.5 bg-slate-700/50 rounded w-4/5 animate-pulse"></div>
-                        </div>
-                      {:else}
-                        <p class="text-sm text-slate-300 leading-relaxed whitespace-pre-line">{textoGeneradoFicha.descripcion}</p>
-                      {/if}
-                    </div>
+                  <div class="text-sm text-slate-300 whitespace-pre-line leading-relaxed flex-1">
+                    {#if generandoIA && !textoGeneradoWhatsapp}
+                       <div class="space-y-2 mt-1">
+                         <div class="h-3 bg-slate-700/50 rounded w-full animate-pulse"></div>
+                         <div class="h-3 bg-slate-700/50 rounded w-5/6 animate-pulse"></div>
+                         <div class="h-3 bg-slate-700/50 rounded w-4/6 animate-pulse"></div>
+                       </div>
+                    {:else}
+                      {textoGeneradoWhatsapp}
+                    {/if}
                   </div>
                 </div>
 
-                <div class="flex flex-col gap-5">
-                  <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 flex-1 flex flex-col">
-                    <div class="flex items-center justify-between mb-3">
-                      <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
-                        <MessageCircle class="w-4 h-4 text-emerald-400" />
-                        WhatsApp
-                      </h4>
-                      {#if !generandoIA && textoGeneradoWhatsapp}
-                        <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-slate-400 hover:text-white transition-colors" title="Copiar">
-                          <Copy class="w-4 h-4" />
-                        </button>
-                      {/if}
-                    </div>
-                    <div class="text-sm text-slate-300 whitespace-pre-line leading-relaxed flex-1">
-                      {#if generandoIA && !textoGeneradoWhatsapp}
-                         <div class="space-y-1.5 mt-1"><div class="h-3 bg-slate-700/50 rounded w-full animate-pulse"></div><div class="h-3 bg-slate-700/50 rounded w-3/4 animate-pulse"></div></div>
-                      {:else}
-                        {textoGeneradoWhatsapp}
-                      {/if}
-                    </div>
+                <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 flex flex-col">
+                  <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
+                      <Video class="w-4 h-4 text-rose-400" />
+                      Guion TikTok / Reels
+                    </h4>
+                    {#if !generandoIA && textoGeneradoTiktok}
+                      <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoTiktok)} class="text-slate-400 hover:text-white transition-colors" title="Copiar">
+                        <Copy class="w-4 h-4" />
+                      </button>
+                    {/if}
                   </div>
-
-                  <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 flex-1 flex flex-col">
-                    <div class="flex items-center justify-between mb-3">
-                      <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
-                        <Video class="w-4 h-4 text-rose-400" />
-                        Guion Video
-                      </h4>
-                      {#if !generandoIA && textoGeneradoTiktok}
-                        <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoTiktok)} class="text-slate-400 hover:text-white transition-colors" title="Copiar">
-                          <Copy class="w-4 h-4" />
-                        </button>
-                      {/if}
-                    </div>
-                    <div class="text-sm text-slate-300 whitespace-pre-line leading-relaxed flex-1">
-                      {#if generandoIA && !textoGeneradoTiktok}
-                         <div class="space-y-1.5 mt-1"><div class="h-3 bg-slate-700/50 rounded w-full animate-pulse"></div><div class="h-3 bg-slate-700/50 rounded w-3/4 animate-pulse"></div></div>
-                      {:else}
-                        {textoGeneradoTiktok}
-                      {/if}
-                    </div>
+                  <div class="text-sm text-slate-300 whitespace-pre-line leading-relaxed flex-1">
+                    {#if generandoIA && !textoGeneradoTiktok}
+                       <div class="space-y-2 mt-1">
+                         <div class="h-3 bg-slate-700/50 rounded w-full animate-pulse"></div>
+                         <div class="h-3 bg-slate-700/50 rounded w-full animate-pulse"></div>
+                         <div class="h-3 bg-slate-700/50 rounded w-3/4 animate-pulse"></div>
+                       </div>
+                    {:else}
+                      {textoGeneradoTiktok}
+                    {/if}
                   </div>
                 </div>
               </div>
@@ -481,16 +448,23 @@
               <div class="mt-6 flex justify-center animate-[fadeIn_0.4s_ease-out]">
                 <p class="text-[10px] text-slate-400 font-medium flex items-center gap-1.5 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/50 text-center max-w-2xl">
                   <AlertTriangle class="w-4 h-4 text-amber-500 shrink-0" />
-                  El contenido es generado por Inteligencia Artificial y puede contener imprecisiones. Por favor, revisa y ajusta los textos en la sección inferior antes de publicarlos.
+                  Contenido generado por Inteligencia Artificial. Por favor, revisa y ajusta los textos en la sección inferior antes de publicarlos.
                 </p>
               </div>
             {/if}
           </div>
         </section>
 
+        <!-- SECCIÓN 3: AQUÍ SUCEDE LA MAGIA DEL AUTOCOMPLETADO -->
         <section id="seccion-oficial" class="space-y-6 pt-10 border-t border-slate-100">
           <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
             <h2 class="text-xl font-bold text-slate-900 tracking-tight">3. Publicación Oficial</h2>
+            {#if iaEjecutada && !generandoIA}
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5 animate-[fadeIn_0.4s_ease-out]">
+                <CheckCircle2 class="w-3.5 h-3.5" />
+                Autocompletado por IA
+              </span>
+            {/if}
           </div>
 
           <div>
@@ -500,7 +474,7 @@
 
           <div>
             <label for="descripcion" class="block text-xs font-semibold text-slate-500 mb-1.5">Descripción Editorial (Obligatorio)</label>
-            <textarea bind:value={valDescripcion} id="descripcion" name="descripcion" rows="6" class="w-full bg-white border border-slate-200 rounded-lg p-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-slate-900 text-slate-800 leading-relaxed resize-y placeholder:text-slate-300 transition-colors" placeholder="Escribe aquí los detalles de la propiedad o usa el Estudio Creativo IA para redactar..."></textarea>
+            <textarea bind:value={valDescripcion} id="descripcion" name="descripcion" rows="12" class="w-full bg-white border border-slate-200 rounded-lg p-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-slate-900 text-slate-800 leading-relaxed resize-y placeholder:text-slate-300 transition-colors" placeholder="Escribe aquí los detalles de la propiedad o usa el Estudio Creativo IA para redactar..."></textarea>
           </div>
 
           <div class="flex items-start mt-4 p-5 bg-slate-50/50 rounded-xl border border-slate-200 shadow-inner">
