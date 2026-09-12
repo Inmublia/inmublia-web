@@ -30,7 +30,6 @@ export const actions = {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
-    // FIX: Validación crítica de entorno. Si falta el binding, aborta con mensaje claro.
     if (!platform?.env?.AI) {
       return fail(500, { error: '🚨 Falla de Servidor: El Binding "AI" no está conectado en Cloudflare Pages.' });
     }
@@ -57,6 +56,7 @@ export const actions = {
     const banos = formData.get('banos') || '0';
     const medio_bano = formData.get('medio_bano') || '0';
     const estacionamientos = formData.get('estacionamientos') || '0';
+    const antiguedad = formData.get('antiguedad') || 'No especificada'; // NUEVO: Extraemos la edad
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación para generar el texto.' });
 
@@ -70,11 +70,12 @@ export const actions = {
       - Ubicación: ${ubicacion}
       - Precio: $${precio} MXN
       
-      Especificaciones Técnicas (Destaca de manera atractiva las que sean mayores a 0):
+      Especificaciones Técnicas (Destaca de manera atractiva las que sean mayores a 0 o relevantes):
       - Recámaras: ${recamaras}
       - Baños completos: ${banos}
       - Medios baños: ${medio_bano}
       - Estacionamientos: ${estacionamientos}
+      - Antigüedad: ${antiguedad}
       
       Debes devolver ÚNICAMENTE un objeto JSON válido con estas 4 llaves exactas:
       1. "titulo": Un título SEO corto y muy atractivo (max 10 palabras).
@@ -93,7 +94,6 @@ export const actions = {
 
       let iaText = response.response;
       
-      // FIX ANTIBOMBAS: Extraer estrictamente el JSON, ignorando textos extra de la IA
       const jsonMatch = iaText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         console.error("Respuesta cruda de IA sin JSON:", iaText);
@@ -142,6 +142,7 @@ export const actions = {
     const banos = formData.get('banos') || 0;
     const medio_bano = formData.get('medio_bano') || 0;
     const estacionamientos = formData.get('estacionamientos') || 0;
+    const antiguedad = formData.get('antiguedad') || 'No especificada'; // NUEVO: Guardamos la edad
     const ubicacion = formData.get('ubicacion') || 'Guadalajara, Jalisco';
     
     const video_url = formData.get('video_url') || null;
@@ -224,6 +225,7 @@ export const actions = {
         descripcion, 
         ubicacion,
         estatus,
+        antiguedad, // Agregado a la base de datos
         precio: cleanNumber(precio), 
         comision: comisionFinal,
         m2_terreno: cleanNumber(m2_terreno), 
