@@ -56,7 +56,7 @@ export const actions = {
     const banos = formData.get('banos') || '0';
     const medio_bano = formData.get('medio_bano') || '0';
     const estacionamientos = formData.get('estacionamientos') || '0';
-    const antiguedad = formData.get('antiguedad') || 'No especificada'; // NUEVO: Extraemos la edad
+    const antiguedad = formData.get('antiguedad') || 'No especificada';
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación para generar el texto.' });
 
@@ -85,7 +85,8 @@ export const actions = {
     `;
 
     try {
-      const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+      // FIX: Actualizado a fp8 según el catálogo de Cloudflare
+      const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -142,7 +143,7 @@ export const actions = {
     const banos = formData.get('banos') || 0;
     const medio_bano = formData.get('medio_bano') || 0;
     const estacionamientos = formData.get('estacionamientos') || 0;
-    const antiguedad = formData.get('antiguedad') || 'No especificada'; // NUEVO: Guardamos la edad
+    const antiguedad = formData.get('antiguedad') || 'No especificada'; 
     const ubicacion = formData.get('ubicacion') || 'Guadalajara, Jalisco';
     
     const video_url = formData.get('video_url') || null;
@@ -225,7 +226,7 @@ export const actions = {
         descripcion, 
         ubicacion,
         estatus,
-        antiguedad, // Agregado a la base de datos
+        antiguedad, 
         precio: cleanNumber(precio), 
         comision: comisionFinal,
         m2_terreno: cleanNumber(m2_terreno), 
