@@ -1,5 +1,6 @@
 import { supabase } from '$lib/supabase';
 import { error, fail } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private'; // INYECCIÓN 1: Variables de entorno dinámicas
 
 export async function load({ params, url }) {
   const { slug } = params;
@@ -80,7 +81,8 @@ export async function load({ params, url }) {
 }
 
 export const actions = {
-  contacto: async ({ request }) => {
+  // INYECCIÓN 2: 'platform' expone el contexto de Cloudflare Pages
+  contacto: async ({ request, platform }) => {
     const formData = await request.formData();
     
     const nombre = formData.get('nombre')?.toString().trim();
@@ -106,12 +108,85 @@ export const actions = {
       creado_en: new Date().toISOString()
     };
 
-    const { error: insertError } = await supabase.from('leads').insert([leadData]);
+    // INYECCIÓN 3: .select().single() para recuperar el ID real y dárselo al Webhook
+    const { data: nuevoLead, error: insertError } = await supabase
+      .from('leads')
+      .insert([leadData])
+      .select()
+      .single();
 
     if (insertError) {
       return fail(500, { error: `Error del servidor al registrar el prospecto: ${insertError.message}` });
     }
 
+    // --- INYECCIÓN 4: DISPARADOR DEL WEBHOOK ---
+    const { data: brokerDestino } = await supabase
+      .from('brokers')
+      .select('auth_user_id')
+      .eq('id', broker_id)
+      .single();
+
+    if (brokerDestino?.auth_user_id) {
+      if (platform?.context?.waitUntil) {
+        platform.context.waitUntil(despacharWebhookN8n(brokerDestino.auth_user_id, nuevoLead));
+      } else {
+        despacharWebhookN8n(brokerDestino.auth_user_id, nuevoLead).catch(console.error);
+      }
+    }
+    // --- FIN DISPARADOR ---
+
     return { success: true, message: 'La información ha sido enviada con éxito.' };
   }
 };
+
+// --- MOTOR EDGE DE WEBHOOKS (Aislado del resto de tu lógica) ---
+async function despacharWebhookN8n(auth_user_id, lead) {
+  if (!env.N8N_MASTER_WEBHOOK) {
+    console.error("Webhook abortado: Variable N8N_MASTER_WEBHOOK no encontrada.");
+    return;
+  }
+
+  // Bypass RLS con tu RPC
+  const { data: webhooks, error: webhookError } = await supabase
+    .rpc('get_active_webhook', { broker_auth_id: auth_user_id });
+
+  if (webhookError || !webhooks || webhooks.length === 0) return; 
+
+  const webhook = webhooks[0];
+  const payloadStr = JSON.stringify({
+    event: 'lead.created',
+    timestamp: new Date().toISOString(),
+    data: lead
+  });
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', encoder.encode(webhook.secret_token), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  
+  const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadStr));
+  const signature = Array.from(new Uint8Array(signatureBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  const n8nPayload = {
+    target_url: webhook.endpoint_url,
+    signature: signature,
+    idempotency_key: `lead_${lead.id || Date.now()}`,
+    payload_body: JSON.parse(payloadStr)
+  };
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000); 
+
+    await fetch(env.N8N_MASTER_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(n8nPayload),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+  } catch (err) {
+    console.error(`Fallo despachando webhook:`, err);
+  }
+}
