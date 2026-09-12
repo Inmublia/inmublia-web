@@ -58,7 +58,6 @@ export const actions = {
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
-    // DOCUMENTADO: Instrucciones estrictas anti-crashes de JSON
     const systemPrompt = `Eres un sistema backend. Tu única tarea es devolver un objeto JSON válido.
     REGLA 1: NO uses bloques de código markdown (como \`\`\`json).
     REGLA 2: NO uses saltos de línea (Enters) dentro del texto. Escribe todo en un solo bloque continuo.
@@ -87,29 +86,36 @@ export const actions = {
         max_tokens: 2500
       });
 
-      let rawText = response.response;
-      
-      // PARSER SEGURO BASADO EN MDN:
-      const firstBrace = rawText.indexOf('{');
-      const lastBrace = rawText.lastIndexOf('}');
-      
-      if (firstBrace === -1 || lastBrace === -1) {
-        return fail(500, { error: 'La IA no generó la estructura JSON.' });
-      }
-
-      let jsonString = rawText.substring(firstBrace, lastBrace + 1);
-      
-      // Sanitización recomendada contra caracteres de control invisibles que rompen JSON.parse()
-      jsonString = jsonString.replace(/[\u0000-\u001F]+/g, ' ');
-
+      let rawResponse = response.response;
       let parsedContent;
-      try {
-        parsedContent = JSON.parse(jsonString);
-      } catch (err) {
-        console.error("JSON PARSE ERROR. Payload extraído:", jsonString);
-        return fail(500, { error: `La IA generó caracteres incompatibles: ${err.message}` });
+
+      // VALIDACIÓN ESTRICTA DE TIPOS (La solución al error de indexOf)
+      if (typeof rawResponse === 'object' && rawResponse !== null) {
+        // El SDK de Cloudflare ya auto-parseó el JSON exitosamente
+        parsedContent = rawResponse;
+      } else {
+        // Llegó como texto crudo, iniciamos el Parser de rescate
+        let cleanText = String(rawResponse);
+        
+        const firstBrace = cleanText.indexOf('{');
+        const lastBrace = cleanText.lastIndexOf('}');
+        
+        if (firstBrace === -1 || lastBrace === -1) {
+          return fail(500, { error: 'La IA no generó la estructura JSON.' });
+        }
+
+        cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+        cleanText = cleanText.replace(/[\u0000-\u001F]+/g, ' '); // Limpieza de caracteres de control
+
+        try {
+          parsedContent = JSON.parse(cleanText);
+        } catch (err) {
+          console.error("JSON PARSE ERROR. Payload extraído:", cleanText);
+          return fail(500, { error: `La IA generó caracteres incompatibles: ${err.message}` });
+        }
       }
 
+      // Verificación final de integridad
       if (!parsedContent.titulo || !parsedContent.descripcion) {
          return fail(500, { error: 'El contenido JSON llegó incompleto.' });
       }
