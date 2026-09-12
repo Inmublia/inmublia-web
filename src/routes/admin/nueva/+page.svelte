@@ -7,7 +7,6 @@
     Images, 
     Sparkles, 
     Loader2, 
-    Check, 
     CheckCircle2,
     Copy, 
     Building2, 
@@ -134,7 +133,7 @@
         creditosIA--;
         generandoIA = false;
         
-        // MAGIA: Llenado automático en el formulario en tiempo real
+        // AUTO-LLENADO EN TIEMPO REAL: Se asocia directamente a la sección de Publicación Oficial
         valTitulo = result.data.titulo;
         valDescripcion = result.data.descripcion;
 
@@ -475,7 +474,7 @@
                 </div>
               </div>
 
-              <!-- NUEVO: DISCLAIMER LEGAL IA -->
+              <!-- DISCLAIMER LEGAL IA -->
               <div class="mt-6 flex justify-center animate-[fadeIn_0.4s_ease-out]">
                 <p class="text-[10px] text-slate-400 font-medium flex items-center gap-1.5 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/50">
                   <AlertTriangle class="w-3.5 h-3.5 text-amber-500" />
