@@ -78,10 +78,13 @@
     galeriaPreviews = Array.from(files).map(file => URL.createObjectURL(file));
   }
 
+  // FIX DEFENSIVO: Si text es undefined/null, lo convertimos a string o abortamos para no romper el .length
   async function typeWriter(text, setterCallback, speed = 10) {
+    if (!text) return; 
+    let str = String(text); 
     let current = '';
-    for (let i = 0; i < text.length; i++) {
-      current += text.charAt(i);
+    for (let i = 0; i < str.length; i++) {
+      current += str.charAt(i);
       setterCallback(current);
       await new Promise(r => setTimeout(r, speed));
     }
@@ -150,7 +153,7 @@
     } catch (e) {
       console.error(e);
       generandoIA = false;
-      alert(`Fallo crítico de red o de parseo JSON: ${e.message}`);
+      alert(`Error procesando respuesta: ${e.message}`);
     }
   }
 
