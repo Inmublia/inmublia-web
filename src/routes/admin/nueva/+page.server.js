@@ -60,58 +60,58 @@ export const actions = {
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
+    // PROMPT BLINDADO: Instrucciones agresivas para evitar que Llama 3 rompa el JSON
     let systemPrompt = `Eres un copywriter inmobiliario de élite. Tono: ${tono}.
-    REGLA ABSOLUTA: Responde ÚNICAMENTE con un objeto JSON. Cero palabras antes, cero palabras después.`;
+    REGLA ABSOLUTA: Tienes prohibido usar saltos de línea (Enter). Escribe todo el JSON en una sola línea minificada. Si necesitas un salto de línea en el texto, usa literalmente '\\n'.`;
 
     const userPrompt = `
-      Crea campaña para: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
+      Campaña para: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
       Specs: ${recamaras} Rec, ${banos} Baños, ${medio_bano} Medios, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
       
-      Devuelve ESTE FORMATO EXACTO EN JSON PURO:
+      Devuelve ÚNICAMENTE un objeto JSON válido con estas 4 llaves (no uses comillas dobles dentro de los valores, usa comillas simples):
       {
         "titulo": "Título atractivo max 10 palabras",
-        "descripcion": "Descripción comercial vendiendo estilo de vida",
-        "whatsapp": "Mensaje para enviar por chat con emojis",
+        "descripcion": "Descripción comercial",
+        "whatsapp": "Mensaje para enviar por chat",
         "tiktok": "Guion corto de video vertical"
       }
     `;
 
     try {
-      const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
+      const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
-        ]
+        ],
+        response_format: { type: "json_object" }
       });
 
       let iaText = response.response;
-      if (typeof iaText !== 'string') iaText = JSON.stringify(iaText);
-
       let parsedContent;
       
-      // PARSER INDESTRUCTIBLE: Limpieza y Extracción Forzada
+      // PARSER INDESTRUCTIBLE
+      // 1. Quitamos los backticks de markdown que la IA suele colar
       let cleanText = iaText.replace(/```json/gi, '').replace(/```/g, '').trim();
       
+      // 2. Extraemos a la fuerza solo lo que esté entre las llaves principal { }
+      const start = cleanText.indexOf('{');
+      const end = cleanText.lastIndexOf('}');
+      if (start !== -1 && end !== -1) {
+        cleanText = cleanText.substring(start, end + 1);
+      }
+
+      // 3. Limpiamos saltos de línea literales que crashean JSON.parse en JavaScript
+      cleanText = cleanText.replace(/[\n\r]+/g, '\\n').replace(/\t/g, ' ');
+
       try {
         parsedContent = JSON.parse(cleanText);
-      } catch (err1) {
-        // Si falla, extraemos solo lo que esté entre corchetes { }
-        const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          try {
-            parsedContent = JSON.parse(jsonMatch[0]);
-          } catch (err2) {
-            console.error("JSON Corrupto extraído:", jsonMatch[0]);
-            return fail(500, { error: 'La IA devolvió un formato inválido. Reintenta.' });
-          }
-        } else {
-          console.error("Respuesta cruda de IA:", iaText);
-          return fail(500, { error: `La IA no generó JSON. Respuesta recibida: ${iaText.substring(0, 50)}...` });
-        }
+      } catch (err) {
+        console.error("Fallo definitivo de parseo. Texto limpiado:", cleanText);
+        return fail(500, { error: 'El servidor generó el texto, pero hubo un error de formato. Intenta generar de nuevo.' });
       }
 
       if (!parsedContent.titulo || !parsedContent.descripcion) {
-         return fail(500, { error: 'El contenido generado está incompleto. Intenta de nuevo.' });
+         return fail(500, { error: 'El texto generado llegó incompleto. Intenta de nuevo.' });
       }
 
       await locals.supabase
@@ -128,7 +128,7 @@ export const actions = {
 
     } catch (e) {
       console.error("Fallo General Workers AI:", e);
-      return fail(500, { error: `Error conectando con Cloudflare: ${e.message}` });
+      return fail(500, { error: `Error conectando con la IA: ${e.message}` });
     }
   },
 
