@@ -58,22 +58,22 @@ export const actions = {
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
-    // REGLAS ESTRICTAS PARA PREVENIR ERRORES DE PARSEO
-    const systemPrompt = `Eres un sistema backend de Inmublia. Generas JSON válido y minificado.
-    REGLA 1: Escribe todo en una sola línea continua. NO uses saltos de línea (Enters).
-    REGLA 2: No uses comillas dobles dentro de las descripciones, usa comillas simples.
-    REGLA 3: Solo devuelve el JSON puro, sin explicaciones ni markdown.`;
+    const systemPrompt = `Eres el mejor copywriter inmobiliario de Norteamérica. 
+    REGLA 1: Tu respuesta DEBE ser un objeto JSON puro, en una sola línea, sin saltos de línea (usa \\n si es necesario).
+    REGLA 2: No uses markdown (\`\`\`json).
+    REGLA 3: Usa comillas simples dentro de tus textos. NUNCA uses comillas dobles en los valores.`;
 
+    // PROMPT AGRESIVO: Exigimos longitud y formato estructurado
     const userPrompt = `
-      Genera textos comerciales. Tono: ${tono}. Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
-      Specs: ${recamaras} Rec, ${banos} Baños, ${medio_bano} Medios, ${estacionamientos} Autos, Edad: ${antiguedad}.
+      Crea campaña de Alto Valor. Tono: ${tono}. Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
+      Características: ${recamaras} Recámaras, ${banos} Baños Completos, ${medio_bano} Medios Baños, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
       
-      Devuelve ESTE FORMATO EXACTO:
+      Debes devolver ESTRICTAMENTE este JSON rellenando cada llave bajo estas reglas inflexibles:
       {
-        "titulo": "Escribe un titulo corto aqui",
-        "descripcion": "Escribe la descripcion aqui",
-        "whatsapp": "Escribe el mensaje de whatsapp aqui",
-        "tiktok": "Escribe el guion de tiktok aqui"
+        "titulo": "(Máximo 10 palabras. Debe ser un gancho irresistible y aspiracional)",
+        "descripcion": "(OBLIGATORIO: Mínimo 150 palabras. Escribe 3 párrafos profundos. Párrafo 1: El gancho emocional y estilo de vida. Párrafo 2: Arquitectura, distribución detallada y comodidades. Párrafo 3: Ubicación estratégica, plusvalía y llamado a la acción poderoso)",
+        "whatsapp": "(Mensaje estructurado con viñetas de emojis. Resalta el precio, la ubicación y un Call to Action urgente para agendar cita hoy mismo)",
+        "tiktok": "(Guion hiper-detallado de 45 segundos. Formato estricto -> [0:00-0:05 VISUAL: toma rápida de fachada] AUDIO: Gancho agresivo. [0:05-0:30 VISUAL: Recorrido interior] AUDIO: Destaca lo mejor. [0:30-0:45 VISUAL: Vista de amenidades] AUDIO: Llamado a la acción con urgencia)"
       }
     `;
 
@@ -84,7 +84,7 @@ export const actions = {
           { role: 'user', content: userPrompt }
         ],
         response_format: { type: "json_object" },
-        max_tokens: 2500
+        max_tokens: 2500 
       });
 
       let rawResponse = response.response;
@@ -98,18 +98,17 @@ export const actions = {
         const lastBrace = cleanText.lastIndexOf('}');
         
         if (firstBrace === -1 || lastBrace === -1) {
-          return fail(500, { error: 'La IA no generó la estructura JSON esperada.' });
+          return fail(500, { error: 'La IA no generó la estructura JSON.' });
         }
 
         cleanText = cleanText.substring(firstBrace, lastBrace + 1);
-        // SANITIZADOR UNICODE BASADO EN MDN: Reemplaza cualquier caracter de control oculto.
         cleanText = cleanText.replace(/[\u0000-\u001F]+/g, ' '); 
 
         try {
           parsedContent = JSON.parse(cleanText);
         } catch (err) {
           console.error("JSON PARSE ERROR:", cleanText);
-          return fail(500, { error: `Error de formato de IA: ${err.message}` });
+          return fail(500, { error: `La IA generó caracteres incompatibles: ${err.message}` });
         }
       }
 
@@ -118,7 +117,6 @@ export const actions = {
         .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
         .eq('id', broker.id);
 
-      // MAPEO DEFENSIVO
       return {
         titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad Exclusiva',
         descripcion: parsedContent.descripcion || parsedContent.Descripcion || 'Contacta al broker para más detalles.',
@@ -127,7 +125,7 @@ export const actions = {
       };
 
     } catch (e) {
-      return fail(500, { error: `Fallo en el servicio de IA: ${e.message}` });
+      return fail(500, { error: `Fallo de conexión Cloudflare AI: ${e.message}` });
     }
   },
 
