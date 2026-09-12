@@ -1,6 +1,7 @@
 import { supabase } from '$lib/supabase';
+import { createClient } from '@supabase/supabase-js'; // Cliente de Supabase para instanciar el admin
 import { error, fail } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private'; // INYECCIÓN 1: Variables de entorno dinámicas
+import { env } from '$env/dynamic/private';
 
 export async function load({ params, url }) {
   const { slug } = params;
@@ -81,7 +82,6 @@ export async function load({ params, url }) {
 }
 
 export const actions = {
-  // INYECCIÓN 2: 'platform' expone el contexto de Cloudflare Pages
   contacto: async ({ request, platform }) => {
     const formData = await request.formData();
     
@@ -108,8 +108,21 @@ export const actions = {
       creado_en: new Date().toISOString()
     };
 
-    // INYECCIÓN 3: .select().single() para recuperar el ID real y dárselo al Webhook
-    const { data: nuevoLead, error: insertError } = await supabase
+    // VALVULA DE SEGURIDAD: Verificamos que la llave admin exista en Cloudflare
+    if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("🔥 Faltan variables de entorno para bypass de RLS.");
+      return fail(500, { error: 'Configuración del servidor incompleta.' });
+    }
+
+    // CREACIÓN DEL CLIENTE ADMINISTRADOR EN TIEMPO DE EJECUCIÓN
+    // Extraemos la URL de tu cliente normal (supabase.supabaseUrl) y le pasamos la llave maestra
+    const supabaseAdmin = createClient(
+      supabase.supabaseUrl,
+      env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    // INSERTAMOS CON EL CLIENTE ADMIN: Esto ignora el bloqueo RLS de lectura y nos devuelve el ID seguro
+    const { data: nuevoLead, error: insertError } = await supabaseAdmin
       .from('leads')
       .insert([leadData])
       .select()
@@ -119,8 +132,9 @@ export const actions = {
       return fail(500, { error: `Error del servidor al registrar el prospecto: ${insertError.message}` });
     }
 
-    // --- INYECCIÓN 4: DISPARADOR DEL WEBHOOK ---
-    const { data: brokerDestino } = await supabase
+    // --- DISPARADOR ASÍNCRONO DEL WEBHOOK ---
+    // (Buscamos al dueño de la agencia para ver si tiene webhook)
+    const { data: brokerDestino } = await supabaseAdmin
       .from('brokers')
       .select('auth_user_id')
       .eq('id', broker_id)
@@ -128,26 +142,26 @@ export const actions = {
 
     if (brokerDestino?.auth_user_id) {
       if (platform?.context?.waitUntil) {
-        platform.context.waitUntil(despacharWebhookN8n(brokerDestino.auth_user_id, nuevoLead));
+        platform.context.waitUntil(despacharWebhookN8n(supabaseAdmin, brokerDestino.auth_user_id, nuevoLead));
       } else {
-        despacharWebhookN8n(brokerDestino.auth_user_id, nuevoLead).catch(console.error);
+        despacharWebhookN8n(supabaseAdmin, brokerDestino.auth_user_id, nuevoLead).catch(console.error);
       }
     }
-    // --- FIN DISPARADOR ---
 
     return { success: true, message: 'La información ha sido enviada con éxito.' };
   }
 };
 
-// --- MOTOR EDGE DE WEBHOOKS (Aislado del resto de tu lógica) ---
-async function despacharWebhookN8n(auth_user_id, lead) {
+// --- MOTOR EDGE DE WEBHOOKS ---
+// Ahora le pasamos el supabaseAdmin para que todo sea súper privilegiado en esta capa
+async function despacharWebhookN8n(supabaseAdmin, auth_user_id, lead) {
   if (!env.N8N_MASTER_WEBHOOK) {
-    console.error("Webhook abortado: Variable N8N_MASTER_WEBHOOK no encontrada.");
+    console.error("🔥 Abortado: Variable N8N_MASTER_WEBHOOK no encontrada en Cloudflare.");
     return;
   }
 
-  // Bypass RLS con tu RPC
-  const { data: webhooks, error: webhookError } = await supabase
+  // Bypass RLS con RPC para obtener la URL de n8n
+  const { data: webhooks, error: webhookError } = await supabaseAdmin
     .rpc('get_active_webhook', { broker_auth_id: auth_user_id });
 
   if (webhookError || !webhooks || webhooks.length === 0) return; 
@@ -159,6 +173,7 @@ async function despacharWebhookN8n(auth_user_id, lead) {
     data: lead
   });
 
+  // Generación de Firma
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     'raw', encoder.encode(webhook.secret_token), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
@@ -167,10 +182,11 @@ async function despacharWebhookN8n(auth_user_id, lead) {
   const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadStr));
   const signature = Array.from(new Uint8Array(signatureBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
+  // Ahora SÍ podemos enviar el ID real de Supabase como llave
   const n8nPayload = {
     target_url: webhook.endpoint_url,
     signature: signature,
-    idempotency_key: `lead_${lead.id || Date.now()}`,
+    idempotency_key: `lead_${lead.id}`, 
     payload_body: JSON.parse(payloadStr)
   };
 
@@ -187,6 +203,6 @@ async function despacharWebhookN8n(auth_user_id, lead) {
 
     clearTimeout(timeoutId);
   } catch (err) {
-    console.error(`Fallo despachando webhook:`, err);
+    console.error(`🔥 Fallo despachando webhook de red:`, err);
   }
 }
