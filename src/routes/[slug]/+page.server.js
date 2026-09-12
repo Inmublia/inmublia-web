@@ -8,7 +8,6 @@ export async function load({ params, url }) {
   const templateForzado = url.searchParams.get('template')?.toString().trim() || null;
   const isSandbox = url.searchParams.get('sandbox') === 'true';
 
-  // 🔥 INTERCEPCIÓN QUIRÚRGICA Y SANDBOX
   if (slug === 'propiedad-demo' || isSandbox) {
     return {
       propiedad: {
@@ -32,8 +31,8 @@ export async function load({ params, url }) {
           'https://images.unsplash.com/photo-1600607687931-cece5ce21460?auto=format&fit=crop&q=80&w=1200',
           'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=1200'
         ],
-        video_url: null, // Apagado por seguridad en Sandbox (Ahorra RAM)
-        recorrido_3d_url: null, // Apagado por seguridad en Sandbox
+        video_url: null, 
+        recorrido_3d_url: null, 
         estatus: 'Activa',
         tipo_operacion: 'Venta',
         tipo_inmueble: 'Casa'
@@ -43,8 +42,8 @@ export async function load({ params, url }) {
         nombre_comercial: 'Inmublia Premium Properties',
         subdominio: 'demo',
         avatar_url: 'https://ui-avatars.com/api/?name=Premium&background=0f172a&color=fff',
-        whatsapp: '523312345678', // Habilita el dibujo del botón WhatsApp
-        pixel_fb: null, // Píxeles en null para garantizar que no haya métricas fantasma
+        whatsapp: '523312345678', 
+        pixel_fb: null, 
         pixel_google: null,
         pixel_tiktok: null
       },
@@ -52,7 +51,6 @@ export async function load({ params, url }) {
     };
   }
 
-  // 1. Buscamos la propiedad exacta por su slug amigable
   const { data: propiedad, error: propError } = await supabase
     .from('propiedades')
     .select('*')
@@ -60,12 +58,9 @@ export async function load({ params, url }) {
     .single();
 
   if (propError || !propiedad) {
-    throw error(404, {
-      message: 'La propiedad que buscas no está disponible o ha sido removida.'
-    });
+    throw error(404, { message: 'La propiedad que buscas no está disponible o ha sido removida.' });
   }
 
-  // 2. Extraemos el perfil completo del broker dueño de esta propiedad
   const { data: broker, error: brokerError } = await supabase
     .from('brokers')
     .select('*')
@@ -73,19 +68,16 @@ export async function load({ params, url }) {
     .single();
 
   if (brokerError || !broker) {
-    throw error(404, {
-      message: 'La agencia encargada de esta propiedad no se encuentra activa.'
-    });
+    throw error(404, { message: 'La agencia encargada de esta propiedad no se encuentra activa.' });
   }
 
   return { propiedad, broker, templateForzado };
 }
 
 export const actions = {
-  contacto: async ({ request }) => {
+  contacto: async ({ request, platform }) => {
     const formData = await request.formData();
     
-    // FIX: Forzamos texto plano y eliminamos cualquier espacio invisible
     const nombre = formData.get('nombre')?.toString().trim();
     const correo = formData.get('correo')?.toString().trim();
     const telefono = formData.get('telefono')?.toString().trim();
@@ -109,10 +101,10 @@ export const actions = {
     };
 
     if (!env.SUPABASE_SERVICE_ROLE_KEY) {
-      return fail(500, { error: 'Falta SUPABASE_SERVICE_ROLE_KEY en Cloudflare.' });
+      console.error('Falta SUPABASE_SERVICE_ROLE_KEY en Cloudflare.');
+      return fail(500, { error: 'Error de configuración del servidor.' });
     }
 
-    // Cliente administrador con llave maestra para saltar el RLS
     const supabaseAdmin = createClient(supabase.supabaseUrl, env.SUPABASE_SERVICE_ROLE_KEY);
 
     const { data: nuevoLead, error: insertError } = await supabaseAdmin
@@ -125,47 +117,38 @@ export const actions = {
       return fail(500, { error: `Error DB: ${insertError.message}` });
     }
 
-    // Búsqueda del broker destino con reporte estricto de errores
     const { data: brokerDestino, error: brokerError } = await supabaseAdmin
       .from('brokers')
       .select('auth_user_id')
       .eq('id', broker_id)
       .single();
 
-    // Si falla, escupirá el ID exacto que buscó y el mensaje de Supabase en pantalla
     if (brokerError || !brokerDestino?.auth_user_id) {
-      return fail(500, { 
-        error: `🚨 DIAGNÓSTICO: Buscamos el ID [${broker_id}]. Error BD: ${brokerError?.message || 'Dato devuelto nulo'}` 
-      });
-    }
-
-    // Ejecución Síncrona del Webhook (El depurador ruidoso sigue activo)
-    const diag = await despacharWebhookN8n(supabaseAdmin, brokerDestino.auth_user_id, nuevoLead);
-    
-    if (diag !== "OK") {
-      return fail(500, { error: `🚨 ERROR WEBHOOK: ${diag}` });
+      console.error(`Broker ID [${broker_id}] sin auth_user_id válido.`);
+    } else {
+      // MODO PRODUCCIÓN: Envío silencioso y asíncrono
+      if (platform?.context?.waitUntil) {
+        platform.context.waitUntil(despacharWebhookN8n(supabaseAdmin, brokerDestino.auth_user_id, nuevoLead));
+      } else {
+        despacharWebhookN8n(supabaseAdmin, brokerDestino.auth_user_id, nuevoLead).catch(console.error);
+      }
     }
 
     return { success: true, message: 'La información ha sido enviada con éxito.' };
   }
 };
 
-// --- MOTOR EDGE DE WEBHOOKS (MODO CHIVATO SÍNCRONO) ---
+// --- MOTOR EDGE DE WEBHOOKS (MODO PRODUCCIÓN SILENCIOSO) ---
 async function despacharWebhookN8n(supabaseAdmin, auth_user_id, lead) {
   if (!env.N8N_MASTER_WEBHOOK) {
-    return "Variable N8N_MASTER_WEBHOOK vacía o no existe en Cloudflare.";
+    console.error("Variable N8N_MASTER_WEBHOOK vacía o no existe en Cloudflare.");
+    return;
   }
 
   const { data: webhooks, error: webhookError } = await supabaseAdmin
     .rpc('get_active_webhook', { broker_auth_id: auth_user_id });
 
-  if (webhookError) {
-    return `Fallo en Supabase RPC: ${webhookError.message}`;
-  }
-
-  if (!webhooks || webhooks.length === 0) {
-    return `No se encontró webhook guardado para el usuario ${auth_user_id}.`;
-  }
+  if (webhookError || !webhooks || webhooks.length === 0) return;
 
   const webhook = webhooks[0];
   const payloadStr = JSON.stringify({ event: 'lead.created', timestamp: new Date().toISOString(), data: lead });
@@ -177,7 +160,8 @@ async function despacharWebhookN8n(supabaseAdmin, auth_user_id, lead) {
     const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadStr));
     signature = Array.from(new Uint8Array(signatureBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
   } catch (err) {
-    return `Fallo de encriptación HMAC: ${err.message}`;
+    console.error(`Fallo de encriptación HMAC: ${err.message}`);
+    return;
   }
 
   const n8nPayload = {
@@ -200,10 +184,8 @@ async function despacharWebhookN8n(supabaseAdmin, auth_user_id, lead) {
 
     clearTimeout(timeoutId);
 
-    if (!res.ok) return `El servidor n8n devolvió error HTTP ${res.status}`;
-
-    return "OK";
+    if (!res.ok) console.error(`El servidor n8n devolvió error HTTP ${res.status}`);
   } catch (err) {
-    return `Fallo de red hacia n8n: ${err.message}`;
+    console.error(`Fallo de red hacia n8n: ${err.message}`);
   }
 }
