@@ -16,10 +16,10 @@
       color: 'slate',
       destacado: false,
       features: [
-        { texto: 'Subdominio personalizado (.inmublia.com)', incluido: true },
+        { texto: 'Catálogo en subdominio (.inmublia.com)', incluido: true },
         { texto: 'CRM Gestión de Interesados (Leads)', incluido: true },
-        { texto: '5 Créditos de IA mensuales', incluido: true },
-        { texto: 'Inventario hasta 10 propiedades', incluido: true },
+        { texto: '15 Créditos de IA mensuales', incluido: true },
+        { texto: 'Inventario de propiedades', incluido: true },
         { texto: 'Bóveda Matchmaking', incluido: false },
         { texto: 'Dominio propio personalizado', incluido: false }
       ],
@@ -36,10 +36,10 @@
       destacado: true,
       badge: 'Más Popular',
       features: [
-        { texto: 'Subdominio personalizado (.inmublia.com)', incluido: true },
-        { texto: 'CRM Avanzado con Semáforo de Abandono', incluido: true },
-        { texto: '50 Créditos de IA mensuales', incluido: true },
-        { texto: 'Inventario de propiedades ilimitado', incluido: true },
+        { texto: 'Catálogo en subdominio (.inmublia.com)', incluido: true },
+        { texto: 'CRM Avanzado con Semáforo', incluido: true },
+        { texto: '125 Créditos de IA mensuales', incluido: true },
+        { texto: 'Inventario ilimitado + Open House', incluido: true },
         { texto: 'Bóveda & Matchmaking Inteligente', incluido: true },
         { texto: 'Dominio propio personalizado', incluido: false }
       ],
@@ -55,12 +55,12 @@
       color: 'emerald',
       destacado: false,
       features: [
-        { texto: 'Subdominio personalizado (.inmublia.com)', incluido: true },
+        { texto: 'Catálogo en subdominio (.inmublia.com)', incluido: true },
         { texto: 'CRM Multiusuario (Hasta 5 asesores)', incluido: true },
-        { texto: 'Créditos de IA Ilimitados', incluido: true },
-        { texto: 'Inventario de propiedades ilimitado', incluido: true },
+        { texto: '500 Créditos de IA mensuales', incluido: true },
+        { texto: 'Inventario ilimitado + Open House', incluido: true },
         { texto: 'Bóveda & Matchmaking Inteligente', incluido: true },
-        { texto: 'Dominio propio personalizado', incluido: true }
+        { texto: 'Dominio propio personalizado (.com)', incluido: true }
       ],
       linkId: 'price_elite_test' // Aquí irá tu ID de Stripe
     }
@@ -71,9 +71,22 @@
   <title>Planes y Precios | Inmublia</title>
 </svelte:head>
 
-<main class="min-h-screen bg-slate-50 font-sans selection:bg-indigo-500 selection:text-white pb-24">
+<div class="min-h-screen bg-slate-50 font-sans selection:bg-indigo-500 selection:text-white pb-24">
   
-  <div class="pt-20 pb-16 px-6 text-center">
+  <!-- NAVEGACIÓN GLOBAL -->
+  <header class="w-full h-20 flex items-center justify-between px-6 lg:px-12 bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200/50">
+    <a href="/" class="flex items-center gap-2">
+      <div class="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
+        <Building2 class="w-5 h-5 text-white" />
+      </div>
+      <span class="font-black text-xl tracking-tight text-slate-900">Inmublia</span>
+    </a>
+    <a href="/login" class="text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors">
+      Ya tengo cuenta &rarr;
+    </a>
+  </header>
+
+  <main class="pt-16 pb-16 px-6 text-center">
     <h1 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
       Invierte en tu <span class="text-indigo-600">Productividad</span>
     </h1>
@@ -99,7 +112,7 @@
         <span class="bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">Ahorra 20%</span>
       </div>
     </div>
-  </div>
+  </main>
 
   <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
     {#each planes as plan}
@@ -159,6 +172,7 @@
           {/each}
         </ul>
 
+        <!-- EL BOTÓN QUE CONECTA EL EMBUDO -->
         <a 
           href="/registro?plan={plan.id}&ciclo={facturacionAnual ? 'anual' : 'mensual'}"
           class="w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-200 {plan.destacado ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.4)]' : 'bg-slate-900 hover:bg-slate-800 text-white shadow-md'}"
@@ -176,4 +190,4 @@
       Incluye 14 días de prueba sin compromiso en todos los planes.
     </p>
   </div>
-</main>
+</div>
