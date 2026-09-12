@@ -16,11 +16,13 @@
     BadgeDollarSign,
     LayoutTemplate,
     AlertTriangle,
-    Eye
+    Eye,
+    Zap
   } from 'lucide-svelte';
 
   let { form, data } = $props();
-  let creditosIA = $state(data?.creditos_ia ?? 0);
+  // El frontend asume la nueva arquitectura de créditos sugerida
+  let creditosIA = $state(data?.creditos_ia ?? 15);
   let planSuscripcion = $derived(data?.plan_suscripcion ?? 'basico'); 
   
   let loading = $state(false);
@@ -96,21 +98,16 @@
       return;
     }
 
-    if (creditosIA <= 0) {
-      alert("No tienes créditos de IA disponibles.");
-      return;
-    }
+    if (creditosIA <= 0) return; // Validación de seguridad frontend
 
     generandoIA = true;
     iaEjecutada = true;
     
-    // Reseteamos las variables objetivo
     valTitulo = '';
     valDescripcion = '';
     textoGeneradoWhatsapp = '';
     textoGeneradoTiktok = '';
 
-    // Scroll automático visual hacia la sección 3 para ver la magia de llenado
     document.getElementById('seccion-oficial')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     try {
@@ -141,7 +138,6 @@
         creditosIA--;
         generandoIA = false;
         
-        // Efecto de máquina de escribir directo en los inputs nativos
         await Promise.all([
           typeWriter(result.data.titulo, (v) => valTitulo = v, 25),
           typeWriter(result.data.descripcion, (v) => valDescripcion = v, 5),
@@ -334,7 +330,7 @@
           </div>
         </section>
 
-        <!-- SECCIÓN DE IA OPTIMIZADA -->
+        <!-- SECCIÓN DE IA OPTIMIZADA CON PAYWALL -->
         <section class="relative">
           <div class="bg-slate-800 rounded-[2rem] p-6 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
             
@@ -349,50 +345,64 @@
                     <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                   </span>
                 </h2>
-                <p class="text-sm text-slate-400 mt-4 leading-relaxed max-w-2xl text-justify font-medium">
-                  Autogenera la descripción comercial, mensajes estructurados para WhatsApp y guiones para redes sociales. El título y la descripción se completarán automáticamente en los campos de publicación.
+                <p class="text-sm text-slate-400 mt-4 leading-relaxed max-w-2xl text-center font-medium">
+                  Autogenera la descripción comercial de alta conversión, copy para WhatsApp y guiones para redes sociales. 
                 </p>
               </div>
 
-              <div class="flex flex-col sm:flex-row items-end justify-center gap-4 sm:gap-6 w-full max-w-3xl mx-auto bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-4 shadow-inner">
-                <div class="flex flex-col items-center gap-2 w-full sm:w-1/3">
-                  <label for="tono-ia" class="text-[10px] font-bold text-slate-300 uppercase tracking-widest text-center w-full">Tono de Redacción</label>
-                  <div class="relative w-full">
-                    <select id="tono-ia" bind:value={tonoIA} class="w-full bg-slate-800 text-white border border-slate-600 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner cursor-pointer appearance-none pr-10">
-                      <option value="lujo">Premium / Elegante</option>
-                      <option value="familiar">Familiar / Cálido</option>
-                      <option value="inversionista">Analítico / ROI</option>
-                    </select>
-                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                      <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+              {#if creditosIA > 0}
+                <div class="flex flex-col sm:flex-row items-end justify-center gap-4 sm:gap-6 w-full max-w-3xl mx-auto bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-4 shadow-inner">
+                  <div class="flex flex-col items-center gap-2 w-full sm:w-1/3">
+                    <label for="tono-ia" class="text-[10px] font-bold text-slate-300 uppercase tracking-widest text-center w-full">Tono de Redacción</label>
+                    <div class="relative w-full">
+                      <select id="tono-ia" bind:value={tonoIA} class="w-full bg-slate-800 text-white border border-slate-600 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner cursor-pointer appearance-none pr-10">
+                        <option value="lujo">Premium / Elegante</option>
+                        <option value="familiar">Familiar / Cálido</option>
+                        <option value="inversionista">Analítico / ROI</option>
+                      </select>
+                      <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div class="flex items-center justify-center w-full sm:w-1/3 pb-1">
-                  <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-800 border border-slate-600/80 rounded-full text-xs font-bold text-slate-200 shadow-inner">
-                    <Sparkles class="w-4 h-4 text-amber-400" />
-                    {creditosIA} {creditosIA === 1 ? 'Crédito' : 'Créditos'}
+                  <div class="flex items-center justify-center w-full sm:w-1/3 pb-1">
+                    <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-800 border border-slate-600/80 rounded-full text-xs font-bold text-slate-200 shadow-inner">
+                      <Sparkles class="w-4 h-4 text-amber-400" />
+                      {creditosIA} {creditosIA === 1 ? 'Crédito' : 'Créditos'}
+                    </div>
+                  </div>
+
+                  <div class="w-full sm:w-1/3 flex flex-col items-center">
+                    <div class="h-[18px] mb-2 hidden sm:block"></div> 
+                    <button type="button" onclick={generarCampañaIA} disabled={generandoIA} class="w-full relative overflow-hidden group bg-white text-slate-900 font-bold px-6 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 flex items-center justify-center gap-2 text-sm shadow-sm active:scale-95">
+                      {#if generandoIA}
+                        <Loader2 class="animate-spin w-4 h-4 text-slate-900" />
+                        Redactando...
+                      {:else}
+                        <Sparkles class="w-4 h-4 text-slate-900" />
+                        Generar Contenido
+                      {/if}
+                    </button>
                   </div>
                 </div>
-
-                <div class="w-full sm:w-1/3 flex flex-col items-center">
-                  <div class="h-[18px] mb-2 hidden sm:block"></div> 
-                  <button type="button" onclick={generarCampañaIA} disabled={generandoIA} class="w-full relative overflow-hidden group bg-white text-slate-900 font-bold px-6 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 flex items-center justify-center gap-2 text-sm shadow-sm active:scale-95">
-                    {#if generandoIA}
-                      <Loader2 class="animate-spin w-4 h-4 text-slate-900" />
-                      Redactando...
-                    {:else}
-                      <Sparkles class="w-4 h-4 text-slate-900" />
-                      Generar Contenido
-                    {/if}
-                  </button>
+              {:else}
+                <!-- PAYWALL B2B: Diseño persuasivo de Product-Led Growth -->
+                <div class="w-full max-w-3xl mx-auto bg-gradient-to-br from-indigo-900/50 to-slate-900/80 border border-indigo-500/30 rounded-2xl p-8 shadow-2xl text-center relative overflow-hidden">
+                  <Zap class="w-12 h-12 text-amber-400 mx-auto mb-4 animate-bounce" />
+                  <h3 class="text-xl font-bold text-white mb-2">Has agotado tus créditos del plan {planSuscripcion.charAt(0).toUpperCase() + planSuscripcion.slice(1)}</h3>
+                  <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
+                    La Inteligencia Artificial es el motor de las agencias top. Mejora tu plan a <strong>Pro (125 créditos)</strong> o <strong>Elite (500 créditos)</strong> para dominar el mercado sin límites.
+                  </p>
+                  <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
+                    <Sparkles class="w-4 h-4" /> Desbloquear Estudio Creativo
+                  </a>
                 </div>
-              </div>
+              {/if}
             </div>
 
-            <!-- RESULTADOS SOCIALES: Ya no mostramos Título ni Descripción aquí -->
-            {#if iaEjecutada}
+            <!-- RESULTADOS SOCIALES (Sin duplicar Título/Descripción) -->
+            {#if iaEjecutada && creditosIA >= 0}
               <div class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-5 animate-[fadeIn_0.4s_ease-out] relative z-10">
                 <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 flex flex-col">
                   <div class="flex items-center justify-between mb-4">
@@ -455,7 +465,7 @@
           </div>
         </section>
 
-        <!-- SECCIÓN 3: AQUÍ SUCEDE LA MAGIA DEL AUTOCOMPLETADO -->
+        <!-- SECCIÓN 3: AQUÍ SUCEDE LA MAGIA VISUAL DEL TYPEWRITER -->
         <section id="seccion-oficial" class="space-y-6 pt-10 border-t border-slate-100">
           <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
             <h2 class="text-xl font-bold text-slate-900 tracking-tight">3. Publicación Oficial</h2>
