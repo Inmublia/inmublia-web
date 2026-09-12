@@ -33,10 +33,30 @@ export async function load({ locals, setHeaders, url, depends }) {
 
     if (alertasError) console.error("Error cargando alertas:", alertasError);
 
-    // 4. CARGA DE INMUEBLES: Extrayendo las propiedades exclusivas de este agente
+    // 4. FIX CRÍTICO PARA EL PDF: Ampliamos el select para traer la descripción, métricas y la galería de fotos
     const { data: propiedades, error: propError } = await locals.supabase
       .from('propiedades')
-      .select('id, titulo, slug, estatus, precio, operacion, ubicacion, imagen_url, destacada, open_houses(id, event_date, time_end)')
+      .select(`
+        id, 
+        titulo, 
+        slug, 
+        estatus, 
+        precio, 
+        operacion, 
+        ubicacion, 
+        imagen_url, 
+        destacada,
+        descripcion,
+        recamaras,
+        banos,
+        medio_bano,
+        estacionamientos,
+        m2_construccion,
+        m2_terreno,
+        tipo,
+        galeria_urls,
+        open_houses(id, event_date, time_end)
+      `)
       .eq('broker_id', broker.id)
       .order('creado_en', { ascending: false });
 
