@@ -42,7 +42,7 @@ export const actions = {
 
     if (!broker) return fail(400, { error: 'Perfil no encontrado.' });
     if (broker.ia_creditos_disponibles <= 0) {
-      return fail(403, { error: '🔒 Te has quedado sin créditos. Mejora tu plan a Pro o Elite.' });
+      return fail(403, { error: '🔒 Te has quedado sin créditos de IA.' });
     }
 
     const formData = await request.formData();
@@ -60,58 +60,41 @@ export const actions = {
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
-    // PROMPT BLINDADO: Instrucciones agresivas para evitar que Llama 3 rompa el JSON
-    let systemPrompt = `Eres un copywriter inmobiliario de élite. Tono: ${tono}.
-    REGLA ABSOLUTA: Tienes prohibido usar saltos de línea (Enter). Escribe todo el JSON en una sola línea minificada. Si necesitas un salto de línea en el texto, usa literalmente '\\n'.`;
+    let systemPrompt = `Eres un copywriter inmobiliario. Tono: ${tono}. Debes responder EXCLUSIVAMENTE con el JSON solicitado, sin texto extra, sin markdown.`;
 
     const userPrompt = `
       Campaña para: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
-      Specs: ${recamaras} Rec, ${banos} Baños, ${medio_bano} Medios, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
+      Specs: ${recamaras} Rec, ${banos} Baños, ${medio_bano} Medios, ${estacionamientos} Autos, Edad: ${antiguedad}.
       
-      Devuelve ÚNICAMENTE un objeto JSON válido con estas 4 llaves (no uses comillas dobles dentro de los valores, usa comillas simples):
+      Genera y devuelve ÚNICAMENTE este JSON exacto:
       {
-        "titulo": "Título atractivo max 10 palabras",
+        "titulo": "Título atractivo",
         "descripcion": "Descripción comercial",
-        "whatsapp": "Mensaje para enviar por chat",
-        "tiktok": "Guion corto de video vertical"
+        "whatsapp": "Mensaje para WhatsApp",
+        "tiktok": "Guion de video"
       }
     `;
 
     try {
-      const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
+      const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        response_format: { type: "json_object" }
+        response_format: { type: "json_object" },
+        max_tokens: 2500 // 🔥 LA BALA DE PLATA: Evita que Cloudflare corte el JSON por la mitad
       });
 
       let iaText = response.response;
       let parsedContent;
-      
-      // PARSER INDESTRUCTIBLE
-      // 1. Quitamos los backticks de markdown que la IA suele colar
-      let cleanText = iaText.replace(/```json/gi, '').replace(/```/g, '').trim();
-      
-      // 2. Extraemos a la fuerza solo lo que esté entre las llaves principal { }
-      const start = cleanText.indexOf('{');
-      const end = cleanText.lastIndexOf('}');
-      if (start !== -1 && end !== -1) {
-        cleanText = cleanText.substring(start, end + 1);
-      }
-
-      // 3. Limpiamos saltos de línea literales que crashean JSON.parse en JavaScript
-      cleanText = cleanText.replace(/[\n\r]+/g, '\\n').replace(/\t/g, ' ');
 
       try {
-        parsedContent = JSON.parse(cleanText);
+        const jsonMatch = iaText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("No hay estructura JSON");
+        parsedContent = JSON.parse(jsonMatch[0]);
       } catch (err) {
-        console.error("Fallo definitivo de parseo. Texto limpiado:", cleanText);
-        return fail(500, { error: 'El servidor generó el texto, pero hubo un error de formato. Intenta generar de nuevo.' });
-      }
-
-      if (!parsedContent.titulo || !parsedContent.descripcion) {
-         return fail(500, { error: 'El texto generado llegó incompleto. Intenta de nuevo.' });
+        console.error("Fallo de parseo. Texto crudo:", iaText);
+        return fail(500, { error: 'El servidor no pudo estructurar la información. La IA devolvió texto corrupto.' });
       }
 
       await locals.supabase
@@ -127,7 +110,7 @@ export const actions = {
       };
 
     } catch (e) {
-      console.error("Fallo General Workers AI:", e);
+      console.error("Fallo Cloudflare:", e);
       return fail(500, { error: `Error conectando con la IA: ${e.message}` });
     }
   },
