@@ -9,7 +9,6 @@
     Loader2, 
     CheckCircle2,
     Copy, 
-    Building2, 
     MapPin, 
     MessageCircle, 
     BadgeDollarSign,
@@ -35,6 +34,7 @@
   
   let textoGeneradoWhatsapp = $state('');
 
+  // Variables de Estado en tiempo real
   let valTitulo = $state('');
   let valDescripcion = $state('');
   let valPrecio = $state('');
@@ -46,6 +46,8 @@
   let valMedioBano = $state('');
   let valEstacionamientos = $state('');
   let valAntiguedad = $state(''); 
+  let valM2Terreno = $state(''); 
+  let valM2Construccion = $state(''); 
 
   const catalogoTemplates = [
     { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80' },
@@ -175,25 +177,58 @@
 
       <form method="POST" action="?/crear" enctype="multipart/form-data" use:enhance={async ({ formData }) => { 
         loading = true; 
+        
+        // ESCUDO DE DATOS FORZADO: Asegura que todo el Svelte State vuele al servidor
+        formData.set('titulo', valTitulo);
+        formData.set('descripcion', valDescripcion);
+        formData.set('tipo', valTipo);
+        formData.set('operacion', valOperacion);
+        formData.set('precio', valPrecio);
+        formData.set('ubicacion', valUbicacion);
+        formData.set('recamaras', valRecamaras);
+        formData.set('banos', valBanos);
+        formData.set('medio_bano', valMedioBano);
+        formData.set('estacionamientos', valEstacionamientos);
+        formData.set('m2_terreno', valM2Terreno);
+        formData.set('m2_construccion', valM2Construccion);
+        formData.set('antiguedad', valAntiguedad);
+
         try {
           const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.8 };
+          
+          // Compresión de Portada
           const imagenPrincipal = formData.get('imagen');
           if (imagenPrincipal && imagenPrincipal.size > 0) {
-            const compressedMain = await imageCompression(imagenPrincipal, options);
-            formData.set('imagen', compressedMain, compressedMain.name);
+            try {
+              const compressedMain = await imageCompression(imagenPrincipal, options);
+              formData.set('imagen', compressedMain, compressedMain.name || 'portada.jpg');
+            } catch(e) { console.error("Fallo comprimir hero, enviando original", e); }
           }
+          
+          // Compresión Indestructible de Galería
           const galeriaArchivos = formData.getAll('galeria');
-          if (galeriaArchivos.length > 0 && galeriaArchivos[0].size > 0) {
-            formData.delete('galeria');
-            for (let i = 0; i < galeriaArchivos.length; i++) {
-              if (galeriaArchivos[i].size > 0) {
-                const compressedGal = await imageCompression(galeriaArchivos[i], options);
-                formData.append('galeria', compressedGal, compressedGal.name);
+          if (galeriaArchivos.length > 0) {
+            const archivosProcesados = [];
+            for (const file of galeriaArchivos) {
+              if (file.size > 0) {
+                try {
+                  const compressed = await imageCompression(file, options);
+                  archivosProcesados.push(compressed);
+                } catch(e) {
+                  archivosProcesados.push(file); // Si falla, jamás la pierdas
+                }
+              }
+            }
+            
+            if (archivosProcesados.length > 0) {
+              formData.delete('galeria'); // Ahora es seguro borrarla
+              for (const procFile of archivosProcesados) {
+                formData.append('galeria', procFile, procFile.name || 'galeria.jpg');
               }
             }
           }
         } catch (error) {
-          console.error("Error comprimiendo", error);
+          console.error("Error crítico en interceptor multipart", error);
         }
         return async ({ update }) => { loading = false; update(); }; 
       }} class="space-y-12">
@@ -272,8 +307,8 @@
               <div><label for="banos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Baños</label><input bind:value={valBanos} id="banos" type="number" name="banos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
               <div><label for="medio_bano" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">1/2 Baños</label><input bind:value={valMedioBano} id="medio_bano" type="number" name="medio_bano" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
               <div><label for="estacionamientos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Autos</label><input bind:value={valEstacionamientos} id="estacionamientos" type="number" name="estacionamientos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-              <div><label for="m2_terreno" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Terreno</label><input id="m2_terreno" type="number" name="m2_terreno" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-              <div><label for="m2_construccion" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Const.</label><input id="m2_construccion" type="number" name="m2_construccion" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+              <div><label for="m2_terreno" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Terreno</label><input bind:value={valM2Terreno} id="m2_terreno" type="number" name="m2_terreno" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+              <div><label for="m2_construccion" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Const.</label><input bind:value={valM2Construccion} id="m2_construccion" type="number" name="m2_construccion" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
               <div><label for="antiguedad" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Antigüedad</label><input bind:value={valAntiguedad} id="antiguedad" type="text" name="antiguedad" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-300" placeholder="Ej. 5 años"></div>
             </div>
 
@@ -382,14 +417,13 @@
                   </div>
                 </div>
               {:else}
-                <!-- PAYWALL B2B: Lógica condicional basada en el plan real -->
                 <div class="w-full max-w-3xl mx-auto bg-gradient-to-br from-indigo-900/50 to-slate-900/80 border border-indigo-500/30 rounded-2xl p-8 shadow-2xl text-center relative overflow-hidden">
                   <Zap class="w-12 h-12 text-amber-400 mx-auto mb-4 animate-bounce" />
                   
                   {#if planSuscripcion === 'elite'}
                     <h3 class="text-xl font-bold text-white mb-2">Límite Mensual Alcanzado (Plan Elite)</h3>
                     <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
-                      Has utilizado tus 500 créditos. Adquiere un paquete de recarga extra (Top-Up) para continuar redactando campañas sin interrupciones este mes.
+                      Has utilizado todos tus créditos. Adquiere un paquete de recarga extra (Top-Up) para continuar redactando campañas sin interrupciones este mes.
                     </p>
                     <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
                       <Zap class="w-4 h-4" /> Adquirir Top-Up IA
@@ -397,7 +431,7 @@
                   {:else if planSuscripcion === 'pro'}
                     <h3 class="text-xl font-bold text-white mb-2">Límite Mensual Alcanzado (Plan Pro)</h3>
                     <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
-                      Has utilizado tus 150 créditos. Mejora al plan <strong>Elite (500 créditos)</strong> o adquiere una recarga para operar sin límites.
+                      Has utilizado tus 125 créditos. Mejora al plan <strong>Elite (500 créditos)</strong> o adquiere una recarga para operar sin límites.
                     </p>
                     <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
                       <Sparkles class="w-4 h-4" /> Mejorar a Plan Elite
@@ -405,7 +439,7 @@
                   {:else}
                     <h3 class="text-xl font-bold text-white mb-2">Has agotado tus créditos (Plan Básico)</h3>
                     <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
-                      La Inteligencia Artificial es el motor de las agencias top. Mejora tu plan a <strong>Pro (150 créditos)</strong> o <strong>Elite (500 créditos)</strong> para dominar el mercado.
+                      La Inteligencia Artificial es el motor de las agencias top. Mejora tu plan a <strong>Pro (125 créditos)</strong> o <strong>Elite (500 créditos)</strong> para dominar el mercado.
                     </p>
                     <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
                       <Sparkles class="w-4 h-4" /> Desbloquear Estudio Creativo
