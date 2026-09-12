@@ -1,5 +1,5 @@
 <script>
-  import { Sparkles } from 'lucide-svelte';
+  import { Sparkles, ArrowRight } from 'lucide-svelte';
 </script>
 
 <main class="min-h-screen bg-slate-50 font-sans selection:bg-indigo-600 selection:text-white">
@@ -16,7 +16,8 @@
           <a href="#soluciones" class="text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">Soluciones SaaS</a>
           <div class="h-4 w-px bg-slate-200"></div>
           <a href="/login" class="text-sm font-bold text-slate-900 hover:text-indigo-600 transition-colors">Ingresar a mi Consola</a>
-          <a href="/login" class="bg-zinc-950 hover:bg-indigo-600 text-white text-sm font-bold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg active:scale-95">
+          <!-- EL ENLACE CORREGIDO AL EMBUDO DE PLANES -->
+          <a href="/planes" class="bg-zinc-950 hover:bg-indigo-600 text-white text-sm font-bold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg active:scale-95">
             Crear mi Agencia
           </a>
         </div>
@@ -43,8 +44,10 @@
       </p>
 
       <div class="flex flex-col sm:flex-row justify-center gap-4">
-        <a href="/login" class="bg-zinc-950 hover:bg-indigo-600 text-white font-bold py-4 px-10 rounded-2xl transition-all duration-300 text-lg shadow-xl shadow-zinc-900/20 active:scale-95">
+        <!-- EL ENLACE CORREGIDO AL EMBUDO DE PLANES CON ICONO DE ACCIÓN -->
+        <a href="/planes" class="inline-flex items-center justify-center gap-2 bg-zinc-950 hover:bg-indigo-600 text-white font-bold py-4 px-10 rounded-2xl transition-all duration-300 text-lg shadow-xl shadow-zinc-900/20 active:scale-95">
           Comenzar mi Agencia Hoy
+          <ArrowRight class="w-5 h-5" />
         </a>
       </div>
     </div>
