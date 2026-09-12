@@ -1,5 +1,5 @@
 <script>
-  import { enhance } from '$app/forms';
+  import { enhance, deserialize } from '$app/forms';
   import imageCompression from 'browser-image-compression';
   import { 
     ArrowLeft, 
@@ -78,9 +78,8 @@
     galeriaPreviews = Array.from(files).map(file => URL.createObjectURL(file));
   }
 
-  // FIX DEFENSIVO: Si text es undefined/null, lo convertimos a string o abortamos para no romper el .length
   async function typeWriter(text, setterCallback, speed = 10) {
-    if (!text) return; 
+    if (!text) return;
     let str = String(text); 
     let current = '';
     for (let i = 0; i < str.length; i++) {
@@ -126,12 +125,14 @@
       const res = await fetch('?/generarCampañaIA', {
         method: 'POST',
         body: formData,
-        headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' }
+        headers: { 'x-sveltekit-action': 'true' }
       });
 
       if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
 
-      const result = await res.json();
+      // SOLUCIÓN OFICIAL SVELTEKIT: Usar deserialize para desempaquetar el objeto ActionResponse
+      const textRes = await res.text();
+      const result = deserialize(textRes);
       
       if (result.type === 'success' && result.data) {
         creditosIA--;
@@ -153,7 +154,7 @@
     } catch (e) {
       console.error(e);
       generandoIA = false;
-      alert(`Error procesando respuesta: ${e.message}`);
+      alert(`Fallo de conexión en el cliente: ${e.message}`);
     }
   }
 
