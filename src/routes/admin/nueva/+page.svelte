@@ -38,16 +38,18 @@
   let textoGeneradoWhatsapp = $state('');
   let textoGeneradoTiktok = $state('');
 
-  // Referencias DOM
-  let inputTitulo = $state(null);
-  let inputDescripcion = $state(null);
-  let inputPrecio = $state(null);
-  let inputUbicacion = $state(null);
-  let selectTipo = $state(null);
-  let selectOperacion = $state(null);
-  let inputRecamaras = $state(null);
+  // --- VARIABLES REACTIVAS DEL FORMULARIO (FIX SVELTE 5) ---
+  let valTitulo = $state('');
+  let valDescripcion = $state('');
+  let valPrecio = $state('');
+  let valUbicacion = $state('');
+  let valTipo = $state('Casa');
+  let valOperacion = $state('Venta');
+  let valRecamaras = $state('');
+  let valBanos = $state('');
+  let valMedioBano = $state('');
+  let valEstacionamientos = $state('');
 
-  // SE AGREGARON LAS IMÁGENES DE PREVIEW AL CATÁLOGO
   const catalogoTemplates = [
     { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=400&h=250' },
     { id: 'prop_basic_2', nombre: 'Clean Showcase', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=400&h=250' },
@@ -86,7 +88,10 @@
   }
 
   async function generarCampañaIA() {
-    if (!inputUbicacion.value || !inputPrecio.value || !selectTipo.value) {
+    // FIX: Limpiamos los caracteres especiales del precio antes de enviarlo
+    const precioLimpio = valPrecio.toString().replace(/[^0-9.]/g, '');
+
+    if (!valUbicacion || !precioLimpio || !valTipo) {
       alert("Por favor, llena al menos: Tipo, Precio y Ubicación en la Sección 1.");
       return;
     }
@@ -104,11 +109,14 @@
 
     try {
       const formData = new FormData();
-      formData.append('ubicacion', inputUbicacion.value);
-      formData.append('precio', inputPrecio.value);
-      formData.append('tipo', selectTipo.value);
-      formData.append('operacion', selectOperacion.value);
-      formData.append('recamaras', inputRecamaras?.value || 'No especificado');
+      formData.append('ubicacion', valUbicacion);
+      formData.append('precio', precioLimpio);
+      formData.append('tipo', valTipo);
+      formData.append('operacion', valOperacion);
+      formData.append('recamaras', valRecamaras || '0');
+      formData.append('banos', valBanos || '0');
+      formData.append('medio_bano', valMedioBano || '0');
+      formData.append('estacionamientos', valEstacionamientos || '0');
       formData.append('tono', tonoIA);
 
       const res = await fetch('?/generarCampañaIA', {
@@ -141,8 +149,9 @@
   }
 
   function aplicarAlFormulario() {
-    if (inputTitulo && textoGeneradoFicha.titulo) inputTitulo.value = textoGeneradoFicha.titulo;
-    if (inputDescripcion && textoGeneradoFicha.descripcion) inputDescripcion.value = textoGeneradoFicha.descripcion;
+    // FIX: Actualizamos directamente los estados reactivos
+    if (textoGeneradoFicha.titulo) valTitulo = textoGeneradoFicha.titulo;
+    if (textoGeneradoFicha.descripcion) valDescripcion = textoGeneradoFicha.descripcion;
     document.getElementById('seccion-oficial').scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -215,7 +224,7 @@
             <div>
               <label for="operacion" class="block text-xs font-semibold text-slate-500 mb-1.5">Operación</label>
               <div class="relative w-full">
-                <select bind:this={selectOperacion} id="operacion" name="operacion" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm cursor-pointer appearance-none">
+                <select bind:value={valOperacion} id="operacion" name="operacion" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm cursor-pointer appearance-none">
                   <option value="Venta">Venta</option>
                   <option value="Renta">Renta</option>
                 </select>
@@ -227,7 +236,7 @@
             <div>
               <label for="tipo" class="block text-xs font-semibold text-slate-500 mb-1.5">Tipo de Inmueble</label>
               <div class="relative w-full">
-                <select bind:this={selectTipo} id="tipo" name="tipo" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm cursor-pointer appearance-none">
+                <select bind:value={valTipo} id="tipo" name="tipo" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm cursor-pointer appearance-none">
                   <option value="Casa">Casa</option>
                   <option value="Departamento">Departamento</option>
                   <option value="Terreno">Terreno</option>
@@ -242,7 +251,8 @@
               <label for="precio" class="block text-xs font-semibold text-slate-500 mb-1.5">Precio de Mercado (MXN)</label>
               <div class="relative">
                 <BadgeDollarSign class="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
-                <input bind:this={inputPrecio} id="precio" type="number" name="precio" required class="flex h-10 w-full rounded-md border border-slate-200 bg-white pl-10 pr-3 py-2 text-sm font-bold ring-offset-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-sm" placeholder="Ej. 5500000">
+                <!-- FIX: type="text" permite comas y signos. El backend de Svelte limpia el string nativamente. -->
+                <input bind:value={valPrecio} id="precio" type="text" name="precio" required class="flex h-10 w-full rounded-md border border-slate-200 bg-white pl-10 pr-3 py-2 text-sm font-bold ring-offset-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-sm" placeholder="Ej. 5,500,000">
               </div>
             </div>
 
@@ -259,15 +269,15 @@
               <label for="ubicacion" class="block text-xs font-semibold text-slate-500 mb-1.5">Ubicación Estratégica (Colonia, Ciudad)</label>
               <div class="relative">
                 <MapPin class="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                <input bind:this={inputUbicacion} id="ubicacion" type="text" name="ubicacion" placeholder="Ej. Puerta de Hierro, Zapopan" class="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm">
+                <input bind:value={valUbicacion} id="ubicacion" type="text" name="ubicacion" placeholder="Ej. Puerta de Hierro, Zapopan" class="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm">
               </div>
             </div>
 
             <div class="col-span-2 grid grid-cols-3 sm:grid-cols-6 gap-4">
-              <div><label for="recamaras" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Recámaras</label><input bind:this={inputRecamaras} id="recamaras" type="number" name="recamaras" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-              <div><label for="banos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Baños</label><input id="banos" type="number" name="banos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-              <div><label for="medio_bano" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">1/2 Baños</label><input id="medio_bano" type="number" name="medio_bano" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-              <div><label for="estacionamientos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Autos</label><input id="estacionamientos" type="number" name="estacionamientos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+              <div><label for="recamaras" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Recámaras</label><input bind:value={valRecamaras} id="recamaras" type="number" name="recamaras" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+              <div><label for="banos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Baños</label><input bind:value={valBanos} id="banos" type="number" name="banos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+              <div><label for="medio_bano" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">1/2 Baños</label><input bind:value={valMedioBano} id="medio_bano" type="number" name="medio_bano" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+              <div><label for="estacionamientos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Autos</label><input bind:value={valEstacionamientos} id="estacionamientos" type="number" name="estacionamientos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
               <div><label for="m2_terreno" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Terreno</label><input id="m2_terreno" type="number" name="m2_terreno" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
               <div><label for="m2_construccion" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Interiores</label><input id="m2_construccion" type="number" name="m2_construccion" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
             </div>
@@ -475,12 +485,12 @@
 
           <div>
             <label for="titulo" class="block text-xs font-semibold text-slate-500 mb-1.5">Título de la Publicación (Obligatorio)</label>
-            <input bind:this={inputTitulo} id="titulo" type="text" name="titulo" required class="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-slate-900 text-sm font-bold shadow-sm outline-none text-slate-900 placeholder:text-slate-300" placeholder="Ej. Residencia Minimalista en Puerta de Hierro">
+            <input bind:value={valTitulo} id="titulo" type="text" name="titulo" required class="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-slate-900 text-sm font-bold shadow-sm outline-none text-slate-900 placeholder:text-slate-300" placeholder="Ej. Residencia Minimalista en Puerta de Hierro">
           </div>
 
           <div>
             <label for="descripcion" class="block text-xs font-semibold text-slate-500 mb-1.5">Descripción Editorial (Obligatorio)</label>
-            <textarea bind:this={inputDescripcion} id="descripcion" name="descripcion" rows="6" class="w-full bg-white border border-slate-200 rounded-lg p-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-slate-900 text-slate-800 leading-relaxed resize-y placeholder:text-slate-300" placeholder="Escribe aquí los detalles de la propiedad o usa el Estudio Creativo IA para redactar..."></textarea>
+            <textarea bind:value={valDescripcion} id="descripcion" name="descripcion" rows="6" class="w-full bg-white border border-slate-200 rounded-lg p-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-slate-900 text-slate-800 leading-relaxed resize-y placeholder:text-slate-300" placeholder="Escribe aquí los detalles de la propiedad o usa el Estudio Creativo IA para redactar..."></textarea>
           </div>
 
           <div class="flex items-start mt-4 p-5 bg-slate-50/50 rounded-xl border border-slate-200 shadow-inner">
@@ -494,7 +504,7 @@
           </div>
         </section>
 
-        <!-- SECCIÓN 4 REFACTORIZADA CON PREVIEWS VISUALES -->
+        <!-- SECCIÓN 4: DISEÑO DEL SMART BROCHURE -->
         <section class="space-y-6 pt-10 border-t border-slate-100">
           <div class="border-b border-slate-100 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -518,7 +528,6 @@
               <label class="relative border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group {activo ? 'border-indigo-600 ring-2 ring-indigo-600 shadow-md bg-indigo-50/10' : 'border-slate-200 hover:border-slate-300 bg-white'} {!autorizado ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-1 hover:shadow-lg'}">
                 <input type="radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
                 
-                <!-- Thumbnail con Hover Effect -->
                 <div class="aspect-video w-full bg-slate-100 relative overflow-hidden border-b border-slate-100">
                    <img src={template.img} alt={template.nombre} class="w-full h-full object-cover transition-transform duration-500 {autorizado && !activo ? 'group-hover:scale-105' : ''}" />
                    {#if activo}
@@ -526,7 +535,6 @@
                    {/if}
                 </div>
 
-                <!-- Footer de la Card -->
                 <div class="p-4 flex flex-col justify-between flex-1 bg-white">
                   <div class="flex items-center justify-between gap-2">
                     <span class="font-bold text-sm leading-tight {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
