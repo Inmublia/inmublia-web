@@ -37,7 +37,7 @@ export async function POST({ request, url }) {
       },
       // Hacia dónde regresan después de pagar o cancelar
       success_url: `${origin}/pago-exitoso?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/precios`, 
+      cancel_url: `${origin}/planes`, // FIX: Redirige a /planes si el usuario cancela el pago
     });
 
     // Devolvemos la URL de pago al frontend
