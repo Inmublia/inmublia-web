@@ -1,4 +1,3 @@
-// src/routes/admin/nueva/+page.server.js
 import { redirect, fail } from '@sveltejs/kit';
 
 export const load = async ({ locals }) => {
@@ -59,42 +58,43 @@ export const actions = {
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
-    // DICCIONARIO DE PERFILES PSICOLÓGICOS PARA LA IA
+    // DICCIONARIO DE PERFILES PSICOLÓGICOS (SIN CLICHÉS)
     const guiasTono = {
-      'Premium / Elegante': 'Usa un lenguaje sofisticado, exclusivo y aspiracional. Enfócate en el estatus, el lujo, los acabados de primera y el diseño de alto nivel.',
-      'Familiar / Cálido': 'Usa un lenguaje acogedor, emotivo y seguro. Enfócate en la comodidad de la familia, la convivencia, la amplitud y la tranquilidad del entorno.',
-      'Analítico / ROI': 'Usa un lenguaje directo, financiero y estratégico. Enfócate en la plusvalía, el retorno de inversión, la ubicación estratégica y la oportunidad de negocio.'
+      'Premium / Elegante': 'Tono profesional, moderno y de alto valor. Destaca la amplitud y la calidad de vida de forma objetiva. EVITA clichés como "lujo extremo", "paraíso" o "estilo de vida sofisticado".',
+      'Familiar / Cálido': 'Tono cercano, seguro y funcional. Destaca la practicidad de los espacios para el día a día y la tranquilidad de la zona. EVITA sonar cursi o excesivamente poético.',
+      'Analítico / ROI': 'Tono objetivo, financiero y estratégico. Destaca la ubicación, rentabilidad y distribución inteligente. Usa lenguaje de negocios claro y directo.'
     };
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
-    // REGLA 0: EL BLINDAJE CONTRA EL INGLÉS
-    const systemPrompt = `Eres un copywriter inmobiliario de élite en México.
-    REGLA 0: ESCRIBE TODO ESTRICTAMENTE EN ESPAÑOL. PROHIBIDO USAR INGLÉS.
+    // PROMPT SYSTEM: BLINDAJE CONTRA ADULACIÓN E INGLÉS
+    const systemPrompt = `Eres un redactor inmobiliario profesional y persuasivo en México.
+    REGLA 0: ESCRIBE TODO ESTRICTAMENTE EN ESPAÑOL DE MÉXICO.
     REGLA 1: Devuelve SOLO un objeto JSON puro, en una línea.
     REGLA 2: No uses markdown (\`\`\`json).
     REGLA 3: Usa comillas simples dentro de tus textos. NUNCA uses comillas dobles en los valores internos.
-    REGLA 4: CEÑIRSE ESTRICTAMENTE A LOS DATOS. PROHIBIDO alucinar, inventar amenidades, incluir electrodomésticos o muebles que no se mencionen.`;
+    REGLA 4: PROHIBIDO usar palabras rebuscadas, rimbombantes o aduladoras (ej. "maravilla", "exclusivo", "amante del lujo", "sofisticado"). Escribe con naturalidad, objetividad y elegancia moderna.
+    REGLA 5: CEÑIRSE ESTRICTAMENTE A LOS DATOS. No inventes amenidades.`;
 
+    // PROMPT USER: FLUJO NATURAL DE REDACCIÓN
     const userPrompt = `
-      Genera contenido en ESPAÑOL para una propiedad.
-      Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
-      Características exactas (no inventes más): ${recamaras} Recámaras, ${banos} Baños Completos, ${medio_bano} Medios Baños, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
+      Redacta una ficha técnica atractiva. Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
+      Características exactas: ${recamaras} Recámaras, ${banos} Baños Completos, ${medio_bano} Medios Baños, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
       
-      TONO DE REDACCIÓN REQUERIDO: "${tonoSeleccionado}".
+      TONO REQUERIDO: "${tonoSeleccionado}".
       Instrucción de tono: ${instruccionTono}
       
       Devuelve ESTRICTAMENTE este JSON:
       {
-        "titulo": "(Máximo 10 palabras en español. Gancho profesional según el tono indicado)",
-        "descripcion": "(Mínimo 150 palabras en ESPAÑOL. Escribe exactamente 3 párrafos usando el texto literal '\\n\\n' para separarlos. Párrafo 1: Estilo de vida y gancho inicial según el tono. Párrafo 2: Arquitectura basada SOLO en los datos numéricos dados. Párrafo 3: Ubicación y cierre. NO INVENTES EXTRAS)",
-        "whatsapp": "(Mensaje de WhatsApp en ESPAÑOL, redactado en el tono indicado. Usa un máximo de 3 emojis. Separa las líneas con '\\n\\n'. Incluye un llamado a la acción claro)"
+        "titulo": "(Máximo 10 palabras. Título descriptivo y comercial, sin exagerar)",
+        "descripcion": "(Mínimo 150 palabras. Escribe exactamente 3 párrafos separados por el texto literal '\\n\\n'. Párrafo 1: Introducción directa al inmueble y su mayor atractivo real. Párrafo 2: Integra las características numéricas de forma fluida y natural en la redacción, NO repitas instrucciones textualmente. Párrafo 3: Ventajas de la zona y llamado a la acción. Sé convincente pero realista)",
+        "whatsapp": "(Mensaje de WhatsApp directo, profesional y amable. Máximo 2 emojis. Separa las líneas con '\\n\\n'. Cierre con pregunta o llamado a la acción claro)"
       }
     `;
 
     // STRINGS EXACTOS DE PRODUCCIÓN CLOUDFLARE Y PATRÓN DE CASCADA
     const modelosActivos = [
-      '@cf/meta/llama-3.1-8b-instruct',        // Prioridad 1: Premium (Mejor vocabulario)
+      '@cf/meta/llama-3.1-8b-instruct',        // Prioridad 1: Premium (Mejor vocabulario natural)
       '@cf/mistral/mistral-7b-instruct-v0.1',  // Prioridad 2: Volumen/Respaldo
       '@cf/meta/llama-3-8b-instruct'           // Prioridad 3: Tanque estable
     ];
@@ -143,7 +143,6 @@ export const actions = {
 
       cleanText = cleanText.substring(firstBrace, lastBrace + 1);
       
-      // Limpieza severa para evitar roturas del JSON
       cleanText = cleanText.replace(/\n/g, '\\n').replace(/\r/g, '');
       cleanText = cleanText.replace(/[\u0000-\u0009\u000B-\u001F]+/g, ' ');
 
@@ -161,9 +160,9 @@ export const actions = {
       .eq('id', broker.id);
 
     return {
-      titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad Exclusiva',
-      descripcion: parsedContent.descripcion || parsedContent.Descripcion || 'Contacta al broker para más detalles.',
-      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto esta increíble propiedad...'
+      titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad en Venta',
+      descripcion: parsedContent.descripcion || parsedContent.Descripcion || 'Contacta al broker para más detalles sobre la distribución y precio.',
+      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto los detalles de esta propiedad. ¿Te gustaría agendar una visita?'
     };
   },
 
