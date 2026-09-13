@@ -1,3 +1,4 @@
+// src/routes/admin/nueva/+page.server.js
 import { redirect, fail } from '@sveltejs/kit';
 
 export const load = async ({ locals }) => {
@@ -49,7 +50,7 @@ export const actions = {
     const precio = formData.get('precio');
     const tipo = formData.get('tipo');
     const operacion = formData.get('operacion');
-    const tono = formData.get('tono');
+    const tonoSeleccionado = formData.get('tono') || 'Premium / Elegante';
     const recamaras = formData.get('recamaras') || '0';
     const banos = formData.get('banos') || '0';
     const medio_bano = formData.get('medio_bano') || '0';
@@ -58,27 +59,42 @@ export const actions = {
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
-    const systemPrompt = `Eres un copywriter inmobiliario corporativo de élite.
+    // DICCIONARIO DE PERFILES PSICOLÓGICOS PARA LA IA
+    const guiasTono = {
+      'Premium / Elegante': 'Usa un lenguaje sofisticado, exclusivo y aspiracional. Enfócate en el estatus, el lujo, los acabados de primera y el diseño de alto nivel.',
+      'Familiar / Cálido': 'Usa un lenguaje acogedor, emotivo y seguro. Enfócate en la comodidad de la familia, la convivencia, la amplitud y la tranquilidad del entorno.',
+      'Analítico / ROI': 'Usa un lenguaje directo, financiero y estratégico. Enfócate en la plusvalía, el retorno de inversión, la ubicación estratégica y la oportunidad de negocio.'
+    };
+    
+    const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
+
+    // REGLA 0: EL BLINDAJE CONTRA EL INGLÉS
+    const systemPrompt = `Eres un copywriter inmobiliario de élite en México.
+    REGLA 0: ESCRIBE TODO ESTRICTAMENTE EN ESPAÑOL. PROHIBIDO USAR INGLÉS.
     REGLA 1: Devuelve SOLO un objeto JSON puro, en una línea.
     REGLA 2: No uses markdown (\`\`\`json).
     REGLA 3: Usa comillas simples dentro de tus textos. NUNCA uses comillas dobles en los valores internos.
     REGLA 4: CEÑIRSE ESTRICTAMENTE A LOS DATOS. PROHIBIDO alucinar, inventar amenidades, incluir electrodomésticos o muebles que no se mencionen.`;
 
     const userPrompt = `
-      Genera contenido. Tono: ${tono}. Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
+      Genera contenido en ESPAÑOL para una propiedad.
+      Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
       Características exactas (no inventes más): ${recamaras} Recámaras, ${banos} Baños Completos, ${medio_bano} Medios Baños, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
+      
+      TONO DE REDACCIÓN REQUERIDO: "${tonoSeleccionado}".
+      Instrucción de tono: ${instruccionTono}
       
       Devuelve ESTRICTAMENTE este JSON:
       {
-        "titulo": "(Máximo 10 palabras. Gancho profesional)",
-        "descripcion": "(Mínimo 150 palabras. Escribe exactamente 3 párrafos usando el texto literal '\\n\\n' para separarlos. Párrafo 1: Estilo de vida general. Párrafo 2: Arquitectura basada SOLO en los datos numéricos dados. Párrafo 3: Ubicación y cierre. NO INVENTES EXTRAS)",
-        "whatsapp": "(Mensaje profesional y elegante. Usa un máximo de 3 emojis en todo el texto. Separa las líneas con '\\n\\n'. Incluye un llamado a la acción claro)"
+        "titulo": "(Máximo 10 palabras en español. Gancho profesional según el tono indicado)",
+        "descripcion": "(Mínimo 150 palabras en ESPAÑOL. Escribe exactamente 3 párrafos usando el texto literal '\\n\\n' para separarlos. Párrafo 1: Estilo de vida y gancho inicial según el tono. Párrafo 2: Arquitectura basada SOLO en los datos numéricos dados. Párrafo 3: Ubicación y cierre. NO INVENTES EXTRAS)",
+        "whatsapp": "(Mensaje de WhatsApp en ESPAÑOL, redactado en el tono indicado. Usa un máximo de 3 emojis. Separa las líneas con '\\n\\n'. Incluye un llamado a la acción claro)"
       }
     `;
 
     // STRINGS EXACTOS DE PRODUCCIÓN CLOUDFLARE Y PATRÓN DE CASCADA
     const modelosActivos = [
-      '@cf/meta/llama-3.1-8b-instruct',        // Prioridad 1: Premium
+      '@cf/meta/llama-3.1-8b-instruct',        // Prioridad 1: Premium (Mejor vocabulario)
       '@cf/mistral/mistral-7b-instruct-v0.1',  // Prioridad 2: Volumen/Respaldo
       '@cf/meta/llama-3-8b-instruct'           // Prioridad 3: Tanque estable
     ];
@@ -127,6 +143,7 @@ export const actions = {
 
       cleanText = cleanText.substring(firstBrace, lastBrace + 1);
       
+      // Limpieza severa para evitar roturas del JSON
       cleanText = cleanText.replace(/\n/g, '\\n').replace(/\r/g, '');
       cleanText = cleanText.replace(/[\u0000-\u0009\u000B-\u001F]+/g, ' ');
 
