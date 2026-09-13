@@ -1,5 +1,5 @@
 <script>
-  import { Check, X, Zap, Crown, Building2, ArrowRight } from 'lucide-svelte';
+  import { Check, X, Zap, Crown, Building2, ArrowRight, Globe } from 'lucide-svelte';
 
   let facturacionAnual = $state(true);
 
@@ -17,9 +17,9 @@
         { texto: 'Catálogo en subdominio (.inmublia.com)', incluido: true },
         { texto: 'CRM Gestión de Interesados (Leads)', incluido: true },
         { texto: '15 Créditos de IA mensuales', incluido: true },
-        { texto: 'Inventario de propiedades', incluido: true },
-        { texto: 'Bóveda Matchmaking', incluido: false },
-        { texto: 'Dominio propio personalizado', incluido: false }
+        { texto: 'Inventario hasta 15 propiedades', incluido: true },
+        { texto: 'Plantillas Smart Brochure VIP', incluido: false },
+        { texto: 'Módulo de Open House', incluido: false }
       ],
       linkId: 'price_basico_test'
     },
@@ -37,16 +37,16 @@
         { texto: 'Catálogo en subdominio (.inmublia.com)', incluido: true },
         { texto: 'CRM Avanzado con Semáforo', incluido: true },
         { texto: '125 Créditos de IA mensuales', incluido: true },
-        { texto: 'Inventario ilimitado + Open House', incluido: true },
-        { texto: 'Bóveda & Matchmaking Inteligente', incluido: true },
-        { texto: 'Dominio propio personalizado', incluido: false }
+        { texto: 'Inventario ilimitado', incluido: true },
+        { texto: 'Plantillas Smart Brochure VIP', incluido: true },
+        { texto: 'Módulo de Open House', incluido: true }
       ],
       linkId: 'price_pro_test'
     },
     {
       id: 'elite',
       nombre: 'Élite',
-      descripcion: 'Para agencias e inmobiliarias de alto volumen.',
+      descripcion: 'Para Top Producers con alto volumen de inventario.',
       precioMensual: 1499,
       precioAnual: 1199,
       icono: Crown,
@@ -54,11 +54,11 @@
       destacado: false,
       features: [
         { texto: 'Catálogo en subdominio (.inmublia.com)', incluido: true },
-        { texto: 'CRM Multiusuario (Hasta 5 asesores)', incluido: true },
+        { texto: 'CRM Avanzado con Semáforo', incluido: true },
         { texto: '500 Créditos de IA mensuales', incluido: true },
-        { texto: 'Inventario ilimitado + Open House', incluido: true },
-        { texto: 'Bóveda & Matchmaking Inteligente', incluido: true },
-        { texto: 'Dominio propio personalizado (.com)', incluido: true }
+        { texto: 'Inventario ilimitado', incluido: true },
+        { texto: 'Todas las plantillas VIP + Futuras', incluido: true },
+        { texto: 'Soporte técnico prioritario (WhatsApp)', incluido: true }
       ],
       linkId: 'price_elite_test'
     }
@@ -87,7 +87,7 @@
       Invierte en tu <span class="text-indigo-600">Productividad</span>
     </h1>
     <p class="text-lg text-slate-600 max-w-2xl mx-auto font-medium mb-10">
-      Elige el plan que mejor se adapte al volumen de tus operaciones. Cancela en cualquier momento.
+      Elige el plan que mejor se adapte a tu ritmo de ventas. Tu cuenta es personal e intransferible.
     </p>
 
     <div class="flex items-center justify-center gap-4">
@@ -110,7 +110,7 @@
     </div>
   </main>
 
-  <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+  <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 items-start mb-16">
     {#each planes as plan}
       <div class="relative bg-white rounded-3xl p-8 border {plan.destacado ? 'border-indigo-500 shadow-2xl shadow-indigo-500/10 scale-100 md:scale-105 z-10' : 'border-slate-200 shadow-xl shadow-slate-200/50'} flex flex-col h-full transition-transform duration-300">
         
@@ -184,4 +184,28 @@
       </div>
     {/each}
   </div>
+
+  <!-- BANNER DE ADD-ON: Dominio Personalizado -->
+  <div class="max-w-4xl mx-auto px-6">
+    <div class="bg-slate-900 rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl border border-slate-800">
+      <div class="flex items-center gap-5">
+        <div class="w-14 h-14 bg-indigo-500/20 rounded-2xl flex items-center justify-center border border-indigo-500/30 shrink-0">
+          <Globe class="w-7 h-7 text-indigo-400" />
+        </div>
+        <div>
+          <h4 class="text-lg font-black text-white flex items-center gap-2">
+            Módulo Premium: Tu propio dominio .com
+          </h4>
+          <p class="text-sm text-slate-400 mt-1 font-medium">
+            Sustituye el subdominio de Inmublia por tu propia marca (ej. www.tuagencia.com). Compatible con cualquier plan.
+          </p>
+        </div>
+      </div>
+      <div class="shrink-0 flex flex-col items-center sm:items-end">
+        <span class="text-2xl font-black text-white">+$299 <span class="text-sm font-medium text-slate-400">MXN / mes</span></span>
+        <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-400 mt-1">Disponible en tu consola</span>
+      </div>
+    </div>
+  </div>
+
 </div>
