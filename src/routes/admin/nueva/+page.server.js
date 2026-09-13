@@ -1,3 +1,4 @@
+// src/routes/admin/nueva/+page.server.js
 import { redirect, fail } from '@sveltejs/kit';
 
 export const load = async ({ locals }) => {
@@ -65,7 +66,6 @@ export const actions = {
     REGLA 3: Usa comillas simples dentro de tus textos. NUNCA uses comillas dobles en los valores internos.
     REGLA 4: CEÑIRSE ESTRICTAMENTE A LOS DATOS. PROHIBIDO alucinar, inventar amenidades, incluir electrodomésticos o muebles que no se mencionen.`;
 
-    // PROMPT REFINADO: Separación forzada de párrafos con \\n\\n
     const userPrompt = `
       Genera contenido. Tono: ${tono}. Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
       Características exactas (no inventes más): ${recamaras} Recámaras, ${banos} Baños Completos, ${medio_bano} Medios Baños, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
@@ -78,59 +78,81 @@ export const actions = {
       }
     `;
 
-    try {
-      const response = await platform.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 2500 
-      });
+    // ARQUITECTURA DE FALLBACK (Patrón de Cascada Anti-Caídas)
+    const modelosActivos = [
+      '@cf/meta/llama-3.1-8b-instruct',          // 1. Ganador de Calidad Premium
+      '@cf/mistral/mistral-7b-instruct-v0.2',    // 2. Respaldo de Ultra-Bajo Costo y Volumen
+      '@cf/deepseek-ai/deepseek-v4-flash-0731'   // 3. Tanque Pesado de Seguridad
+    ];
 
-      let rawResponse = response.response;
-      let parsedContent = {};
+    let rawResponse = null;
+    let modeloExitoso = '';
+    let erroresLog = [];
 
-      if (typeof rawResponse === 'object' && rawResponse !== null) {
-        parsedContent = rawResponse;
-      } else {
-        let cleanText = String(rawResponse);
-        const firstBrace = cleanText.indexOf('{');
-        const lastBrace = cleanText.lastIndexOf('}');
+    for (const modelo of modelosActivos) {
+      try {
+        const response = await platform.env.AI.run(modelo, {
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          max_tokens: 2500 
+        });
         
-        if (firstBrace === -1 || lastBrace === -1) {
-          return fail(500, { error: 'La IA no generó la estructura JSON.' });
-        }
-
-        cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+        rawResponse = response.response;
         
-        // FIX DE SALTOS DE LÍNEA: Convertimos Enters crudos en la secuencia segura \n
-        cleanText = cleanText.replace(/\n/g, '\\n').replace(/\r/g, '');
-        // Borramos los otros caracteres de control que rompen el parser (excepto \n)
-        cleanText = cleanText.replace(/[\u0000-\u0009\u000B-\u001F]+/g, ' ');
-
-        try {
-          parsedContent = JSON.parse(cleanText);
-        } catch (err) {
-          console.error("JSON PARSE ERROR:", cleanText);
-          return fail(500, { error: `La IA generó caracteres incompatibles: ${err.message}` });
+        if (rawResponse) {
+          modeloExitoso = modelo;
+          break; // Salimos del ciclo en cuanto un modelo responde correctamente
         }
+      } catch (e) {
+        console.warn(`[Inmublia IA Fallback] Motor ${modelo} falló o está saturado: ${e.message}`);
+        erroresLog.push(modelo);
+      }
+    }
+
+    if (!rawResponse) {
+      return fail(500, { error: `Fallo crítico: Todos los motores de IA están caídos. Intentos fallidos: ${erroresLog.join(', ')}` });
+    }
+
+    let parsedContent = {};
+
+    if (typeof rawResponse === 'object' && rawResponse !== null) {
+      parsedContent = rawResponse;
+    } else {
+      let cleanText = String(rawResponse);
+      const firstBrace = cleanText.indexOf('{');
+      const lastBrace = cleanText.lastIndexOf('}');
+      
+      if (firstBrace === -1 || lastBrace === -1) {
+        return fail(500, { error: `El motor ${modeloExitoso} no generó la estructura JSON esperada.` });
       }
 
-      await locals.supabase
-        .from('brokers')
-        .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
-        .eq('id', broker.id);
+      cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+      
+      // FIX DE SALTOS DE LÍNEA: Convertimos Enters crudos en la secuencia segura \n
+      cleanText = cleanText.replace(/\n/g, '\\n').replace(/\r/g, '');
+      // Borramos los otros caracteres de control que rompen el parser (excepto \n)
+      cleanText = cleanText.replace(/[\u0000-\u0009\u000B-\u001F]+/g, ' ');
 
-      return {
-        titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad Exclusiva',
-        descripcion: parsedContent.descripcion || parsedContent.Descripcion || 'Contacta al broker para más detalles.',
-        whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto esta increíble propiedad...'
-      };
-
-    } catch (e) {
-      return fail(500, { error: `Fallo de conexión Cloudflare AI: ${e.message}` });
+      try {
+        parsedContent = JSON.parse(cleanText);
+      } catch (err) {
+        console.error("JSON PARSE ERROR en", modeloExitoso, ":", cleanText);
+        return fail(500, { error: `La IA generó caracteres incompatibles: ${err.message}` });
+      }
     }
+
+    await locals.supabase
+      .from('brokers')
+      .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
+      .eq('id', broker.id);
+
+    return {
+      titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad Exclusiva',
+      descripcion: parsedContent.descripcion || parsedContent.Descripcion || 'Contacta al broker para más detalles.',
+      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto esta increíble propiedad...'
+    };
   },
 
   crear: async ({ request, locals }) => {
