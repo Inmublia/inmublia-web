@@ -1,4 +1,5 @@
-import { redirect } from '@sveltejs/kit';
+// src/routes/admin/+page.server.js
+import { redirect, fail } from '@sveltejs/kit';
 
 export async function load({ locals, setHeaders, url, depends }) {
   // 1. EL SELLO DE SEGURIDAD SVELTEKIT
@@ -76,3 +77,87 @@ export async function load({ locals, setHeaders, url, depends }) {
     return { session, user, broker: null, alertas: [], propiedades: [] };
   }
 }
+
+// INYECCIÓN: ACCIÓN PARA ELIMINAR PROPIEDADES (Y BORRAR BASURA DE R2)
+export const actions = {
+  eliminar: async ({ request, locals, platform }) => {
+    const user = locals.user;
+    if (!user) return fail(401, { error: 'No autorizado' });
+
+    const formData = await request.formData();
+    const idPropiedad = formData.get('id');
+
+    if (!idPropiedad) {
+      return fail(400, { error: 'ID de propiedad no proporcionado' });
+    }
+
+    // Seguridad: Verificar que la propiedad pertenece al broker actual
+    const { data: broker } = await locals.supabase
+      .from('brokers')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (!broker) return fail(403, { error: 'Perfil de agencia no encontrado' });
+
+    // Paso 1: Rescatar URLs para borrarlas del disco duro de R2
+    const { data: propiedad } = await locals.supabase
+      .from('propiedades')
+      .select('imagen_url, galeria_urls')
+      .eq('id', idPropiedad)
+      .eq('broker_id', broker.id)
+      .single();
+
+    if (propiedad && platform?.env?.INMUBLIA_BUCKET) {
+      const keysToDelete = [];
+      const cdnUrlBase = platform?.env?.CDN_URL || 'https://cdn.inmuvia.com';
+      
+      // Función para extraer el nombre real del archivo (la Key de R2)
+      const extractKey = (url) => {
+        if (!url) return null;
+        try {
+          // Si la url es https://cdn.inmuvia.com/broker_id/foto.webp
+          // La Key real para R2 es "broker_id/foto.webp"
+          const parsedUrl = new URL(url);
+          // slice(1) quita la barra diagonal inicial
+          return parsedUrl.pathname.slice(1);
+        } catch(e) {
+          return null;
+        }
+      };
+
+      const heroKey = extractKey(propiedad.imagen_url);
+      if (heroKey) keysToDelete.push(heroKey);
+
+      if (propiedad.galeria_urls && Array.isArray(propiedad.galeria_urls)) {
+        propiedad.galeria_urls.forEach(url => {
+          const key = extractKey(url);
+          if (key) keysToDelete.push(key);
+        });
+      }
+
+      // Borrar de Cloudflare R2
+      for (const key of keysToDelete) {
+        try {
+          await platform.env.INMUBLIA_BUCKET.delete(key);
+        } catch (e) {
+          console.error(`Fallo al borrar ${key} de R2:`, e);
+        }
+      }
+    }
+
+    // Paso 2: Borrar registro de Supabase
+    const { error: deleteError } = await locals.supabase
+      .from('propiedades')
+      .delete()
+      .eq('id', idPropiedad)
+      .eq('broker_id', broker.id);
+
+    if (deleteError) {
+      console.error("Error al eliminar propiedad SQL:", deleteError);
+      return fail(500, { error: 'No se pudo eliminar la propiedad.' });
+    }
+
+    return { success: true };
+  }
+};
