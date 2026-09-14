@@ -11,7 +11,7 @@ export async function GET({ locals }) {
 
   const { data: broker, error } = await locals.supabase
     .from('brokers')
-    .select('stripe_customer_id, subdominio, status_suscripcion, auth_user_id')
+    .select('stripe_customer_id, subdominio, status_suscripcion')
     .eq('auth_user_id', user.id)
     .single();
 
@@ -19,17 +19,16 @@ export async function GET({ locals }) {
      throw redirect(303, '/login');
   }
 
-  // Si no tiene ID de Stripe o está cancelado definitivo, el portal de Stripe falla.
-  // Expulsión a la página de ventas con inyección de ADN para reactivación.
   const status = (broker.status_suscripcion || '').toLowerCase().trim();
   const isCanceled = ['cancelada', 'canceled'].includes(status);
 
+  // REGLA: Si no tiene ID de Stripe o su contrato murió, el Portal falla. 
+  // Lo expulsamos a tu página interna de Reactivación.
   if (!broker.stripe_customer_id || isCanceled) {
-     const urlReactivacion = `https://inmublia.com/planes?reactivation=true&uid=${broker.auth_user_id}&cus=${broker.stripe_customer_id || ''}`;
-     throw redirect(303, urlReactivacion);
+     throw redirect(303, '/admin/planes');
   }
 
-  // Si es past_due (moroso) o activo, lo mandamos al Portal para gestionar la tarjeta
+  // REGLA: Si es moroso (past_due) o activo, lo mandamos al Portal para gestionar tarjeta
   try {
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: broker.stripe_customer_id,
