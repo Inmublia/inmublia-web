@@ -1,3 +1,4 @@
+// src/routes/admin/nueva/+page.server.js
 import { redirect, fail } from '@sveltejs/kit';
 
 export const load = async ({ locals }) => {
@@ -58,7 +59,6 @@ export const actions = {
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
-    // DICCIONARIO DE PERFILES PSICOLÓGICOS (SIN CLICHÉS)
     const guiasTono = {
       'Premium / Elegante': 'Tono profesional, moderno y de alto valor. Destaca la amplitud y la calidad de vida de forma objetiva. EVITA clichés como "lujo extremo", "paraíso" o "estilo de vida sofisticado".',
       'Familiar / Cálido': 'Tono cercano, seguro y funcional. Destaca la practicidad de los espacios para el día a día y la tranquilidad de la zona. EVITA sonar cursi o excesivamente poético.',
@@ -67,7 +67,6 @@ export const actions = {
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
-    // PROMPT SYSTEM: BLINDAJE CONTRA ADULACIÓN E INGLÉS
     const systemPrompt = `Eres un redactor inmobiliario profesional y persuasivo en México.
     REGLA 0: ESCRIBE TODO ESTRICTAMENTE EN ESPAÑOL DE MÉXICO.
     REGLA 1: Devuelve SOLO un objeto JSON puro, en una línea.
@@ -76,7 +75,6 @@ export const actions = {
     REGLA 4: PROHIBIDO usar palabras rebuscadas, rimbombantes o aduladoras (ej. "maravilla", "exclusivo", "amante del lujo", "sofisticado"). Escribe con naturalidad, objetividad y elegancia moderna.
     REGLA 5: CEÑIRSE ESTRICTAMENTE A LOS DATOS. No inventes amenidades.`;
 
-    // PROMPT USER: FLUJO NATURAL DE REDACCIÓN
     const userPrompt = `
       Redacta una ficha técnica atractiva. Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
       Características exactas: ${recamaras} Recámaras, ${banos} Baños Completos, ${medio_bano} Medios Baños, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
@@ -92,11 +90,10 @@ export const actions = {
       }
     `;
 
-    // STRINGS EXACTOS DE PRODUCCIÓN CLOUDFLARE Y PATRÓN DE CASCADA
     const modelosActivos = [
-      '@cf/meta/llama-3.1-8b-instruct',        // Prioridad 1: Premium (Mejor vocabulario natural)
-      '@cf/mistral/mistral-7b-instruct-v0.1',  // Prioridad 2: Volumen/Respaldo
-      '@cf/meta/llama-3-8b-instruct'           // Prioridad 3: Tanque estable
+      '@cf/meta/llama-3.1-8b-instruct',
+      '@cf/mistral/mistral-7b-instruct-v0.1',
+      '@cf/meta/llama-3-8b-instruct'
     ];
 
     let rawResponse = null;
@@ -142,7 +139,6 @@ export const actions = {
       }
 
       cleanText = cleanText.substring(firstBrace, lastBrace + 1);
-      
       cleanText = cleanText.replace(/\n/g, '\\n').replace(/\r/g, '');
       cleanText = cleanText.replace(/[\u0000-\u0009\u000B-\u001F]+/g, ' ');
 
@@ -161,14 +157,20 @@ export const actions = {
 
     return {
       titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad en Venta',
-      descripcion: parsedContent.descripcion || parsedContent.Descripcion || 'Contacta al broker para más detalles sobre la distribución y precio.',
-      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto los detalles de esta propiedad. ¿Te gustaría agendar una visita?'
+      descripcion: parsedContent.descripcion || parsedContent.Descripcion || 'Contacta al broker para más detalles.',
+      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto los detalles de esta propiedad...'
     };
   },
 
-  crear: async ({ request, locals }) => {
+  crear: async ({ request, locals, platform }) => {
     const user = locals.user;
     if (!user) throw redirect(303, '/login');
+
+    if (!platform?.env?.INMUBLIA_BUCKET) {
+      return fail(500, { error: 'Falla Crítica: Cloudflare R2 (INMUBLIA_BUCKET) no está conectado.' });
+    }
+    
+    const CDN_DOMAIN = platform?.env?.CDN_URL || 'https://cdn.inmublia.com';
 
     const formData = await request.formData();
     
@@ -212,38 +214,39 @@ export const actions = {
 
     const comisionFinal = comisionStr ? parseFloat(comisionStr) : (broker.comision_default || 5);
 
-    const fileExt = imagen.name.split('.').pop();
+    const fileExt = imagen.name.split('.').pop() || 'webp';
     const fileName = `${broker.id}/${Date.now()}-main.${fileExt}`;
     const buffer = await imagen.arrayBuffer();
+    let portadaUrl = '';
     
-    const { error: uploadError } = await locals.supabase.storage
-      .from('propiedades')
-      .upload(fileName, buffer, { contentType: imagen.type });
-    
-    if (uploadError) return fail(500, { error: `Error en portada: ${uploadError.message}` });
-    
-    const { data: { publicUrl: portadaUrl } } = locals.supabase.storage
-      .from('propiedades')
-      .getPublicUrl(fileName);
+    try {
+      await platform.env.INMUBLIA_BUCKET.put(fileName, buffer, {
+        httpMetadata: { contentType: imagen.type || 'image/webp' }
+      });
+      // Eliminamos la barra final si existe en el CDN_URL por seguridad en la concatenación
+      const baseCdnUrl = CDN_DOMAIN.replace(/\/$/, "");
+      portadaUrl = `${baseCdnUrl}/${fileName}`;
+    } catch (uploadError) {
+      return fail(500, { error: `Error R2 Portada: ${uploadError.message}` });
+    }
 
     const validGaleriaArchivos = galeriaArchivos.filter(file => file && file.size > 0);
     
-    const galeriaPromises = validGaleriaArchivos.map(async (file) => {
-      const ext = file.name.split('.').pop();
-      const gName = `${broker.id}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const galeriaPromises = validGaleriaArchivos.map(async (file, index) => {
+      const ext = file.name.split('.').pop() || 'webp';
+      const gName = `${broker.id}/${Date.now()}-${index}-${Math.random().toString(36).substring(2, 6)}.${ext}`;
       const gBuffer = await file.arrayBuffer();
       
-      const { error: gError } = await locals.supabase.storage
-        .from('propiedades')
-        .upload(gName, gBuffer, { contentType: file.type });
-      
-      if (!gError) {
-        const { data: { publicUrl } } = locals.supabase.storage
-          .from('propiedades')
-          .getPublicUrl(gName);
-        return publicUrl;
+      try {
+        await platform.env.INMUBLIA_BUCKET.put(gName, gBuffer, {
+          httpMetadata: { contentType: file.type || 'image/webp' }
+        });
+        const baseCdnUrl = CDN_DOMAIN.replace(/\/$/, "");
+        return `${baseCdnUrl}/${gName}`;
+      } catch (gError) {
+        console.error("Error R2 Galería:", gError);
+        return null;
       }
-      return null;
     });
 
     const galeriaResults = await Promise.all(galeriaPromises);
