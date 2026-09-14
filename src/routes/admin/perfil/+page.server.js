@@ -7,7 +7,6 @@ const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, {
   apiVersion: '2023-10-16',
 });
 
-// AÑADIMOS 'url' a los parámetros para leer ?alerta=pago_requerido
 export async function load({ locals, url }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
@@ -26,7 +25,6 @@ export async function load({ locals, url }) {
     .eq('agency_id', user.id)
     .single();
 
-  // Capturamos la alerta enviada por el Layout (Bouncer)
   const alerta = url.searchParams.get('alerta');
 
   return { broker, webhook, alerta };
@@ -165,9 +163,10 @@ export const actions = {
     const { user } = await locals.safeGetSession();
     if (!user) return fail(401, { error: 'No autorizado' });
 
+    // 🔥 FIX: Ahora también extraemos el estatus de suscripción
     const { data: broker, error } = await locals.supabase
       .from('brokers')
-      .select('stripe_customer_id, subdominio')
+      .select('stripe_customer_id, subdominio, status_suscripcion')
       .eq('auth_user_id', user.id)
       .single();
 
@@ -179,14 +178,22 @@ export const actions = {
       throw redirect(303, '/admin/planes');
     }
 
-    let portalUrl;
+    const status = (broker.status_suscripcion || '').toLowerCase().trim();
+    const estatusCancelados = ['cancelada', 'canceled'];
 
+    // 🔥 FIX CRÍTICO: Si la cuenta está muerta (cancelada), SvelteKit redirecciona 
+    // a la tabla de precios para que inicien un nuevo checkout, ya que el portal 
+    // de Stripe no permite reactivar suscripciones canceladas por defecto.
+    if (estatusCancelados.includes(status)) {
+       throw redirect(303, '/admin/planes');
+    }
+
+    let portalUrl;
     try {
       const portalSession = await stripe.billingPortal.sessions.create({
         customer: broker.stripe_customer_id,
         return_url: `https://${broker.subdominio}.inmublia.com/admin/perfil`,
       });
-      
       portalUrl = portalSession.url;
     } catch (err) {
       console.error("Error real de Stripe:", err);
