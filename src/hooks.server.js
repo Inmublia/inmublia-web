@@ -62,7 +62,7 @@ export async function handle({ event, resolve }) {
     event.locals.tenantId = brokerId;
   }
 
-  // 2. MOTOR DE COOKIES (Unificado para SaaS)
+  // 2. MOTOR DE COOKIES
   const cookieDomain = (isLocal) ? undefined : 'inmublia.com';
 
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -117,19 +117,27 @@ export async function handle({ event, resolve }) {
     if (userBroker) {
       event.locals.tenantId = userBroker.id;
 
-      // 🔥 ESCUDO 3 CORREGIDO: BLOQUEO TOTAL ABSOLUTO
+      // 🔥 ESCUDO 3 REFINADO: Bloqueo Total excepto el botón de pagar
       const status = (userBroker.status_suscripcion || '').toLowerCase().trim();
       const estatusBloqueados = ['cancelada', 'canceled', 'inactiva', 'past_due', 'unpaid'];
+      
       const isPerfilPage = pathname.startsWith('/admin/perfil');
       const isLogout = pathname.includes('/logout');
       
-      if (estatusBloqueados.includes(status) && !isPerfilPage && !isLogout) {
-        // 1. Si intenta ejecutar funciones o guardar (POST) -> Lanzar 403
-        if (event.request.method === 'POST' || event.request.headers.get('x-sveltekit-action')) {
+      // Permitir la acción de facturación (el único POST autorizado en estado cancelado)
+      const actionParam = event.url.searchParams.get('/');
+      const isActionPortal = actionParam === 'abrirPortalFacturacion' || event.request.url.includes('abrirPortalFacturacion');
+
+      if (estatusBloqueados.includes(status) && !isLogout) {
+        // Bloquear carga de vistas que no sean el perfil
+        if (!isPerfilPage) {
+          throw redirect(303, '/admin/perfil?alerta=pago_requerido');
+        }
+        
+        // Bloquear todos los POST, excepto el que los manda a pagar
+        if ((event.request.method === 'POST' || event.request.headers.get('x-sveltekit-action')) && !isActionPortal) {
           throw error(403, 'Suscripción suspendida. Acción denegada.');
         }
-        // 2. Si intenta cargar la pantalla (GET) de /nueva, /inventario, etc -> Expulsarlo al perfil
-        throw redirect(303, '/admin/perfil?alerta=pago_requerido');
       }
 
       if (userBroker.subdominio) {
