@@ -18,7 +18,8 @@ export const load = async ({ locals }) => {
 
     return {
       creditos_ia: broker.ia_creditos_disponibles ?? 15,
-      plan_suscripcion: broker.plan_suscripcion || 'basico',
+      // FIX CRÍTICO: Normalizamos a minúsculas para que el frontend no falle si la BD dice "Elite" o "Pro"
+      plan_suscripcion: (broker.plan_suscripcion || 'basico').toLowerCase().trim(),
       comision_global: broker.comision_default || 5
     };
   } catch (err) {
@@ -67,26 +68,26 @@ export const actions = {
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
-    const systemPrompt = `Eres un copywriter inmobiliario TOP en México.
-    Tu tarea es redactar textos estructurados estrictamente en ESPAÑOL.
-    REGLA 1: Devuelve SOLO un objeto JSON puro. NO uses bloques de código de markdown.
-    REGLA 2: Todo el contenido, de principio a fin, debe estar en ESPAÑOL DE MÉXICO.
-    REGLA 3: Usa comillas simples ('') dentro de los textos. NUNCA uses comillas dobles (") en los valores, romperás el JSON.`;
+    // FIX CRÍTICO IA: Rediseño de Prompt con Anclaje Cognitivo en Español
+    const systemPrompt = `Eres un experto redactor inmobiliario en México.
+REGLA SUPREMA: Tienes estrictamente prohibido usar el idioma inglés. Todo el texto, sin excepción, debe estar en ESPAÑOL DE MÉXICO.
+REGLA 2: Devuelve ÚNICAMENTE un objeto JSON válido.
+REGLA 3: Usa comillas simples ('') dentro del texto para no romper el formato JSON.`;
 
     const userPrompt = `
-    Genera el contenido comercial para esta propiedad en ESPAÑOL.
-    Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
-    Características exactas: ${recamaras} Recámaras, ${banos} Baños Completos, ${medio_bano} Medios Baños, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
-    
-    INSTRUCCIONES DE TONO: ${instruccionTono}
-    
-    ESTRUCTURA EXACTA REQUERIDA (Responde solo con este JSON, todo en ESPAÑOL):
-    {
-      "titulo": "(Escribe aquí un título atractivo y descriptivo de máximo 10 palabras, en español)",
-      "descripcion": "(Escribe aquí la descripción larga en español. Mínimo 150 palabras. Escribe exactamente 3 párrafos separados por '\\n\\n'. Párrafo 1: Introducción directa al inmueble. Párrafo 2: Integra las características numéricas de forma fluida. Párrafo 3: Ventajas de la zona y llamado a la acción.)",
-      "whatsapp": "(Escribe aquí un mensaje para WhatsApp profesional, máximo 2 emojis, separado por '\\n\\n')"
-    }
-    `;
+Genera la ficha técnica comercial en ESPAÑOL para esta propiedad.
+Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
+Datos exactos: ${recamaras} Recámaras, ${banos} Baños Completos, ${medio_bano} Medios Baños, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
+
+INSTRUCCIONES DE TONO: ${instruccionTono}
+
+DEBES DEVOLVER EXACTAMENTE ESTE JSON, REEMPLAZANDO LOS CORCHETES CON TU REDACCIÓN EN ESPAÑOL:
+{
+  "titulo": "[Escribe aquí un título atractivo y descriptivo en español]",
+  "descripcion": "[Escribe aquí la descripción larga en español. Escribe 3 párrafos separados por '\\n\\n'. Párrafo 1: Introducción directa al inmueble. Párrafo 2: Características numéricas integradas de forma fluida. Párrafo 3: Ventajas de la zona y llamado a la acción.]",
+  "whatsapp": "[Escribe aquí el mensaje profesional para WhatsApp en español, con un par de emojis]"
+}
+`;
 
     const modelosActivos = [
       '@cf/meta/llama-3.1-8b-instruct',
