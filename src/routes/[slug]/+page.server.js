@@ -1,3 +1,4 @@
+// src/routes/[slug]/+page.server.js
 import { supabase } from '$lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { error, fail } from '@sveltejs/kit';
@@ -69,6 +70,17 @@ export async function load({ params, url }) {
 
   if (brokerError || !broker) {
     throw error(404, { message: 'La agencia encargada de esta propiedad no se encuentra activa.' });
+  }
+
+  // ==========================================
+  // ESCUDO 2: "El Castigo Público"
+  // ==========================================
+  const status = (broker.status_suscripcion || '').toLowerCase().trim();
+  const estatusBloqueados = ['cancelada', 'canceled', 'inactiva', 'past_due', 'unpaid'];
+
+  if (estatusBloqueados.includes(status)) {
+    // Si la agencia no ha pagado, devolvemos un 404 para ocultar su inventario público
+    throw error(404, { message: 'El catálogo inmobiliario de esta agencia no se encuentra disponible temporalmente.' });
   }
 
   return { propiedad, broker, templateForzado };
