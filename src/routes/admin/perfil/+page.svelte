@@ -10,9 +10,11 @@
   let broker = $state(data.broker || {});
   let currentWebhook = $derived(data.webhook || {});
 
-  // 🔥 ARQUITECTURA ZERO-TRUST: La UI lee la base de datos, no la URL.
+  // 🔥 ARQUITECTURA ZERO-TRUST: Detección inteligente de ambos estatus críticos
   let estatusBD = $derived((broker.status_suscripcion || '').toLowerCase().trim());
-  let accesoBloqueado = $derived(['past_due', 'unpaid', 'inactiva'].includes(estatusBD));
+  let esCancelado = $derived(['cancelada', 'canceled'].includes(estatusBD));
+  let esMoroso = $derived(['past_due', 'unpaid', 'inactiva'].includes(estatusBD));
+  let accesoBloqueado = $derived(esCancelado || esMoroso);
 
   $effect(() => {
     if (data.broker) {
@@ -79,8 +81,10 @@
       <div>
         <h1 class="text-xl font-black tracking-tight text-white">Configuración de Agencia</h1>
         <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
-          {#if accesoBloqueado}
-            <AlertOctagon class="w-3 h-3 text-red-500" /> Estatus: <span class="text-red-400 font-black uppercase">PAGO PENDIENTE</span>
+          {#if esCancelado}
+            <AlertOctagon class="w-3 h-3 text-red-500" /> Estatus: <span class="text-red-400 font-black uppercase">CANCELADA</span>
+          {:else if esMoroso}
+            <AlertOctagon class="w-3 h-3 text-amber-500" /> Estatus: <span class="text-amber-400 font-black uppercase">PAGO PENDIENTE</span>
           {:else}
             <ShieldCheck class="w-3 h-3 text-emerald-500" /> Nivel de acceso: <span class="text-zinc-300 uppercase">{broker.plan_suscripcion || 'Básico'}</span>
           {/if}
@@ -93,21 +97,35 @@
     <div class="max-w-5xl mx-auto h-full">
 
       <!-- ========================================================================= -->
-      <!-- HARD ROUTING UI: Si está bloqueado, SOLO renderiza la caja de cobro -->
+      <!-- HARD ROUTING UI: Aislamiento visual según el nivel de morosidad -->
       <!-- ========================================================================= -->
       {#if accesoBloqueado}
         <div class="flex items-center justify-center h-[60vh]">
           <div class="bg-white rounded-3xl max-w-lg w-full p-10 shadow-2xl text-center border border-red-100 relative overflow-hidden animate-[fadeIn_0.3s_ease-out]">
-            <div class="absolute top-0 right-0 w-40 h-40 bg-red-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
-            <AlertOctagon class="w-16 h-16 text-red-500 mx-auto mb-5 relative z-10" />
-            <h2 class="text-2xl font-black text-slate-900 mb-3 relative z-10">Método de Pago Rechazado</h2>
-            <p class="text-sm text-slate-600 mb-8 leading-relaxed font-medium relative z-10">
-              No pudimos procesar el cobro de tu membresía. Para reactivar de inmediato el acceso a tu inventario y a la consola operativa, por favor actualiza los fondos o la tarjeta.
-            </p>
-            <!-- Enlace limpio y directo al API GET -->
-            <a href="/api/stripe/portal" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl transition-all shadow-xl active:scale-95 relative z-10">
-              Actualizar Tarjeta en Stripe
-            </a>
+            <div class="absolute top-0 right-0 w-40 h-40 {esCancelado ? 'bg-red-500/10' : 'bg-amber-500/10'} rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+            
+            {#if esCancelado}
+              <!-- VISTA PARA CANCELADOS -->
+              <AlertOctagon class="w-16 h-16 text-red-500 mx-auto mb-5 relative z-10" />
+              <h2 class="text-2xl font-black text-slate-900 mb-3 relative z-10">Suscripción Cancelada</h2>
+              <p class="text-sm text-slate-600 mb-8 leading-relaxed font-medium relative z-10">
+                Tu plan ha sido cancelado y el acceso a la plataforma ha sido revocado. Para volver a utilizar tu CRM y publicar tu inventario, es necesario recontratar un plan.
+              </p>
+              <a href="/admin/planes" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl transition-all shadow-xl active:scale-95 relative z-10">
+                Ver Planes y Contratar
+              </a>
+            {:else}
+              <!-- VISTA PARA MOROSOS (past_due) -->
+              <AlertOctagon class="w-16 h-16 text-amber-500 mx-auto mb-5 relative z-10" />
+              <h2 class="text-2xl font-black text-slate-900 mb-3 relative z-10">Método de Pago Rechazado</h2>
+              <p class="text-sm text-slate-600 mb-8 leading-relaxed font-medium relative z-10">
+                No pudimos procesar el cobro de tu membresía. Para reactivar de inmediato el acceso a tu inventario y a la consola operativa, por favor actualiza los fondos o la tarjeta.
+              </p>
+              <a href="/api/stripe/portal" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl transition-all shadow-xl active:scale-95 relative z-10">
+                Actualizar Tarjeta en Stripe
+              </a>
+            {/if}
+
             <div class="mt-8 flex justify-center relative z-10">
               <a href="/login" class="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest">Cerrar Sesión</a>
             </div>
@@ -338,7 +356,7 @@
                 </div>
               </div>
               
-              <!-- Enlace limpio y directo al API GET para usuarios activos -->
+              <!-- Enlace limpio y directo al API GET -->
               <a href="/api/stripe/portal" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-3 rounded-xl transition-colors shadow-sm active:scale-95 relative z-10">
                 Gestionar Membresía
               </a>
