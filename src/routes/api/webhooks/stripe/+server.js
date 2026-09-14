@@ -1,3 +1,4 @@
+// src/routes/api/webhooks/stripe/+server.js
 import { env as privateEnv } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
 import Stripe from 'stripe';
@@ -133,22 +134,31 @@ export async function POST({ request, fetch }) {
       const status = subscription.status; // 'active', 'past_due', etc.
       const priceId = subscription.items.data[0].price.id;
 
-      // Mapeo del nivel de acceso según el ID de precio de Stripe
+      // FIX CRÍTICO: Recarga y ajuste de billetera de IA automático
       let nuevoPlan = 'basico';
-      if (priceId === 'price_1TfAJKJHda98KYP8coylMcTp') nuevoPlan = 'pro';
-      if (priceId === 'price_1TfAJdJHda98KYP8KzZTwXDf') nuevoPlan = 'elite';
+      let nuevosCreditos = 15; // Créditos por defecto para Básico
+
+      if (priceId === 'price_1TfAJKJHda98KYP8coylMcTp') {
+        nuevoPlan = 'pro';
+        nuevosCreditos = 125;
+      }
+      if (priceId === 'price_1TfAJdJHda98KYP8KzZTwXDf') {
+        nuevoPlan = 'elite';
+        nuevosCreditos = 500;
+      }
 
       const { error: updateError } = await supabaseAdmin
         .from('brokers')
         .update({ 
           plan_suscripcion: nuevoPlan,
-          status_suscripcion: status 
+          status_suscripcion: status,
+          ia_creditos_disponibles: nuevosCreditos // Se sincroniza la billetera con el plan
         })
         .eq('stripe_customer_id', customerId);
 
       if (updateError) throw new Error(`Fallo actualizando la BD: ${updateError.message}`);
       
-      console.log(`[Stripe Webhook]: Upgrade/Downgrade exitoso. Cliente: ${customerId} -> Nuevo Plan: ${nuevoPlan}`);
+      console.log(`[Stripe Webhook]: Upgrade/Downgrade exitoso. Cliente: ${customerId} -> Nuevo Plan: ${nuevoPlan} con ${nuevosCreditos} créditos`);
 
     } catch (err) {
       console.error('🔥 [Webhook Severe Fault - Update]:', err);
@@ -169,14 +179,15 @@ export async function POST({ request, fetch }) {
       const { error: deleteError } = await supabaseAdmin
         .from('brokers')
         .update({ 
-          plan_suscripcion: 'basico', // El fallback de seguridad
-          status_suscripcion: 'cancelada' 
+          // SE ELIMINÓ: plan_suscripcion: 'basico' (El broker conserva su etiqueta de plan visualmente)
+          status_suscripcion: 'canceled', // Estandarizado al vocabulario de Stripe
+          ia_creditos_disponibles: 0      // FIX CRÍTICO: Billetera congelada a cero por morosidad
         })
         .eq('stripe_customer_id', customerId);
 
-      if (deleteError) throw new Error(`Fallo degradando cuenta en BD: ${deleteError.message}`);
+      if (deleteError) throw new Error(`Fallo actualizando cuenta en BD: ${deleteError.message}`);
 
-      console.log(`[Stripe Webhook]: Suscripción cancelada. Cliente: ${customerId} fue degradado a Básico.`);
+      console.log(`[Stripe Webhook]: Suscripción cancelada. Cliente: ${customerId} fue bloqueado y créditos vaciados.`);
 
     } catch (err) {
       console.error('🔥 [Webhook Severe Fault - Delete]:', err);
