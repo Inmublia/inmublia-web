@@ -67,27 +67,25 @@ export const actions = {
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
-    const systemPrompt = `Eres un redactor inmobiliario profesional y persuasivo en México.
-    REGLA 0: ESCRIBE TODO ESTRICTAMENTE EN ESPAÑOL DE MÉXICO.
-    REGLA 1: Devuelve SOLO un objeto JSON puro, en una línea.
-    REGLA 2: No uses markdown (\`\`\`json).
-    REGLA 3: Usa comillas simples dentro de tus textos. NUNCA uses comillas dobles en los valores internos.
-    REGLA 4: PROHIBIDO usar palabras rebuscadas, rimbombantes o aduladoras (ej. "maravilla", "exclusivo", "amante del lujo", "sofisticado"). Escribe con naturalidad, objetividad y elegancia moderna.
-    REGLA 5: CEÑIRSE ESTRICTAMENTE A LOS DATOS. No inventes amenidades.`;
+    const systemPrompt = `Eres un copywriter inmobiliario TOP en México.
+    Tu tarea es redactar textos estructurados estrictamente en ESPAÑOL.
+    REGLA 1: Devuelve SOLO un objeto JSON puro. NO uses bloques de código de markdown.
+    REGLA 2: Todo el contenido, de principio a fin, debe estar en ESPAÑOL DE MÉXICO.
+    REGLA 3: Usa comillas simples ('') dentro de los textos. NUNCA uses comillas dobles (") en los valores, romperás el JSON.`;
 
     const userPrompt = `
-      Redacta una ficha técnica atractiva. Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
-      Características exactas: ${recamaras} Recámaras, ${banos} Baños Completos, ${medio_bano} Medios Baños, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
-      
-      TONO REQUERIDO: "${tonoSeleccionado}".
-      Instrucción de tono: ${instruccionTono}
-      
-      Devuelve ESTRICTAMENTE este JSON:
-      {
-        "titulo": "(Máximo 10 palabras. Título descriptivo y comercial, sin exagerar)",
-        "descripcion": "(Mínimo 150 palabras. Escribe exactamente 3 párrafos separados por el texto literal '\\n\\n'. Párrafo 1: Introducción directa al inmueble y su mayor atractivo real. Párrafo 2: Integra las características numéricas de forma fluida y natural en la redacción, NO repitas instrucciones textualmente. Párrafo 3: Ventajas de la zona y llamado a la acción. Sé convincente pero realista)",
-        "whatsapp": "(Mensaje de WhatsApp directo, profesional y amable. Máximo 2 emojis. Separa las líneas con '\\n\\n'. Cierre con pregunta o llamado a la acción claro)"
-      }
+    Genera el contenido comercial para esta propiedad en ESPAÑOL.
+    Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
+    Características exactas: ${recamaras} Recámaras, ${banos} Baños Completos, ${medio_bano} Medios Baños, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
+    
+    INSTRUCCIONES DE TONO: ${instruccionTono}
+    
+    ESTRUCTURA EXACTA REQUERIDA (Responde solo con este JSON, todo en ESPAÑOL):
+    {
+      "titulo": "(Escribe aquí un título atractivo y descriptivo de máximo 10 palabras, en español)",
+      "descripcion": "(Escribe aquí la descripción larga en español. Mínimo 150 palabras. Escribe exactamente 3 párrafos separados por '\\n\\n'. Párrafo 1: Introducción directa al inmueble. Párrafo 2: Integra las características numéricas de forma fluida. Párrafo 3: Ventajas de la zona y llamado a la acción.)",
+      "whatsapp": "(Escribe aquí un mensaje para WhatsApp profesional, máximo 2 emojis, separado por '\\n\\n')"
+    }
     `;
 
     const modelosActivos = [
