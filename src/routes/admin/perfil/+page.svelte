@@ -1,17 +1,20 @@
+<!-- src/routes/admin/perfil/+page.svelte -->
 <script>
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import imageCompression from 'browser-image-compression';
-  import { Settings, ShieldCheck, Loader2, Calculator, Percent } from 'lucide-svelte'; 
+  // AÑADIDO: AlertOctagon para el icono de cuenta suspendida
+  import { Settings, ShieldCheck, Loader2, Calculator, Percent, AlertOctagon } from 'lucide-svelte'; 
   import { onDestroy } from 'svelte';
 
   let { data, form } = $props();
   let broker = $state(data.broker || {});
   
-  // Derivamos los datos del webhook desde la base de datos (nueva tabla agency_webhooks)
+  // AÑADIDO: Estado para leer la alerta del Bouncer
+  let alertaSuspension = $state(data.alerta);
+  
   let currentWebhook = $derived(data.webhook || {});
 
-  // Forzamos a la variable de estado a sincronizarse con los datos frescos del servidor
   $effect(() => {
     if (data.broker) {
       broker = data.broker;
@@ -22,13 +25,11 @@
   let showSuccess = $state(false);
   let previewUrl = $state(null);
 
-  // Estados específicos para el Webhook
   let webhookUrl = $state(currentWebhook.endpoint_url || '');
   let savingWebhook = $state(false);
   let testingWebhook = $state(false);
   let webhookSuccess = $state(false);
 
-  // Variables para Stripe y bloqueos
   let redirigiendoStripe = $state(false);
   let planActual = broker.plan_suscripcion || 'basico';
   let isPro = planActual === 'pro' || planActual === 'elite';
@@ -60,7 +61,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ test: true, mensaje: "Ping de prueba desde Inmublia" })
       });
-      if (res.ok || res.type === 'opaque') { // opaque ayuda con respuestas sin CORS
+      if (res.ok || res.type === 'opaque') { 
         webhookSuccess = true;
         setTimeout(() => webhookSuccess = false, 3000);
       } else {
@@ -83,6 +84,36 @@
     };
   }
 </script>
+
+<!-- 🔥 EL HARD GATE: OVERLAY DE SUSPENSIÓN (Si la cuenta está bloqueada, esto cubre toda la pantalla) -->
+{#if alertaSuspension === 'pago_requerido'}
+  <div class="fixed inset-0 z-[200] bg-zinc-950/95 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-10 shadow-2xl text-center border border-red-100 relative overflow-hidden animate-[fadeIn_0.3s_ease-out]">
+       <div class="absolute top-0 right-0 w-40 h-40 bg-red-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+       <AlertOctagon class="w-16 h-16 text-red-500 mx-auto mb-5 relative z-10" />
+       <h2 class="text-2xl font-black text-slate-900 mb-3 relative z-10">Acceso Suspendido</h2>
+       <p class="text-sm text-slate-600 mb-8 leading-relaxed font-medium relative z-10">
+         Tu suscripción se encuentra inactiva o presenta un problema de cobro. Para recuperar el acceso inmediato a tu inventario y a la consola operativa, por favor actualiza tu método de pago.
+       </p>
+       <form method="POST" action="?/abrirPortalFacturacion" use:enhance={manejadorPortal} class="relative z-10">
+         <button type="submit" disabled={redirigiendoStripe} class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl transition-all shadow-xl flex items-center justify-center gap-2 disabled:opacity-70 active:scale-95">
+           {#if redirigiendoStripe}
+             <Loader2 class="w-5 h-5 animate-spin text-white" /> Conectando de forma segura...
+           {:else}
+             Actualizar Pago en Stripe
+           {/if}
+         </button>
+       </form>
+       <div class="mt-8 flex justify-center relative z-10">
+         <a href="/login" class="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest">Cerrar Sesión</a>
+       </div>
+    </div>
+  </div>
+{/if}
+
+<!-- ========================================================================= -->
+<!-- RESTO DE LA INTERFAZ ORIGINAL (Inaccesible visualmente si hay suspensión) -->
+<!-- ========================================================================= -->
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F8FAFC]">
   
@@ -329,7 +360,7 @@
             </div>
             
             <form method="POST" action="?/abrirPortalFacturacion" use:enhance={manejadorPortal}>
-              <button type="submit" disabled={redirigiendoStripe} class="block w-full text-center bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-3 rounded-xl transition-colors shadow-sm relative z-10 disabled:opacity-70">
+              <button type="submit" disabled={redirigiendoStripe} class="block w-full text-center bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-3 rounded-xl transition-colors shadow-sm relative z-10 disabled:opacity-70 active:scale-95">
                 {#if redirigiendoStripe}
                   <Loader2 class="w-4 h-4 animate-spin inline mr-2" /> Conectando...
                 {:else}
@@ -362,7 +393,7 @@
                   <input type="url" id="endpoint_url" name="endpoint_url" bind:value={webhookUrl} disabled={esPlanBasico} class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-inner placeholder:text-slate-600">
                 </div>
 
-                <!-- Mensajes de feedback integrados en lugar de alerts -->
+                <!-- Mensajes de feedback integrados -->
                 {#if form?.formId === 'webhook'}
                   {#if form?.error}
                     <p class="text-red-400 text-[10px] font-bold mb-1">{form.error}</p>
@@ -371,7 +402,6 @@
                   {/if}
                 {/if}
 
-                <!-- Mostrar el token si existe (opcional pero recomendado) -->
                 {#if currentWebhook?.secret_token}
                   <div class="pt-2">
                     <p class="text-[9px] text-slate-500 font-mono mb-1">Secret Token (HMAC SHA-256):</p>
@@ -382,10 +412,10 @@
                 {/if}
 
                 <div class="flex gap-2 mt-2">
-                  <button type="button" onclick={probarWebhook} disabled={testingWebhook || esPlanBasico || !webhookUrl} class="flex-1 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-colors border border-white/10 text-[11px] disabled:opacity-50">
+                  <button type="button" onclick={probarWebhook} disabled={testingWebhook || esPlanBasico || !webhookUrl} class="flex-1 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-colors border border-white/10 text-[11px] disabled:opacity-50 active:scale-95">
                     {#if testingWebhook} Probando... {:else if webhookSuccess} <span class="text-emerald-400">Exitosa</span> {:else} Probar {/if}
                   </button>
-                  <button type="submit" disabled={esPlanBasico || savingWebhook} class="flex-1 flex items-center justify-center bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-3 rounded-xl transition-colors border border-transparent shadow-sm text-[11px] disabled:opacity-50">
+                  <button type="submit" disabled={esPlanBasico || savingWebhook} class="flex-1 flex items-center justify-center bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-3 rounded-xl transition-colors border border-transparent shadow-sm text-[11px] disabled:opacity-50 active:scale-95">
                     {#if savingWebhook}
                       <Loader2 class="w-3 h-3 animate-spin mr-1" /> ...
                     {:else}
