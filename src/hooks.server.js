@@ -58,7 +58,6 @@ export async function handle({ event, resolve }) {
     if (!brokerId) {
       return new Response('Portal inmobiliario no encontrado o inactivo.', { status: 404 });
     }
-
     event.locals.tenantId = brokerId;
   }
 
@@ -74,7 +73,6 @@ export async function handle({ event, resolve }) {
           cookiesToSet.forEach(({ name, value, options }) => {
             const { domain, ...cleanOptions } = options;
             event.cookies.set(name, value, { ...cleanOptions, path: '/', domain: cookieDomain });
-
             if (!value || options.maxAge === 0 || options.maxAge === -1) {
               event.cookies.set(name, '', { ...cleanOptions, path: '/', domain: undefined });
             }
@@ -100,7 +98,7 @@ export async function handle({ event, resolve }) {
     }
   };
 
-  // 3. SEGURIDAD PRIVADA Y PROTECCIÓN DE RUTAS
+  // 3. SEGURIDAD PRIVADA Y PROTECCIÓN DE RUTAS (HARD ROUTING)
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/bienvenida')) {
     const { user } = await event.locals.safeGetSession();
     
@@ -116,27 +114,31 @@ export async function handle({ event, resolve }) {
 
     if (userBroker) {
       event.locals.tenantId = userBroker.id;
-
-      // 🔥 ESCUDO 3 REFINADO: Bloqueo Total excepto el botón de pagar
+      
       const status = (userBroker.status_suscripcion || '').toLowerCase().trim();
-      const estatusBloqueados = ['cancelada', 'canceled', 'inactiva', 'past_due', 'unpaid'];
-      
-      const isPerfilPage = pathname.startsWith('/admin/perfil');
       const isLogout = pathname.includes('/logout');
-      
-      // Permitir la acción de facturación (el único POST autorizado en estado cancelado)
-      const actionParam = event.url.searchParams.get('/');
-      const isActionPortal = actionParam === 'abrirPortalFacturacion' || event.request.url.includes('abrirPortalFacturacion');
+      const isCanceled = ['cancelada', 'canceled'].includes(status);
+      const isPastDue = ['past_due', 'unpaid', 'inactiva'].includes(status);
 
-      if (estatusBloqueados.includes(status) && !isLogout) {
-        // Bloquear carga de vistas que no sean el perfil
-        if (!isPerfilPage) {
-          throw redirect(303, '/admin/perfil?alerta=pago_requerido');
+      if (!isLogout && (isCanceled || isPastDue)) {
+        const isPlanesPage = pathname.startsWith('/admin/planes');
+        const isPerfilPage = pathname.startsWith('/admin/perfil');
+        const isStripeApi = pathname.startsWith('/api/stripe'); // Única ruta libre
+
+        // REGLA 1: Cuenta Cancelada Definitiva -> Obligado a contratar de nuevo
+        if (isCanceled && !isPlanesPage && !isStripeApi) {
+          if (event.request.method === 'POST') throw error(403, 'Suscripción cancelada.');
+          throw redirect(303, '/admin/planes?alerta=cuenta_cancelada');
+        } 
+        // REGLA 2: Pago Pendiente / Rechazado -> Encerrado en Perfil para actualizar tarjeta
+        else if (isPastDue && !isPerfilPage && !isStripeApi) {
+          if (event.request.method === 'POST') throw error(403, 'Actualiza tu método de pago.');
+          throw redirect(303, '/admin/perfil');
         }
-        
-        // Bloquear todos los POST, excepto el que los manda a pagar
-        if ((event.request.method === 'POST' || event.request.headers.get('x-sveltekit-action')) && !isActionPortal) {
-          throw error(403, 'Suscripción suspendida. Acción denegada.');
+
+        // EL MURO FINAL: Bloqueo inquebrantable de mutación de datos (POST) para morosos
+        if (event.request.method === 'POST') {
+          throw error(403, 'Acción denegada por suspensión de cuenta.');
         }
       }
 
@@ -144,10 +146,7 @@ export async function handle({ event, resolve }) {
         const subDB = userBroker.subdominio.toLowerCase();
         const currentSub = currentSubdomain ? currentSubdomain.toLowerCase() : null;
 
-        if (
-          (isRootOrAdmin && !isLogout) || 
-          (currentSub && currentSub !== subDB)
-        ) {
+        if ((isRootOrAdmin && !isLogout) || (currentSub && currentSub !== subDB)) {
           throw redirect(303, `https://${subDB}.inmublia.com${pathname}`);
         }
       }
@@ -167,8 +166,5 @@ export async function handle({ event, resolve }) {
 
 export function handleError({ error }) {
   console.error('🔥 [Error Crítico]:', error);
-  return {
-    message: error.message || 'Error interno',
-    stack: error.stack || ''
-  };
+  return { message: error.message || 'Error interno', stack: error.stack || '' };
 }
