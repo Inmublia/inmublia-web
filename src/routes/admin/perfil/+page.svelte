@@ -1,17 +1,17 @@
 <!-- src/routes/admin/perfil/+page.svelte -->
 <script>
+  import { page } from '$app/stores'; // 🔥 FIX: Importamos el store de la URL
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import imageCompression from 'browser-image-compression';
-  // AÑADIDO: AlertOctagon para el icono de cuenta suspendida
   import { Settings, ShieldCheck, Loader2, Calculator, Percent, AlertOctagon } from 'lucide-svelte'; 
   import { onDestroy } from 'svelte';
 
   let { data, form } = $props();
   let broker = $state(data.broker || {});
   
-  // AÑADIDO: Estado para leer la alerta del Bouncer
-  let alertaSuspension = $state(data.alerta);
+  // 🔥 FIX CRÍTICO: Reactividad absoluta a la URL. Si cambia la URL, la alerta salta al instante.
+  let alertaSuspension = $derived($page.url.searchParams.get('alerta') || data.alerta);
   
   let currentWebhook = $derived(data.webhook || {});
 
@@ -85,9 +85,9 @@
   }
 </script>
 
-<!-- 🔥 EL HARD GATE: OVERLAY DE SUSPENSIÓN (Si la cuenta está bloqueada, esto cubre toda la pantalla) -->
+<!-- 🔥 EL HARD GATE: OVERLAY DE SUSPENSIÓN (Cubriendo el 100% de la pantalla) -->
 {#if alertaSuspension === 'pago_requerido'}
-  <div class="fixed inset-0 z-[200] bg-zinc-950/95 backdrop-blur-md flex items-center justify-center p-4">
+  <div class="fixed inset-0 z-[9999] bg-zinc-950/95 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-10 shadow-2xl text-center border border-red-100 relative overflow-hidden animate-[fadeIn_0.3s_ease-out]">
        <div class="absolute top-0 right-0 w-40 h-40 bg-red-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
        <AlertOctagon class="w-16 h-16 text-red-500 mx-auto mb-5 relative z-10" />
@@ -112,7 +112,7 @@
 {/if}
 
 <!-- ========================================================================= -->
-<!-- RESTO DE LA INTERFAZ ORIGINAL (Inaccesible visualmente si hay suspensión) -->
+<!-- RESTO DE LA INTERFAZ ORIGINAL -->
 <!-- ========================================================================= -->
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F8FAFC]">
