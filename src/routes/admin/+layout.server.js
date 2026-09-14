@@ -1,3 +1,4 @@
+// src/routes/admin/+layout.server.js
 import { redirect } from '@sveltejs/kit';
 
 export async function load({ locals, setHeaders, url, depends }) {
@@ -25,6 +26,19 @@ export async function load({ locals, setHeaders, url, depends }) {
       .single();
 
     if (brokerError || !broker) throw new Error("Broker no encontrado");
+
+    // ============================================================================
+    // BOUNCER GLOBAL (HARD GATE DE SUSPENSIÓN)
+    // ============================================================================
+    const status = (broker.status_suscripcion || '').toLowerCase().trim();
+    const estatusBloqueados = ['cancelada', 'canceled', 'inactiva', 'past_due', 'unpaid'];
+    const isPerfilPage = url.pathname.startsWith('/admin/perfil');
+
+    if (estatusBloqueados.includes(status) && !isPerfilPage) {
+      // Expulsión inmediata bloqueando la carga de cualquier otra sección del admin
+      throw redirect(303, '/admin/perfil?alerta=pago_requerido');
+    }
+    // ============================================================================
 
     const now = new Date();
     const endOfToday = new Date();
