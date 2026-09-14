@@ -1,3 +1,4 @@
+// src/routes/admin/perfil/+page.server.js
 import { fail, redirect } from '@sveltejs/kit';
 import Stripe from 'stripe';
 import { env as privateEnv } from '$env/dynamic/private';
@@ -6,7 +7,8 @@ const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, {
   apiVersion: '2023-10-16',
 });
 
-export async function load({ locals }) {
+// AÑADIMOS 'url' a los parámetros para leer ?alerta=pago_requerido
+export async function load({ locals, url }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
@@ -18,14 +20,16 @@ export async function load({ locals }) {
 
   if (error || !broker) throw redirect(303, '/login');
 
-  // NUEVO: Cargar configuración del webhook desde la tabla dedicada
   const { data: webhook } = await locals.supabase
     .from('agency_webhooks')
     .select('*')
     .eq('agency_id', user.id)
     .single();
 
-  return { broker, webhook };
+  // Capturamos la alerta enviada por el Layout (Bouncer)
+  const alerta = url.searchParams.get('alerta');
+
+  return { broker, webhook, alerta };
 }
 
 export const actions = {
@@ -109,7 +113,6 @@ export const actions = {
         return fail(500, { formId: 'profile', error: 'Fallo silencioso: La actualización no se reflejó.' });
       }
 
-      // Retornamos el formId para que Svelte sepa qué alerta activar
       return { formId: 'profile', success: true };
 
     } catch (err) {
@@ -118,7 +121,6 @@ export const actions = {
     }
   },
 
-  // NUEVO: Acción nombrada y refactorizada para usar la tabla segura
   guardarWebhook: async ({ request, locals }) => {
     const user = locals.user;
     if (!user) throw redirect(303, '/login');
@@ -128,7 +130,6 @@ export const actions = {
     const is_active = true;
 
     if (!endpoint_url) {
-       // Si el usuario vacía el input y guarda, eliminamos el webhook.
        const { error: deleteError } = await locals.supabase
          .from('agency_webhooks')
          .delete()
