@@ -10,6 +10,7 @@
   let { data, form } = $props();
   let broker = $state(data.broker || {});
   
+  // Reactividad total al estatus
   let alertaSuspension = $derived($page.url.searchParams.get('alerta') || data.alerta);
   
   let currentWebhook = $derived(data.webhook || {});
@@ -75,9 +76,12 @@
   function manejadorPortal() {
     redirigiendoStripe = true;
     return async ({ result, update }) => {
-      redirigiendoStripe = false;
+      // Retraso de UI para dar sensación de procesamiento antes del redirect físico del server
+      setTimeout(() => redirigiendoStripe = false, 3000); 
+      
       if (result.type === 'failure' || result.type === 'error') {
         alert(`Fallo de conexión: ${result.data?.error || result.error?.message || 'Revisa tu conexión a Stripe.'}`);
+        redirigiendoStripe = false;
       }
       await update();
     };
@@ -124,7 +128,6 @@
       </div>
       <div>
         <h1 class="text-xl font-black tracking-tight text-white">Configuración de Agencia</h1>
-        <!-- 🔥 FIX: Header reactivo al estatus -->
         <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
           {#if alertaSuspension === 'pago_requerido'}
             <AlertOctagon class="w-3 h-3 text-red-500" /> Nivel de acceso: <span class="text-red-400 font-black uppercase">SUSPENDIDO</span>
@@ -352,17 +355,17 @@
             <div class="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-full blur-3xl -mr-10 -mt-10"></div>
             <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10">Membresía Actual</h4>
             
-            <!-- 🔥 FIX: Tarjeta de estatus reacciona a la alerta de suspensión -->
+            <!-- 🔥 FIX: La tarjeta visual ahora reacciona a la variable 'alertaSuspension' -->
             <div class="flex items-center gap-4 mb-6 relative z-10">
-              <div class="w-12 h-12 {alertaSuspension === 'pago_requerido' ? 'bg-red-50 text-red-500' : 'bg-slate-900 text-amber-400'} rounded-xl flex items-center justify-center shadow-md shrink-0">
+              <div class="w-12 h-12 {alertaSuspension === 'pago_requerido' ? 'bg-red-50 text-red-500' : 'bg-slate-900 text-amber-400'} rounded-xl flex items-center justify-center shadow-md shrink-0 transition-colors duration-300">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
               </div>
               <div>
                 <h3 class="text-lg font-black text-slate-900 uppercase">Inmublia {broker.plan_suscripcion || 'Básico'}</h3>
                 {#if alertaSuspension === 'pago_requerido'}
-                  <p class="text-[11px] font-bold text-red-500 tracking-wider uppercase">Suscripción Suspendida</p>
+                  <p class="text-[11px] font-black text-red-500 tracking-wider uppercase mt-1 animate-pulse">SUSPENDIDA</p>
                 {:else}
-                  <p class="text-[11px] font-bold text-emerald-600 tracking-wider">Membresía Activa</p>
+                  <p class="text-[11px] font-bold text-emerald-600 tracking-wider mt-1">Membresía Activa</p>
                 {/if}
               </div>
             </div>
@@ -378,7 +381,7 @@
             </form>
           </div>
 
-          <!-- 🔥 FORMULARIO WEBHOOK REFACCIONADO -->
+          <!-- 🔥 FORMULARIO WEBHOOK -->
           <form method="POST" action="?/guardarWebhook" use:enhance={() => { 
             savingWebhook = true; 
             return async ({ update, result }) => { 
