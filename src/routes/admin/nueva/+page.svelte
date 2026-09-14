@@ -29,7 +29,7 @@
 
   let generandoIA = $state(false);
   let iaEjecutada = $state(false);
-  let tonoIA = $state('lujo'); // Regresado a 'lujo' como en tu original
+  let tonoIA = $state('lujo'); 
   
   let textoGeneradoWhatsapp = $state('');
 
@@ -138,7 +138,6 @@
     if (creditosIA <= 0) return; 
 
     generandoIA = true;
-    iaEjecutada = true;
     
     valTitulo = '';
     valDescripcion = '';
@@ -157,8 +156,6 @@
       formData.append('medio_bano', valMedioBano || '0');
       formData.append('estacionamientos', valEstacionamientos || '0');
       formData.append('antiguedad', valAntiguedad || 'No especificada'); 
-      // Se debe asegurar que 'tonoIA' aquí haga match con lo esperado en el backend ('lujo' en tu original vs nombres completos)
-      // Como pediste respetar el original, enviamos tonoIA ('lujo', 'familiar', etc) tal cual lo tenías.
       formData.append('tono', tonoIA); 
 
       const res = await fetch('?/generarCampañaIA', {
@@ -167,28 +164,37 @@
         headers: { 'x-sveltekit-action': 'true' }
       });
 
-      if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
-
+      // FIX CRÍTICO: Extracción precisa de errores desde Hooks o Actions
       const textRes = await res.text();
-      const result = deserialize(textRes);
-      
+      let result;
+      try {
+        result = deserialize(textRes);
+      } catch (e) {
+        throw new Error(`Respuesta no válida del servidor. Código: ${res.status}`);
+      }
+
       if (result.type === 'success' && result.data) {
         creditosIA--;
         generandoIA = false;
+        iaEjecutada = true;
         
         await Promise.all([
           typeWriter(result.data.titulo, (v) => valTitulo = v, 25),
           typeWriter(result.data.descripcion, (v) => valDescripcion = v, 5),
           typeWriter(result.data.whatsapp, (v) => textoGeneradoWhatsapp = v, 10)
         ]);
-      } else {
-        generandoIA = false;
-        alert(result.data?.error || `Error del servidor: ${JSON.stringify(result)}`);
+      } else if (result.type === 'failure') {
+        // Error controlado desde la Action (ej. "Has agotado tus créditos")
+        throw new Error(result.data?.error || 'Error de validación al generar IA.');
+      } else if (result.type === 'error') {
+        // Error de seguridad atrapado por el Hook (ej. "Suscripción suspendida")
+        throw new Error(result.error?.message || `Acceso denegado (HTTP ${res.status}).`);
       }
+
     } catch (e) {
       console.error(e);
       generandoIA = false;
-      alert(`Fallo de conexión: ${e.message}`);
+      alert(`Fallo en IA: ${e.message}`);
     }
   }
 
@@ -224,7 +230,6 @@
 
         loading = true; 
         
-        // ESCUDO DE DATOS FORZADO
         formData.set('titulo', valTitulo);
         formData.set('descripcion', valDescripcion);
         formData.set('tipo', valTipo);
@@ -239,7 +244,6 @@
         formData.set('m2_construccion', valM2Construccion);
         formData.set('antiguedad', valAntiguedad);
 
-        // INYECCIÓN DE IMÁGENES PROCESADAS EN BACKGROUND (Listas para R2)
         if (portadaLista) {
           formData.set('imagen', portadaLista, 'portada.webp');
         }
