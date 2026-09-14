@@ -1,5 +1,6 @@
+// src/hooks.server.js
 import { createServerClient } from '@supabase/ssr';
-import { redirect } from '@sveltejs/kit';
+import { redirect, error } from '@sveltejs/kit'; // Añadido 'error' para repeler APIs
 import { env as publicEnv } from '$env/dynamic/public';
 import { env as privateEnv } from '$env/dynamic/private';
 
@@ -62,7 +63,6 @@ export async function handle({ event, resolve }) {
   }
 
   // 2. MOTOR DE COOKIES (Unificado para SaaS)
-  // Al asignar el dominio base, la cookie PKCE será accesible tanto en la raíz como en los subdominios.
   const cookieDomain = (isLocal) ? undefined : 'inmublia.com';
 
   event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -75,7 +75,6 @@ export async function handle({ event, resolve }) {
             const { domain, ...cleanOptions } = options;
             event.cookies.set(name, value, { ...cleanOptions, path: '/', domain: cookieDomain });
 
-            // Borrado exhaustivo si la sesión se destruye
             if (!value || options.maxAge === 0 || options.maxAge === -1) {
               event.cookies.set(name, '', { ...cleanOptions, path: '/', domain: undefined });
             }
@@ -90,9 +89,9 @@ export async function handle({ event, resolve }) {
       const { data: { session } } = await event.locals.supabase.auth.getSession();
       if (!session) return { session: null, user: null };
 
-      const { data: { user }, error } = await event.locals.supabase.auth.getUser();
-      if (error) {
-        if (error.status >= 500) return { session, user: session.user };
+      const { data: { user }, err } = await event.locals.supabase.auth.getUser();
+      if (err) {
+        if (err.status >= 500) return { session, user: session.user };
         return { session: null, user: null };
       }
       return { session, user };
@@ -109,14 +108,31 @@ export async function handle({ event, resolve }) {
       throw redirect(303, `/login?motivo=inactividad`);
     }
 
+    // MODIFICACIÓN CRÍTICA: Añadido 'status_suscripcion' al select
     const { data: userBroker } = await event.locals.supabase
       .from('brokers')
-      .select('id, subdominio')
+      .select('id, subdominio, status_suscripcion')
       .eq('auth_user_id', user.id)
       .single();
 
     if (userBroker) {
       event.locals.tenantId = userBroker.id;
+
+      // ====================================================================
+      // ESCUDO 3: BLOQUEO PERIMETRAL ANTI-BYPASS PARA POST REQUESTS
+      // ====================================================================
+      if (event.request.method === 'POST' && !pathname.startsWith('/admin/perfil')) {
+        const status = (userBroker.status_suscripcion || '').toLowerCase().trim();
+        const estatusBloqueados = ['cancelada', 'canceled', 'inactiva', 'past_due', 'unpaid'];
+        
+        if (estatusBloqueados.includes(status)) {
+          if (event.request.headers.get('accept')?.includes('text/html')) {
+            throw redirect(303, '/admin/perfil?alerta=pago_requerido');
+          }
+          throw error(403, 'Suscripción suspendida. Acción denegada.');
+        }
+      }
+      // ====================================================================
 
       if (userBroker.subdominio) {
         const subDB = userBroker.subdominio.toLowerCase();
