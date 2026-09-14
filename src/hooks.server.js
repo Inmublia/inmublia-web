@@ -1,6 +1,6 @@
 // src/hooks.server.js
 import { createServerClient } from '@supabase/ssr';
-import { redirect, error } from '@sveltejs/kit'; // Añadido 'error' para repeler APIs
+import { redirect, error } from '@sveltejs/kit';
 import { env as publicEnv } from '$env/dynamic/public';
 import { env as privateEnv } from '$env/dynamic/private';
 
@@ -89,7 +89,7 @@ export async function handle({ event, resolve }) {
       const { data: { session } } = await event.locals.supabase.auth.getSession();
       if (!session) return { session: null, user: null };
 
-      const { data: { user }, err } = await event.locals.supabase.auth.getUser();
+      const { data: { user }, error: err } = await event.locals.supabase.auth.getUser();
       if (err) {
         if (err.status >= 500) return { session, user: session.user };
         return { session: null, user: null };
@@ -108,7 +108,6 @@ export async function handle({ event, resolve }) {
       throw redirect(303, `/login?motivo=inactividad`);
     }
 
-    // MODIFICACIÓN CRÍTICA: Añadido 'status_suscripcion' al select
     const { data: userBroker } = await event.locals.supabase
       .from('brokers')
       .select('id, subdominio, status_suscripcion')
@@ -118,28 +117,27 @@ export async function handle({ event, resolve }) {
     if (userBroker) {
       event.locals.tenantId = userBroker.id;
 
-      // ====================================================================
-      // ESCUDO 3: BLOQUEO PERIMETRAL ANTI-BYPASS PARA POST REQUESTS
-      // ====================================================================
-      if (event.request.method === 'POST' && !pathname.startsWith('/admin/perfil')) {
-        const status = (userBroker.status_suscripcion || '').toLowerCase().trim();
-        const estatusBloqueados = ['cancelada', 'canceled', 'inactiva', 'past_due', 'unpaid'];
-        
-        if (estatusBloqueados.includes(status)) {
-          if (event.request.headers.get('accept')?.includes('text/html')) {
-            throw redirect(303, '/admin/perfil?alerta=pago_requerido');
-          }
+      // 🔥 ESCUDO 3 CORREGIDO: BLOQUEO TOTAL ABSOLUTO
+      const status = (userBroker.status_suscripcion || '').toLowerCase().trim();
+      const estatusBloqueados = ['cancelada', 'canceled', 'inactiva', 'past_due', 'unpaid'];
+      const isPerfilPage = pathname.startsWith('/admin/perfil');
+      const isLogout = pathname.includes('/logout');
+      
+      if (estatusBloqueados.includes(status) && !isPerfilPage && !isLogout) {
+        // 1. Si intenta ejecutar funciones o guardar (POST) -> Lanzar 403
+        if (event.request.method === 'POST' || event.request.headers.get('x-sveltekit-action')) {
           throw error(403, 'Suscripción suspendida. Acción denegada.');
         }
+        // 2. Si intenta cargar la pantalla (GET) de /nueva, /inventario, etc -> Expulsarlo al perfil
+        throw redirect(303, '/admin/perfil?alerta=pago_requerido');
       }
-      // ====================================================================
 
       if (userBroker.subdominio) {
         const subDB = userBroker.subdominio.toLowerCase();
         const currentSub = currentSubdomain ? currentSubdomain.toLowerCase() : null;
 
         if (
-          (isRootOrAdmin && !pathname.includes('/logout')) || 
+          (isRootOrAdmin && !isLogout) || 
           (currentSub && currentSub !== subDB)
         ) {
           throw redirect(303, `https://${subDB}.inmublia.com${pathname}`);
