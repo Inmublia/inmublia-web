@@ -1,6 +1,6 @@
 <!-- src/routes/admin/perfil/+page.svelte -->
 <script>
-  import { page } from '$app/stores'; // 🔥 FIX: Importamos el store de la URL
+  import { page } from '$app/stores'; 
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import imageCompression from 'browser-image-compression';
@@ -10,7 +10,6 @@
   let { data, form } = $props();
   let broker = $state(data.broker || {});
   
-  // 🔥 FIX CRÍTICO: Reactividad absoluta a la URL. Si cambia la URL, la alerta salta al instante.
   let alertaSuspension = $derived($page.url.searchParams.get('alerta') || data.alerta);
   
   let currentWebhook = $derived(data.webhook || {});
@@ -78,14 +77,14 @@
     return async ({ result, update }) => {
       redirigiendoStripe = false;
       if (result.type === 'failure' || result.type === 'error') {
-        alert(`Fallo en facturación: ${result.data?.error || result.error?.message || 'Revisa tu conexión a Stripe.'}`);
+        alert(`Fallo de conexión: ${result.data?.error || result.error?.message || 'Revisa tu conexión a Stripe.'}`);
       }
       await update();
     };
   }
 </script>
 
-<!-- 🔥 EL HARD GATE: OVERLAY DE SUSPENSIÓN (Cubriendo el 100% de la pantalla) -->
+<!-- 🔥 EL HARD GATE: OVERLAY DE SUSPENSIÓN -->
 {#if alertaSuspension === 'pago_requerido'}
   <div class="fixed inset-0 z-[9999] bg-zinc-950/95 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-10 shadow-2xl text-center border border-red-100 relative overflow-hidden animate-[fadeIn_0.3s_ease-out]">
@@ -100,7 +99,7 @@
            {#if redirigiendoStripe}
              <Loader2 class="w-5 h-5 animate-spin text-white" /> Conectando de forma segura...
            {:else}
-             Actualizar Pago en Stripe
+             Actualizar Pago / Reactivar Plan
            {/if}
          </button>
        </form>
@@ -125,14 +124,18 @@
       </div>
       <div>
         <h1 class="text-xl font-black tracking-tight text-white">Configuración de Agencia</h1>
+        <!-- 🔥 FIX: Header reactivo al estatus -->
         <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
-          <ShieldCheck class="w-3 h-3 text-emerald-500" /> Nivel de acceso: <span class="text-zinc-300 uppercase">{broker.plan_suscripcion || 'Básico'}</span>
+          {#if alertaSuspension === 'pago_requerido'}
+            <AlertOctagon class="w-3 h-3 text-red-500" /> Nivel de acceso: <span class="text-red-400 font-black uppercase">SUSPENDIDO</span>
+          {:else}
+            <ShieldCheck class="w-3 h-3 text-emerald-500" /> Nivel de acceso: <span class="text-zinc-300 uppercase">{broker.plan_suscripcion || 'Básico'}</span>
+          {/if}
         </p>
       </div>
     </div>
   </header>
 
-  <!-- 🔥 TOAST FLOTANTE SAAS -->
   {#if showSuccess}
     <div class="fixed bottom-10 right-10 z-[100] p-5 bg-slate-900 rounded-2xl flex items-center gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-700 animate-[fadeIn_0.3s_ease-out]" role="alert">
       <div class="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center shrink-0 border border-emerald-500/30">
@@ -148,7 +151,6 @@
   <div class="p-10 flex-1 overflow-auto pb-32">
     <div class="max-w-5xl mx-auto">
 
-      <!-- Mostrar error general solo si no es del webhook -->
       {#if form?.error && form?.formId !== 'webhook'}
          <div class="mb-6 bg-red-100 text-red-800 font-bold p-6 rounded-xl border-2 border-red-300 text-sm whitespace-pre-wrap shadow-lg" role="alert">
            ⚠️ DIAGNÓSTICO: {form.error}
@@ -349,13 +351,19 @@
           <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 relative overflow-hidden">
             <div class="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-full blur-3xl -mr-10 -mt-10"></div>
             <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10">Membresía Actual</h4>
+            
+            <!-- 🔥 FIX: Tarjeta de estatus reacciona a la alerta de suspensión -->
             <div class="flex items-center gap-4 mb-6 relative z-10">
-              <div class="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center text-amber-400 shadow-md shrink-0">
+              <div class="w-12 h-12 {alertaSuspension === 'pago_requerido' ? 'bg-red-50 text-red-500' : 'bg-slate-900 text-amber-400'} rounded-xl flex items-center justify-center shadow-md shrink-0">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
               </div>
               <div>
                 <h3 class="text-lg font-black text-slate-900 uppercase">Inmublia {broker.plan_suscripcion || 'Básico'}</h3>
-                <p class="text-[11px] font-bold text-emerald-600 tracking-wider">Membresía Activa</p>
+                {#if alertaSuspension === 'pago_requerido'}
+                  <p class="text-[11px] font-bold text-red-500 tracking-wider uppercase">Suscripción Suspendida</p>
+                {:else}
+                  <p class="text-[11px] font-bold text-emerald-600 tracking-wider">Membresía Activa</p>
+                {/if}
               </div>
             </div>
             
@@ -393,7 +401,6 @@
                   <input type="url" id="endpoint_url" name="endpoint_url" bind:value={webhookUrl} disabled={esPlanBasico} class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-inner placeholder:text-slate-600">
                 </div>
 
-                <!-- Mensajes de feedback integrados -->
                 {#if form?.formId === 'webhook'}
                   {#if form?.error}
                     <p class="text-red-400 text-[10px] font-bold mb-1">{form.error}</p>
