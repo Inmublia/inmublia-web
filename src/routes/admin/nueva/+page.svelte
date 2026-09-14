@@ -1,3 +1,4 @@
+<!-- src/routes/admin/nueva/+page.svelte -->
 <script>
   import { enhance, deserialize } from '$app/forms';
   import imageCompression from 'browser-image-compression';
@@ -23,14 +24,12 @@
   let planSuscripcion = $derived(data?.plan_suscripcion ?? 'basico'); 
   
   let loading = $state(false);
-  let imagePreview = $state(null);
-  let galeriaPreviews = $state([]);
   let isOculta = $state(false);
   let selectedTemplate = $state('prop_basic_1'); 
 
   let generandoIA = $state(false);
   let iaEjecutada = $state(false);
-  let tonoIA = $state('lujo');
+  let tonoIA = $state('lujo'); // Regresado a 'lujo' como en tu original
   
   let textoGeneradoWhatsapp = $state('');
 
@@ -48,6 +47,20 @@
   let valAntiguedad = $state(''); 
   let valM2Terreno = $state(''); 
   let valM2Construccion = $state(''); 
+
+  // --- MOTOR DE COMPRESIÓN BACKGROUND ---
+  let imagePreview = $state(null);
+  let galeriaPreviews = $state([]);
+  let portadaLista = $state(null);
+  let galeriaLista = $state([]);
+  let comprimiendoGaleria = $state(false);
+
+  const opcionesCompresion = {
+    maxWidthOrHeight: 1920,
+    initialQuality: 0.85, 
+    useWebWorker: true,
+    fileType: 'image/webp'
+  };
 
   const catalogoTemplates = [
     { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80' },
@@ -68,14 +81,39 @@
     return false;
   }
 
-  function handleImageChange(event) {
+  async function handleImageChange(event) {
     const file = event.target.files[0];
-    imagePreview = file ? URL.createObjectURL(file) : null;
+    if (!file) return;
+
+    imagePreview = URL.createObjectURL(file);
+    try {
+      portadaLista = await imageCompression(file, opcionesCompresion);
+    } catch (e) {
+      console.warn("Fallo compresión portada", e);
+      portadaLista = file; 
+    }
   }
 
-  function handleGaleriaChange(event) {
+  async function handleGaleriaChange(event) {
     const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    comprimiendoGaleria = true;
     galeriaPreviews = Array.from(files).map(file => URL.createObjectURL(file));
+    
+    const archivosProcesados = [];
+    for (let i = 0; i < files.length; i++) {
+      try {
+        const comp = await imageCompression(files[i], opcionesCompresion);
+        archivosProcesados.push(comp);
+      } catch (e) {
+        console.warn(`Fallo compresión en imagen ${i}`, e);
+        archivosProcesados.push(files[i]);
+      }
+    }
+    
+    galeriaLista = archivosProcesados;
+    comprimiendoGaleria = false;
   }
 
   async function typeWriter(text, setterCallback, speed = 10) {
@@ -119,7 +157,9 @@
       formData.append('medio_bano', valMedioBano || '0');
       formData.append('estacionamientos', valEstacionamientos || '0');
       formData.append('antiguedad', valAntiguedad || 'No especificada'); 
-      formData.append('tono', tonoIA);
+      // Se debe asegurar que 'tonoIA' aquí haga match con lo esperado en el backend ('lujo' en tu original vs nombres completos)
+      // Como pediste respetar el original, enviamos tonoIA ('lujo', 'familiar', etc) tal cual lo tenías.
+      formData.append('tono', tonoIA); 
 
       const res = await fetch('?/generarCampañaIA', {
         method: 'POST',
@@ -175,10 +215,16 @@
         <div class="mb-8 bg-red-50 text-red-600 font-semibold p-4 rounded-xl text-sm border border-red-100 animate-[fadeIn_0.3s_ease-out]">{form.error}</div>
       {/if}
 
-      <form method="POST" action="?/crear" enctype="multipart/form-data" use:enhance={async ({ formData }) => { 
+      <form method="POST" action="?/crear" enctype="multipart/form-data" use:enhance={async ({ formData, cancel }) => { 
+        if (comprimiendoGaleria) {
+          alert("Aún estamos procesando las fotos de tu galería. Espera un par de segundos.");
+          cancel();
+          return;
+        }
+
         loading = true; 
         
-        // ESCUDO DE DATOS FORZADO: Asegura que todo el Svelte State vuele al servidor
+        // ESCUDO DE DATOS FORZADO
         formData.set('titulo', valTitulo);
         formData.set('descripcion', valDescripcion);
         formData.set('tipo', valTipo);
@@ -193,43 +239,19 @@
         formData.set('m2_construccion', valM2Construccion);
         formData.set('antiguedad', valAntiguedad);
 
-        try {
-          const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.8 };
-          
-          // Compresión de Portada
-          const imagenPrincipal = formData.get('imagen');
-          if (imagenPrincipal && imagenPrincipal.size > 0) {
-            try {
-              const compressedMain = await imageCompression(imagenPrincipal, options);
-              formData.set('imagen', compressedMain, compressedMain.name || 'portada.jpg');
-            } catch(e) { console.error("Fallo comprimir hero, enviando original", e); }
-          }
-          
-          // Compresión Indestructible de Galería
-          const galeriaArchivos = formData.getAll('galeria');
-          if (galeriaArchivos.length > 0) {
-            const archivosProcesados = [];
-            for (const file of galeriaArchivos) {
-              if (file.size > 0) {
-                try {
-                  const compressed = await imageCompression(file, options);
-                  archivosProcesados.push(compressed);
-                } catch(e) {
-                  archivosProcesados.push(file); // Si falla, jamás la pierdas
-                }
-              }
-            }
-            
-            if (archivosProcesados.length > 0) {
-              formData.delete('galeria'); // Ahora es seguro borrarla
-              for (const procFile of archivosProcesados) {
-                formData.append('galeria', procFile, procFile.name || 'galeria.jpg');
-              }
-            }
-          }
-        } catch (error) {
-          console.error("Error crítico en interceptor multipart", error);
+        // INYECCIÓN DE IMÁGENES PROCESADAS EN BACKGROUND (Listas para R2)
+        if (portadaLista) {
+          formData.set('imagen', portadaLista, 'portada.webp');
         }
+
+        if (galeriaLista.length > 0) {
+          formData.delete('galeria'); 
+          for (let i = 0; i < galeriaLista.length; i++) {
+            const safeName = `galeria-${i}-${Math.random().toString(36).substring(7)}.webp`;
+            formData.append('galeria', galeriaLista[i], safeName);
+          }
+        }
+        
         return async ({ update }) => { loading = false; update(); }; 
       }} class="space-y-12">
         
@@ -330,7 +352,12 @@
             </div>
 
             <div class="sm:col-span-2">
-              <label for="galeria_input" class="block text-xs font-semibold text-slate-500 mb-1.5">Galería Secundaria (1 a 15 fotos)</label>
+              <div class="flex justify-between items-end mb-1.5">
+                <label for="galeria_input" class="block text-xs font-semibold text-slate-500">Galería Secundaria (1 a 15 fotos)</label>
+                {#if comprimiendoGaleria}
+                  <span class="text-[10px] font-bold text-indigo-600 flex items-center gap-1.5 bg-indigo-50 px-2 py-1 rounded"><Loader2 class="w-3 h-3 animate-spin"/> Optimizando...</span>
+                {/if}
+              </div>
               <div class="flex flex-col items-center justify-center p-6 border-2 border-slate-200 border-dashed rounded-xl hover:border-slate-400 bg-slate-50 transition-colors relative cursor-pointer min-h-[120px] shadow-inner">
                 <div class="text-center z-10 relative flex flex-col items-center">
                   <Images class="w-5 h-5 text-slate-400 mb-2" />
@@ -584,8 +611,8 @@
 
         <div class="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-100">
           <a href="/admin" class="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold py-2.5 px-6 rounded-lg transition-colors text-sm text-center">Cancelar</a>
-          <button type="submit" disabled={loading} class="bg-slate-900 text-white font-bold py-2.5 px-8 rounded-lg disabled:opacity-50 shadow-sm hover:bg-slate-800 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-95">
-            {#if loading}
+          <button type="submit" disabled={loading || comprimiendoGaleria} class="bg-slate-900 text-white font-bold py-2.5 px-8 rounded-lg disabled:opacity-50 shadow-sm hover:bg-slate-800 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-95">
+            {#if loading || comprimiendoGaleria}
               <Loader2 class="animate-spin w-4 h-4 text-white" />
                Procesando...
             {:else}
