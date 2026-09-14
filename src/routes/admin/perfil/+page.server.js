@@ -1,13 +1,7 @@
 // src/routes/admin/perfil/+page.server.js
 import { fail, redirect } from '@sveltejs/kit';
-import Stripe from 'stripe';
-import { env as privateEnv } from '$env/dynamic/private';
 
-const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16',
-});
-
-export async function load({ locals, url }) {
+export async function load({ locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
@@ -25,9 +19,7 @@ export async function load({ locals, url }) {
     .eq('agency_id', user.id)
     .single();
 
-  const alerta = url.searchParams.get('alerta');
-
-  return { broker, webhook, alerta };
+  return { broker, webhook };
 }
 
 export const actions = {
@@ -145,61 +137,10 @@ export const actions = {
 
     const { error } = await locals.supabase
       .from('agency_webhooks')
-      .upsert({ 
-        agency_id: user.id, 
-        endpoint_url, 
-        is_active 
-      }, { onConflict: 'agency_id' });
+      .upsert({ agency_id: user.id, endpoint_url, is_active }, { onConflict: 'agency_id' });
       
-    if (error) {
-      console.error("Error BD Webhook:", error);
-      return fail(500, { formId: 'webhook', error: 'Error al conectar base de datos.' });
-    }
+    if (error) return fail(500, { formId: 'webhook', error: 'Error al conectar base de datos.' });
     
     return { formId: 'webhook', success: true };
-  },
-
-  abrirPortalFacturacion: async ({ locals }) => {
-    const { user } = await locals.safeGetSession();
-    if (!user) return fail(401, { error: 'No autorizado' });
-
-    // 🔥 FIX: Ahora también extraemos el estatus de suscripción
-    const { data: broker, error } = await locals.supabase
-      .from('brokers')
-      .select('stripe_customer_id, subdominio, status_suscripcion')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (error || !broker) {
-      return fail(500, { error: 'Error al recuperar perfil comercial.' });
-    }
-
-    if (!broker.stripe_customer_id) {
-      throw redirect(303, '/admin/planes');
-    }
-
-    const status = (broker.status_suscripcion || '').toLowerCase().trim();
-    const estatusCancelados = ['cancelada', 'canceled'];
-
-    // 🔥 FIX CRÍTICO: Si la cuenta está muerta (cancelada), SvelteKit redirecciona 
-    // a la tabla de precios para que inicien un nuevo checkout, ya que el portal 
-    // de Stripe no permite reactivar suscripciones canceladas por defecto.
-    if (estatusCancelados.includes(status)) {
-       throw redirect(303, '/admin/planes');
-    }
-
-    let portalUrl;
-    try {
-      const portalSession = await stripe.billingPortal.sessions.create({
-        customer: broker.stripe_customer_id,
-        return_url: `https://${broker.subdominio}.inmublia.com/admin/perfil`,
-      });
-      portalUrl = portalSession.url;
-    } catch (err) {
-      console.error("Error real de Stripe:", err);
-      return fail(500, { error: err.message || 'El portal de Stripe no respondió.' });
-    }
-
-    throw redirect(303, portalUrl);
   }
 };
