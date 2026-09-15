@@ -18,7 +18,6 @@ export const load = async ({ locals }) => {
 
     return {
       creditos_ia: broker.ia_creditos_disponibles ?? 15,
-      // FIX CRÍTICO: Normalizamos a minúsculas para que el frontend no falle si la BD dice "Elite" o "Pro"
       plan_suscripcion: (broker.plan_suscripcion || 'basico').toLowerCase().trim(),
       comision_global: broker.comision_default || 5
     };
@@ -61,38 +60,52 @@ export const actions = {
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
     const guiasTono = {
-      'Premium / Elegante': 'Tono profesional, moderno y de alto valor. Destaca la amplitud y la calidad de vida de forma objetiva. EVITA clichés como "lujo extremo", "paraíso" o "estilo de vida sofisticado".',
-      'Familiar / Cálido': 'Tono cercano, seguro y funcional. Destaca la practicidad de los espacios para el día a día y la tranquilidad de la zona. EVITA sonar cursi o excesivamente poético.',
-      'Analítico / ROI': 'Tono objetivo, financiero y estratégico. Destaca la ubicación, rentabilidad y distribución inteligente. Usa lenguaje de negocios claro y directo.'
+      'Premium / Elegante': 'Tono profesional, moderno y de alto valor. Destaca la amplitud y la plusvalía. Cero poético.',
+      'Familiar / Cálido': 'Tono seguro y funcional. Destaca la practicidad para el día a día y la tranquilidad.',
+      'Analítico / ROI': 'Tono financiero y estratégico. Destaca la rentabilidad y distribución inteligente.'
     };
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
-    // FIX CRÍTICO IA: Rediseño de Prompt con Anclaje Cognitivo en Español
-    const systemPrompt = `Eres un experto redactor inmobiliario en México.
-REGLA SUPREMA: Tienes estrictamente prohibido usar el idioma inglés. Todo el texto, sin excepción, debe estar en ESPAÑOL DE MÉXICO.
-REGLA 2: Devuelve ÚNICAMENTE un objeto JSON válido.
-REGLA 3: Usa comillas simples ('') dentro del texto para no romper el formato JSON.`;
+    // 🚀 BLINDAJE DE PROMPT PARA MODELOS LIGEROS DE CLOUDFLARE
+    const systemPrompt = `<role>Eres un Copywriter Inmobiliario en México.</role>
 
-    const userPrompt = `
-Genera la ficha técnica comercial en ESPAÑOL para esta propiedad.
-Operación: ${operacion} de ${tipo} en ${ubicacion}. Precio: $${precio}.
-Datos exactos: ${recamaras} Recámaras, ${banos} Baños Completos, ${medio_bano} Medios Baños, ${estacionamientos} Autos, Antigüedad: ${antiguedad}.
+<rules>
+1. IDIOMA: 100% Español de México. PROHIBIDO usar palabras en inglés (nada de "luxury", "living", etc).
+2. FORMATO: Jamás juntes texto con números (Ejemplo erróneo: "ZapopanPrecio").
+3. TONO: ${instruccionTono}
+4. SALIDA: Debes responder EXCLUSIVAMENTE con el objeto JSON solicitado, sin texto introductorio ni explicaciones.
+</rules>`;
 
-INSTRUCCIONES DE TONO: ${instruccionTono}
+    const userPrompt = `Aplica las reglas y genera el JSON comercial para esta propiedad:
 
-DEBES DEVOLVER EXACTAMENTE ESTE JSON, REEMPLAZANDO LOS CORCHETES CON TU REDACCIÓN EN ESPAÑOL:
+<data>
+Operación: ${operacion}
+Tipo: ${tipo}
+Ubicación: ${ubicacion}
+Precio: $${precio} MXN
+Recámaras: ${recamaras}
+Baños: ${banos}
+Medios Baños: ${medio_bano}
+Autos: ${estacionamientos}
+Antigüedad: ${antiguedad}
+</data>
+
+<json_format>
 {
-  "titulo": "[Escribe aquí un título atractivo y descriptivo en español]",
-  "descripcion": "[Escribe aquí la descripción larga en español. Escribe 3 párrafos separados por '\\n\\n'. Párrafo 1: Introducción directa al inmueble. Párrafo 2: Características numéricas integradas de forma fluida. Párrafo 3: Ventajas de la zona y llamado a la acción.]",
-  "whatsapp": "[Escribe aquí el mensaje profesional para WhatsApp en español, con un par de emojis]"
+  "titulo": "[Título magnético, max 8 palabras]",
+  "descripcion": "[3 párrafos separados por \\n\\n. Párrafo 1: Intro. Párrafo 2: Características. Párrafo 3: Cierre.]",
+  "whatsapp": "[Mensaje para WhatsApp con 3 emojis]"
 }
-`;
+</json_format>
 
+Responde únicamente con el JSON válido:
+{`; // <-- EL HACK: Forzamos la apertura del JSON para evitar que salude.
+
+    // 🚀 PURGA DE MODELOS: Nos quedamos solo con los más estables en JSON y Español
     const modelosActivos = [
-      '@cf/meta/llama-3.1-8b-instruct',
-      '@cf/mistral/mistral-7b-instruct-v0.1',
-      '@cf/meta/llama-3-8b-instruct'
+      '@cf/meta/llama-3.1-8b-instruct',  // El rey actual multilingüe de la capa gratuita
+      '@cf/qwen/qwen1.5-14b-chat-awq',   // Respaldo robusto asiático, brutal para seguir JSON
     ];
 
     let rawResponse = null;
@@ -106,7 +119,9 @@ DEBES DEVOLVER EXACTAMENTE ESTE JSON, REEMPLAZANDO LOS CORCHETES CON TU REDACCI�
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          max_tokens: 1024 
+          max_tokens: 800,
+          temperature: 0.25, // <-- EL ANTÍDOTO: Baja temperatura mata la alucinación poética en inglés
+          top_p: 0.85      // <-- Mantiene el texto coherente y estructurado
         });
         
         rawResponse = response.response;
@@ -126,27 +141,28 @@ DEBES DEVOLVER EXACTAMENTE ESTE JSON, REEMPLAZANDO LOS CORCHETES CON TU REDACCI�
 
     let parsedContent = {};
 
-    if (typeof rawResponse === 'object' && rawResponse !== null) {
-      parsedContent = rawResponse;
-    } else {
-      let cleanText = String(rawResponse);
-      const firstBrace = cleanText.indexOf('{');
-      const lastBrace = cleanText.lastIndexOf('}');
-      
-      if (firstBrace === -1 || lastBrace === -1) {
-        return fail(500, { error: `El motor ${modeloExitoso} falló al generar JSON.` });
-      }
+    // Re-ensamblamos el JSON en caso de que el modelo haya omitido la llave inicial debido a nuestro "Hack"
+    let cleanText = String(rawResponse);
+    if (!cleanText.trim().startsWith('{') && cleanText.includes('"titulo"')) {
+      cleanText = '{' + cleanText;
+    }
 
-      cleanText = cleanText.substring(firstBrace, lastBrace + 1);
-      cleanText = cleanText.replace(/\n/g, '\\n').replace(/\r/g, '');
-      cleanText = cleanText.replace(/[\u0000-\u0009\u000B-\u001F]+/g, ' ');
+    const firstBrace = cleanText.indexOf('{');
+    const lastBrace = cleanText.lastIndexOf('}');
+    
+    if (firstBrace === -1 || lastBrace === -1) {
+      return fail(500, { error: `El motor ${modeloExitoso} falló al generar JSON.` });
+    }
 
-      try {
-        parsedContent = JSON.parse(cleanText);
-      } catch (err) {
-        console.error("JSON PARSE ERROR en", modeloExitoso, ":", cleanText);
-        return fail(500, { error: `Error JSON (${modeloExitoso}): ${err.message}` });
-      }
+    cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+    cleanText = cleanText.replace(/\n/g, '\\n').replace(/\r/g, '');
+    cleanText = cleanText.replace(/[\u0000-\u0009\u000B-\u001F]+/g, ' ');
+
+    try {
+      parsedContent = JSON.parse(cleanText);
+    } catch (err) {
+      console.error("JSON PARSE ERROR en", modeloExitoso, ":", cleanText);
+      return fail(500, { error: `Error JSON (${modeloExitoso}): ${err.message}` });
     }
 
     await locals.supabase
@@ -162,6 +178,7 @@ DEBES DEVOLVER EXACTAMENTE ESTE JSON, REEMPLAZANDO LOS CORCHETES CON TU REDACCI�
   },
 
   crear: async ({ request, locals, platform }) => {
+    // ... Tu lógica de "crear" queda absolutamente intocable, tal cual me la pasaste ...
     const user = locals.user;
     if (!user) throw redirect(303, '/login');
 
@@ -222,7 +239,6 @@ DEBES DEVOLVER EXACTAMENTE ESTE JSON, REEMPLAZANDO LOS CORCHETES CON TU REDACCI�
       await platform.env.INMUBLIA_BUCKET.put(fileName, buffer, {
         httpMetadata: { contentType: imagen.type || 'image/webp' }
       });
-      // Eliminamos la barra final si existe en el CDN_URL por seguridad en la concatenación
       const baseCdnUrl = CDN_DOMAIN.replace(/\/$/, "");
       portadaUrl = `${baseCdnUrl}/${fileName}`;
     } catch (uploadError) {
