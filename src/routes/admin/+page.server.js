@@ -20,8 +20,7 @@ export async function load({ locals, setHeaders, url, depends }) {
 
     if (brokerError || !broker) throw new Error("Broker no encontrado");
 
-    const now = new Date();
-    const nowIso = now.toISOString();
+    const nowIso = new Date().toISOString();
 
     const { data: alertasPendientes, error: alertasError } = await locals.supabase
       .from('lead_notas')
@@ -33,7 +32,8 @@ export async function load({ locals, setHeaders, url, depends }) {
 
     if (alertasError) console.error("Error cargando alertas:", alertasError);
 
-    const { data: propiedadesRaw, error: propError } = await locals.supabase
+    // En el Admin, traemos TODO el inventario sin ocultarlo a los 3 días
+    const { data: propiedades, error: propError } = await locals.supabase
       .from('propiedades')
       .select(`
         id, 
@@ -62,22 +62,12 @@ export async function load({ locals, setHeaders, url, depends }) {
 
     if (propError) console.error("Error cargando propiedades:", propError);
 
-    // EL MOTOR DE FOMO: Filtramos propiedades vendidas hace más de 3 días
-    const propiedades = (propiedadesRaw || []).filter(p => {
-      if (p.estatus === 'Vendida' && p.fecha_vendida) {
-        const fechaVendida = new Date(p.fecha_vendida);
-        const diasTranscurridos = (now - fechaVendida) / (1000 * 60 * 60 * 24);
-        return diasTranscurridos <= 3;
-      }
-      return true;
-    });
-
     return {
       session,
       user,
       broker,
       alertas: alertasPendientes || [],
-      propiedades: propiedades
+      propiedades: propiedades || []
     };
 
   } catch (err) {
@@ -117,7 +107,6 @@ export const actions = {
     return { success: true };
   },
 
-  // 🚀 LA NUEVA ACCIÓN DE SEGURIDAD: Revertir a Activa
   deshacerVendida: async ({ request, locals }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
@@ -139,7 +128,7 @@ export const actions = {
       .from('propiedades')
       .update({ 
         estatus: 'Activa', 
-        fecha_vendida: null // Borramos la fecha para resetear el reloj
+        fecha_vendida: null 
       })
       .eq('id', idPropiedad)
       .eq('broker_id', broker.id);
