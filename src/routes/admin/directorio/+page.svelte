@@ -91,15 +91,14 @@
           nombre: l.nombre,
           correo: l.correo,
           telefono: l.telefono,
-          estado: (l.estado || 'nuevo').toLowerCase(), // Agregado: Estado CRM
-          fuente: l.fuente || l.origen || 'Directo',   // Agregado: Portal de Origen
-          fecha_contacto: l.actualizado_en || l.creado_en || new Date().toISOString(), // Agregado: Último contacto
+          estado: (l.estado || 'nuevo').toLowerCase(),
+          fuente: l.fuente || l.origen || 'Directo',   
+          fecha_contacto: l.actualizado_en || l.creado_en || new Date().toISOString(), 
           interesesHistorial: [],
           presupuestoInferido: 0,
           matches: []
         };
       }
-      // Actualizamos a la fecha más reciente si el lead tiene varios registros
       const fechaLeadActual = new Date(l.actualizado_en || l.creado_en);
       const fechaMapa = new Date(mapa[l.correo].fecha_contacto);
       if (fechaLeadActual > fechaMapa) {
@@ -141,7 +140,7 @@
       return cliente;
     })
     .filter(c => c.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) || c.correo?.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => new Date(b.fecha_contacto) - new Date(a.fecha_contacto)); // Ordenar por más recientes
+    .sort((a, b) => new Date(b.fecha_contacto) - new Date(a.fecha_contacto)); 
   });
 
   let totalMatches = $derived(clientesInteligentes.reduce((acc, c) => acc + c.matches.length, 0));
@@ -307,6 +306,9 @@
       <!-- LISTADO DE CLIENTES (CRM ENRIQUECIDO) -->
       <div class="space-y-4">
         {#each clientesInteligentes as cliente}
+          <!-- FIX SVELTE 5: Colocamos @const inmediatamente debajo del #each -->
+          {@const estiloEstado = getEstadoStyle(cliente.estado)}
+          
           <div class="bg-white rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-slate-200 overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-[0_4px_20px_rgb(0,0,0,0.06)] hover:border-slate-300">
             
             <div class="flex-1 p-4 lg:p-5 border-b lg:border-b-0 lg:border-r border-slate-100 flex items-start gap-4">
@@ -326,7 +328,6 @@
                 
                 <!-- ROW: Estado, Fuente y Último Contacto -->
                 <div class="flex flex-wrap items-center gap-2 mb-3">
-                  {@const estiloEstado = getEstadoStyle(cliente.estado)}
                   <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1.5 {estiloEstado.bg} {estiloEstado.text} {estiloEstado.border}">
                     <span class="w-1.5 h-1.5 rounded-full {estiloEstado.dot}"></span>
                     <span class="capitalize">{cliente.estado}</span>
