@@ -1,3 +1,4 @@
+<!-- src/routes/admin/reportes/+page.svelte -->
 <script>
   import { 
     TrendingUp, 
@@ -13,7 +14,9 @@
     PieChart,
     Building2,
     DollarSign,
-    CheckCircle2
+    CheckCircle2,
+    Download,
+    Clock
   } from 'lucide-svelte';
 
   let { data } = $props();
@@ -21,7 +24,6 @@
   let leads = $derived(data.leads || []);
   let propiedades = $derived(data.propiedades || []);
 
-  // Convertimos la comisión estática a una variable reactiva conectada al perfil del Broker
   let comisionBroker = $derived((broker.comision_default || 5) / 100);
   
   const formatearDinero = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
@@ -30,7 +32,14 @@
   let leadsGanados = $derived(leads.filter(l => l.estado === 'cerrado').length);
   let tasaCierre = $derived(totalLeads > 0 ? ((leadsGanados / totalLeads) * 100).toFixed(1) : 0);
   
-  // Matemáticas dinámicas basadas en la comisión del broker
+  // LEAD AGING: Detectar leads estancados (más de 15 días sin cerrar o descartar)
+  let leadsEstancados = $derived(leads.filter(l => {
+    if (l.estado === 'cerrado' || l.estado === 'descartado') return false;
+    const dias = Math.floor((new Date() - new Date(l.creado_en)) / (1000 * 60 * 60 * 24));
+    return dias > 15;
+  }).length);
+
+  // FINANZAS: Pipeline Potencial (Excluye perdidos y ganados)
   let pipelineValue = $derived(leads.reduce((acc, lead) => {
     if (lead.estado !== 'descartado' && lead.estado !== 'cerrado' && lead.propiedades?.precio) {
       return acc + (lead.propiedades.precio * comisionBroker);
@@ -38,9 +47,11 @@
     return acc;
   }, 0));
 
-  // Matemáticas dinámicas para ingresos cobrados
+  // 🔥 FINANZAS: Ingresos Reales Cobrados (Prioriza los datos del Modal de Cierre sobre la estimación)
   let revenueWon = $derived(leads.filter(l => l.estado === 'cerrado').reduce((acc, lead) => {
-    return acc + (lead.propiedades?.precio * comisionBroker || 0);
+    const precioBase = lead.precio_cierre || lead.propiedades?.precio || 0;
+    const porcentajeCierre = lead.comision_cierre ? (lead.comision_cierre / 100) : comisionBroker;
+    return acc + (precioBase * porcentajeCierre);
   }, 0));
 
   let funnel = $derived({
@@ -54,7 +65,8 @@
 
   let maxFunnelValue = $derived(Math.max(funnel.nuevo, funnel.contactado, funnel.visita, funnel.negociacion, funnel.cerrado, 1));
 
-  let rendimientoPropiedades = $derived(() => {
+  // 🔥 OPTIMIZACIÓN SVELTE 5: Usamos $derived.by para evitar re-ejecuciones en el HTML
+  let rendimientoPropiedades = $derived.by(() => {
     const conteo = {};
     leads.forEach(lead => {
       if (lead.propiedades) {
@@ -68,14 +80,12 @@
     return Object.values(conteo).sort((a, b) => b.totalLeads - a.totalLeads).slice(0, 5);
   });
 
-  // 🔥 FIX: Atribución Real (Eliminada la simulación matemática)
-  let fuentesLeads = $derived(() => {
+  // 🔥 OPTIMIZACIÓN SVELTE 5: $derived.by para Marketing
+  let fuentesLeads = $derived.by(() => {
     let organico = 0, redes = 0, directo = 0;
     
     leads.forEach((l) => {
-      // Leemos la fuente real de la BD. Si está vacía (no hay UTMs ni Píxeles), es tráfico directo real.
       const f = (l.fuente || l.origen || 'directo').toLowerCase().trim();
-
       if (['facebook', 'fb', 'instagram', 'ig', 'meta', 'tiktok', 'redes', 'ads', 'pixel'].some(kw => f.includes(kw))) {
         redes++;
       } else if (['google', 'seo', 'organico', 'búsqueda', 'busqueda'].some(kw => f.includes(kw))) {
@@ -86,18 +96,46 @@
     });
     
     const total = leads.length > 0 ? leads.length : 1; 
-    
     return {
       organico: { valor: organico, pct: leads.length === 0 ? 0 : ((organico/total)*100).toFixed(0) },
       redes: { valor: redes, pct: leads.length === 0 ? 0 : ((redes/total)*100).toFixed(0) },
       directo: { valor: directo, pct: leads.length === 0 ? 0 : ((directo/total)*100).toFixed(0) }
     };
   });
+
+  // 🔥 MOTOR DE EXPORTACIÓN (Directorio)
+  function descargarCSV() {
+    if (leads.length === 0) return alert("No hay prospectos para exportar.");
+
+    const cabeceras = ['Nombre del Prospecto', 'Teléfono', 'Correo', 'Estatus', 'Origen', 'Propiedad de Interés', 'Monto Involucrado', 'Fecha de Registro'];
+    
+    const filas = leads.map(l => [
+      `"${(l.nombre || '').replace(/"/g, '""')}"`,
+      `"${l.telefono || ''}"`,
+      `"${l.correo || ''}"`,
+      `"${l.estado || 'nuevo'}"`,
+      `"${l.origen || 'Directo'}"`,
+      `"${(l.propiedades?.titulo || 'Inventario General').replace(/"/g, '""')}"`,
+      l.precio_cierre || l.propiedades?.precio || 0,
+      `"${new Date(l.creado_en).toLocaleDateString('es-MX')}"`
+    ]);
+
+    // \uFEFF asegura que Excel lea los acentos correctamente en español
+    const contenidoCSV = [cabeceras.join(','), ...filas.map(f => f.join(','))].join('\n');
+    const blob = new Blob(["\uFEFF" + contenidoCSV], { type: 'text/csv;charset=utf-8;' }); 
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Directorio_Leads_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 </script>
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-slate-50 font-sans text-slate-900">
   
-  <header class="h-20 bg-zinc-950 border-b border-zinc-800 flex items-center px-6 sm:px-10 shrink-0 sticky top-0 z-20 shadow-xl shadow-zinc-900/10">
+  <header class="h-20 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between px-6 sm:px-10 shrink-0 sticky top-0 z-20 shadow-xl shadow-zinc-900/10">
     <div>
       <h1 class="text-xl font-black tracking-tight text-white flex items-center gap-2">
         <LineChart class="w-5 h-5 text-indigo-400" />
@@ -105,6 +143,11 @@
       </h1>
       <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">Métricas, Finanzas y Marketing</p>
     </div>
+
+    <!-- Botón Descargar Directorio CSV -->
+    <button onclick={descargarCSV} class="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold px-4 py-2.5 rounded-lg border border-zinc-700 transition-colors shadow-sm active:scale-95">
+      <Download class="w-4 h-4 text-zinc-400" /> Exportar Directorio
+    </button>
   </header>
 
   <div class="p-6 sm:p-10 flex-1 overflow-auto pb-32 animate-[fadeIn_0.4s_ease-out]">
@@ -129,7 +172,7 @@
         <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-between">
           <div class="flex items-center justify-between mb-4">
             <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Comisiones Ganadas</p>
-            <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
               <CheckCircle2 class="w-4 h-4" />
             </div>
           </div>
@@ -144,14 +187,14 @@
         <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-between">
           <div class="flex items-center justify-between mb-4">
             <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Tasa de Cierre General</p>
-            <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+            <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
               <TrendingUp class="w-4 h-4" />
             </div>
           </div>
           <div>
             <h2 class="text-4xl font-black tracking-tighter text-slate-900 truncate">{tasaCierre}%</h2>
-            <p class="text-[11px] font-semibold text-slate-500 mt-2 flex items-center gap-1.5">
-              De un histórico de <strong class="text-blue-600">{totalLeads} prospectos</strong>.
+            <p class="text-[11px] font-semibold text-slate-500 mt-2 flex items-center justify-between">
+              <span>De un histórico de <strong class="text-blue-600">{totalLeads} prospectos</strong>.</span>
             </p>
           </div>
         </div>
@@ -167,6 +210,13 @@
               </h3>
               <p class="text-xs font-semibold text-slate-400 mt-1">Salud y flujo de tu proceso de ventas comercial.</p>
             </div>
+            
+            {#if leadsEstancados > 0}
+              <div class="bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100 flex items-center gap-2" title="Leads con más de 15 días sin avanzar">
+                <Clock class="w-3.5 h-3.5 text-rose-500" />
+                <span class="text-[10px] font-black uppercase tracking-widest text-rose-600">{leadsEstancados} Estancados</span>
+              </div>
+            {/if}
           </div>
 
           <div class="space-y-6 flex-1">
@@ -231,14 +281,14 @@
           </div>
 
           <div class="flex-1 overflow-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-            {#if rendimientoPropiedades().length === 0}
+            {#if rendimientoPropiedades.length === 0}
               <div class="h-full flex flex-col items-center justify-center text-center opacity-50 py-10">
                 <RefreshCw class="w-10 h-10 text-slate-400 mb-3" />
                 <p class="text-sm font-bold text-slate-500">Aún no hay datos</p>
               </div>
             {:else}
               <div class="space-y-3">
-                {#each rendimientoPropiedades() as prop, i}
+                {#each rendimientoPropiedades as prop, i}
                   <div class="flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-slate-200 transition-colors shadow-sm">
                     <div class="flex items-center gap-3 truncate pr-4">
                       <div class="w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-500 font-black text-[10px] flex items-center justify-center shrink-0 shadow-sm">
@@ -280,30 +330,30 @@
               <div>
                 <div class="flex justify-between text-xs font-bold mb-2">
                   <span class="text-slate-600 flex items-center gap-2"><Search class="w-3.5 h-3.5 text-emerald-500" /> Búsqueda Orgánica / SEO</span>
-                  <span class="text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">{fuentesLeads().organico.pct}% ({fuentesLeads().organico.valor})</span>
+                  <span class="text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">{fuentesLeads.organico.pct}% ({fuentesLeads.organico.valor})</span>
                 </div>
                 <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden flex shadow-inner">
-                  <div class="bg-emerald-500 h-full rounded-full transition-all duration-1000 ease-out" style="width: {fuentesLeads().organico.pct}%"></div>
+                  <div class="bg-emerald-500 h-full rounded-full transition-all duration-1000 ease-out" style="width: {fuentesLeads.organico.pct}%"></div>
                 </div>
               </div>
 
               <div>
                 <div class="flex justify-between text-xs font-bold mb-2">
                   <span class="text-slate-600 flex items-center gap-2"><Megaphone class="w-3.5 h-3.5 text-blue-500" /> Redes Sociales / Píxeles Ads</span>
-                  <span class="text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">{fuentesLeads().redes.pct}% ({fuentesLeads().redes.valor})</span>
+                  <span class="text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">{fuentesLeads.redes.pct}% ({fuentesLeads.redes.valor})</span>
                 </div>
                 <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden flex shadow-inner">
-                  <div class="bg-blue-500 h-full rounded-full transition-all duration-1000 ease-out" style="width: {fuentesLeads().redes.pct}%"></div>
+                  <div class="bg-blue-500 h-full rounded-full transition-all duration-1000 ease-out" style="width: {fuentesLeads.redes.pct}%"></div>
                 </div>
               </div>
 
               <div>
                 <div class="flex justify-between text-xs font-bold mb-2">
                   <span class="text-slate-600 flex items-center gap-2"><Crosshair class="w-3.5 h-3.5 text-slate-400" /> Tráfico Directo / Compartido</span>
-                  <span class="text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">{fuentesLeads().directo.pct}% ({fuentesLeads().directo.valor})</span>
+                  <span class="text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">{fuentesLeads.directo.pct}% ({fuentesLeads.directo.valor})</span>
                 </div>
                 <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden flex shadow-inner">
-                  <div class="bg-slate-400 h-full rounded-full transition-all duration-1000 ease-out" style="width: {fuentesLeads().directo.pct}%"></div>
+                  <div class="bg-slate-400 h-full rounded-full transition-all duration-1000 ease-out" style="width: {fuentesLeads.directo.pct}%"></div>
                 </div>
               </div>
             </div>
