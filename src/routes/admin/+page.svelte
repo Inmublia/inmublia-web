@@ -1,10 +1,11 @@
+<!-- src/routes/admin/+page.svelte -->
 <script>
   import { enhance } from '$app/forms';
   import { generarFichaPDF } from '$lib/utils/pdf'; 
   import { 
     Building2, ExternalLink, CalendarPlus, Plus, Search, 
     MapPin, DownloadCloud, Sparkles, QrCode, Link2, 
-    Pencil, Trash2, EyeOff, CheckCircle2, BadgeDollarSign, TrendingUp
+    Pencil, Trash2, EyeOff, CheckCircle2, BadgeDollarSign, TrendingUp, Handshake
   } from 'lucide-svelte';
   
   let { data } = $props();
@@ -12,8 +13,9 @@
   let propiedades = $derived(data.propiedades || []);
   
   let totalPropiedades = $derived(propiedades.length);
-  let valorPortafolio = $derived(propiedades.reduce((acc, p) => acc + (Number(p.precio) || 0), 0));
-  let activasCount = $derived(propiedades.filter(p => p.estatus !== 'Pre-Mercado').length);
+  // Las propiedades vendidas ya no suman al valor del portafolio activo
+  let valorPortafolio = $derived(propiedades.reduce((acc, p) => p.estatus === 'Vendida' ? acc : acc + (Number(p.precio) || 0), 0));
+  let activasCount = $derived(propiedades.filter(p => p.estatus === 'Activa' || p.estatus === 'Pública').length);
   let preMercadoCount = $derived(propiedades.filter(p => p.estatus === 'Pre-Mercado').length);
 
   let searchQuery = $state('');
@@ -103,7 +105,6 @@
     win.document.close();
   }
 
-  // 🔥 VALIDACIÓN BLINDADA: Plan + Estatus Activo
   function intentarAbrirBrochure(slug) {
     const plan = broker?.plan_suscripcion?.toLowerCase()?.trim() || 'basico';
     const estatus = broker?.status_suscripcion?.toLowerCase()?.trim() || 'inactiva';
@@ -113,6 +114,13 @@
     } else {
       showUpsellModal = true;
     }
+  }
+
+  // Helper para mostrar cuántos días le quedan de visibilidad a la propiedad vendida
+  function diasRestantesVisibilidad(fechaVendida) {
+    if (!fechaVendida) return 0;
+    const diasTranscurridos = (new Date() - new Date(fechaVendida)) / (1000 * 60 * 60 * 24);
+    return Math.max(0, Math.ceil(3 - diasTranscurridos));
   }
 </script>
 
@@ -151,7 +159,6 @@
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10">
       
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:border-slate-300 transition-all">
           <div class="flex items-center justify-between mb-3">
             <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Valor de Portafolio</p>
@@ -197,11 +204,9 @@
             <p class="text-xs text-slate-400 font-medium mb-1">Ocultas</p>
           </div>
         </div>
-
       </div>
 
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
-        
         <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="relative flex-1 max-w-md">
             <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -231,16 +236,21 @@
                 </tr>
               {:else}
                 {#each propiedadesFiltradas as propiedad}
-                  <tr class="group hover:bg-slate-50/60 transition-colors">
+                  <!-- 🚀 UI VENDIDA: Bajamos opacidad sutilmente si ya se vendió para limpiar visión -->
+                  <tr class="group hover:bg-slate-50/60 transition-colors {propiedad.estatus === 'Vendida' ? 'opacity-75 bg-slate-50/30' : ''}">
                     <td class="px-6 py-5">
                       <div class="flex items-center gap-4">
-                        <div class="h-14 w-20 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200/60 shadow-sm group-hover:border-indigo-200 transition-colors">
-                          <img src={propiedad.imagen_url} alt="Portada" class="w-full h-full object-cover">
+                        <div class="h-14 w-20 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200/60 shadow-sm group-hover:border-indigo-200 transition-colors relative">
+                          <!-- Overlay visual si está vendida -->
+                          {#if propiedad.estatus === 'Vendida'}
+                            <div class="absolute inset-0 bg-rose-900/20 mix-blend-multiply z-10"></div>
+                          {/if}
+                          <img src={propiedad.imagen_url} alt="Portada" class="w-full h-full object-cover {propiedad.estatus === 'Vendida' ? 'grayscale-[50%]' : ''}">
                         </div>
                         <div class="truncate">
-                          <div class="text-sm font-bold text-slate-900 leading-tight mb-1 flex items-center gap-2 truncate">
+                          <div class="text-sm font-bold {propiedad.estatus === 'Vendida' ? 'text-slate-600 line-through decoration-slate-300' : 'text-slate-900'} leading-tight mb-1 flex items-center gap-2 truncate">
                             <span class="truncate">{propiedad.titulo}</span>
-                            {#if propiedad.destacada}
+                            {#if propiedad.destacada && propiedad.estatus !== 'Vendida'}
                               <span class="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-sm shrink-0">VIP</span>
                             {/if}
                           </div>
@@ -253,7 +263,7 @@
                     </td>
 
                     <td class="px-6 py-5 truncate">
-                      <p class="text-sm font-black text-slate-900">{formatter.format(propiedad.precio)}</p>
+                      <p class="text-sm font-black {propiedad.estatus === 'Vendida' ? 'text-slate-500' : 'text-slate-900'}">{formatter.format(propiedad.precio)}</p>
                       <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 flex items-center gap-1">
                         <TrendingUp class="w-3 h-3" /> {propiedad.operacion}
                       </p>
@@ -261,7 +271,15 @@
 
                     <td class="px-6 py-5 text-center whitespace-nowrap">
                       <div class="flex flex-col items-center justify-center gap-2 h-full">
-                        {#if propiedad.estatus === 'Pre-Mercado'}
+                        <!-- 🚀 SELLO DE FOMO: BADGE DE VENDIDA -->
+                        {#if propiedad.estatus === 'Vendida'}
+                          <span class="inline-flex flex-col items-center gap-1">
+                            <span class="inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1 text-[9px] font-black text-rose-700 uppercase tracking-widest shadow-sm">
+                              <CheckCircle2 class="w-3 h-3 mr-1.5 text-rose-500" /> VENDIDA
+                            </span>
+                            <span class="text-[8px] font-bold text-slate-400">Oculta en {diasRestantesVisibilidad(propiedad.fecha_vendida)} días</span>
+                          </span>
+                        {:else if propiedad.estatus === 'Pre-Mercado'}
                           <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1 text-[9px] font-bold text-slate-600 uppercase tracking-widest shadow-sm">
                             <EyeOff class="w-3 h-3 mr-1.5 text-slate-400" /> Oculta
                           </span>
@@ -288,6 +306,16 @@
 
                     <td class="px-6 py-5">
                       <div class="flex justify-end gap-1.5 items-center">
+                        <!-- 🚀 ACCIÓN RÁPIDA: Marcar Vendida -->
+                        {#if propiedad.estatus !== 'Vendida'}
+                          <form method="POST" action="?/marcarVendida" use:enhance class="inline-block m-0 p-0">
+                            <input type="hidden" name="id" value={propiedad.id}>
+                            <button type="button" class="p-2 text-emerald-600 hover:text-white hover:bg-emerald-500 rounded-lg transition-colors bg-emerald-50 border border-emerald-100 shadow-sm mr-1" onclick={(e) => { if(confirm('¡Felicidades! ¿Marcar esta propiedad como VENDIDA? Se ocultará automáticamente en 3 días.')) e.target.closest('form').submit(); }} title="Marcar como Vendida">
+                              <Handshake class="w-4 h-4" />
+                            </button>
+                          </form>
+                        {/if}
+
                         <button onclick={() => descargarFicha(propiedad)} disabled={generandoPDF} class="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50" title="Descargar PDF">
                           <DownloadCloud class="w-4 h-4 {generandoPDF ? 'animate-pulse' : ''}" />
                         </button>
