@@ -63,15 +63,19 @@
     return { total, nuevosSemana };
   });
 
-  // LÓGICA EVOLUCIONADA: Obtener lista exacta de leads sin seguimiento
+  // FIX LÓGICO: Usar actualizado_en para reiniciar el reloj con cada nota/cambio
   let leadsSinSeguimiento = $derived.by(() => {
     const abandonados = leads.filter(l => {
       if (['cerrado', 'descartado'].includes(l.estado)) return false;
-      const dias = Math.floor((new Date() - new Date(l.creado_en)) / (1000 * 60 * 60 * 24));
+      const ultimaActividad = l.actualizado_en ? new Date(l.actualizado_en) : new Date(l.creado_en);
+      const dias = Math.floor((new Date() - ultimaActividad) / (1000 * 60 * 60 * 24));
       return dias >= 3;
     });
-    // Ordenamos para ver primero los más viejos (los más urgentes)
-    return abandonados.sort((a, b) => new Date(a.creado_en) - new Date(b.creado_en));
+    return abandonados.sort((a, b) => {
+      const fechaA = a.actualizado_en ? new Date(a.actualizado_en) : new Date(a.creado_en);
+      const fechaB = b.actualizado_en ? new Date(b.actualizado_en) : new Date(b.creado_en);
+      return fechaA - fechaB; // Los más antiguos arriba
+    });
   });
 
   let tasaConversion = $derived.by(() => {
@@ -229,7 +233,6 @@
   function descargarCSV() {
     if (clientesInteligentes.length === 0) return alert("No hay prospectos para exportar.");
 
-    // CSV Mejorado con las columnas solicitadas
     const cabeceras = ['Nombre del Prospecto', 'Teléfono', 'Correo', 'Estado', 'Fuente', 'Propiedad Original', 'Objetivo (MXN)', 'Opciones de Match'];
     
     const filas = clientesInteligentes.map(l => {
@@ -291,7 +294,6 @@
           {/if}
         </button>
         
-        <!-- Botón restaurado a su texto original -->
         <button onclick={descargarCSV} class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20 active:scale-95 whitespace-nowrap shrink-0">
           <Download class="w-4 h-4" /> Exportar Leads
         </button>
@@ -334,14 +336,24 @@
             <p class="text-2xl font-black text-slate-900 tracking-tighter mb-1.5">{leadsSinSeguimiento.length}</p>
           </div>
           
-          <!-- LÓGICA DE NOMBRES INTEGRADA -->
+          <!-- LÓGICA DE HOVER PARA NOMBRES -->
           {#if leadsSinSeguimiento.length > 0}
-            <div class="text-[10px] font-bold text-rose-500 flex items-center gap-1.5 leading-tight bg-rose-50 px-2 py-1 rounded-md">
-              <AlertCircle class="w-3.5 h-3.5 shrink-0"/> 
-              <span class="truncate">
-                {leadsSinSeguimiento[0].nombre.split(' ')[0]} 
-                {leadsSinSeguimiento.length > 1 ? `y ${leadsSinSeguimiento.length - 1} más` : ''}
+            <div class="relative group cursor-help">
+              <span class="text-[10px] font-bold text-rose-500 flex items-center gap-1 inline-flex bg-rose-50 px-2 py-0.5 rounded border border-rose-100 transition-colors group-hover:bg-rose-100">
+                <AlertCircle class="w-3 h-3"/> Requieren acción
               </span>
+              
+              <!-- TOOLTIP CON LISTA DE NOMBRES -->
+              <div class="absolute top-full left-0 mt-2 w-52 bg-zinc-900 border border-zinc-800 shadow-xl rounded-xl p-2.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                <p class="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-2 border-b border-zinc-800 pb-1.5">Leads en Riesgo</p>
+                <ul class="max-h-32 overflow-y-auto space-y-1.5 pr-1">
+                  {#each leadsSinSeguimiento as leadObj}
+                    <li class="text-[10px] font-medium text-white truncate flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span> {leadObj.nombre}
+                    </li>
+                  {/each}
+                </ul>
+              </div>
             </div>
           {:else}
             <p class="text-[10px] font-bold text-emerald-600 flex items-center gap-1"><Clock class="w-3 h-3"/> Al día</p>
@@ -367,7 +379,7 @@
         </div>
       </div>
 
-      <!-- LISTADO DE CLIENTES (EQUILIBRIO VISUAL V4: "Más Aire") -->
+      <!-- LISTADO DE CLIENTES -->
       <div class="space-y-3">
         {#each clientesInteligentes as cliente}
           {@const estiloEstado = getEstadoStyle(cliente.estado)}
@@ -376,12 +388,10 @@
             
             <!-- Columna Izquierda (Info CRM) -->
             <div class="flex-1 p-3.5 lg:px-5 lg:py-4 border-b lg:border-b-0 lg:border-r border-slate-100 flex items-start gap-3.5">
-              <!-- Avatar más grande -->
               <div class="w-10 h-10 mt-1 rounded-full bg-slate-100 shrink-0 shadow-inner border border-slate-200 overflow-hidden hidden sm:block">
                 <img src="https://ui-avatars.com/api/?name={cliente.nombre || 'Lead'}&background=0f172a&color=fff&bold=true&size=100" alt="Avatar" class="w-full h-full object-cover">
               </div>
               
-              <!-- Info Principal -->
               <div class="flex-1 flex flex-col justify-center min-w-0">
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-baseline gap-2.5 truncate">
