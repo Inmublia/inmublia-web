@@ -1,3 +1,4 @@
+<!-- src/lib/templates/Clean.svelte -->
 <script>
   import { MapPin, Home } from 'lucide-svelte';
   import SocialLinks from '$lib/components/SocialLinks.svelte';
@@ -30,16 +31,34 @@
     <div id="catalogo" class="max-w-[1400px] mx-auto px-8 py-20">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-16">
         {#each propiedades as propiedad}
-          <a href="/{propiedad.slug}" class="group block">
-            <div class="aspect-[4/3] bg-slate-100 overflow-hidden mb-6 rounded-2xl shadow-sm border border-slate-200/60 group-hover:shadow-xl group-hover:border-slate-300 transition-all duration-500">
-              <img src={propiedad.imagen_url} alt={propiedad.titulo} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out">
+          <a href="/{propiedad.slug}" class="group block {propiedad.estatus === 'Vendida' ? 'opacity-90' : ''}">
+            
+            <!-- 🚀 Se añadió 'relative' al contenedor para que el sello quede confinado aquí -->
+            <div class="relative aspect-[4/3] bg-slate-100 overflow-hidden mb-6 rounded-2xl shadow-sm border border-slate-200/60 group-hover:shadow-xl group-hover:border-slate-300 transition-all duration-500">
+              
+              <!-- 🚀 SELLO DE FOMO (Oculto a clics con pointer-events-none) -->
+              {#if propiedad.estatus === 'Vendida'}
+                <div class="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-20 flex items-center justify-center pointer-events-none">
+                  <img src="/sello-vendido.png" alt="Vendido" class="w-[120%] h-auto object-contain opacity-90 -rotate-12 drop-shadow-md scale-110" />
+                </div>
+              {/if}
+
+              <!-- 🚀 Escala de grises inyectada si está Vendida -->
+              <img src={propiedad.imagen_url} alt={propiedad.titulo} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out {propiedad.estatus === 'Vendida' ? 'grayscale-[50%]' : ''}">
             </div>
+            
             <div class="flex justify-between items-start">
               <div class="pr-6">
-                <h3 class="text-lg font-black tracking-tight mb-2 group-hover:text-indigo-600 transition-colors line-clamp-1">{propiedad.titulo}</h3>
+                <!-- 🚀 Tachado inyectado en el título -->
+                <h3 class="text-lg font-black tracking-tight mb-2 group-hover:text-indigo-600 transition-colors line-clamp-1 {propiedad.estatus === 'Vendida' ? 'text-slate-500 line-through decoration-slate-300' : 'text-slate-900'}">
+                  {propiedad.titulo}
+                </h3>
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><MapPin class="w-3 h-3" /> {propiedad.ubicacion}</p>
               </div>
-              <p class="text-xl font-black text-slate-900">{formatearDinero(propiedad.precio)}</p>
+              <!-- 🚀 Precio en grisáceo -->
+              <p class="text-xl font-black {propiedad.estatus === 'Vendida' ? 'text-slate-500' : 'text-slate-900'}">
+                {formatearDinero(propiedad.precio)}
+              </p>
             </div>
           </a>
         {/each}
