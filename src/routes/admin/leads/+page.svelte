@@ -221,27 +221,33 @@
     formData.append('is_recordatorio', esRecordatorio);
     if (esRecordatorio) formData.append('fecha_recordatorio', fechaFinalFormateada);
     
-    // 🚀 FIX LOCAL: Actualización Optimista instantánea en el Frontend
+    // Inserción visual instantánea (Optimistic UI)
     const nowISO = new Date().toISOString();
     const nuevaNotaObj = { id: 'temp-' + Date.now(), contenido: notaTemp, tipo: esRecordatorio ? 'recordatorio' : 'nota', fecha_recordatorio: fechaFinalFormateada, completado: false, creado_en: nowISO };
     
     selectedLead.lead_notas = [nuevaNotaObj, ...selectedLead.lead_notas];
     selectedLead.actualizado_en = nowISO; 
 
-    // Actualizamos el arreglo global para que Svelte re-calcule los KPIs al instante
     leads = leads.map(l => l.id === selectedLead.id ? { ...l, actualizado_en: nowISO, estado: (l.estado === 'nuevo' ? 'contactado' : l.estado) } : l);
     
     if (selectedLead.estado === 'nuevo') selectedLead.estado = 'contactado';
 
     return async ({ result, update }) => {
       guardandoNota = false;
+      
+      // 🚀 CAPTURA DEL ERROR DE BASE DE DATOS
       if (result.type === 'success') {
         nuevaNotaTexto = ''; esRecordatorio = false; fechaRecordatorio = ''; horaRecordatorio = '';
         await update(); 
         const leadAct = data.leads.find(l => l.id === selectedLead.id);
         if (leadAct) selectedLead = { ...leadAct, lead_notas: [...leadAct.lead_notas] };
       } else {
-        alert('Error al guardar nota.');
+        // Escupe el error exacto que devolvió +page.server.js
+        const errorDB = result.data?.error || "Error Desconocido al comunicarse con el servidor.";
+        alert(`Falla detectada: ${errorDB}`);
+        
+        // Opcional: Revertimos la UI si falló
+        await invalidateAll();
       }
     };
   }
@@ -290,10 +296,9 @@
     </div>
   </header>
 
-  <!-- 🚀 TABLERO KANBAN PANORÁMICO (Con controles de navegación) -->
+  <!-- TABLERO KANBAN PANORÁMICO -->
   <div class="relative flex-1 flex overflow-hidden group">
     
-    <!-- Botones flotantes laterales -->
     <button onclick={() => scrollBoard(-1)} class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-indigo-50 border border-slate-200 shadow-xl w-10 h-10 rounded-full items-center justify-center text-slate-600 hover:text-indigo-600 transition-all backdrop-blur-sm cursor-pointer opacity-0 group-hover:opacity-100" aria-label="Desplazar Izquierda">
       <ChevronLeft class="w-6 h-6" />
     </button>
@@ -302,7 +307,6 @@
       <ChevronRight class="w-6 h-6" />
     </button>
 
-    <!-- Contenedor con Scroll Visible -->
     <div class="flex-1 overflow-x-auto kanban-board p-4 md:p-6" bind:this={boardContainer}>
       <div class="flex gap-3 md:gap-4 items-start h-full pb-6 min-w-max lg:min-w-full">
         
@@ -559,7 +563,6 @@
 </main>
 
 <style>
-  /* 🚀 Scrollbar Visible y Elegante */
   .kanban-board::-webkit-scrollbar { height: 10px; }
   .kanban-board::-webkit-scrollbar-track { background: transparent; }
   .kanban-board::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid #F8FAFC; }
