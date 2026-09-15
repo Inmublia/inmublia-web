@@ -68,16 +68,14 @@ export const actions = {
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
     const systemPrompt = `<role>Eres un Copywriter Inmobiliario en México.</role>
-
 <rules>
-1. IDIOMA: 100% Español de México. PROHIBIDO usar palabras en inglés (nada de "luxury", "living", etc).
-2. FORMATO: Jamás juntes texto con números (Ejemplo erróneo: "ZapopanPrecio").
+1. IDIOMA: 100% Español de México.
+2. FORMATO: Jamás juntes texto con números.
 3. TONO: ${instruccionTono}
-4. SALIDA: Debes generar EXCLUSIVAMENTE un objeto JSON válido, sin Markdown, sin saludos, sin explicaciones.
+4. SALIDA: Debes generar EXCLUSIVAMENTE un objeto JSON válido. SIN MARKDOWN. SIN SALUDOS.
 </rules>`;
 
     const userPrompt = `Genera la campaña para esta propiedad en formato JSON estricto:
-
 <data>
 Operación: ${operacion}
 Tipo: ${tipo}
@@ -96,81 +94,68 @@ Antigüedad: ${antiguedad}
   "descripcion": "[3 párrafos separados por \\n\\n. Párrafo 1: Intro. Párrafo 2: Características. Párrafo 3: Cierre.]",
   "whatsapp": "[Mensaje para WhatsApp con 3 emojis]"
 }
-</json_format>`; // Ya no forzamos el `{` al final para evitar JSON corrupto
-
-    const modelosActivos = [
-      '@cf/meta/llama-3.3-70b-instruct-fp8-fast',      
-      '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b', 
-      '@cf/meta/llama-3.2-3b-instruct'                
-    ];
-
-    let rawResponse = null;
-    let modeloExitoso = '';
-    let erroresLog = [];
-
-    for (const modelo of modelosActivos) {
-      try {
-        const response = await platform.env.AI.run(modelo, {
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          max_tokens: 800,
-          temperature: 0.25, 
-          top_p: 0.85      
-        });
-        
-        rawResponse = response.response;
-        
-        if (rawResponse) {
-          modeloExitoso = modelo;
-          break; 
-        }
-      } catch (e) {
-        erroresLog.push(`[${modelo}]: ${e.message}`);
-      }
-    }
-
-    if (!rawResponse) {
-      return fail(500, { error: `Todos los motores caídos. Detalles: ${erroresLog.join(' | ')}` });
-    }
-
-    let parsedContent = {};
-    let cleanText = String(rawResponse).trim();
-
-    // 🚀 BLINDAJE JSON: Extractor Regex Indestructible (Septiembre 2026)
-    // Busca el primer bloque que empiece con { y termine con }
-    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
-      console.error("🔥 Falla Extracción Regex en", modeloExitoso, ":", cleanText);
-      return fail(500, { error: `El motor ${modeloExitoso} no devolvió un formato JSON válido.` });
-    }
-
-    // Extraemos solo la porción que hace match (El JSON puro)
-    let jsonString = jsonMatch[0];
-
-    // Limpieza de caracteres de control que rompen JSON.parse()
-    jsonString = jsonString.replace(/\n/g, '\\n').replace(/\r/g, '');
-    jsonString = jsonString.replace(/[\u0000-\u0009\u000B-\u001F]+/g, ' ');
+</json_format>`;
 
     try {
-      parsedContent = JSON.parse(jsonString);
-    } catch (err) {
-      console.error("🔥 Error JSON.parse en", modeloExitoso, ":", jsonString);
-      return fail(500, { error: `Error de Sintaxis JSON (${modeloExitoso}): ${err.message}` });
+      // 🚀 BLINDAJE 1: Usar el modelo más rápido de Cloudflare para evitar Timeouts
+      const modeloExitoso = '@cf/meta/llama-3.1-8b-instruct';
+      
+      // 🚀 BLINDAJE 2: Petición pura, sin parámetros que causan drop silencioso en Cloudflare AI
+      const response = await platform.env.AI.run(modeloExitoso, {
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      });
+
+      if (!response || !response.response) {
+        throw new Error("El modelo de IA devolvió una respuesta vacía o Cloudflare cortó la conexión.");
+      }
+
+      let rawResponse = String(response.response).trim();
+      
+      // 🚀 BLINDAJE 3: Destruir el código Markdown que Llama siempre intenta inyectar
+      rawResponse = rawResponse.replace(/^```json/i, '').replace(/^```/i, '').replace(/```$/i, '').trim();
+
+      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("La IA no devolvió la estructura JSON requerida.");
+      }
+
+      let jsonString = jsonMatch[0];
+      
+      // Escapamos los saltos de línea para que JSON.parse no explote
+      jsonString = jsonString.replace(/\n/g, '\\n').replace(/\r/g, '');
+      // Borramos caracteres nulos que a veces retornan los LLM
+      jsonString = jsonString.replace(/[\u0000-\u0009\u000B-\u001F]+/g, ' ');
+
+      const parsedContent = JSON.parse(jsonString);
+
+      // Descontamos crédito si y solo si todo fue exitoso
+      await locals.supabase
+        .from('brokers')
+        .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
+        .eq('id', broker.id);
+
+      return {
+        titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad en Venta',
+        descripcion: parsedContent.descripcion || parsedContent.Descripcion || 'Contacta al broker para más detalles.',
+        whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto los detalles de esta propiedad...'
+      };
+
+    } catch (error) {
+      console.error("🔥 FALLO IA CAPTURADO:", error);
+      
+      // 🚀 BLINDAJE 4: LA CURA AL "SPINNER INFINITO"
+      // Si devolvemos fail(), el frontend buggy se queda girando. 
+      // Al devolver estos strings como un éxito falso, desbloqueamos el botón INMEDIATAMENTE
+      // y el usuario recibe el aviso directo en pantalla sin perder sus datos.
+      return {
+        titulo: '⚠️ Error de Conexión IA',
+        descripcion: `El servidor de Inteligencia Artificial de Cloudflare superó el tiempo de espera o está saturado.\n\nDetalle técnico para soporte: ${error.message}\n\nPor favor, intenta presionar el botón nuevamente. No se te han descontado créditos.`,
+        whatsapp: 'Intenta nuevamente más tarde.'
+      };
     }
-
-    await locals.supabase
-      .from('brokers')
-      .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
-      .eq('id', broker.id);
-
-    return {
-      titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad en Venta',
-      descripcion: parsedContent.descripcion || parsedContent.Descripcion || 'Contacta al broker para más detalles.',
-      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto los detalles de esta propiedad...'
-    };
   },
 
   crear: async ({ request, locals, platform }) => {
