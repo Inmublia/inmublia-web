@@ -4,7 +4,7 @@
     Users, Target, Sparkles, MessageSquareQuote, 
     Search, MapPin, BadgeDollarSign, ArrowRight, Zap,
     Download, Activity, BarChart3, Clock, Building,
-    Mail, EyeOff, Eye
+    Mail, EyeOff, Eye, AlertCircle
   } from 'lucide-svelte';
   
   let { data } = $props();
@@ -13,7 +13,7 @@
   let propiedades = $derived(data.propiedades || []);
 
   let searchQuery = $state('');
-  let mostrarDescartados = $state(false); // NUEVO: Estado para el Toggle
+  let mostrarDescartados = $state(false); 
 
   // -------------------------------------------------------------
   // LÓGICA DE KPIS (TARJETAS SUPERIORES)
@@ -63,12 +63,16 @@
     return { total, nuevosSemana };
   });
 
-  let sinSeguimiento = $derived(leads.filter(l => {
-    // PROTECCIÓN EXISTENTE: Los cerrados y descartados no cuentan como "abandono"
-    if (['cerrado', 'descartado'].includes(l.estado)) return false;
-    const dias = Math.floor((new Date() - new Date(l.creado_en)) / (1000 * 60 * 60 * 24));
-    return dias >= 3;
-  }).length);
+  // LÓGICA EVOLUCIONADA: Obtener lista exacta de leads sin seguimiento
+  let leadsSinSeguimiento = $derived.by(() => {
+    const abandonados = leads.filter(l => {
+      if (['cerrado', 'descartado'].includes(l.estado)) return false;
+      const dias = Math.floor((new Date() - new Date(l.creado_en)) / (1000 * 60 * 60 * 24));
+      return dias >= 3;
+    });
+    // Ordenamos para ver primero los más viejos (los más urgentes)
+    return abandonados.sort((a, b) => new Date(a.creado_en) - new Date(b.creado_en));
+  });
 
   let tasaConversion = $derived.by(() => {
     const total = leads.length;
@@ -112,7 +116,6 @@
 
       if (l.propiedades) {
         if (!mapa[l.correo].interesesHistorial.find(i => i.id === l.propiedades.id)) {
-          // Buscamos la propiedad en el inventario para asegurar tener su imagen_url
           const propFull = propiedades.find(p => p.id === l.propiedades.id) || l.propiedades;
           mapa[l.correo].interesesHistorial.push(propFull);
         }
@@ -174,7 +177,6 @@
       }
       return cliente;
     })
-    // 🚀 LÓGICA V3: Filtrado de Búsqueda y Toggle de Descartados
     .filter(c => mostrarDescartados || c.estado !== 'descartado')
     .filter(c => c.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) || c.correo?.toLowerCase().includes(searchQuery.toLowerCase()) || c.telefono?.includes(searchQuery))
     .sort((a, b) => new Date(b.fecha_contacto) - new Date(a.fecha_contacto)); 
@@ -227,16 +229,22 @@
   function descargarCSV() {
     if (clientesInteligentes.length === 0) return alert("No hay prospectos para exportar.");
 
-    const cabeceras = ['Nombre del Prospecto', 'Teléfono', 'Correo', 'Estado', 'Fuente', 'Opciones de Match'];
+    // CSV Mejorado con las columnas solicitadas
+    const cabeceras = ['Nombre del Prospecto', 'Teléfono', 'Correo', 'Estado', 'Fuente', 'Propiedad Original', 'Objetivo (MXN)', 'Opciones de Match'];
     
-    const filas = clientesInteligentes.map(l => [
-      `"${(l.nombre || '').replace(/"/g, '""')}"`,
-      `"${l.telefono || ''}"`,
-      `"${l.correo || ''}"`,
-      `"${l.estado || ''}"`,
-      `"${l.fuente || ''}"`,
-      l.matches.length
-    ]);
+    const filas = clientesInteligentes.map(l => {
+      const propOriginal = l.interesesHistorial.length > 0 ? l.interesesHistorial[0].titulo : 'Ninguna registrada';
+      return [
+        `"${(l.nombre || '').replace(/"/g, '""')}"`,
+        `"${l.telefono || ''}"`,
+        `"${l.correo || ''}"`,
+        `"${l.estado || ''}"`,
+        `"${l.fuente || ''}"`,
+        `"${propOriginal.replace(/"/g, '""')}"`,
+        l.presupuestoInferido || 0,
+        l.matches.length
+      ];
+    });
 
     const contenidoCSV = [cabeceras.join(','), ...filas.map(f => f.join(','))].join('\n');
     const blob = new Blob(["\uFEFF" + contenidoCSV], { type: 'text/csv;charset=utf-8;' }); 
@@ -266,13 +274,11 @@
       </div>
       
       <div class="flex items-center gap-3 w-full md:w-auto">
-        <!-- Barra de Búsqueda -->
         <div class="relative flex-1 md:w-64">
           <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
           <input type="text" bind:value={searchQuery} placeholder="Buscar lead..." class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all shadow-inner backdrop-blur-md">
         </div>
 
-        <!-- Toggle de Descartados -->
         <button 
           onclick={() => mostrarDescartados = !mostrarDescartados}
           class="flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all text-xs font-bold shrink-0 {mostrarDescartados ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20' : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800'}"
@@ -285,8 +291,9 @@
           {/if}
         </button>
         
+        <!-- Botón restaurado a su texto original -->
         <button onclick={descargarCSV} class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20 active:scale-95 whitespace-nowrap shrink-0">
-          <Download class="w-4 h-4" /> CSV
+          <Download class="w-4 h-4" /> Exportar Leads
         </button>
       </div>
     </div>
@@ -324,12 +331,20 @@
         <div class="bg-white p-4 rounded-2xl shadow-sm border-t-4 border-amber-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
           <div>
             <p class="text-[11px] font-bold text-slate-500 mb-1">Sin seguimiento +3d</p>
-            <p class="text-2xl font-black text-slate-900 tracking-tighter mb-1.5">{sinSeguimiento}</p>
+            <p class="text-2xl font-black text-slate-900 tracking-tighter mb-1.5">{leadsSinSeguimiento.length}</p>
           </div>
-          {#if sinSeguimiento > 0}
-            <p class="text-[10px] font-bold text-rose-500 flex items-center gap-1"><Clock class="w-3 h-3"/> Requieren acción</p>
+          
+          <!-- LÓGICA DE NOMBRES INTEGRADA -->
+          {#if leadsSinSeguimiento.length > 0}
+            <div class="text-[10px] font-bold text-rose-500 flex items-center gap-1.5 leading-tight bg-rose-50 px-2 py-1 rounded-md">
+              <AlertCircle class="w-3.5 h-3.5 shrink-0"/> 
+              <span class="truncate">
+                {leadsSinSeguimiento[0].nombre.split(' ')[0]} 
+                {leadsSinSeguimiento.length > 1 ? `y ${leadsSinSeguimiento.length - 1} más` : ''}
+              </span>
+            </div>
           {:else}
-            <p class="text-[10px] font-bold text-emerald-600">Al día</p>
+            <p class="text-[10px] font-bold text-emerald-600 flex items-center gap-1"><Clock class="w-3 h-3"/> Al día</p>
           {/if}
         </div>
 
@@ -352,79 +367,74 @@
         </div>
       </div>
 
-      <!-- LISTADO DE CLIENTES (ULTRA COMPACTO V3) -->
-      <div class="space-y-2">
+      <!-- LISTADO DE CLIENTES (EQUILIBRIO VISUAL V4: "Más Aire") -->
+      <div class="space-y-3">
         {#each clientesInteligentes as cliente}
           {@const estiloEstado = getEstadoStyle(cliente.estado)}
           
           <div class="bg-white rounded-xl shadow-[0_2px_8px_rgb(0,0,0,0.02)] border {cliente.estado === 'descartado' ? 'border-slate-100 opacity-60' : 'border-slate-200'} overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-[0_4px_15px_rgb(0,0,0,0.05)] hover:border-slate-300 hover:opacity-100">
             
             <!-- Columna Izquierda (Info CRM) -->
-            <div class="flex-1 p-2.5 border-b lg:border-b-0 lg:border-r border-slate-100 flex items-start gap-2.5">
-              <!-- Avatar -->
-              <div class="w-9 h-9 mt-0.5 rounded-full bg-slate-100 shrink-0 shadow-inner border border-slate-200 overflow-hidden hidden sm:block">
+            <div class="flex-1 p-3.5 lg:px-5 lg:py-4 border-b lg:border-b-0 lg:border-r border-slate-100 flex items-start gap-3.5">
+              <!-- Avatar más grande -->
+              <div class="w-10 h-10 mt-1 rounded-full bg-slate-100 shrink-0 shadow-inner border border-slate-200 overflow-hidden hidden sm:block">
                 <img src="https://ui-avatars.com/api/?name={cliente.nombre || 'Lead'}&background=0f172a&color=fff&bold=true&size=100" alt="Avatar" class="w-full h-full object-cover">
               </div>
               
               <!-- Info Principal -->
               <div class="flex-1 flex flex-col justify-center min-w-0">
-                <div class="flex items-center justify-between mb-1">
-                  <!-- Header: Nombre + Contacto Compacto -->
-                  <div class="flex items-baseline gap-2 truncate">
-                    <h3 class="text-sm font-black text-slate-900 tracking-tight truncate">{cliente.nombre}</h3>
-                    <p class="text-[9px] font-medium text-slate-400 font-mono truncate hidden sm:block">{cliente.telefono} • {cliente.correo}</p>
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-baseline gap-2.5 truncate">
+                    <h3 class="text-[15px] font-black text-slate-900 tracking-tight truncate">{cliente.nombre}</h3>
+                    <p class="text-[10px] font-medium text-slate-400 font-mono truncate hidden sm:block">{cliente.telefono} • {cliente.correo}</p>
                   </div>
                   
-                  <!-- Acciones Directas -->
-                  <div class="flex items-center gap-1 shrink-0 ml-2">
+                  <div class="flex items-center gap-1.5 shrink-0 ml-2">
                     {#if cliente.correo}
-                      <a href="mailto:{cliente.correo}" title="Enviar Correo (No recomendado)" class="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-full transition-colors flex items-center justify-center">
-                        <Mail class="w-3.5 h-3.5" />
+                      <a href="mailto:{cliente.correo}" title="Enviar Correo (No recomendado)" class="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors flex items-center justify-center">
+                        <Mail class="w-4 h-4" />
                       </a>
                     {/if}
-                    <button onclick={() => enviarWhatsApp(cliente.telefono, cliente.nombre, null)} class="text-[#25D366] hover:bg-[#25D366]/10 p-1.5 rounded-full transition-colors flex items-center justify-center" title="WhatsApp Directo">
+                    <button onclick={() => enviarWhatsApp(cliente.telefono, cliente.nombre, null)} class="text-[#25D366] hover:bg-[#25D366]/10 p-2 rounded-full transition-colors flex items-center justify-center" title="WhatsApp Directo">
                       <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
                     </button>
                   </div>
                 </div>
 
-                <!-- Contacto en Móvil -->
-                <p class="text-[9px] font-medium text-slate-400 font-mono truncate sm:hidden mb-1.5">{cliente.telefono} • {cliente.correo}</p>
+                <p class="text-[10px] font-medium text-slate-400 font-mono truncate sm:hidden mb-2">{cliente.telefono} • {cliente.correo}</p>
                 
-                <!-- ROW: Tags de Estado y Metadatos -->
-                <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
-                  <span class="px-2 py-0.5 rounded-full text-[9px] font-bold border flex items-center gap-1 {estiloEstado.bg} {estiloEstado.text} {estiloEstado.border}">
+                <div class="flex flex-wrap items-center gap-2 mb-2.5">
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 {estiloEstado.bg} {estiloEstado.text} {estiloEstado.border}">
                     <span class="w-1.5 h-1.5 rounded-full {estiloEstado.dot}"></span>
                     <span class="capitalize">{cliente.estado}</span>
                   </span>
                   
-                  <span class="px-1.5 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[9px] font-bold text-slate-600 capitalize">
+                  <span class="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600 capitalize">
                     {cliente.fuente}
                   </span>
 
                   {#if cliente.perfil}
-                    <span class="text-[9px] font-bold text-slate-500 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-50 border border-slate-100 uppercase tracking-wider">
+                    <span class="text-[10px] font-bold text-slate-500 flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-50 border border-slate-100 uppercase tracking-wider">
                       {cliente.perfil.operacionDominante} • {cliente.perfil.tipoDominante}
                     </span>
                   {/if}
                   
-                  <span class="text-[9px] font-medium text-slate-500 flex items-center gap-1 ml-auto shrink-0 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">
-                    <Clock class="w-2.5 h-2.5 text-slate-400"/> {formatearFechaRelativa(cliente.fecha_contacto)}
+                  <span class="text-[10px] font-medium text-slate-500 flex items-center gap-1 ml-auto shrink-0 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
+                    <Clock class="w-3 h-3 text-slate-400"/> {formatearFechaRelativa(cliente.fecha_contacto)}
                   </span>
                 </div>
 
-                <!-- ROW: Propiedad Original del Interés (Con Foto) -->
                 {#if cliente.interesesHistorial.length > 0}
                   {@const propInteres = cliente.interesesHistorial[0]}
-                  <a href="/admin/editar/{propInteres.id}" target="_blank" title="Ver propiedad original" class="bg-slate-50 hover:bg-slate-100 border border-slate-100 hover:border-slate-200 rounded-md p-1.5 flex items-center gap-2 transition-colors">
+                  <a href="/admin/editar/{propInteres.id}" target="_blank" title="Ver propiedad original" class="bg-slate-50 hover:bg-slate-100 border border-slate-100 hover:border-slate-200 rounded-lg p-2 flex items-center gap-2.5 transition-colors">
                     {#if propInteres.imagen_url}
-                      <img src={propInteres.imagen_url} alt="Interés" class="w-6 h-6 rounded flex-shrink-0 object-cover border border-slate-200">
+                      <img src={propInteres.imagen_url} alt="Interés" class="w-7 h-7 rounded flex-shrink-0 object-cover border border-slate-200">
                     {:else}
-                      <Building class="w-3.5 h-3.5 text-slate-400 shrink-0 mx-1" />
+                      <Building class="w-4 h-4 text-slate-400 shrink-0 mx-1.5" />
                     {/if}
-                    <div class="flex-1 overflow-hidden flex items-center justify-between gap-2">
-                      <p class="text-[10px] font-bold text-slate-700 truncate">{propInteres.titulo}</p>
-                      <p class="text-[9px] font-black text-slate-600 shrink-0 bg-white px-1.5 py-0.5 rounded shadow-sm border border-slate-100">
+                    <div class="flex-1 overflow-hidden flex items-center justify-between gap-3">
+                      <p class="text-[11px] font-bold text-slate-700 truncate">{propInteres.titulo}</p>
+                      <p class="text-[10px] font-black text-slate-600 shrink-0 bg-white px-2 py-1 rounded-md shadow-sm border border-slate-100">
                         {formatter.format(propInteres.precio)}
                       </p>
                     </div>
@@ -434,31 +444,30 @@
             </div>
 
             <!-- COLUMNA MATCHMAKING V2 (DERECHA) -->
-            <div class="w-full lg:w-[230px] bg-slate-50/50 p-2.5 shrink-0 flex flex-col justify-center relative border-t lg:border-t-0 border-slate-100">
+            <div class="w-full lg:w-[250px] bg-slate-50/50 p-3 lg:p-4 shrink-0 flex flex-col justify-center relative border-t lg:border-t-0 border-slate-100">
               {#if cliente.matches.length > 0}
                 {@const bestMatch = cliente.matches[0]}
-                <div class="flex items-center justify-between mb-1.5 relative">
-                  <p class="text-[9px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1">
-                    <Sparkles class="w-3 h-3" /> Match 
+                <div class="flex items-center justify-between mb-2 relative">
+                  <p class="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1.5">
+                    <Sparkles class="w-3.5 h-3.5" /> Match 
                   </p>
                   
                   {#if cliente.matches.length > 1}
                     <div class="relative group">
-                      <span class="bg-indigo-100 text-indigo-800 text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm border border-indigo-200 cursor-help flex items-center">
+                      <span class="bg-indigo-100 text-indigo-800 text-[9px] font-black px-2 py-0.5 rounded shadow-sm border border-indigo-200 cursor-help flex items-center">
                         +{cliente.matches.length - 1} opciones
                       </span>
-                      <!-- TOOLTIP / HOVER CARD PARA OPCIONES EXTRA -->
-                      <div class="absolute right-0 top-full mt-2 w-60 bg-white border border-slate-200 shadow-xl rounded-xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                        <p class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 border-b border-slate-100 pb-1">Otras coincidencias</p>
-                        <div class="space-y-1.5 max-h-40 overflow-y-auto">
+                      <div class="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 shadow-xl rounded-xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-100 pb-1.5">Otras coincidencias</p>
+                        <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                           {#each cliente.matches.slice(1) as extraMatch}
-                            <a href="/admin/editar/{extraMatch.id}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 p-1.5 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
-                              <img src={extraMatch.imagen_url} alt="Match" class="w-8 h-8 rounded object-cover shrink-0 border border-slate-200">
+                            <a href="/admin/editar/{extraMatch.id}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 p-2 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
+                              <img src={extraMatch.imagen_url} alt="Match" class="w-9 h-9 rounded object-cover shrink-0 border border-slate-200">
                               <div class="flex-1 min-w-0">
-                                <p class="text-[9px] font-bold text-slate-900 truncate">{extraMatch.titulo}</p>
-                                <div class="flex items-center gap-2 mt-0.5">
-                                  <p class="text-[8px] font-black text-slate-500">{formatter.format(extraMatch.precio)}</p>
-                                  <span class="text-[7px] font-black text-emerald-600 bg-emerald-50 px-1 rounded border border-emerald-100">{extraMatch.matchScore}%</span>
+                                <p class="text-[10px] font-bold text-slate-900 truncate">{extraMatch.titulo}</p>
+                                <div class="flex items-center gap-2 mt-1">
+                                  <p class="text-[9px] font-black text-slate-500">{formatter.format(extraMatch.precio)}</p>
+                                  <span class="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">{extraMatch.matchScore}%</span>
                                 </div>
                               </div>
                             </a>
@@ -469,24 +478,24 @@
                   {/if}
                 </div>
 
-                <a href="/admin/editar/{bestMatch.id}" target="_blank" rel="noopener noreferrer" class="bg-white rounded-lg p-1.5 border border-indigo-100 shadow-sm mb-1.5 flex gap-2 items-center cursor-pointer hover:bg-indigo-50/50 transition-colors relative overflow-hidden">
-                  <div class="absolute top-0 right-0 bg-emerald-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded-bl shadow-sm z-10">
+                <a href="/admin/editar/{bestMatch.id}" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-2 border border-indigo-100 shadow-sm mb-2.5 flex gap-2.5 items-center cursor-pointer hover:bg-indigo-50/50 transition-colors relative overflow-hidden">
+                  <div class="absolute top-0 right-0 bg-emerald-500 text-white text-[8px] font-black px-2 py-0.5 rounded-bl shadow-sm z-10">
                     {bestMatch.matchScore}% 
                   </div>
-                  <img src={bestMatch.imagen_url} alt="Match" class="w-7 h-7 rounded object-cover">
+                  <img src={bestMatch.imagen_url} alt="Match" class="w-9 h-9 rounded object-cover border border-slate-100">
                   <div class="flex-1 truncate">
-                    <p class="text-[10px] font-bold text-slate-900 truncate pr-4">{bestMatch.titulo}</p>
-                    <p class="text-[9px] font-black text-slate-500 tracking-tight">{formatter.format(bestMatch.precio)}</p>
+                    <p class="text-[11px] font-bold text-slate-900 truncate pr-5">{bestMatch.titulo}</p>
+                    <p class="text-[10px] font-black text-slate-500 tracking-tight mt-0.5">{formatter.format(bestMatch.precio)}</p>
                   </div>
                 </a>
 
-                <button onclick={() => enviarWhatsApp(cliente.telefono, cliente.nombre, bestMatch)} class="w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-1.5 rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5 text-[10px] active:scale-95">
-                  Enviar Propiedad <ArrowRight class="w-3 h-3" />
+                <button onclick={() => enviarWhatsApp(cliente.telefono, cliente.nombre, bestMatch)} class="w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-2 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 text-[11px] active:scale-95">
+                  Enviar Propiedad <ArrowRight class="w-3.5 h-3.5" />
                 </button>
               {:else}
-                <div class="flex flex-col items-center justify-center text-center opacity-50 h-full py-1">
-                  <Search class="w-3.5 h-3.5 text-slate-400 mb-1" />
-                  <p class="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Sin Coincidencias</p>
+                <div class="flex flex-col items-center justify-center text-center opacity-50 h-full py-2">
+                  <Search class="w-4 h-4 text-slate-400 mb-1.5" />
+                  <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Sin Coincidencias</p>
                 </div>
               {/if}
             </div>
