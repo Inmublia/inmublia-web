@@ -67,16 +67,16 @@ export const actions = {
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
-    // 🚀 PROMPT BLINDADO: Obligamos a usar formato plano para que no haya saltos de línea ilegales en el JSON
-    const systemPrompt = `<role>Eres un Copywriter Inmobiliario en México.</role>
+    // 🚀 BLINDAJE 1: PROMPT INFALIBLE (Prohibimos el "Enter" que destruye JSON)
+    const systemPrompt = `<role>Eres un Copywriter Inmobiliario en México. Actúas como una API estricta.</role>
 <rules>
 1. IDIOMA: 100% Español de México.
-2. FORMATO JSON: Devuelve ÚNICAMENTE un JSON válido. No uses Markdown, no saludes.
-3. SALTOS DE LÍNEA: Usa los caracteres literales "\\n\\n" para separar los párrafos de la descripción. NUNCA des "Enter" (salto de línea real) dentro de un texto.
+2. SALIDA: OBLIGATORIO responder EXCLUSIVAMENTE con un objeto JSON válido. Cero texto antes o después. Sin formato Markdown.
+3. SALTOS DE LÍNEA PROHIBIDOS: Jamás uses saltos de línea reales (Enter) dentro del texto. Para separar párrafos en la descripción, usa EXACTAMENTE el texto literal <br><br>.
 4. TONO: ${instruccionTono}
 </rules>`;
 
-    const userPrompt = `Genera la campaña para esta propiedad en formato JSON estricto:
+    const userPrompt = `Genera la campaña para esta propiedad devolviendo SOLO la estructura JSON solicitada:
 <data>
 Operación: ${operacion}
 Tipo: ${tipo}
@@ -91,9 +91,9 @@ Antigüedad: ${antiguedad}
 
 <json_format>
 {
-  "titulo": "[Título magnético, max 8 palabras]",
-  "descripcion": "[Párrafo 1\\n\\nPárrafo 2\\n\\nPárrafo 3]",
-  "whatsapp": "[Mensaje para WhatsApp con 3 emojis]"
+  "titulo": "Escribe el título aquí",
+  "descripcion": "Párrafo 1<br><br>Párrafo 2<br><br>Párrafo 3",
+  "whatsapp": "Mensaje para WhatsApp aquí"
 }
 </json_format>`;
 
@@ -134,21 +134,37 @@ Antigüedad: ${antiguedad}
     }
 
     try {
-      // 🚀 EXTRACTOR QUIRÚRGICO DE JSON: IGNORA EL MARKDOWN SIN DESTRUIR EL STRING
-      const firstBrace = rawResponse.indexOf('{');
-      const lastBrace = rawResponse.lastIndexOf('}');
+      // 🚀 BLINDAJE 2: LIMPIEZA DE MARKDOWN
+      let cleanText = rawResponse.replace(/^```json/gi, '').replace(/^```/gi, '').replace(/```$/gi, '').trim();
 
-      if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-        throw new Error("No se detectó un objeto JSON entre llaves { }.");
+      // 🚀 BLINDAJE 3: AUTO-SANACIÓN DE LLAVES OMITIDAS
+      let firstBrace = cleanText.indexOf('{');
+      let lastBrace = cleanText.lastIndexOf('}');
+
+      // Si no detecta llaves, pero sí escribió las variables, lo envolvemos a la fuerza.
+      if (firstBrace === -1 && cleanText.includes('"titulo"')) {
+        cleanText = '{\n' + cleanText + '\n}';
+        firstBrace = 0;
+        lastBrace = cleanText.length - 1;
       }
 
-      // Cortamos exactamente desde la primera { hasta la última }
-      let jsonString = rawResponse.substring(firstBrace, lastBrace + 1);
+      if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+        throw new Error("Estructura irrecuperable.");
+      }
 
-      // Limpiamos SOLO caracteres de control nulos que sí rompen JSON (dejamos las estructuras intactas)
-      jsonString = jsonString.replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F]+/g, '');
+      // Extraemos puramente lo que está entre las llaves
+      let jsonString = cleanText.substring(firstBrace, lastBrace + 1);
+      
+      // 🚀 BLINDAJE 4: LA ASPIRADORA DE ENTERS
+      // Convertimos cualquier salto de línea "ilegal" en un espacio para que JSON.parse no muera
+      jsonString = jsonString.replace(/\n/g, ' ').replace(/\r/g, '');
 
+      // Parseo seguro
       const parsedContent = JSON.parse(jsonString);
+
+      // 🚀 BLINDAJE 5: RESTAURACIÓN DE PÁRRAFOS
+      // Convertimos los <br><br> (que sí sobrevivieron al parseo) en saltos de línea reales para las cajas de texto
+      let descripcionLimpia = (parsedContent.descripcion || 'Sin descripción').replace(/<br><br>/g, '\n\n');
 
       await locals.supabase
         .from('brokers')
@@ -157,18 +173,18 @@ Antigüedad: ${antiguedad}
 
       return {
         titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad en Venta',
-        descripcion: parsedContent.descripcion || parsedContent.Descripcion || 'Contacta al broker para más detalles.',
-        whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto los detalles de esta propiedad...'
+        descripcion: descripcionLimpia,
+        whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto los detalles...'
       };
 
     } catch (error) {
-      console.error("🔥 FALLO IA CAPTURADO. Respuesta Cruda:", rawResponse);
-      console.error("Detalle Error:", error);
+      console.error("🔥 FALLO IA CAPTURADO. Crudo:", rawResponse);
       
+      // El mensaje ahora imprime exactamente qué basura escupió el modelo
       return {
         titulo: '⚠️ Error de Formato IA',
-        descripcion: `La IA generó una respuesta, pero con un formato que el sistema no pudo leer.\n\nDetalle técnico: ${error.message}\n\nPor favor, presiona el botón nuevamente. No se te han descontado créditos.`,
-        whatsapp: 'Intenta nuevamente.'
+        descripcion: `El modelo de IA alucinó y rompió el formato.\n\nDetalle técnico: ${error.message}\nRespuesta recibida: ${rawResponse.substring(0, 150)}...\n\nPresiona el botón nuevamente. No se te han descontado créditos.`,
+        whatsapp: 'Intenta de nuevo.'
       };
     }
   },
@@ -181,7 +197,7 @@ Antigüedad: ${antiguedad}
       return fail(500, { error: 'Falla Crítica: Cloudflare R2 (INMUBLIA_BUCKET) no está conectado.' });
     }
     
-    const CDN_DOMAIN = platform?.env?.CDN_URL || 'https://cdn.inmublia.com';
+    const CDN_DOMAIN = platform?.env?.CDN_URL || '[https://cdn.inmublia.com](https://cdn.inmublia.com)';
 
     const formData = await request.formData();
     
