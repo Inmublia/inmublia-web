@@ -5,6 +5,16 @@ import Stripe from 'stripe';
 import { crearAgenciaDesdeStripe } from '$lib/server/provisioning';
 import { createClient } from '@supabase/supabase-js';
 
+// DICCIONARIO DE PRECIOS EXACTO DE TU DISEÑO (src/routes/admin/planes/+page.svelte)
+const PLAN_MAPPING = {
+  'price_1UFgBoJHda98KYP8zVxz1V2h': 'basico', // Básico Mensual
+  'price_1UFgCSJHda98KYP8WAfuaRCU': 'basico', // Básico Anual
+  'price_1UFgDVJHda98KYP8Hvvb7jIU': 'pro',    // Pro Mensual
+  'price_1UF3y9JHda98KYP83uVDd0rF': 'pro',    // Pro Anual
+  'price_1UF3vVJHda98KYP8sEBcENHN': 'elite',  // Elite Mensual
+  'price_1UF3wrJHda98KYP82p3McSSj': 'elite'   // Elite Anual
+};
+
 export async function POST({ request, fetch }) {
   if (!privateEnv.STRIPE_SECRET_KEY || !privateEnv.STRIPE_WEBHOOK_SECRET) {
     return new Response(JSON.stringify({ error: 'Faltan llaves de entorno de Stripe en Cloudflare' }), { status: 500 });
@@ -124,7 +134,7 @@ export async function POST({ request, fetch }) {
   }
 
   // ============================================================================
-  // 2. UPGRADES Y DOWNGRADES (DESDE EL PORTAL DE STRIPE)
+  // 2. UPGRADES Y DOWNGRADES (DESDE EL PORTAL DE STRIPE O REACTIVACIÓN)
   // ============================================================================
   else if (stripeEvent.type === 'customer.subscription.updated') {
     const subscription = stripeEvent.data.object;
@@ -134,18 +144,12 @@ export async function POST({ request, fetch }) {
       const status = subscription.status; // 'active', 'past_due', etc.
       const priceId = subscription.items.data[0].price.id;
 
-      // FIX CRÍTICO: Recarga y ajuste de billetera de IA automático
-      let nuevoPlan = 'basico';
+      // FIX CRÍTICO: Recarga y ajuste de billetera de IA automático + Mapeo correcto de Planes
+      const nuevoPlan = PLAN_MAPPING[priceId] || 'basico';
       let nuevosCreditos = 15; // Créditos por defecto para Básico
 
-      if (priceId === 'price_1TfAJKJHda98KYP8coylMcTp') {
-        nuevoPlan = 'pro';
-        nuevosCreditos = 125;
-      }
-      if (priceId === 'price_1TfAJdJHda98KYP8KzZTwXDf') {
-        nuevoPlan = 'elite';
-        nuevosCreditos = 500;
-      }
+      if (nuevoPlan === 'pro') nuevosCreditos = 125;
+      if (nuevoPlan === 'elite') nuevosCreditos = 500;
 
       const { error: updateError } = await supabaseAdmin
         .from('brokers')
@@ -176,18 +180,28 @@ export async function POST({ request, fetch }) {
     try {
       const customerId = subscription.customer;
 
-      const { error: deleteError } = await supabaseAdmin
-        .from('brokers')
-        .update({ 
-          // SE ELIMINÓ: plan_suscripcion: 'basico' (El broker conserva su etiqueta de plan visualmente)
-          status_suscripcion: 'canceled', // Estandarizado al vocabulario de Stripe
-          ia_creditos_disponibles: 0      // FIX CRÍTICO: Billetera congelada a cero por morosidad
-        })
-        .eq('stripe_customer_id', customerId);
+      // PARCHE DE SEGURIDAD (RACE CONDITION): Evitamos cancelar la cuenta si el usuario solo hizo un Upgrade
+      const activeSubscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'active',
+      });
 
-      if (deleteError) throw new Error(`Fallo actualizando cuenta en BD: ${deleteError.message}`);
+      if (activeSubscriptions.data.length === 0) {
+        // Si la lista regresa vacía, la cancelación es real. Bloqueamos.
+        const { error: deleteError } = await supabaseAdmin
+          .from('brokers')
+          .update({ 
+            status_suscripcion: 'canceled', 
+            ia_creditos_disponibles: 0      // Billetera congelada a cero por morosidad/cancelación
+          })
+          .eq('stripe_customer_id', customerId);
 
-      console.log(`[Stripe Webhook]: Suscripción cancelada. Cliente: ${customerId} fue bloqueado y créditos vaciados.`);
+        if (deleteError) throw new Error(`Fallo actualizando cuenta en BD: ${deleteError.message}`);
+
+        console.log(`[Stripe Webhook]: Suscripción cancelada de raíz. Cliente: ${customerId} bloqueado.`);
+      } else {
+        console.log(`[Stripe Webhook]: Falsa alarma (Race Condition). El cliente ${customerId} tiene otra suscripción activa. No se canceló la cuenta.`);
+      }
 
     } catch (err) {
       console.error('🔥 [Webhook Severe Fault - Delete]:', err);
