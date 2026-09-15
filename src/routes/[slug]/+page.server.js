@@ -62,6 +62,18 @@ export async function load({ params, url }) {
     throw error(404, { message: 'La propiedad que buscas no está disponible o ha sido removida.' });
   }
 
+  // 🚀 REGLA DE 3 DÍAS: Si está vendida, calculamos el tiempo
+  if (propiedad.estatus === 'Vendida' && propiedad.fecha_vendida) {
+    const fechaVendida = new Date(propiedad.fecha_vendida);
+    const now = new Date();
+    const diasTranscurridos = (now - fechaVendida) / (1000 * 60 * 60 * 24);
+    
+    // Si ya pasaron las 72 horas, matamos el enlace
+    if (diasTranscurridos > 3) {
+      throw error(404, { message: 'Esta propiedad ha sido vendida y ya no se encuentra en el catálogo.' });
+    }
+  }
+
   const { data: broker, error: brokerError } = await supabase
     .from('brokers')
     .select('*')
@@ -79,7 +91,6 @@ export async function load({ params, url }) {
   const estatusBloqueados = ['cancelada', 'canceled', 'inactiva', 'past_due', 'unpaid'];
 
   if (estatusBloqueados.includes(status)) {
-    // Si la agencia no ha pagado, devolvemos un 404 para ocultar su inventario público
     throw error(404, { message: 'El catálogo inmobiliario de esta agencia no se encuentra disponible temporalmente.' });
   }
 
@@ -138,7 +149,6 @@ export const actions = {
     if (brokerError || !brokerDestino?.auth_user_id) {
       console.error(`Broker ID [${broker_id}] sin auth_user_id válido.`);
     } else {
-      // MODO PRODUCCIÓN: Envío silencioso y asíncrono
       if (platform?.context?.waitUntil) {
         platform.context.waitUntil(despacharWebhookN8n(supabaseAdmin, brokerDestino.auth_user_id, nuevoLead));
       } else {
@@ -150,7 +160,6 @@ export const actions = {
   }
 };
 
-// --- MOTOR EDGE DE WEBHOOKS (MODO PRODUCCIÓN SILENCIOSO) ---
 async function despacharWebhookN8n(supabaseAdmin, auth_user_id, lead) {
   if (!env.N8N_MASTER_WEBHOOK) {
     console.error("Variable N8N_MASTER_WEBHOOK vacía o no existe en Cloudflare.");
