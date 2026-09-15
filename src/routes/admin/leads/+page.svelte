@@ -1,10 +1,12 @@
+<!-- src/routes/admin/leads/+page.svelte -->
 <script>
   import { invalidateAll, goto } from '$app/navigation';
   import { enhance } from '$app/forms';
   import { page } from '$app/state'; 
   import { 
     Search, X, Phone, Mail, Home, Send, Trash2, Clock, UserCircle,
-    GripVertical, MessageSquareQuote, BellRing, CalendarClock, CheckCircle2, MessageSquare
+    GripVertical, MessageSquareQuote, BellRing, CalendarClock, CheckCircle2, MessageSquare,
+    ChevronLeft, ChevronRight // 🚀 Agregados para el scroll
   } from 'lucide-svelte';
   
   let { data } = $props();
@@ -35,6 +37,9 @@
   let leadPorCerrar = $state(null);
   let precioCierreFinal = $state('');
   let comisionCobrada = $state('');
+
+  // 🚀 REF para la barra de Scroll
+  let boardContainer = $state(null);
 
   let totalRecordatoriosPendientes = $derived(
     leads.filter(l => l.has_pending_reminder).length
@@ -73,6 +78,13 @@
     { id: 'cerrado', titulo: 'Cierres Exitosos', dot: 'bg-emerald-500', bgCol: 'bg-emerald-50/40', border: 'border-emerald-100', text: 'text-emerald-700' },
     { id: 'descartado', titulo: 'Perdidos', dot: 'bg-slate-400', bgCol: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-500' }
   ];
+
+  // 🚀 Función de desplazamiento automático
+  function scrollBoard(direction) {
+    if (boardContainer) {
+      boardContainer.scrollBy({ left: direction * 350, behavior: 'smooth' });
+    }
+  }
 
   function formatMoney(amount) {
     if(!amount) return '';
@@ -276,105 +288,110 @@
     </div>
   </header>
 
-  <!-- 🚀 TABLERO KANBAN PANORÁMICO (High-Density View) -->
-  <div class="flex-1 overflow-x-auto kanban-board p-4 md:p-6">
-    <!-- El min-w-max asegura que si la pantalla es muy pequeña hagan scroll, pero si es grande ocuparán el flex-1 fluido -->
-    <div class="flex gap-3 md:gap-4 items-start h-full pb-6 min-w-max lg:min-w-full">
-      
-      {#each columnas as columna}
-        <!-- 🚀 COLUMNAS FLUIDAS: Usamos flex-1 y un min-w ajustado (240px) en vez del fijo de 350px -->
-        <div 
-          class="flex-1 min-w-[240px] w-[260px] lg:w-auto shrink-0 {columna.bgCol} border {columna.border} rounded-xl p-3 flex flex-col h-[calc(100vh-130px)] shadow-[0_2px_10px_rgba(0,0,0,0.02)]"
-          ondragover={permitirSoltar}
-          ondrop={(e) => soltar(e, columna.id)}
-        >
-          <!-- STICKY HEADER -->
-          <div class="flex items-center justify-between mb-3 sticky top-0 bg-transparent z-10 py-1">
-            <h2 class="text-[10px] font-black uppercase tracking-widest {columna.text} flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full {columna.dot} shadow-sm"></span>
-              {columna.titulo}
-            </h2>
-            <span class="text-[9px] font-black px-2 py-0.5 rounded-md bg-white/80 backdrop-blur-sm border {columna.border} {columna.text} shadow-sm">
-              {leadsFiltrados.filter(l => l.estado === columna.id).length}
-            </span>
-          </div>
+  <!-- 🚀 TABLERO KANBAN PANORÁMICO (Con controles de navegación) -->
+  <div class="relative flex-1 flex overflow-hidden group">
+    
+    <!-- Botones flotantes laterales -->
+    <button onclick={() => scrollBoard(-1)} class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-indigo-50 border border-slate-200 shadow-xl w-10 h-10 rounded-full items-center justify-center text-slate-600 hover:text-indigo-600 transition-all backdrop-blur-sm cursor-pointer opacity-0 group-hover:opacity-100" aria-label="Desplazar Izquierda">
+      <ChevronLeft class="w-6 h-6" />
+    </button>
 
-          <!-- ÁREA SCROLLABLE -->
-          <div class="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-2.5 pb-8">
-            {#each leadsFiltrados.filter(l => l.estado === columna.id) as lead (lead.id)}
-              
-              <!-- 🚀 TARJETA ULTRA-COMPACTA -->
-              <div 
-                draggable="true"
-                ondragstart={(e) => arrancar(e, lead.id)}
-                ondragend={terminar}
-                role="button"
-                tabindex="0"
-                onclick={() => abrirPanel(lead)}
-                onkeydown={(e) => { if (e.key === 'Enter') abrirPanel(lead); }}
-                class="bg-white p-3 rounded-lg border {lead.has_pending_reminder ? 'border-rose-300 ring-1 ring-rose-500' : 'border-slate-200'} cursor-grab shadow-sm hover:shadow hover:-translate-y-px hover:border-indigo-300 transition-all duration-200 group relative flex flex-col gap-2.5"
-              >
-                <!-- Info Cliente -->
-                <div class="flex items-start justify-between gap-2">
-                  <div class="flex items-center gap-2 min-w-0">
-                    <div class="relative shrink-0">
-                      <img src="https://ui-avatars.com/api/?name={lead.nombre}&background=f8fafc&color=0f172a" alt="Avatar" class="w-6 h-6 rounded-full border border-slate-100">
-                      {#if lead.has_pending_reminder}
-                        <div class="absolute -top-0.5 -right-0.5 bg-rose-500 rounded-full w-2 h-2 border border-white"></div>
+    <button onclick={() => scrollBoard(1)} class="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-indigo-50 border border-slate-200 shadow-xl w-10 h-10 rounded-full items-center justify-center text-slate-600 hover:text-indigo-600 transition-all backdrop-blur-sm cursor-pointer opacity-0 group-hover:opacity-100" aria-label="Desplazar Derecha">
+      <ChevronRight class="w-6 h-6" />
+    </button>
+
+    <!-- Contenedor con Scroll Visible -->
+    <div class="flex-1 overflow-x-auto kanban-board p-4 md:p-6" bind:this={boardContainer}>
+      <div class="flex gap-3 md:gap-4 items-start h-full pb-6 min-w-max lg:min-w-full">
+        
+        {#each columnas as columna}
+          <div 
+            class="flex-1 min-w-[240px] w-[260px] lg:w-auto shrink-0 {columna.bgCol} border {columna.border} rounded-xl p-3 flex flex-col h-[calc(100vh-130px)] shadow-[0_2px_10px_rgba(0,0,0,0.02)]"
+            ondragover={permitirSoltar}
+            ondrop={(e) => soltar(e, columna.id)}
+          >
+            <div class="flex items-center justify-between mb-3 sticky top-0 bg-transparent z-10 py-1">
+              <h2 class="text-[10px] font-black uppercase tracking-widest {columna.text} flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full {columna.dot} shadow-sm"></span>
+                {columna.titulo}
+              </h2>
+              <span class="text-[9px] font-black px-2 py-0.5 rounded-md bg-white/80 backdrop-blur-sm border {columna.border} {columna.text} shadow-sm">
+                {leadsFiltrados.filter(l => l.estado === columna.id).length}
+              </span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-2.5 pb-8">
+              {#each leadsFiltrados.filter(l => l.estado === columna.id) as lead (lead.id)}
+                
+                <div 
+                  draggable="true"
+                  ondragstart={(e) => arrancar(e, lead.id)}
+                  ondragend={terminar}
+                  role="button"
+                  tabindex="0"
+                  onclick={() => abrirPanel(lead)}
+                  onkeydown={(e) => { if (e.key === 'Enter') abrirPanel(lead); }}
+                  class="bg-white p-3 rounded-lg border {lead.has_pending_reminder ? 'border-rose-300 ring-1 ring-rose-500' : 'border-slate-200'} cursor-grab shadow-sm hover:shadow hover:-translate-y-px hover:border-indigo-300 transition-all duration-200 group relative flex flex-col gap-2.5"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <div class="relative shrink-0">
+                        <img src="https://ui-avatars.com/api/?name={lead.nombre}&background=f8fafc&color=0f172a" alt="Avatar" class="w-6 h-6 rounded-full border border-slate-100">
+                        {#if lead.has_pending_reminder}
+                          <div class="absolute -top-0.5 -right-0.5 bg-rose-500 rounded-full w-2 h-2 border border-white"></div>
+                        {/if}
+                      </div>
+                      <div class="min-w-0 flex flex-col">
+                        <h3 class="text-xs font-bold text-slate-900 leading-tight truncate">{lead.nombre}</h3>
+                        <p class="text-[9px] font-bold {getUrgencyStyle(lead.creado_en)} uppercase tracking-widest leading-none mt-0.5">{timeAgoLabel(lead.creado_en)}</p>
+                      </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      {#if lead.telefono}
+                        <a href="https://wa.me/{lead.telefono.replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" onclick={(e) => e.stopPropagation()} class="p-1 text-emerald-500 hover:text-emerald-600 transition-colors" title="WhatsApp">
+                          <MessageSquare class="w-3.5 h-3.5" />
+                        </a>
                       {/if}
                     </div>
-                    <div class="min-w-0 flex flex-col">
-                      <h3 class="text-xs font-bold text-slate-900 leading-tight truncate">{lead.nombre}</h3>
-                      <p class="text-[9px] font-bold {getUrgencyStyle(lead.creado_en)} uppercase tracking-widest leading-none mt-0.5">{timeAgoLabel(lead.creado_en)}</p>
-                    </div>
                   </div>
-                  
-                  <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    {#if lead.telefono}
-                      <a href="https://wa.me/{lead.telefono.replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" onclick={(e) => e.stopPropagation()} class="p-1 text-emerald-500 hover:text-emerald-600 transition-colors" title="WhatsApp">
-                        <MessageSquare class="w-3.5 h-3.5" />
-                      </a>
-                    {/if}
-                  </div>
-                </div>
 
-                <!-- Info Propiedad Miniaturizada -->
-                <div class="bg-slate-50 border border-slate-100 p-1.5 rounded-md flex items-center gap-2">
-                  <div class="w-7 h-7 rounded bg-slate-200 shrink-0 overflow-hidden border border-slate-300/50">
-                    {#if lead.propiedades?.imagen_url}
-                      <img src={lead.propiedades.imagen_url} alt="Prop" class="w-full h-full object-cover grayscale opacity-80 mix-blend-multiply">
-                    {:else}
-                      <div class="w-full h-full flex items-center justify-center text-slate-400"><Home class="w-3.5 h-3.5" /></div>
-                    {/if}
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <p class="text-[10px] font-bold text-slate-700 truncate leading-none mb-1" title={lead.propiedades?.titulo}>{lead.propiedades?.titulo || 'Inventario General'}</p>
-                    <div class="flex items-center justify-between">
-                      {#if lead.propiedades?.precio}
-                        <p class="text-[9px] font-black text-emerald-600 leading-none">{formatMoney(lead.propiedades.precio)}</p>
+                  <div class="bg-slate-50 border border-slate-100 p-1.5 rounded-md flex items-center gap-2">
+                    <div class="w-7 h-7 rounded bg-slate-200 shrink-0 overflow-hidden border border-slate-300/50">
+                      {#if lead.propiedades?.imagen_url}
+                        <img src={lead.propiedades.imagen_url} alt="Prop" class="w-full h-full object-cover grayscale opacity-80 mix-blend-multiply">
                       {:else}
-                        <span></span>
+                        <div class="w-full h-full flex items-center justify-center text-slate-400"><Home class="w-3.5 h-3.5" /></div>
                       {/if}
-                      <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{lead.origen || 'Directo'}</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-[10px] font-bold text-slate-700 truncate leading-none mb-1" title={lead.propiedades?.titulo}>{lead.propiedades?.titulo || 'Inventario General'}</p>
+                      <div class="flex items-center justify-between">
+                        {#if lead.propiedades?.precio}
+                          <p class="text-[9px] font-black text-emerald-600 leading-none">{formatMoney(lead.propiedades.precio)}</p>
+                        {:else}
+                          <span></span>
+                        {/if}
+                        <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{lead.origen || 'Directo'}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-            {/each}
+              {/each}
 
-            {#if leadsFiltrados.filter(l => l.estado === columna.id).length === 0}
-              <div class="flex-1 flex flex-col items-center justify-center border border-dashed {columna.border} rounded-lg bg-white/40 min-h-[80px]">
-                <p class="text-[9px] font-bold uppercase tracking-widest {columna.text} opacity-40 text-center">Soltar Aquí</p>
-              </div>
-            {/if}
+              {#if leadsFiltrados.filter(l => l.estado === columna.id).length === 0}
+                <div class="flex-1 flex flex-col items-center justify-center border border-dashed {columna.border} rounded-lg bg-white/40 min-h-[80px]">
+                  <p class="text-[9px] font-bold uppercase tracking-widest {columna.text} opacity-40 text-center">Soltar Aquí</p>
+                </div>
+              {/if}
+            </div>
           </div>
-        </div>
-      {/each}
+        {/each}
+      </div>
     </div>
   </div>
 
-  <!-- THE QUICK-PEEK DRAWER -->
   {#if isPanelOpen}
     <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm z-[105] transition-opacity" onclick={cerrarPanel} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') cerrarPanel(); }}></div>
   {/if}
@@ -497,7 +514,6 @@
     {/if}
   </div>
 
-  <!-- MODAL DE CIERRE -->
   {#if showModalCierre}
     <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-md overflow-hidden animate-[fadeIn_0.2s_ease-out]">
@@ -541,8 +557,12 @@
 </main>
 
 <style>
-  .kanban-board::-webkit-scrollbar { display: none; }
-  .kanban-board { -ms-overflow-style: none; scrollbar-width: none; cursor: grab; }
+  /* 🚀 Scrollbar Visible y Elegante (2026 Estándar) */
+  .kanban-board::-webkit-scrollbar { height: 10px; }
+  .kanban-board::-webkit-scrollbar-track { background: transparent; }
+  .kanban-board::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid #F8FAFC; }
+  .kanban-board::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  .kanban-board { cursor: grab; }
   .kanban-board:active { cursor: grabbing; }
 
   @keyframes fadeIn {
