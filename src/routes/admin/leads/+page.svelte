@@ -221,13 +221,17 @@
     formData.append('is_recordatorio', esRecordatorio);
     if (esRecordatorio) formData.append('fecha_recordatorio', fechaFinalFormateada);
     
-    const nuevaNotaObj = { id: 'temp-' + Date.now(), contenido: notaTemp, tipo: esRecordatorio ? 'recordatorio' : 'nota', fecha_recordatorio: fechaFinalFormateada, completado: false, creado_en: new Date().toISOString() };
-    selectedLead.lead_notas = [nuevaNotaObj, ...selectedLead.lead_notas];
+    // 🚀 FIX LOCAL: Actualización Optimista instantánea en el Frontend
+    const nowISO = new Date().toISOString();
+    const nuevaNotaObj = { id: 'temp-' + Date.now(), contenido: notaTemp, tipo: esRecordatorio ? 'recordatorio' : 'nota', fecha_recordatorio: fechaFinalFormateada, completado: false, creado_en: nowISO };
     
-    if (selectedLead.estado === 'nuevo') {
-      actualizarEstadoLocalYBD(selectedLead.id, 'contactado');
-      selectedLead.estado = 'contactado';
-    }
+    selectedLead.lead_notas = [nuevaNotaObj, ...selectedLead.lead_notas];
+    selectedLead.actualizado_en = nowISO; 
+
+    // Actualizamos el arreglo global para que Svelte re-calcule los KPIs al instante
+    leads = leads.map(l => l.id === selectedLead.id ? { ...l, actualizado_en: nowISO, estado: (l.estado === 'nuevo' ? 'contactado' : l.estado) } : l);
+    
+    if (selectedLead.estado === 'nuevo') selectedLead.estado = 'contactado';
 
     return async ({ result, update }) => {
       guardandoNota = false;
@@ -341,7 +345,7 @@
                       </div>
                       <div class="min-w-0 flex flex-col">
                         <h3 class="text-xs font-bold text-slate-900 leading-tight truncate">{lead.nombre}</h3>
-                        <p class="text-[9px] font-bold {getUrgencyStyle(lead.creado_en)} uppercase tracking-widest leading-none mt-0.5">{timeAgoLabel(lead.creado_en)}</p>
+                        <p class="text-[9px] font-bold {getUrgencyStyle(lead.actualizado_en || lead.creado_en)} uppercase tracking-widest leading-none mt-0.5">{timeAgoLabel(lead.actualizado_en || lead.creado_en)}</p>
                       </div>
                     </div>
                     
