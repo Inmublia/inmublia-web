@@ -1,8 +1,9 @@
 <!-- src/routes/admin/directorio/+page.svelte -->
 <script>
   import { 
-    Target, Sparkles, Search, ArrowRight, Zap,
-    Download, Clock
+    Users, Target, Sparkles, MessageSquareQuote, 
+    Search, MapPin, BadgeDollarSign, ArrowRight, Zap,
+    Download, Activity, BarChart3, Clock, Building
   } from 'lucide-svelte';
   
   let { data } = $props();
@@ -15,8 +16,6 @@
   // -------------------------------------------------------------
   // LÓGICA DE KPIS (TARJETAS SUPERIORES)
   // -------------------------------------------------------------
-
-  // 1. Leads este mes vs Mes anterior
   let metricasMes = $derived.by(() => {
     const ahora = new Date();
     const inicioEsteMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
@@ -35,7 +34,7 @@
     if (leadsMesPasado > 0) {
       crecimiento = ((leadsEsteMes - leadsMesPasado) / leadsMesPasado) * 100;
     } else if (leadsEsteMes > 0) {
-      crecimiento = 100; // Crecimiento si no había leads el mes pasado
+      crecimiento = 100; 
     }
 
     return {
@@ -45,7 +44,6 @@
     };
   });
 
-  // 2. Leads en Negociación (Nuevos esta semana)
   let leadsEnNegociacion = $derived.by(() => {
     const ahora = new Date();
     const haceUnaSemana = new Date(ahora.getTime() - (7 * 24 * 60 * 60 * 1000));
@@ -63,14 +61,12 @@
     return { total, nuevosSemana };
   });
 
-  // 3. Sin seguimiento (+3 días)
   let sinSeguimiento = $derived(leads.filter(l => {
     if (['cerrado', 'descartado'].includes(l.estado)) return false;
     const dias = Math.floor((new Date() - new Date(l.creado_en)) / (1000 * 60 * 60 * 24));
     return dias >= 3;
   }).length);
 
-  // 4. Tasa de conversión (Tasa de cierre histórica)
   let tasaConversion = $derived.by(() => {
     const total = leads.length;
     if (total === 0) return { actual: 0, delta: 0 };
@@ -84,7 +80,7 @@
 
 
   // -------------------------------------------------------------
-  // LÓGICA DE MATCHMAKING (BÓVEDA)
+  // LÓGICA DE MATCHMAKING & DIRECTORIO ENRIQUECIDO
   // -------------------------------------------------------------
   let clientesInteligentes = $derived.by(() => {
     let mapa = {};
@@ -95,12 +91,22 @@
           nombre: l.nombre,
           correo: l.correo,
           telefono: l.telefono,
+          estado: (l.estado || 'nuevo').toLowerCase(), // Agregado: Estado CRM
+          fuente: l.fuente || l.origen || 'Directo',   // Agregado: Portal de Origen
+          fecha_contacto: l.actualizado_en || l.creado_en || new Date().toISOString(), // Agregado: Último contacto
           interesesHistorial: [],
           presupuestoInferido: 0,
-          matches: [],
-          estado: l.estado // Guardamos estado para exportación
+          matches: []
         };
       }
+      // Actualizamos a la fecha más reciente si el lead tiene varios registros
+      const fechaLeadActual = new Date(l.actualizado_en || l.creado_en);
+      const fechaMapa = new Date(mapa[l.correo].fecha_contacto);
+      if (fechaLeadActual > fechaMapa) {
+        mapa[l.correo].fecha_contacto = fechaLeadActual.toISOString();
+        mapa[l.correo].estado = (l.estado || 'nuevo').toLowerCase();
+      }
+
       if (l.propiedades) {
         if (!mapa[l.correo].interesesHistorial.find(i => i.id === l.propiedades.id)) {
           mapa[l.correo].interesesHistorial.push(l.propiedades);
@@ -135,13 +141,37 @@
       return cliente;
     })
     .filter(c => c.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) || c.correo?.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => b.matches.length - a.matches.length);
+    .sort((a, b) => new Date(b.fecha_contacto) - new Date(a.fecha_contacto)); // Ordenar por más recientes
   });
 
-  // 5. KPI: Total de Matches (Cruces Exitosos)
   let totalMatches = $derived(clientesInteligentes.reduce((acc, c) => acc + c.matches.length, 0));
-
   const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+
+  // --- HELPERS UI DE CRM ---
+  function getEstadoStyle(estado) {
+    if (estado === 'nuevo') return { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' };
+    if (estado === 'contactado') return { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', dot: 'bg-purple-500' };
+    if (estado === 'visita' || estado === 'visita agendada') return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' };
+    if (estado === 'negociacion' || estado === 'negociación') return { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-500' };
+    if (estado === 'cerrado') return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' };
+    if (estado === 'descartado') return { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500' };
+    return { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-500' };
+  }
+
+  function formatearFechaRelativa(fechaIso) {
+    if (!fechaIso) return 'Sin fecha';
+    const fecha = new Date(fechaIso);
+    const hoy = new Date();
+    const diffMs = hoy - fecha;
+    const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    const horaStr = fecha.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+
+    if (diffDias === 0 && hoy.getDate() === fecha.getDate()) return `Hoy ${horaStr}`;
+    if (diffDias === 1 || (diffDias === 0 && hoy.getDate() !== fecha.getDate())) return `Ayer ${horaStr}`;
+    if (diffDias < 7) return `Hace ${diffDias} días`;
+    return fecha.toLocaleDateString('es-MX', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
 
   function enviarWhatsApp(telefono, cliente, propiedadMatch) {
     if (!telefono) {
@@ -159,18 +189,17 @@
     window.open(`https://wa.me/${telefono.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
   }
 
-  // -------------------------------------------------------------
-  // EXPORTACIÓN A CSV
-  // -------------------------------------------------------------
   function descargarCSV() {
     if (clientesInteligentes.length === 0) return alert("No hay prospectos para exportar.");
 
-    const cabeceras = ['Nombre del Prospecto', 'Teléfono', 'Correo', 'Target', 'Opciones de Match'];
+    const cabeceras = ['Nombre del Prospecto', 'Teléfono', 'Correo', 'Estado', 'Fuente', 'Target', 'Opciones de Match'];
     
     const filas = clientesInteligentes.map(l => [
       `"${(l.nombre || '').replace(/"/g, '""')}"`,
       `"${l.telefono || ''}"`,
       `"${l.correo || ''}"`,
+      `"${l.estado || ''}"`,
+      `"${l.fuente || ''}"`,
       l.presupuestoInferido || 0,
       l.matches.length
     ]);
@@ -202,7 +231,6 @@
         </p>
       </div>
       
-      <!-- CONTROLES SUPERIORES -->
       <div class="flex items-center gap-3 w-full md:w-auto">
         <div class="relative flex-1 md:w-64">
           <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
@@ -219,10 +247,8 @@
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-12">
       
-      <!-- 🚀 NUEVO GRID DE 5 KPIS VITALES -->
+      <!-- GRID DE 5 KPIS VITALES -->
       <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-        
-        <!-- 1. Leads este mes -->
         <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-blue-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
           <div>
             <p class="text-xs font-bold text-slate-500 mb-1">Leads este mes</p>
@@ -235,7 +261,6 @@
           {/if}
         </div>
 
-        <!-- 2. En negociación -->
         <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-emerald-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
           <div>
             <p class="text-xs font-bold text-slate-500 mb-1">En negociación</p>
@@ -248,7 +273,6 @@
           {/if}
         </div>
 
-        <!-- 3. Sin seguimiento -->
         <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-amber-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
           <div>
             <p class="text-xs font-bold text-slate-500 mb-1">Sin seguimiento +3d</p>
@@ -261,7 +285,6 @@
           {/if}
         </div>
 
-        <!-- 4. Tasa de conversión -->
         <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-indigo-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
           <div>
             <p class="text-xs font-bold text-slate-500 mb-1">Tasa de conversión</p>
@@ -270,7 +293,6 @@
           <p class="text-[10px] font-bold text-emerald-600">↑ Histórico global</p>
         </div>
 
-        <!-- 5. Cruces exitosos (Movido de la sección eliminada) -->
         <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-purple-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
           <div>
             <p class="text-xs font-bold text-slate-500 mb-1">Cruces exitosos</p>
@@ -280,27 +302,64 @@
             <Zap class="w-3 h-3 fill-current" /> Matches en bóveda
           </p>
         </div>
-
       </div>
 
-      <!-- LISTADO DE CLIENTES -->
+      <!-- LISTADO DE CLIENTES (CRM ENRIQUECIDO) -->
       <div class="space-y-4">
         {#each clientesInteligentes as cliente}
           <div class="bg-white rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-slate-200 overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-[0_4px_20px_rgb(0,0,0,0.06)] hover:border-slate-300">
             
-            <div class="flex-1 p-4 lg:p-5 border-b lg:border-b-0 lg:border-r border-slate-100 flex items-center gap-4">
-              <div class="w-12 h-12 rounded-full bg-slate-100 shrink-0 shadow-inner border border-slate-200 overflow-hidden hidden sm:block">
+            <div class="flex-1 p-4 lg:p-5 border-b lg:border-b-0 lg:border-r border-slate-100 flex items-start gap-4">
+              <!-- Avatar -->
+              <div class="w-12 h-12 mt-1 rounded-full bg-slate-100 shrink-0 shadow-inner border border-slate-200 overflow-hidden hidden sm:block">
                 <img src="https://ui-avatars.com/api/?name={cliente.nombre || 'Lead'}&background=0f172a&color=fff&bold=true&size=100" alt="Avatar" class="w-full h-full object-cover">
               </div>
+              
+              <!-- Info Principal -->
               <div class="flex-1 flex flex-col justify-center">
-                <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center justify-between mb-1.5">
                   <h3 class="text-base font-black text-slate-900 tracking-tight line-clamp-1">{cliente.nombre}</h3>
                   <button onclick={() => enviarWhatsApp(cliente.telefono, cliente.nombre, null)} class="text-[#25D366] hover:bg-[#25D366]/10 p-1.5 rounded-full transition-colors flex items-center justify-center shrink-0 ml-2" title="Chatear libremente">
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
                   </button>
                 </div>
                 
-                <div class="flex items-center justify-between mt-1 border-t border-slate-100 pt-2">
+                <!-- ROW: Estado, Fuente y Último Contacto -->
+                <div class="flex flex-wrap items-center gap-2 mb-3">
+                  {@const estiloEstado = getEstadoStyle(cliente.estado)}
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1.5 {estiloEstado.bg} {estiloEstado.text} {estiloEstado.border}">
+                    <span class="w-1.5 h-1.5 rounded-full {estiloEstado.dot}"></span>
+                    <span class="capitalize">{cliente.estado}</span>
+                  </span>
+                  
+                  <span class="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600 capitalize">
+                    {cliente.fuente}
+                  </span>
+                  
+                  <span class="text-[10px] font-medium text-slate-500 flex items-center gap-1.5 ml-auto shrink-0 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
+                    <Clock class="w-3 h-3 text-slate-400"/> {formatearFechaRelativa(cliente.fecha_contacto)}
+                  </span>
+                </div>
+
+                <!-- ROW: Propiedad de Interés (La propiedad por la que preguntó) -->
+                {#if cliente.interesesHistorial.length > 0}
+                  <div class="mb-3 bg-slate-50 border border-slate-100 rounded-lg p-2.5 flex items-start gap-2.5">
+                    <Building class="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                    <div class="flex-1 overflow-hidden">
+                      <p class="text-xs font-bold text-slate-700 truncate" title={cliente.interesesHistorial[0].titulo}>
+                        {cliente.interesesHistorial[0].titulo}
+                      </p>
+                      <p class="text-[10px] font-medium text-slate-500 mt-0.5 flex items-center gap-1">
+                        <span class="capitalize">{cliente.interesesHistorial[0].operacion}</span> 
+                        <span class="text-slate-300">•</span> 
+                        <span class="font-bold text-slate-600">{formatter.format(cliente.interesesHistorial[0].precio)}</span>
+                      </p>
+                    </div>
+                  </div>
+                {/if}
+
+                <!-- ROW: Info de contacto y Target -->
+                <div class="flex items-center justify-between mt-auto border-t border-slate-100 pt-2.5">
                   <p class="text-[10px] font-medium text-slate-500 font-mono truncate">{cliente.telefono} • {cliente.correo}</p>
                   <div class="flex items-center gap-1.5 shrink-0 ml-2">
                     <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Target</span>
@@ -310,7 +369,8 @@
               </div>
             </div>
 
-            <div class="w-full lg:w-[300px] bg-slate-50/50 p-4 shrink-0 flex flex-col justify-center relative">
+            <!-- COLUMNA MATCHMAKING (DERECHA) -->
+            <div class="w-full lg:w-[300px] bg-slate-50/50 p-4 shrink-0 flex flex-col justify-center relative border-t lg:border-t-0 border-slate-100">
               {#if cliente.matches.length > 0}
                 {@const bestMatch = cliente.matches[0]}
                 <div class="flex items-center justify-between mb-2.5">
