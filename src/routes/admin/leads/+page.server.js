@@ -64,7 +64,12 @@ export const actions = {
     const precioCierre = formData.get('precio_cierre');
     const comisionCierre = formData.get('comision_cierre');
 
-    let actualizaciones = { estado };
+    // 🚀 FIX: Actualizar el reloj cuando cambias de columna en el Kanban
+    let actualizaciones = { 
+        estado,
+        actualizado_en: new Date().toISOString()
+    };
+    
     if (estado === 'cerrado') {
         actualizaciones.precio_cierre = precioCierre ? parseFloat(precioCierre) : null;
         actualizaciones.comision_cierre = comisionCierre ? parseFloat(comisionCierre) : null;
@@ -119,9 +124,16 @@ export const actions = {
 
     if (notaError) return fail(500, { error: `Supabase Error: ${notaError.message}` });
 
+    // 🚀 FIX PRINCIPAL: Obligamos a la BD a sobreescribir 'actualizado_en' siempre que guardes nota
+    let actualizacionesLead = { 
+        actualizado_en: new Date().toISOString() 
+    };
+
     if (lead.estado === 'nuevo') {
-      await locals.supabase.from('leads').update({ estado: 'contactado' }).eq('id', leadId).eq('broker_id', broker.id);
+      actualizacionesLead.estado = 'contactado';
     }
+
+    await locals.supabase.from('leads').update(actualizacionesLead).eq('id', leadId).eq('broker_id', broker.id);
 
     return { success: true };
   },
