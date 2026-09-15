@@ -67,12 +67,12 @@ export const actions = {
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
-    // 🚀 BLINDAJE 1: PROMPT INFALIBLE (Prohibimos el "Enter" que destruye JSON)
+    // 🚀 BLINDAJE 1: REGLAS ESTRICTAS DE PÁRRAFOS SIN "ENTER"
     const systemPrompt = `<role>Eres un Copywriter Inmobiliario en México. Actúas como una API estricta.</role>
 <rules>
 1. IDIOMA: 100% Español de México.
 2. SALIDA: OBLIGATORIO responder EXCLUSIVAMENTE con un objeto JSON válido. Cero texto antes o después. Sin formato Markdown.
-3. SALTOS DE LÍNEA PROHIBIDOS: Jamás uses saltos de línea reales (Enter) dentro del texto. Para separar párrafos en la descripción, usa EXACTAMENTE el texto literal <br><br>.
+3. SALTOS DE LÍNEA PROHIBIDOS: Jamás uses saltos de línea reales (Enter) dentro de los valores de texto. Para separar párrafos en la descripción, usa EXACTAMENTE el texto literal <br><br>.
 4. TONO: ${instruccionTono}
 </rules>`;
 
@@ -112,7 +112,9 @@ Antigüedad: ${antiguedad}
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
-          ]
+          ],
+          // 🚀 BLINDAJE 2: EL FIX MAESTRO PARA EVITAR QUE SE CORTE LA RESPUESTA
+          max_tokens: 1500 
         });
 
         if (response && response.response) {
@@ -126,46 +128,36 @@ Antigüedad: ${antiguedad}
     }
 
     if (!rawResponse) {
-      return {
-        titulo: '⚠️ Error de Servidor IA',
-        descripcion: `Cloudflare AI rechazó la petición en todos los modelos soportados (${errorLog.join(', ')}).\n\nNo se te han descontado créditos. Intenta de nuevo en unos minutos.`,
-        whatsapp: 'Servicio temporalmente saturado.'
-      };
+      return fail(500, { 
+        error: `Cloudflare AI rechazó la petición (${errorLog.join(', ')}). No se te han descontado créditos.` 
+      });
     }
 
     try {
-      // 🚀 BLINDAJE 2: LIMPIEZA DE MARKDOWN
+      // Limpiamos Markdown si el modelo insiste en ponerlo
       let cleanText = rawResponse.replace(/^```json/gi, '').replace(/^```/gi, '').replace(/```$/gi, '').trim();
 
-      // 🚀 BLINDAJE 3: AUTO-SANACIÓN DE LLAVES OMITIDAS
+      // Buscamos las llaves
       let firstBrace = cleanText.indexOf('{');
       let lastBrace = cleanText.lastIndexOf('}');
 
-      // Si no detecta llaves, pero sí escribió las variables, lo envolvemos a la fuerza.
-      if (firstBrace === -1 && cleanText.includes('"titulo"')) {
-        cleanText = '{\n' + cleanText + '\n}';
-        firstBrace = 0;
-        lastBrace = cleanText.length - 1;
-      }
-
       if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-        throw new Error("Estructura irrecuperable.");
+        throw new Error("Respuesta incompleta o sin formato.");
       }
 
-      // Extraemos puramente lo que está entre las llaves
+      // Extraemos solo el JSON
       let jsonString = cleanText.substring(firstBrace, lastBrace + 1);
       
-      // 🚀 BLINDAJE 4: LA ASPIRADORA DE ENTERS
-      // Convertimos cualquier salto de línea "ilegal" en un espacio para que JSON.parse no muera
+      // Aspiradora de "Enters" ilegales que rompen el parseo
       jsonString = jsonString.replace(/\n/g, ' ').replace(/\r/g, '');
 
-      // Parseo seguro
+      // Transformación segura
       const parsedContent = JSON.parse(jsonString);
 
-      // 🚀 BLINDAJE 5: RESTAURACIÓN DE PÁRRAFOS
-      // Convertimos los <br><br> (que sí sobrevivieron al parseo) en saltos de línea reales para las cajas de texto
+      // Restauración de saltos de línea para el frontend
       let descripcionLimpia = (parsedContent.descripcion || 'Sin descripción').replace(/<br><br>/g, '\n\n');
 
+      // 🚀 BLINDAJE 3: DESCUENTO ESTRICTO. Solo llegamos aquí si TODO fue exitoso.
       await locals.supabase
         .from('brokers')
         .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
@@ -180,12 +172,11 @@ Antigüedad: ${antiguedad}
     } catch (error) {
       console.error("🔥 FALLO IA CAPTURADO. Crudo:", rawResponse);
       
-      // El mensaje ahora imprime exactamente qué basura escupió el modelo
-      return {
-        titulo: '⚠️ Error de Formato IA',
-        descripcion: `El modelo de IA alucinó y rompió el formato.\n\nDetalle técnico: ${error.message}\nRespuesta recibida: ${rawResponse.substring(0, 150)}...\n\nPresiona el botón nuevamente. No se te han descontado créditos.`,
-        whatsapp: 'Intenta de nuevo.'
-      };
+      // Ahora usamos fail() para que el Frontend detecte el error como un rechazo real
+      // y no procese "éxitos falsos". Garantiza que no se reste crédito visualmente.
+      return fail(500, { 
+        error: `Error de la IA al redactar. El formato devuelto estaba dañado.\nNo se descontaron créditos.\nFragmento: ${rawResponse.substring(0, 50)}...` 
+      });
     }
   },
 
