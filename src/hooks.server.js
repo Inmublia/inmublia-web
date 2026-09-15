@@ -137,7 +137,8 @@ export async function handle({ event, resolve }) {
         }
 
         // EL MURO FINAL: Bloqueo inquebrantable de mutación de datos (POST) para morosos
-        if (event.request.method === 'POST') {
+        // EXCEPCIÓN: Permitimos POST en la página de planes para que Stripe pueda iniciar el Checkout
+        if (event.request.method === 'POST' && !isPlanesPage) {
           throw error(403, 'Acción denegada por suspensión de cuenta.');
         }
       }
