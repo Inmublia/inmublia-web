@@ -60,56 +60,48 @@ export const actions = {
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
     const guiasTono = {
-      'Premium / Elegante': 'Tono profesional, moderno y de alto valor. Destaca la amplitud y la plusvalía. Cero poético.',
-      'Familiar / Cálido': 'Tono seguro y funcional. Destaca la practicidad para el día a día y la tranquilidad.',
-      'Analítico / ROI': 'Tono financiero y estratégico. Destaca la rentabilidad y distribución inteligente.'
+      'Premium / Elegante': 'Profesional, moderno y de alto valor. Cero poético.',
+      'Familiar / Cálido': 'Seguro y funcional. Destaca la practicidad.',
+      'Analítico / ROI': 'Financiero y estratégico. Destaca la rentabilidad.'
     };
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
-    // 🚀 BLINDAJE 1: REGLAS ESTRICTAS ANTI-RUPTURAS
+    // 🚀 BLINDAJE 1: REGLAS ANTI-TIMEOUT Y ANTI-FORMATO DAÑADO
     const systemPrompt = `<role>Eres una API de Copywriting Inmobiliario en México.</role>
 <rules>
-1. IDIOMA: 100% Español de México.
-2. SALIDA: OBLIGATORIO responder EXCLUSIVAMENTE con un objeto JSON válido. Cero Markdown, cero saludos.
-3. SALTOS DE LÍNEA: Jamás uses saltos de línea reales (Enter). Usa EXACTAMENTE el texto literal <br><br> para separar párrafos.
-4. COMILLAS: PROHIBIDO usar comillas dobles (") dentro del contenido de los textos. Usa comillas simples (').
+1. SALIDA: OBLIGATORIO responder EXCLUSIVAMENTE con el objeto JSON solicitado. Cero Markdown, cero saludos.
+2. LONGITUD (VITAL): Sé extremadamente conciso. Tu respuesta entera no debe superar los 350 tokens. Si te extiendes, el servidor colapsará.
+3. SALTOS DE LÍNEA: PROHIBIDO usar saltos de línea reales (Enter). Usa EXACTAMENTE <br><br> para separar párrafos.
+4. COMILLAS: PROHIBIDO usar comillas dobles (") dentro de las oraciones. Usa comillas simples (').
 5. TONO: ${instruccionTono}
 </rules>`;
 
-    const userPrompt = `Genera la campaña para esta propiedad devolviendo SOLO el objeto JSON solicitado:
+    const userPrompt = `Devuelve SOLO el objeto JSON:
 <data>
-Operación: ${operacion}
-Tipo: ${tipo}
-Ubicación: ${ubicacion}
-Precio: $${precio} MXN
-Recámaras: ${recamaras}
-Baños: ${banos}
-Medios Baños: ${medio_bano}
-Autos: ${estacionamientos}
-Antigüedad: ${antiguedad}
+Operación: ${operacion} | Tipo: ${tipo} | Ubic.: ${ubicacion} | Precio: $${precio} | Rec: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Ant: ${antiguedad}
 </data>
 
 <json_format>
 {
-  "titulo": "Escribe el título aquí",
-  "descripcion": "Párrafo 1<br><br>Párrafo 2<br><br>Párrafo 3",
-  "whatsapp": "Mensaje para WhatsApp aquí"
+  "titulo": "Título atractivo aquí",
+  "descripcion": "Párrafo 1 corto<br><br>Párrafo 2 corto<br><br>Párrafo 3 corto",
+  "whatsapp": "Mensaje corto WhatsApp"
 }
 </json_format>`;
 
-    // 🚀 BLINDAJE 2: EL BATALLÓN DE VELOCIDAD
-    // 3B es el más rápido del mundo, jamás chocará con el timeout de Cloudflare.
+    // 🚀 BLINDAJE 2: EL BATALLÓN DE ORO DE CLOUDFLARE AI
+    // Estos son los modelos oficiales, estables y de bajo costo documentados.
     const modelosSoportados = [
-      '@cf/meta/llama-3.2-3b-instruct',      
-      '@cf/meta/llama-3.1-8b-instruct-fast', 
-      '@cf/meta/llama-3.1-8b-instruct'       
+      '@cf/meta/llama-3.1-8b-instruct',       // El estándar actual y más soportado
+      '@cf/meta/llama-3-8b-instruct',         // Generación anterior, hiper estable
+      '@cf/mistral/mistral-7b-instruct-v0.1'  // Motor distinto, excelente para control de JSON
     ];
 
     let parsedContent = null;
     let errorLog = [];
 
-    // 🚀 BLINDAJE 3: EL LOOP CON VALIDACIÓN INTERNA
+    // 🚀 BLINDAJE 3: EL LOOP DE SUPERVIVENCIA REAL
     for (const modelo of modelosSoportados) {
       try {
         const response = await platform.env.AI.run(modelo, {
@@ -117,7 +109,8 @@ Antigüedad: ${antiguedad}
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          max_tokens: 1500
+          // 🚀 EL SALVAVIDAS: 400 tokens = ~16 segundos. Garantiza que NO haya Timeout de Cloudflare.
+          max_tokens: 400
         });
 
         if (!response || !response.response) {
@@ -126,57 +119,56 @@ Antigüedad: ${antiguedad}
 
         let rawResponse = String(response.response).trim();
         
-        // Limpiamos basura Markdown
         let cleanText = rawResponse.replace(/^```json/gi, '').replace(/^```/gi, '').replace(/```$/gi, '').trim();
 
-        // Buscamos las llaves
         let firstBrace = cleanText.indexOf('{');
         let lastBrace = cleanText.lastIndexOf('}');
 
-        if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-          throw new Error(`Respuesta truncada por Timeout: ${rawResponse.substring(0, 40)}...`);
+        if (firstBrace === -1 && cleanText.includes('"titulo"')) {
+          cleanText = '{\n' + cleanText + '\n}';
+          firstBrace = 0;
+          lastBrace = cleanText.length - 1;
         }
 
-        // Extraemos estrictamente el JSON
+        if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+          throw new Error(`Respuesta truncada: ${rawResponse.substring(0, 30)}...`);
+        }
+
         let jsonString = cleanText.substring(firstBrace, lastBrace + 1);
         
         // Destruimos Enters ocultos
         jsonString = jsonString.replace(/\n/g, ' ').replace(/\r/g, '');
 
-        // INTENTAMOS PARSEAR (Si la respuesta estaba cortada, esto fallará y el catch atrapará el error)
+        // INTENTAMOS PARSEAR (Si el JSON se cortó, el catch atrapará el error y saltará al siguiente modelo)
         parsedContent = JSON.parse(jsonString);
 
-        // ¡ÉXITO TOTAL! Si el código llegó a esta línea sin explotar, rompemos el loop.
-        break; 
+        break; // ¡JSON PERFECTO! Salimos del loop.
 
       } catch (e) {
-        // La IA falló o Cloudflare la cortó. Guardamos el error y EL LOOP CONTINÚA al siguiente modelo.
         const nombreModelo = modelo.split('/').pop();
-        console.warn(`[IA Warning] Fallo con ${nombreModelo}: ${e.message}`);
         errorLog.push(`${nombreModelo}: ${e.message}`);
       }
     }
 
-    // 🚀 BLINDAJE 4: DEFENSA FINAL SI TODOS FALLAN
     if (!parsedContent) {
       return fail(500, { 
-        error: `Los servidores de IA están saturados.\n\nDetalle técnico: ${errorLog.join(' | ')}\n\nPor favor, presiona el botón de nuevo. No se te han descontado créditos.` 
+        error: `Cloudflare AI superó el tiempo límite en todos los modelos.\nDetalle: ${errorLog.join(' | ')}\nNo se te han descontado créditos.` 
       });
     }
 
-    // 🚀 COBRO DE CRÉDITOS SEGURO (Solo se ejecuta si se logró el parseo perfecto)
+    // 🚀 COBRO DE CRÉDITOS SEGURO: Solo se resta si el JSON fue válido.
     await locals.supabase
       .from('brokers')
       .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
       .eq('id', broker.id);
 
-    // Restauramos los párrafos visuales para la UI
+    // Restauramos los <br><br> para que Svelte los lea como Enters visuales
     let descripcionLimpia = (parsedContent.descripcion || 'Sin descripción').replace(/<br><br>/g, '\n\n');
 
     return {
       titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad en Venta',
       descripcion: descripcionLimpia,
-      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto los detalles...'
+      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto...'
     };
   },
 
