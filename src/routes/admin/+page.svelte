@@ -5,8 +5,7 @@
   import { 
     Building2, ExternalLink, CalendarPlus, Plus, Search, 
     MapPin, DownloadCloud, Sparkles, QrCode, Link2, 
-    Pencil, Trash2, EyeOff, CheckCircle2, BadgeDollarSign, TrendingUp, Handshake,
-    RotateCcw // 🚀 Importado para el botón de deshacer
+    Pencil, Trash2, EyeOff, CheckCircle2, BadgeDollarSign, TrendingUp, Handshake
   } from 'lucide-svelte';
   
   let { data } = $props();
@@ -238,7 +237,6 @@
                   <tr class="group hover:bg-slate-50/60 transition-colors {propiedad.estatus === 'Vendida' ? 'opacity-80 bg-slate-50/50' : ''}">
                     <td class="px-6 py-5">
                       <div class="flex items-center gap-4">
-                        <!-- 🚀 CONTENEDOR DE LA IMAGEN CON EL SELLO VISUAL -->
                         <div class="h-14 w-20 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200/60 shadow-sm group-hover:border-indigo-200 transition-colors relative">
                           
                           {#if propiedad.estatus === 'Vendida'}
@@ -309,7 +307,6 @@
                     <td class="px-6 py-5">
                       <div class="flex justify-end gap-1.5 items-center">
                         
-                        <!-- 🚀 LÓGICA DE BOTONES: Marcar vs Deshacer Venta -->
                         {#if propiedad.estatus !== 'Vendida'}
                           <form method="POST" action="?/marcarVendida" use:enhance class="inline-block m-0 p-0">
                             <input type="hidden" name="id" value={propiedad.id}>
@@ -320,8 +317,8 @@
                         {:else}
                           <form method="POST" action="?/deshacerVendida" use:enhance class="inline-block m-0 p-0">
                             <input type="hidden" name="id" value={propiedad.id}>
-                            <button type="button" class="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors bg-white border border-slate-200 shadow-sm mr-1" onclick={(e) => { if(confirm('¿Hubo un error? ¿Deseas revertir el estatus de esta propiedad a Activa?')) e.target.closest('form').submit(); }} title="Deshacer Venta">
-                              <RotateCcw class="w-4 h-4" />
+                            <button type="button" class="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors bg-slate-50 border border-slate-200 shadow-sm mr-1" onclick={(e) => { if(confirm('¿Deseas revertir el estatus de esta propiedad a Activa?')) e.target.closest('form').submit(); }} title="Deshacer Venta">
+                              <Handshake class="w-4 h-4" />
                             </button>
                           </form>
                         {/if}
