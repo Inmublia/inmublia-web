@@ -67,17 +67,16 @@ export const actions = {
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
-    // 🚀 BLINDAJE DE PROMPT PARA MODELOS LIGEROS DE CLOUDFLARE
     const systemPrompt = `<role>Eres un Copywriter Inmobiliario en México.</role>
 
 <rules>
 1. IDIOMA: 100% Español de México. PROHIBIDO usar palabras en inglés (nada de "luxury", "living", etc).
 2. FORMATO: Jamás juntes texto con números (Ejemplo erróneo: "ZapopanPrecio").
 3. TONO: ${instruccionTono}
-4. SALIDA: Debes responder EXCLUSIVAMENTE con el objeto JSON solicitado, sin texto introductorio ni explicaciones.
+4. SALIDA: Debes generar EXCLUSIVAMENTE un objeto JSON válido, sin Markdown, sin saludos, sin explicaciones.
 </rules>`;
 
-    const userPrompt = `Aplica las reglas y genera el JSON comercial para esta propiedad:
+    const userPrompt = `Genera la campaña para esta propiedad en formato JSON estricto:
 
 <data>
 Operación: ${operacion}
@@ -97,16 +96,12 @@ Antigüedad: ${antiguedad}
   "descripcion": "[3 párrafos separados por \\n\\n. Párrafo 1: Intro. Párrafo 2: Características. Párrafo 3: Cierre.]",
   "whatsapp": "[Mensaje para WhatsApp con 3 emojis]"
 }
-</json_format>
+</json_format>`; // Ya no forzamos el `{` al final para evitar JSON corrupto
 
-Responde únicamente con el JSON válido:
-{`; // <-- EL HACK: Forzamos la apertura del JSON para evitar que salude.
-
-    // 🚀 CATÁLOGO ACTUALIZADO (SEPTIEMBRE 2026): Las bestias económicas de Cloudflare
     const modelosActivos = [
-      '@cf/meta/llama-3.3-70b-instruct-fp8-fast',      // La Bestia Inteligente (70B) pero rápida y barata en FP8
-      '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b', // Top Mundial en Razonamiento y control de JSON
-      '@cf/meta/llama-3.2-3b-instruct'                // Fallback multilingüe súper rápido y barato
+      '@cf/meta/llama-3.3-70b-instruct-fp8-fast',      
+      '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b', 
+      '@cf/meta/llama-3.2-3b-instruct'                
     ];
 
     let rawResponse = null;
@@ -121,7 +116,7 @@ Responde únicamente con el JSON válido:
             { role: 'user', content: userPrompt }
           ],
           max_tokens: 800,
-          temperature: 0.25, // Baja temperatura mata la alucinación poética en inglés
+          temperature: 0.25, 
           top_p: 0.85      
         });
         
@@ -141,28 +136,29 @@ Responde únicamente con el JSON válido:
     }
 
     let parsedContent = {};
+    let cleanText = String(rawResponse).trim();
 
-    let cleanText = String(rawResponse);
-    if (!cleanText.trim().startsWith('{') && cleanText.includes('"titulo"')) {
-      cleanText = '{' + cleanText;
+    // 🚀 BLINDAJE JSON: Extractor Regex Indestructible (Septiembre 2026)
+    // Busca el primer bloque que empiece con { y termine con }
+    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+
+    if (!jsonMatch) {
+      console.error("🔥 Falla Extracción Regex en", modeloExitoso, ":", cleanText);
+      return fail(500, { error: `El motor ${modeloExitoso} no devolvió un formato JSON válido.` });
     }
 
-    const firstBrace = cleanText.indexOf('{');
-    const lastBrace = cleanText.lastIndexOf('}');
-    
-    if (firstBrace === -1 || lastBrace === -1) {
-      return fail(500, { error: `El motor ${modeloExitoso} falló al generar JSON.` });
-    }
+    // Extraemos solo la porción que hace match (El JSON puro)
+    let jsonString = jsonMatch[0];
 
-    cleanText = cleanText.substring(firstBrace, lastBrace + 1);
-    cleanText = cleanText.replace(/\n/g, '\\n').replace(/\r/g, '');
-    cleanText = cleanText.replace(/[\u0000-\u0009\u000B-\u001F]+/g, ' ');
+    // Limpieza de caracteres de control que rompen JSON.parse()
+    jsonString = jsonString.replace(/\n/g, '\\n').replace(/\r/g, '');
+    jsonString = jsonString.replace(/[\u0000-\u0009\u000B-\u001F]+/g, ' ');
 
     try {
-      parsedContent = JSON.parse(cleanText);
+      parsedContent = JSON.parse(jsonString);
     } catch (err) {
-      console.error("JSON PARSE ERROR en", modeloExitoso, ":", cleanText);
-      return fail(500, { error: `Error JSON (${modeloExitoso}): ${err.message}` });
+      console.error("🔥 Error JSON.parse en", modeloExitoso, ":", jsonString);
+      return fail(500, { error: `Error de Sintaxis JSON (${modeloExitoso}): ${err.message}` });
     }
 
     await locals.supabase
@@ -185,7 +181,7 @@ Responde únicamente con el JSON válido:
       return fail(500, { error: 'Falla Crítica: Cloudflare R2 (INMUBLIA_BUCKET) no está conectado.' });
     }
     
-    const CDN_DOMAIN = platform?.env?.CDN_URL || 'https://cdn.inmublia.com';
+    const CDN_DOMAIN = platform?.env?.CDN_URL || '[https://cdn.inmublia.com](https://cdn.inmublia.com)';
 
     const formData = await request.formData();
     
