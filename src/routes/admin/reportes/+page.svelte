@@ -15,7 +15,6 @@
     Building2,
     DollarSign,
     CheckCircle2,
-    Download,
     Clock
   } from 'lucide-svelte';
 
@@ -102,35 +101,6 @@
       directo: { valor: directo, pct: leads.length === 0 ? 0 : ((directo/total)*100).toFixed(0) }
     };
   });
-
-  // 🔥 MOTOR DE EXPORTACIÓN (Directorio)
-  function descargarCSV() {
-    if (leads.length === 0) return alert("No hay prospectos para exportar.");
-
-    const cabeceras = ['Nombre del Prospecto', 'Teléfono', 'Correo', 'Estatus', 'Origen', 'Propiedad de Interés', 'Monto Involucrado', 'Fecha de Registro'];
-    
-    const filas = leads.map(l => [
-      `"${(l.nombre || '').replace(/"/g, '""')}"`,
-      `"${l.telefono || ''}"`,
-      `"${l.correo || ''}"`,
-      `"${l.estado || 'nuevo'}"`,
-      `"${l.origen || 'Directo'}"`,
-      `"${(l.propiedades?.titulo || 'Inventario General').replace(/"/g, '""')}"`,
-      l.precio_cierre || l.propiedades?.precio || 0,
-      `"${new Date(l.creado_en).toLocaleDateString('es-MX')}"`
-    ]);
-
-    // \uFEFF asegura que Excel lea los acentos correctamente en español
-    const contenidoCSV = [cabeceras.join(','), ...filas.map(f => f.join(','))].join('\n');
-    const blob = new Blob(["\uFEFF" + contenidoCSV], { type: 'text/csv;charset=utf-8;' }); 
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Directorio_Leads_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
 </script>
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-slate-50 font-sans text-slate-900">
@@ -143,11 +113,6 @@
       </h1>
       <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">Métricas, Finanzas y Marketing</p>
     </div>
-
-    <!-- Botón Descargar Directorio CSV -->
-    <button onclick={descargarCSV} class="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold px-4 py-2.5 rounded-lg border border-zinc-700 transition-colors shadow-sm active:scale-95">
-      <Download class="w-4 h-4 text-zinc-400" /> Exportar Directorio
-    </button>
   </header>
 
   <div class="p-6 sm:p-10 flex-1 overflow-auto pb-32 animate-[fadeIn_0.4s_ease-out]">
