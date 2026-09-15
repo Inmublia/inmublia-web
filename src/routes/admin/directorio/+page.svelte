@@ -63,18 +63,34 @@
     return { total, nuevosSemana };
   });
 
-  // FIX LÓGICO: Usar actualizado_en para reiniciar el reloj con cada nota/cambio
+  // 🚀 FIX LÓGICO V3: Búsqueda profunda de la fecha de última actividad (Lead + Historial de Notas)
   let leadsSinSeguimiento = $derived.by(() => {
     const abandonados = leads.filter(l => {
       if (['cerrado', 'descartado'].includes(l.estado)) return false;
-      const ultimaActividad = l.actualizado_en ? new Date(l.actualizado_en) : new Date(l.creado_en);
-      const dias = Math.floor((new Date() - ultimaActividad) / (1000 * 60 * 60 * 24));
+      
+      let fechaUltimaActividad = l.actualizado_en ? new Date(l.actualizado_en) : new Date(l.creado_en);
+
+      if (l.lead_notas && l.lead_notas.length > 0) {
+        const maxNota = new Date(Math.max(...l.lead_notas.map(n => new Date(n.creado_en))));
+        if (maxNota > fechaUltimaActividad) {
+          fechaUltimaActividad = maxNota;
+        }
+      }
+
+      const dias = Math.floor((new Date() - fechaUltimaActividad) / (1000 * 60 * 60 * 24));
       return dias >= 3;
     });
+
     return abandonados.sort((a, b) => {
-      const fechaA = a.actualizado_en ? new Date(a.actualizado_en) : new Date(a.creado_en);
-      const fechaB = b.actualizado_en ? new Date(b.actualizado_en) : new Date(b.creado_en);
-      return fechaA - fechaB; // Los más antiguos arriba
+      const getUltima = (lead) => {
+         let f = lead.actualizado_en ? new Date(lead.actualizado_en) : new Date(lead.creado_en);
+         if (lead.lead_notas?.length > 0) {
+            const maxNota = new Date(Math.max(...lead.lead_notas.map(n => new Date(n.creado_en))));
+            if (maxNota > f) f = maxNota;
+         }
+         return f;
+      };
+      return getUltima(a) - getUltima(b);
     });
   });
 
