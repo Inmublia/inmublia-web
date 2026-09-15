@@ -78,13 +78,13 @@
     };
   });
 
-
   // -------------------------------------------------------------
-  // LÓGICA DE MATCHMAKING & DIRECTORIO ENRIQUECIDO
+  // MATCHMAKING ENGINE V2 (PONDERACIÓN INTELIGENTE)
   // -------------------------------------------------------------
   let clientesInteligentes = $derived.by(() => {
     let mapa = {};
     
+    // 1. Agrupación y Mapeo Base
     leads.forEach(l => {
       if (!mapa[l.correo]) {
         mapa[l.correo] = {
@@ -96,9 +96,11 @@
           fecha_contacto: l.actualizado_en || l.creado_en || new Date().toISOString(), 
           interesesHistorial: [],
           presupuestoInferido: 0,
+          perfil: null,
           matches: []
         };
       }
+      
       const fechaLeadActual = new Date(l.actualizado_en || l.creado_en);
       const fechaMapa = new Date(mapa[l.correo].fecha_contacto);
       if (fechaLeadActual > fechaMapa) {
@@ -115,27 +117,67 @@
 
     return Object.values(mapa).map(cliente => {
       if (cliente.interesesHistorial.length > 0) {
-        const total = cliente.interesesHistorial.reduce((sum, p) => sum + (Number(p.precio) || 0), 0);
-        cliente.presupuestoInferido = total / cliente.interesesHistorial.length;
-      }
+        
+        // 2. Extracción de Perfil Dinámico
+        const conteoOperacion = {};
+        const conteoTipo = {};
+        let sumaPrecio = 0;
+        let sumaRecamaras = 0;
 
-      if (cliente.presupuestoInferido > 0) {
-        cliente.matches = propiedades.filter(p => {
-          if (cliente.interesesHistorial.find(i => i.id === p.id)) return false; 
+        cliente.interesesHistorial.forEach(p => {
+          sumaPrecio += Number(p.precio) || 0;
+          sumaRecamaras += Number(p.recamaras) || 0;
           
-          const minBudget = cliente.presupuestoInferido * 0.7;
-          const maxBudget = cliente.presupuestoInferido * 1.3;
-          const encajaPresupuesto = p.precio >= minBudget && p.precio <= maxBudget;
-          
-          const operacionObjetivo = cliente.interesesHistorial[0]?.operacion;
-          const encajaOperacion = p.operacion === operacionObjetivo;
-
-          return encajaPresupuesto && encajaOperacion;
+          const op = p.operacion || 'Venta';
+          const tp = p.tipo || 'Casa';
+          conteoOperacion[op] = (conteoOperacion[op] || 0) + 1;
+          conteoTipo[tp] = (conteoTipo[tp] || 0) + 1;
         });
 
-        cliente.matches.sort((a, b) => 
-          Math.abs(a.precio - cliente.presupuestoInferido) - Math.abs(b.precio - cliente.presupuestoInferido)
-        );
+        cliente.presupuestoInferido = sumaPrecio / cliente.interesesHistorial.length;
+        const recamarasPromedio = Math.round(sumaRecamaras / cliente.interesesHistorial.length);
+        
+        const operacionDominante = Object.keys(conteoOperacion).reduce((a, b) => conteoOperacion[a] > conteoOperacion[b] ? a : b);
+        const tipoDominante = Object.keys(conteoTipo).reduce((a, b) => conteoTipo[a] > conteoTipo[b] ? a : b);
+
+        cliente.perfil = { operacionDominante, tipoDominante, recamarasPromedio };
+
+        // 3. Sistema de Puntuación (Scoring)
+        let matchesPuntuados = [];
+
+        propiedades.forEach(p => {
+          // Excluir lo que ya vio
+          if (cliente.interesesHistorial.find(i => i.id === p.id)) return;
+          // Regla de Oro: La operación debe coincidir (Venta != Renta)
+          if (p.operacion !== operacionDominante) return;
+
+          let score = 0;
+
+          // A. Sensibilidad de Precio (Max 50 puntos)
+          const diffPrecio = Math.abs(p.precio - cliente.presupuestoInferido) / cliente.presupuestoInferido;
+          if (diffPrecio <= 0.15) score += 50;      // Excelente rango (+/- 15%)
+          else if (diffPrecio <= 0.30) score += 25; // Negociable (+/- 30%)
+          else return; // Fuera de presupuesto, descalificado.
+
+          // B. Afinidad de Tipo (Max 25 puntos)
+          if (p.tipo === tipoDominante) score += 25;
+
+          // C. Afinidad de Capacidad (Max 25 puntos)
+          const pRec = Number(p.recamaras) || 0;
+          if (pRec >= recamarasPromedio) score += 25;
+          else if (pRec === recamarasPromedio - 1) score += 10;
+
+          // UMBRAL: Solo recomendamos si supera los 60 puntos
+          if (score >= 60) {
+            matchesPuntuados.push({ ...p, matchScore: score });
+          }
+        });
+
+        // 4. Ordenamiento por mayor Score y mejor ajuste de precio
+        cliente.matches = matchesPuntuados.sort((a, b) => {
+          if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
+          return Math.abs(a.precio - cliente.presupuestoInferido) - Math.abs(b.precio - cliente.presupuestoInferido);
+        });
       }
       return cliente;
     })
@@ -182,7 +224,7 @@
     const nombreBroker = broker?.nombre_comercial?.split(' ')[0] || 'tu asesor';
 
     const msg = propiedadMatch 
-      ? `Hola ${nombreLead}, soy ${nombreBroker}. Revisando mis archivos noté que estabas buscando propiedades de cierto perfil. Acabo de captar una exclusiva que encaja perfecto con lo que buscabas: ${propiedadMatch.titulo}. ¿Te gustaría que te envíe el Smart Brochure?`
+      ? `Hola ${nombreLead}, soy ${nombreBroker}. Revisando mis archivos, noté que estabas buscando propiedades de cierto perfil. Acabo de captar una exclusiva que encaja un ${propiedadMatch.matchScore}% con lo que buscabas: ${propiedadMatch.titulo}. ¿Te gustaría que te envíe el Smart Brochure?`
       : `Hola ${nombreLead}, te saluda ${nombreBroker}. ¿Cómo va tu búsqueda de propiedad?`;
       
     window.open(`https://wa.me/${telefono.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -191,7 +233,7 @@
   function descargarCSV() {
     if (clientesInteligentes.length === 0) return alert("No hay prospectos para exportar.");
 
-    const cabeceras = ['Nombre del Prospecto', 'Teléfono', 'Correo', 'Estado', 'Fuente', 'Target', 'Opciones de Match'];
+    const cabeceras = ['Nombre del Prospecto', 'Teléfono', 'Correo', 'Estado', 'Fuente', 'Objetivo', 'Opciones de Match'];
     
     const filas = clientesInteligentes.map(l => [
       `"${(l.nombre || '').replace(/"/g, '""')}"`,
@@ -248,34 +290,34 @@
       
       <!-- GRID DE 5 KPIS VITALES -->
       <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-blue-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border-t-4 border-blue-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
           <div>
-            <p class="text-xs font-bold text-slate-500 mb-1">Leads este mes</p>
-            <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{metricasMes.total}</p>
+            <p class="text-[11px] font-bold text-slate-500 mb-1">Leads este mes</p>
+            <p class="text-2xl font-black text-slate-900 tracking-tighter mb-1.5">{metricasMes.total}</p>
           </div>
           {#if metricasMes.esPositivo}
-            <p class="text-[10px] font-bold text-emerald-600">↑ {metricasMes.crecimiento}% vs mes anterior</p>
+            <p class="text-[10px] font-bold text-emerald-600">↑ {metricasMes.crecimiento}% vs mes ant.</p>
           {:else}
-            <p class="text-[10px] font-bold text-rose-600">↓ {Math.abs(metricasMes.crecimiento)}% vs mes anterior</p>
+            <p class="text-[10px] font-bold text-rose-600">↓ {Math.abs(metricasMes.crecimiento)}% vs mes ant.</p>
           {/if}
         </div>
 
-        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-emerald-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border-t-4 border-emerald-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
           <div>
-            <p class="text-xs font-bold text-slate-500 mb-1">En negociación</p>
-            <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{leadsEnNegociacion.total}</p>
+            <p class="text-[11px] font-bold text-slate-500 mb-1">En negociación</p>
+            <p class="text-2xl font-black text-slate-900 tracking-tighter mb-1.5">{leadsEnNegociacion.total}</p>
           </div>
           {#if leadsEnNegociacion.nuevosSemana > 0}
-            <p class="text-[10px] font-bold text-emerald-600">↑ {leadsEnNegociacion.nuevosSemana} nuevos esta semana</p>
+            <p class="text-[10px] font-bold text-emerald-600">↑ {leadsEnNegociacion.nuevosSemana} nuevos esta sem.</p>
           {:else}
             <p class="text-[10px] font-bold text-slate-400">Sin cambios esta semana</p>
           {/if}
         </div>
 
-        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-amber-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border-t-4 border-amber-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
           <div>
-            <p class="text-xs font-bold text-slate-500 mb-1">Sin seguimiento +3d</p>
-            <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{sinSeguimiento}</p>
+            <p class="text-[11px] font-bold text-slate-500 mb-1">Sin seguimiento +3d</p>
+            <p class="text-2xl font-black text-slate-900 tracking-tighter mb-1.5">{sinSeguimiento}</p>
           </div>
           {#if sinSeguimiento > 0}
             <p class="text-[10px] font-bold text-rose-500 flex items-center gap-1"><Clock class="w-3 h-3"/> Requieren acción</p>
@@ -284,18 +326,18 @@
           {/if}
         </div>
 
-        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-indigo-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border-t-4 border-indigo-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
           <div>
-            <p class="text-xs font-bold text-slate-500 mb-1">Tasa de conversión</p>
-            <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{tasaConversion.actual}%</p>
+            <p class="text-[11px] font-bold text-slate-500 mb-1">Tasa de conversión</p>
+            <p class="text-2xl font-black text-slate-900 tracking-tighter mb-1.5">{tasaConversion.actual}%</p>
           </div>
           <p class="text-[10px] font-bold text-emerald-600">↑ Histórico global</p>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-purple-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border-t-4 border-purple-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
           <div>
-            <p class="text-xs font-bold text-slate-500 mb-1">Cruces exitosos</p>
-            <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{totalMatches}</p>
+            <p class="text-[11px] font-bold text-slate-500 mb-1">Cruces exitosos</p>
+            <p class="text-2xl font-black text-slate-900 tracking-tighter mb-1.5">{totalMatches}</p>
           </div>
           <p class="text-[10px] font-bold text-purple-600 flex items-center gap-1">
             <Zap class="w-3 h-3 fill-current" /> Matches en bóveda
@@ -303,101 +345,129 @@
         </div>
       </div>
 
-      <!-- LISTADO DE CLIENTES (CRM ENRIQUECIDO) -->
-      <div class="space-y-4">
+      <!-- LISTADO DE CLIENTES (CRM ENRIQUECIDO & COMPACTO V2) -->
+      <div class="space-y-3">
         {#each clientesInteligentes as cliente}
-          <!-- FIX SVELTE 5: Colocamos @const inmediatamente debajo del #each -->
           {@const estiloEstado = getEstadoStyle(cliente.estado)}
           
-          <div class="bg-white rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-slate-200 overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-[0_4px_20px_rgb(0,0,0,0.06)] hover:border-slate-300">
+          <div class="bg-white rounded-xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-slate-200 overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-[0_4px_20px_rgb(0,0,0,0.06)] hover:border-slate-300">
             
-            <div class="flex-1 p-4 lg:p-5 border-b lg:border-b-0 lg:border-r border-slate-100 flex items-start gap-4">
+            <!-- Columna Izquierda (Info CRM) -->
+            <div class="flex-1 p-3 lg:p-4 border-b lg:border-b-0 lg:border-r border-slate-100 flex items-start gap-3">
               <!-- Avatar -->
-              <div class="w-12 h-12 mt-1 rounded-full bg-slate-100 shrink-0 shadow-inner border border-slate-200 overflow-hidden hidden sm:block">
+              <div class="w-10 h-10 mt-0.5 rounded-full bg-slate-100 shrink-0 shadow-inner border border-slate-200 overflow-hidden hidden sm:block">
                 <img src="https://ui-avatars.com/api/?name={cliente.nombre || 'Lead'}&background=0f172a&color=fff&bold=true&size=100" alt="Avatar" class="w-full h-full object-cover">
               </div>
               
               <!-- Info Principal -->
-              <div class="flex-1 flex flex-col justify-center">
-                <div class="flex items-center justify-between mb-1.5">
-                  <h3 class="text-base font-black text-slate-900 tracking-tight line-clamp-1">{cliente.nombre}</h3>
-                  <button onclick={() => enviarWhatsApp(cliente.telefono, cliente.nombre, null)} class="text-[#25D366] hover:bg-[#25D366]/10 p-1.5 rounded-full transition-colors flex items-center justify-center shrink-0 ml-2" title="Chatear libremente">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+              <div class="flex-1 flex flex-col justify-center min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <h3 class="text-sm font-black text-slate-900 tracking-tight line-clamp-1">{cliente.nombre}</h3>
+                  <button onclick={() => enviarWhatsApp(cliente.telefono, cliente.nombre, null)} class="text-[#25D366] hover:bg-[#25D366]/10 p-1 rounded-full transition-colors flex items-center justify-center shrink-0 ml-2" title="Chatear libremente">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
                   </button>
                 </div>
                 
                 <!-- ROW: Estado, Fuente y Último Contacto -->
-                <div class="flex flex-wrap items-center gap-2 mb-3">
-                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1.5 {estiloEstado.bg} {estiloEstado.text} {estiloEstado.border}">
+                <div class="flex flex-wrap items-center gap-1.5 mb-2">
+                  <span class="px-2 py-0.5 rounded-full text-[9px] font-bold border flex items-center gap-1 {estiloEstado.bg} {estiloEstado.text} {estiloEstado.border}">
                     <span class="w-1.5 h-1.5 rounded-full {estiloEstado.dot}"></span>
                     <span class="capitalize">{cliente.estado}</span>
                   </span>
                   
-                  <span class="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600 capitalize">
+                  <span class="px-1.5 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[9px] font-bold text-slate-600 capitalize">
                     {cliente.fuente}
                   </span>
                   
-                  <span class="text-[10px] font-medium text-slate-500 flex items-center gap-1.5 ml-auto shrink-0 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
-                    <Clock class="w-3 h-3 text-slate-400"/> {formatearFechaRelativa(cliente.fecha_contacto)}
+                  <span class="text-[9px] font-medium text-slate-500 flex items-center gap-1 ml-auto shrink-0 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">
+                    <Clock class="w-2.5 h-2.5 text-slate-400"/> {formatearFechaRelativa(cliente.fecha_contacto)}
                   </span>
                 </div>
 
-                <!-- ROW: Propiedad de Interés (La propiedad por la que preguntó) -->
-                {#if cliente.interesesHistorial.length > 0}
-                  <div class="mb-3 bg-slate-50 border border-slate-100 rounded-lg p-2.5 flex items-start gap-2.5">
-                    <Building class="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                <!-- ROW: Perfil Dinámico (Extraído de su historial) -->
+                {#if cliente.perfil}
+                  <div class="mb-2 bg-slate-50 border border-slate-100 rounded-lg p-2 flex items-start gap-2">
+                    <Building class="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                     <div class="flex-1 overflow-hidden">
-                      <p class="text-xs font-bold text-slate-700 truncate" title={cliente.interesesHistorial[0].titulo}>
-                        {cliente.interesesHistorial[0].titulo}
+                      <p class="text-[10px] font-bold text-slate-700 truncate uppercase tracking-wide">
+                        Perfil del Inversor
                       </p>
-                      <p class="text-[10px] font-medium text-slate-500 mt-0.5 flex items-center gap-1">
-                        <span class="capitalize">{cliente.interesesHistorial[0].operacion}</span> 
+                      <p class="text-[9px] font-medium text-slate-500 mt-0.5 flex items-center gap-1">
+                        <span class="capitalize">{cliente.perfil.operacionDominante}</span> 
                         <span class="text-slate-300">•</span> 
-                        <span class="font-bold text-slate-600">{formatter.format(cliente.interesesHistorial[0].precio)}</span>
+                        <span>{cliente.perfil.tipoDominante}</span>
+                        <span class="text-slate-300">•</span> 
+                        <span>{cliente.perfil.recamarasPromedio} recs</span>
                       </p>
                     </div>
                   </div>
                 {/if}
 
-                <!-- ROW: Info de contacto y Target -->
-                <div class="flex items-center justify-between mt-auto border-t border-slate-100 pt-2.5">
-                  <p class="text-[10px] font-medium text-slate-500 font-mono truncate">{cliente.telefono} • {cliente.correo}</p>
+                <!-- ROW: Info de contacto y Objetivo -->
+                <div class="flex items-center justify-between mt-auto border-t border-slate-100 pt-2">
+                  <p class="text-[9px] font-medium text-slate-500 font-mono truncate">{cliente.telefono} • {cliente.correo}</p>
                   <div class="flex items-center gap-1.5 shrink-0 ml-2">
-                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Target</span>
-                    <span class="text-[11px] font-black text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded">{formatter.format(cliente.presupuestoInferido)}</span>
+                    <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Objetivo</span>
+                    <span class="text-[10px] font-black text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded">{formatter.format(cliente.presupuestoInferido)}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- COLUMNA MATCHMAKING (DERECHA) -->
-            <div class="w-full lg:w-[300px] bg-slate-50/50 p-4 shrink-0 flex flex-col justify-center relative border-t lg:border-t-0 border-slate-100">
+            <!-- COLUMNA MATCHMAKING V2 (DERECHA) -->
+            <div class="w-full lg:w-[260px] bg-slate-50/50 p-3 shrink-0 flex flex-col justify-center relative border-t lg:border-t-0 border-slate-100">
               {#if cliente.matches.length > 0}
                 {@const bestMatch = cliente.matches[0]}
-                <div class="flex items-center justify-between mb-2.5">
-                  <p class="text-[9px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1">
+                <div class="flex items-center justify-between mb-2 relative">
+                  <p class="text-[9px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1">
                     <Sparkles class="w-3 h-3" /> Match 
                   </p>
-                  <span class="bg-amber-100 text-amber-800 text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm border border-amber-200">
-                    +{cliente.matches.length} opciones
-                  </span>
+                  
+                  {#if cliente.matches.length > 1}
+                    <div class="relative group">
+                      <span class="bg-indigo-100 text-indigo-800 text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm border border-indigo-200 cursor-help flex items-center">
+                        +{cliente.matches.length - 1} opciones
+                      </span>
+                      <!-- TOOLTIP / HOVER CARD PARA OPCIONES EXTRA -->
+                      <div class="absolute right-0 top-full mt-2 w-60 bg-white border border-slate-200 shadow-xl rounded-xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                        <p class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 border-b border-slate-100 pb-1">Otras coincidencias</p>
+                        <div class="space-y-1.5 max-h-40 overflow-y-auto">
+                          {#each cliente.matches.slice(1) as extraMatch}
+                            <a href="/admin/editar/{extraMatch.id}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 p-1.5 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
+                              <img src={extraMatch.imagen_url} alt="Match" class="w-8 h-8 rounded object-cover shrink-0 border border-slate-200">
+                              <div class="flex-1 min-w-0">
+                                <p class="text-[9px] font-bold text-slate-900 truncate">{extraMatch.titulo}</p>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                  <p class="text-[8px] font-black text-slate-500">{formatter.format(extraMatch.precio)}</p>
+                                  <span class="text-[7px] font-black text-emerald-600 bg-emerald-50 px-1 rounded border border-emerald-100">{extraMatch.matchScore}%</span>
+                                </div>
+                              </div>
+                            </a>
+                          {/each}
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
                 </div>
 
-                <a href="/admin/editar/{bestMatch.id}" target="_blank" rel="noopener noreferrer" class="bg-white rounded-lg p-1.5 border border-amber-200/60 shadow-sm mb-2.5 flex gap-2.5 items-center cursor-pointer hover:bg-amber-50/50 transition-colors">
-                  <img src={bestMatch.imagen_url} alt="Match" class="w-9 h-9 rounded object-cover">
+                <a href="/admin/editar/{bestMatch.id}" target="_blank" rel="noopener noreferrer" class="bg-white rounded-lg p-1.5 border border-indigo-100 shadow-sm mb-2 flex gap-2 items-center cursor-pointer hover:bg-indigo-50/50 transition-colors relative overflow-hidden">
+                  <div class="absolute top-0 right-0 bg-emerald-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded-bl shadow-sm z-10">
+                    {bestMatch.matchScore}% 
+                  </div>
+                  <img src={bestMatch.imagen_url} alt="Match" class="w-8 h-8 rounded object-cover">
                   <div class="flex-1 truncate">
-                    <p class="text-[10px] font-bold text-slate-900 truncate">{bestMatch.titulo}</p>
-                    <p class="text-[10px] font-black text-amber-600 tracking-tight">{formatter.format(bestMatch.precio)}</p>
+                    <p class="text-[10px] font-bold text-slate-900 truncate pr-4">{bestMatch.titulo}</p>
+                    <p class="text-[9px] font-black text-slate-500 tracking-tight">{formatter.format(bestMatch.precio)}</p>
                   </div>
                 </a>
 
-                <button onclick={() => enviarWhatsApp(cliente.telefono, cliente.nombre, bestMatch)} class="w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-2 rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5 text-[10px] active:scale-95">
+                <button onclick={() => enviarWhatsApp(cliente.telefono, cliente.nombre, bestMatch)} class="w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-1.5 rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5 text-[10px] active:scale-95">
                   Enviar Propiedad <ArrowRight class="w-3 h-3" />
                 </button>
               {:else}
-                <div class="flex flex-col items-center justify-center text-center opacity-50 h-full py-2">
-                  <Search class="w-4 h-4 text-slate-400 mb-1" />
-                  <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Sin Coincidencias</p>
+                <div class="flex flex-col items-center justify-center text-center opacity-50 h-full py-1">
+                  <Search class="w-3.5 h-3.5 text-slate-400 mb-1" />
+                  <p class="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Sin Coincidencias</p>
                 </div>
               {/if}
             </div>
@@ -406,12 +476,12 @@
         {/each}
 
         {#if clientesInteligentes.length === 0}
-          <div class="bg-white rounded-3xl border border-slate-200 p-16 text-center flex flex-col items-center justify-center w-full max-w-[1400px] mx-auto">
-            <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 mb-4 shadow-inner">
-              <Search class="w-6 h-6" />
+          <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center flex flex-col items-center justify-center w-full max-w-[1400px] mx-auto">
+            <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 mb-3 shadow-inner">
+              <Search class="w-5 h-5" />
             </div>
-            <h3 class="text-lg font-black text-slate-900 tracking-tight mb-2">Bóveda Vacía</h3>
-            <p class="text-sm text-slate-500 font-medium max-w-md">No tienes prospectos registrados o ninguno coincide con tu búsqueda actual.</p>
+            <h3 class="text-base font-black text-slate-900 tracking-tight mb-1.5">Bóveda Vacía</h3>
+            <p class="text-xs text-slate-500 font-medium max-w-sm">No tienes prospectos registrados o ninguno coincide con tu búsqueda actual.</p>
           </div>
         {/if}
       </div>
