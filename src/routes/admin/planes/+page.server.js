@@ -3,6 +3,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import Stripe from 'stripe';
 import { env as privateEnv } from '$env/dynamic/private';
 
+// Inicializamos Stripe con tu clave secreta de entorno
 const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
 
 export async function load({ locals, url }) {
@@ -51,8 +52,7 @@ export const actions = {
         allow_promotion_codes: true,
       };
 
-      // 🔥 EL SECRETO INDUSTRIAL: Si ya era cliente, lo enlazamos. 
-      // Si por un error extraño no tenía ID, le pasamos su email para que Stripe lo cree.
+      // Si ya era cliente, lo enlazamos para evitar dobles registros. 
       if (broker.stripe_customer_id) {
         sessionConfig.customer = broker.stripe_customer_id;
       } else {
@@ -64,7 +64,7 @@ export const actions = {
       throw redirect(303, session.url);
 
     } catch (err) {
-      if (err.status === 303) throw err; // SvelteKit redirections
+      if (err.status === 303) throw err; // Es un redirect de SvelteKit, lo dejamos pasar
       console.error("🔥 Error Stripe Checkout:", err);
       return fail(500, { error: err.message || 'Error al conectar con la pasarela de pagos.' });
     }
