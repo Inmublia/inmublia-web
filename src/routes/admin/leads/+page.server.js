@@ -65,7 +65,7 @@ export const actions = {
 
     let actualizaciones = { 
         estado,
-        actualizado_en: new Date().toISOString()
+        ultima_actividad: new Date().toISOString() // FIX: Nombre correcto
     };
     
     if (estado === 'cerrado') {
@@ -112,7 +112,6 @@ export const actions = {
     const { data: lead, error: checkError } = await locals.supabase.from('leads').select('id, estado').eq('id', leadId).eq('broker_id', broker.id).maybeSingle();
     if (checkError || !lead) return fail(403, { error: 'No autorizado' });
 
-    // 1. Intentamos guardar la nota primero
     const { error: notaError } = await locals.supabase
       .from('lead_notas')
       .insert({ 
@@ -124,15 +123,13 @@ export const actions = {
         completado: false
       });
 
-    // Si falla, vomitamos el error exacto al frontend
     if (notaError) {
         console.error('🔥 Error Crítico Insertando Nota:', notaError);
         return fail(500, { error: `Fallo BD (Insertar Nota): ${notaError.message}` });
     }
 
-    // 2. Si guardó la nota, actualizamos el reloj del Lead
     let actualizacionesLead = { 
-        actualizado_en: new Date().toISOString() 
+        ultima_actividad: new Date().toISOString() // FIX: Nombre correcto
     };
 
     if (lead.estado === 'nuevo') {
@@ -141,7 +138,6 @@ export const actions = {
 
     const { error: updateError } = await locals.supabase.from('leads').update(actualizacionesLead).eq('id', leadId).eq('broker_id', broker.id);
     
-    // Si falla el reloj, también avisamos
     if (updateError) {
         console.error('🔥 Error Crítico Actualizando Reloj Lead:', updateError);
         return fail(500, { error: `Fallo BD (Reloj Lead): ${updateError.message}` });
