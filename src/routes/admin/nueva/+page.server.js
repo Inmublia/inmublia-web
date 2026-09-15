@@ -102,10 +102,11 @@ Antigüedad: ${antiguedad}
 Responde únicamente con el JSON válido:
 {`; // <-- EL HACK: Forzamos la apertura del JSON para evitar que salude.
 
-    // 🚀 PURGA DE MODELOS: Nos quedamos solo con los más estables en JSON y Español
+    // 🚀 CATÁLOGO ACTUALIZADO (SEPTIEMBRE 2026): Las bestias económicas de Cloudflare
     const modelosActivos = [
-      '@cf/meta/llama-3.1-8b-instruct',  // El rey actual multilingüe de la capa gratuita
-      '@cf/qwen/qwen1.5-14b-chat-awq',   // Respaldo robusto asiático, brutal para seguir JSON
+      '@cf/meta/llama-3.3-70b-instruct-fp8-fast',      // La Bestia Inteligente (70B) pero rápida y barata en FP8
+      '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b', // Top Mundial en Razonamiento y control de JSON
+      '@cf/meta/llama-3.2-3b-instruct'                // Fallback multilingüe súper rápido y barato
     ];
 
     let rawResponse = null;
@@ -120,8 +121,8 @@ Responde únicamente con el JSON válido:
             { role: 'user', content: userPrompt }
           ],
           max_tokens: 800,
-          temperature: 0.25, // <-- EL ANTÍDOTO: Baja temperatura mata la alucinación poética en inglés
-          top_p: 0.85      // <-- Mantiene el texto coherente y estructurado
+          temperature: 0.25, // Baja temperatura mata la alucinación poética en inglés
+          top_p: 0.85      
         });
         
         rawResponse = response.response;
@@ -141,7 +142,6 @@ Responde únicamente con el JSON válido:
 
     let parsedContent = {};
 
-    // Re-ensamblamos el JSON en caso de que el modelo haya omitido la llave inicial debido a nuestro "Hack"
     let cleanText = String(rawResponse);
     if (!cleanText.trim().startsWith('{') && cleanText.includes('"titulo"')) {
       cleanText = '{' + cleanText;
@@ -178,7 +178,6 @@ Responde únicamente con el JSON válido:
   },
 
   crear: async ({ request, locals, platform }) => {
-    // ... Tu lógica de "crear" queda absolutamente intocable, tal cual me la pasaste ...
     const user = locals.user;
     if (!user) throw redirect(303, '/login');
 
