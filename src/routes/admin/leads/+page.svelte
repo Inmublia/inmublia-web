@@ -6,7 +6,7 @@
   import { 
     Search, X, Phone, Mail, Home, Send, Trash2, Clock, UserCircle,
     GripVertical, MessageSquareQuote, BellRing, CalendarClock, CheckCircle2, MessageSquare,
-    ChevronLeft, ChevronRight // 🚀 Agregados para el scroll
+    ChevronLeft, ChevronRight
   } from 'lucide-svelte';
   
   let { data } = $props();
@@ -38,7 +38,6 @@
   let precioCierreFinal = $state('');
   let comisionCobrada = $state('');
 
-  // 🚀 REF para la barra de Scroll
   let boardContainer = $state(null);
 
   let totalRecordatoriosPendientes = $derived(
@@ -79,7 +78,6 @@
     { id: 'descartado', titulo: 'Perdidos', dot: 'bg-slate-400', bgCol: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-500' }
   ];
 
-  // 🚀 Función de desplazamiento automático
   function scrollBoard(direction) {
     if (boardContainer) {
       boardContainer.scrollBy({ left: direction * 350, behavior: 'smooth' });
@@ -557,7 +555,7 @@
 </main>
 
 <style>
-  /* 🚀 Scrollbar Visible y Elegante (2026 Estándar) */
+  /* 🚀 Scrollbar Visible y Elegante */
   .kanban-board::-webkit-scrollbar { height: 10px; }
   .kanban-board::-webkit-scrollbar-track { background: transparent; }
   .kanban-board::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid #F8FAFC; }
