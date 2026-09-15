@@ -60,11 +60,9 @@ export const actions = {
     const id = formData.get('id');
     const estado = formData.get('estado');
 
-    // Nivel 3: Datos de cierre opcionales
     const precioCierre = formData.get('precio_cierre');
     const comisionCierre = formData.get('comision_cierre');
 
-    // 🚀 FIX: Actualizar el reloj cuando cambias de columna en el Kanban
     let actualizaciones = { 
         estado,
         actualizado_en: new Date().toISOString()
@@ -76,7 +74,10 @@ export const actions = {
     }
 
     const { error } = await locals.supabase.from('leads').update(actualizaciones).eq('id', id).eq('broker_id', broker.id);
-    if (error) return fail(500, { error: 'Fallo al mover' });
+    if (error) {
+        console.error('🔥 Error DB al mover lead:', error);
+        return fail(500, { error: `Error DB al mover: ${error.message}` });
+    }
     return { success: true };
   },
 
@@ -111,6 +112,7 @@ export const actions = {
     const { data: lead, error: checkError } = await locals.supabase.from('leads').select('id, estado').eq('id', leadId).eq('broker_id', broker.id).maybeSingle();
     if (checkError || !lead) return fail(403, { error: 'No autorizado' });
 
+    // 1. Intentamos guardar la nota primero
     const { error: notaError } = await locals.supabase
       .from('lead_notas')
       .insert({ 
@@ -122,9 +124,13 @@ export const actions = {
         completado: false
       });
 
-    if (notaError) return fail(500, { error: `Supabase Error: ${notaError.message}` });
+    // Si falla, vomitamos el error exacto al frontend
+    if (notaError) {
+        console.error('🔥 Error Crítico Insertando Nota:', notaError);
+        return fail(500, { error: `Fallo BD (Insertar Nota): ${notaError.message}` });
+    }
 
-    // 🚀 FIX PRINCIPAL: Obligamos a la BD a sobreescribir 'actualizado_en' siempre que guardes nota
+    // 2. Si guardó la nota, actualizamos el reloj del Lead
     let actualizacionesLead = { 
         actualizado_en: new Date().toISOString() 
     };
@@ -133,7 +139,13 @@ export const actions = {
       actualizacionesLead.estado = 'contactado';
     }
 
-    await locals.supabase.from('leads').update(actualizacionesLead).eq('id', leadId).eq('broker_id', broker.id);
+    const { error: updateError } = await locals.supabase.from('leads').update(actualizacionesLead).eq('id', leadId).eq('broker_id', broker.id);
+    
+    // Si falla el reloj, también avisamos
+    if (updateError) {
+        console.error('🔥 Error Crítico Actualizando Reloj Lead:', updateError);
+        return fail(500, { error: `Fallo BD (Reloj Lead): ${updateError.message}` });
+    }
 
     return { success: true };
   },
@@ -144,7 +156,7 @@ export const actions = {
     const notaId = formData.get('nota_id');
 
     const { error } = await locals.supabase.from('lead_notas').update({ completado: true }).eq('id', notaId).eq('broker_id', locals.user.id);
-    if (error) return fail(500, { error: 'Fallo al completar' });
+    if (error) return fail(500, { error: `Fallo BD: ${error.message}` });
     return { success: true };
   }
 };
