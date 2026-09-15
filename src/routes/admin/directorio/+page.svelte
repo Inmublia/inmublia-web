@@ -1,9 +1,8 @@
 <!-- src/routes/admin/directorio/+page.svelte -->
 <script>
   import { 
-    Users, Target, Sparkles, MessageSquareQuote, 
-    Search, MapPin, BadgeDollarSign, ArrowRight, Zap,
-    Download, Activity, BarChart3, Clock
+    Target, Sparkles, Search, ArrowRight, Zap,
+    Download, Clock
   } from 'lucide-svelte';
   
   let { data } = $props();
@@ -79,7 +78,6 @@
     const ganados = leads.filter(l => l.estado === 'cerrado').length;
     return {
       actual: ((ganados / total) * 100).toFixed(1),
-      // Nota: El delta (vs mes anterior) requiere histórico de estatus. Por ahora mostramos 0 para no errar.
       delta: 0 
     };
   });
@@ -140,11 +138,8 @@
     .sort((a, b) => b.matches.length - a.matches.length);
   });
 
-  let totalClientes = $derived(clientesInteligentes.length);
+  // 5. KPI: Total de Matches (Cruces Exitosos)
   let totalMatches = $derived(clientesInteligentes.reduce((acc, c) => acc + c.matches.length, 0));
-  let valorPipelinePotencial = $derived(
-    clientesInteligentes.reduce((acc, c) => acc + (c.matches[0]?.precio || 0), 0)
-  );
 
   const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 
@@ -180,7 +175,6 @@
       l.matches.length
     ]);
 
-    // \uFEFF asegura que Excel lea los acentos correctamente en español
     const contenidoCSV = [cabeceras.join(','), ...filas.map(f => f.join(','))].join('\n');
     const blob = new Blob(["\uFEFF" + contenidoCSV], { type: 'text/csv;charset=utf-8;' }); 
     const url = URL.createObjectURL(blob);
@@ -208,7 +202,7 @@
         </p>
       </div>
       
-      <!-- CONTROLES SUPERIORES (Buscador reducido + Botón Exportar) -->
+      <!-- CONTROLES SUPERIORES -->
       <div class="flex items-center gap-3 w-full md:w-auto">
         <div class="relative flex-1 md:w-64">
           <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
@@ -225,12 +219,15 @@
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-12">
       
-      <!-- NUEVAS TARJETAS DE KPIS SUPERIORES -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <!-- Leads este mes -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-blue-500 border-x border-b border-x-slate-200 border-b-slate-200">
-          <p class="text-xs font-bold text-slate-500 mb-2">Leads este mes</p>
-          <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{metricasMes.total}</p>
+      <!-- 🚀 NUEVO GRID DE 5 KPIS VITALES -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+        
+        <!-- 1. Leads este mes -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-blue-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
+          <div>
+            <p class="text-xs font-bold text-slate-500 mb-1">Leads este mes</p>
+            <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{metricasMes.total}</p>
+          </div>
           {#if metricasMes.esPositivo}
             <p class="text-[10px] font-bold text-emerald-600">↑ {metricasMes.crecimiento}% vs mes anterior</p>
           {:else}
@@ -238,10 +235,12 @@
           {/if}
         </div>
 
-        <!-- En negociación -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-emerald-500 border-x border-b border-x-slate-200 border-b-slate-200">
-          <p class="text-xs font-bold text-slate-500 mb-2">En negociación</p>
-          <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{leadsEnNegociacion.total}</p>
+        <!-- 2. En negociación -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-emerald-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
+          <div>
+            <p class="text-xs font-bold text-slate-500 mb-1">En negociación</p>
+            <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{leadsEnNegociacion.total}</p>
+          </div>
           {#if leadsEnNegociacion.nuevosSemana > 0}
             <p class="text-[10px] font-bold text-emerald-600">↑ {leadsEnNegociacion.nuevosSemana} nuevos esta semana</p>
           {:else}
@@ -249,65 +248,37 @@
           {/if}
         </div>
 
-        <!-- Sin seguimiento -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-amber-500 border-x border-b border-x-slate-200 border-b-slate-200">
-          <p class="text-xs font-bold text-slate-500 mb-2">Sin seguimiento +3d</p>
-          <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{sinSeguimiento}</p>
+        <!-- 3. Sin seguimiento -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-amber-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
+          <div>
+            <p class="text-xs font-bold text-slate-500 mb-1">Sin seguimiento +3d</p>
+            <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{sinSeguimiento}</p>
+          </div>
           {#if sinSeguimiento > 0}
-            <p class="text-[10px] font-bold text-rose-500">↑ Requieren acción</p>
+            <p class="text-[10px] font-bold text-rose-500 flex items-center gap-1"><Clock class="w-3 h-3"/> Requieren acción</p>
           {:else}
             <p class="text-[10px] font-bold text-emerald-600">Al día</p>
           {/if}
         </div>
 
-        <!-- Tasa de conversión -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-indigo-500 border-x border-b border-x-slate-200 border-b-slate-200">
-          <p class="text-xs font-bold text-slate-500 mb-2">Tasa de conversión</p>
-          <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{tasaConversion.actual}%</p>
-          <p class="text-[10px] font-bold text-emerald-600">↑ Calculado sobre histórico</p>
-        </div>
-      </div>
-
-      <!-- TARJETAS SECUNDARIAS DE LA BÓVEDA -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
-        
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between group hover:border-slate-300 transition-all">
-          <div class="flex items-center justify-between mb-3">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bóveda Histórica</p>
-            <div class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 border border-slate-200/50">
-              <Users class="w-4 h-4" />
-            </div>
+        <!-- 4. Tasa de conversión -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-indigo-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
+          <div>
+            <p class="text-xs font-bold text-slate-500 mb-1">Tasa de conversión</p>
+            <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{tasaConversion.actual}%</p>
           </div>
-          <div class="flex items-baseline gap-2">
-            <p class="text-2xl font-black text-slate-900 tracking-tighter truncate">{totalClientes}</p>
-            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Clientes</p>
-          </div>
+          <p class="text-[10px] font-bold text-emerald-600">↑ Histórico global</p>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between group hover:border-slate-300 transition-all">
-          <div class="flex items-center justify-between mb-3">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cruces Exitosos</p>
-            <div class="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100/50 relative">
-              <span class="absolute -top-1 -right-1 flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span></span>
-              <Zap class="w-4 h-4" />
-            </div>
+        <!-- 5. Cruces exitosos (Movido de la sección eliminada) -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-purple-500 border-x border-b border-x-slate-200 border-b-slate-200 flex flex-col justify-between">
+          <div>
+            <p class="text-xs font-bold text-slate-500 mb-1">Cruces exitosos</p>
+            <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{totalMatches}</p>
           </div>
-          <div class="flex items-baseline gap-2">
-            <p class="text-2xl font-black text-slate-900 tracking-tighter">{totalMatches}</p>
-            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Matches</p>
-          </div>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between group hover:border-slate-300 transition-all">
-          <div class="flex items-center justify-between mb-3">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valor Potencial</p>
-            <div class="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-100/50">
-              <BadgeDollarSign class="w-4 h-4" />
-            </div>
-          </div>
-          <div class="flex items-baseline gap-2">
-            <p class="text-2xl font-black text-slate-900 tracking-tighter">{formatter.format(valorPipelinePotencial)}</p>
-          </div>
+          <p class="text-[10px] font-bold text-purple-600 flex items-center gap-1">
+            <Zap class="w-3 h-3 fill-current" /> Matches en bóveda
+          </p>
         </div>
 
       </div>
@@ -376,7 +347,7 @@
         {#if clientesInteligentes.length === 0}
           <div class="bg-white rounded-3xl border border-slate-200 p-16 text-center flex flex-col items-center justify-center w-full max-w-[1400px] mx-auto">
             <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 mb-4 shadow-inner">
-              <Users class="w-6 h-6" />
+              <Search class="w-6 h-6" />
             </div>
             <h3 class="text-lg font-black text-slate-900 tracking-tight mb-2">Bóveda Vacía</h3>
             <p class="text-sm text-slate-500 font-medium max-w-md">No tienes prospectos registrados o ninguno coincide con tu búsqueda actual.</p>
