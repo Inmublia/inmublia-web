@@ -1,3 +1,4 @@
+<!-- src/lib/templates/Classic.svelte -->
 <script>
   import { MapPin, Building2, ArrowRight, Sparkles } from 'lucide-svelte';
   import SocialLinks from '$lib/components/SocialLinks.svelte';
@@ -43,17 +44,31 @@
       </h2>
       <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
         {#each propiedades as propiedad}
-          <a href="/{propiedad.slug}" class="group block bg-white rounded-3xl shadow-sm hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300 border border-slate-200 overflow-hidden flex flex-col h-full hover:-translate-y-1">
+          <a href="/{propiedad.slug}" class="group block bg-white rounded-3xl shadow-sm hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300 border border-slate-200 overflow-hidden flex flex-col h-full hover:-translate-y-1 {propiedad.estatus === 'Vendida' ? 'opacity-90' : ''}">
             <div class="relative h-64 overflow-hidden bg-slate-100">
-              <div class="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-md text-slate-900 text-[10px] font-black px-3 py-1.5 rounded-md uppercase tracking-widest shadow-sm">En Venta</div>
-              <img class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out" src={propiedad.imagen_url} alt={propiedad.titulo} />
+              
+              <!-- Etiqueta superior izquierda dinámica -->
+              <div class="absolute top-4 left-4 z-20 bg-white/90 backdrop-blur-md {propiedad.estatus === 'Vendida' ? 'text-rose-700' : 'text-slate-900'} text-[10px] font-black px-3 py-1.5 rounded-md uppercase tracking-widest shadow-sm">
+                {propiedad.estatus === 'Vendida' ? 'Vendida' : 'En Venta'}
+              </div>
+              
+              <!-- 🚀 SELLO DE VENDIDA (Con pointer-events-none para no bloquear el hover) -->
+              {#if propiedad.estatus === 'Vendida'}
+                <div class="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-10 flex items-center justify-center overflow-hidden pointer-events-none">
+                  <img src="/sello-vendido.png" alt="Vendido" class="w-[120%] h-auto object-contain opacity-90 -rotate-12 drop-shadow-md scale-110" />
+                </div>
+              {/if}
+
+              <!-- Imagen base con filtro grisáceo si está vendida -->
+              <img class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out {propiedad.estatus === 'Vendida' ? 'grayscale-[50%]' : ''}" src={propiedad.imagen_url} alt={propiedad.titulo} />
             </div>
+            
             <div class="p-6 flex flex-col flex-1 justify-between">
               <div>
-                <h3 class="text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors mb-2 line-clamp-2">{propiedad.titulo}</h3>
+                <h3 class="text-lg font-bold {propiedad.estatus === 'Vendida' ? 'text-slate-600 line-through decoration-slate-300' : 'text-slate-900'} group-hover:text-indigo-600 transition-colors mb-2 line-clamp-2">{propiedad.titulo}</h3>
                 <p class="text-xs font-semibold text-slate-500 flex items-center gap-1.5 mb-6 uppercase tracking-wider"><MapPin class="w-3.5 h-3.5 text-slate-400" /> {propiedad.ubicacion}</p>
               </div>
-              <p class="text-2xl font-black tracking-tight text-slate-900">{formatearDinero(propiedad.precio)} <span class="text-[10px] font-bold text-slate-400 uppercase">MXN</span></p>
+              <p class="text-2xl font-black tracking-tight {propiedad.estatus === 'Vendida' ? 'text-slate-500' : 'text-slate-900'}">{formatearDinero(propiedad.precio)} <span class="text-[10px] font-bold text-slate-400 uppercase">MXN</span></p>
             </div>
           </a>
         {/each}
