@@ -33,7 +33,6 @@ export async function load({ locals, setHeaders, url, depends }) {
 
     if (alertasError) console.error("Error cargando alertas:", alertasError);
 
-    // 🚀 FIX: Traemos la nueva columna 'fecha_vendida'
     const { data: propiedadesRaw, error: propError } = await locals.supabase
       .from('propiedades')
       .select(`
@@ -63,12 +62,11 @@ export async function load({ locals, setHeaders, url, depends }) {
 
     if (propError) console.error("Error cargando propiedades:", propError);
 
-    // 🚀 EL MOTOR DE FOMO: Filtramos propiedades vendidas hace más de 3 días
+    // EL MOTOR DE FOMO: Filtramos propiedades vendidas hace más de 3 días
     const propiedades = (propiedadesRaw || []).filter(p => {
       if (p.estatus === 'Vendida' && p.fecha_vendida) {
         const fechaVendida = new Date(p.fecha_vendida);
         const diasTranscurridos = (now - fechaVendida) / (1000 * 60 * 60 * 24);
-        // Si pasaron más de 3 días (72 horas), la ocultamos del inventario (return false)
         return diasTranscurridos <= 3;
       }
       return true;
@@ -89,7 +87,6 @@ export async function load({ locals, setHeaders, url, depends }) {
 }
 
 export const actions = {
-  // 🚀 NUEVO ENDPOINT: Marca como vendida e inyecta la fecha
   marcarVendida: async ({ request, locals }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
@@ -117,6 +114,37 @@ export const actions = {
       .eq('broker_id', broker.id);
 
     if (error) return fail(500, { error: 'Fallo al actualizar estatus.' });
+    return { success: true };
+  },
+
+  // 🚀 LA NUEVA ACCIÓN DE SEGURIDAD: Revertir a Activa
+  deshacerVendida: async ({ request, locals }) => {
+    const user = locals.user;
+    if (!user) return fail(401, { error: 'No autorizado' });
+
+    const formData = await request.formData();
+    const idPropiedad = formData.get('id');
+
+    if (!idPropiedad) return fail(400, { error: 'ID no proporcionado' });
+
+    const { data: broker } = await locals.supabase
+      .from('brokers')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (!broker) return fail(403, { error: 'No autorizado' });
+
+    const { error } = await locals.supabase
+      .from('propiedades')
+      .update({ 
+        estatus: 'Activa', 
+        fecha_vendida: null // Borramos la fecha para resetear el reloj
+      })
+      .eq('id', idPropiedad)
+      .eq('broker_id', broker.id);
+
+    if (error) return fail(500, { error: 'Fallo al revertir estatus.' });
     return { success: true };
   },
 
