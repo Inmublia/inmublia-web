@@ -67,12 +67,13 @@ export const actions = {
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
+    // 🚀 PROMPT BLINDADO: Obligamos a usar formato plano para que no haya saltos de línea ilegales en el JSON
     const systemPrompt = `<role>Eres un Copywriter Inmobiliario en México.</role>
 <rules>
 1. IDIOMA: 100% Español de México.
-2. FORMATO: Jamás juntes texto con números.
-3. TONO: ${instruccionTono}
-4. SALIDA: Debes generar EXCLUSIVAMENTE un objeto JSON válido. SIN MARKDOWN. SIN SALUDOS.
+2. FORMATO JSON: Devuelve ÚNICAMENTE un JSON válido. No uses Markdown, no saludes.
+3. SALTOS DE LÍNEA: Usa los caracteres literales "\\n\\n" para separar los párrafos de la descripción. NUNCA des "Enter" (salto de línea real) dentro de un texto.
+4. TONO: ${instruccionTono}
 </rules>`;
 
     const userPrompt = `Genera la campaña para esta propiedad en formato JSON estricto:
@@ -91,23 +92,20 @@ Antigüedad: ${antiguedad}
 <json_format>
 {
   "titulo": "[Título magnético, max 8 palabras]",
-  "descripcion": "[3 párrafos separados por \\n\\n. Párrafo 1: Intro. Párrafo 2: Características. Párrafo 3: Cierre.]",
+  "descripcion": "[Párrafo 1\\n\\nPárrafo 2\\n\\nPárrafo 3]",
   "whatsapp": "[Mensaje para WhatsApp con 3 emojis]"
 }
 </json_format>`;
 
-    // 🚀 BLINDAJE 1: REDUNDANCIA MULTIMODAL (El Escudo Anti-Descontinuaciones)
-    // Ordenados de mayor a menor probabilidad de éxito/soporte en Cloudflare
     const modelosSoportados = [
-      '@cf/meta/llama-3.1-8b-instruct', // El estándar actual, rápido y económico
-      '@cf/meta/llama-3-8b-instruct',   // El fallback de generación anterior ultra estable
-      '@cf/meta/llama-3.2-3b-instruct'  // El modelo ultraligero de emergencia
+      '@cf/meta/llama-3.1-8b-instruct', 
+      '@cf/meta/llama-3-8b-instruct',   
+      '@cf/meta/llama-3.2-3b-instruct'  
     ];
 
     let rawResponse = null;
     let errorLog = [];
 
-    // 🚀 BLINDAJE 2: El Loop de Supervivencia
     for (const modelo of modelosSoportados) {
       try {
         const response = await platform.env.AI.run(modelo, {
@@ -119,16 +117,14 @@ Antigüedad: ${antiguedad}
 
         if (response && response.response) {
           rawResponse = String(response.response).trim();
-          break; // Si el modelo responde con éxito, rompemos el ciclo y avanzamos
+          break; 
         }
       } catch (e) {
         console.warn(`[IA Warning] Fallo con modelo ${modelo}: ${e.message}`);
         errorLog.push(modelo);
-        // Si este modelo está descontinuado o falla, el ciclo continúa con el siguiente en silencio.
       }
     }
 
-    // Si absolutamente TODOS los modelos fallaron (Caída masiva de Cloudflare)
     if (!rawResponse) {
       return {
         titulo: '⚠️ Error de Servidor IA',
@@ -138,24 +134,22 @@ Antigüedad: ${antiguedad}
     }
 
     try {
-      // 🚀 BLINDAJE 3: Destruir el código Markdown que la IA siempre intenta inyectar
-      rawResponse = rawResponse.replace(/^```json/i, '').replace(/^```/i, '').replace(/```$/i, '').trim();
+      // 🚀 EXTRACTOR QUIRÚRGICO DE JSON: IGNORA EL MARKDOWN SIN DESTRUIR EL STRING
+      const firstBrace = rawResponse.indexOf('{');
+      const lastBrace = rawResponse.lastIndexOf('}');
 
-      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error("La IA no devolvió la estructura JSON requerida.");
+      if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+        throw new Error("No se detectó un objeto JSON entre llaves { }.");
       }
 
-      let jsonString = jsonMatch[0];
-      
-      // Escapamos los saltos de línea para que JSON.parse no explote
-      jsonString = jsonString.replace(/\n/g, '\\n').replace(/\r/g, '');
-      // Borramos caracteres nulos que a veces retornan los LLM
-      jsonString = jsonString.replace(/[\u0000-\u0009\u000B-\u001F]+/g, ' ');
+      // Cortamos exactamente desde la primera { hasta la última }
+      let jsonString = rawResponse.substring(firstBrace, lastBrace + 1);
+
+      // Limpiamos SOLO caracteres de control nulos que sí rompen JSON (dejamos las estructuras intactas)
+      jsonString = jsonString.replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F]+/g, '');
 
       const parsedContent = JSON.parse(jsonString);
 
-      // Descontamos crédito si y solo si todo fue exitoso
       await locals.supabase
         .from('brokers')
         .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
@@ -168,13 +162,13 @@ Antigüedad: ${antiguedad}
       };
 
     } catch (error) {
-      console.error("🔥 FALLO IA CAPTURADO:", error);
+      console.error("🔥 FALLO IA CAPTURADO. Respuesta Cruda:", rawResponse);
+      console.error("Detalle Error:", error);
       
-      // 🚀 BLINDAJE 4: LA CURA AL "SPINNER INFINITO"
       return {
         titulo: '⚠️ Error de Formato IA',
-        descripcion: `La IA generó una respuesta, pero con un formato corrupto que no se pudo procesar.\n\nDetalle técnico: ${error.message}\n\nPor favor, intenta presionar el botón nuevamente. No se te han descontado créditos.`,
-        whatsapp: 'Intenta nuevamente más tarde.'
+        descripcion: `La IA generó una respuesta, pero con un formato que el sistema no pudo leer.\n\nDetalle técnico: ${error.message}\n\nPor favor, presiona el botón nuevamente. No se te han descontado créditos.`,
+        whatsapp: 'Intenta nuevamente.'
       };
     }
   },
@@ -187,7 +181,7 @@ Antigüedad: ${antiguedad}
       return fail(500, { error: 'Falla Crítica: Cloudflare R2 (INMUBLIA_BUCKET) no está conectado.' });
     }
     
-    const CDN_DOMAIN = platform?.env?.CDN_URL || '[https://cdn.inmublia.com](https://cdn.inmublia.com)';
+    const CDN_DOMAIN = platform?.env?.CDN_URL || 'https://cdn.inmublia.com';
 
     const formData = await request.formData();
     
