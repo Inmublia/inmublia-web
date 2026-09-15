@@ -96,25 +96,49 @@ Antigüedad: ${antiguedad}
 }
 </json_format>`;
 
-    try {
-      // 🚀 BLINDAJE 1: Usar el modelo más rápido de Cloudflare para evitar Timeouts
-      const modeloExitoso = '@cf/meta/llama-3.1-8b-instruct';
-      
-      // 🚀 BLINDAJE 2: Petición pura, sin parámetros que causan drop silencioso en Cloudflare AI
-      const response = await platform.env.AI.run(modeloExitoso, {
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ]
-      });
+    // 🚀 BLINDAJE 1: REDUNDANCIA MULTIMODAL (El Escudo Anti-Descontinuaciones)
+    // Ordenados de mayor a menor probabilidad de éxito/soporte en Cloudflare
+    const modelosSoportados = [
+      '@cf/meta/llama-3.1-8b-instruct', // El estándar actual, rápido y económico
+      '@cf/meta/llama-3-8b-instruct',   // El fallback de generación anterior ultra estable
+      '@cf/meta/llama-3.2-3b-instruct'  // El modelo ultraligero de emergencia
+    ];
 
-      if (!response || !response.response) {
-        throw new Error("El modelo de IA devolvió una respuesta vacía o Cloudflare cortó la conexión.");
+    let rawResponse = null;
+    let errorLog = [];
+
+    // 🚀 BLINDAJE 2: El Loop de Supervivencia
+    for (const modelo of modelosSoportados) {
+      try {
+        const response = await platform.env.AI.run(modelo, {
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ]
+        });
+
+        if (response && response.response) {
+          rawResponse = String(response.response).trim();
+          break; // Si el modelo responde con éxito, rompemos el ciclo y avanzamos
+        }
+      } catch (e) {
+        console.warn(`[IA Warning] Fallo con modelo ${modelo}: ${e.message}`);
+        errorLog.push(modelo);
+        // Si este modelo está descontinuado o falla, el ciclo continúa con el siguiente en silencio.
       }
+    }
 
-      let rawResponse = String(response.response).trim();
-      
-      // 🚀 BLINDAJE 3: Destruir el código Markdown que Llama siempre intenta inyectar
+    // Si absolutamente TODOS los modelos fallaron (Caída masiva de Cloudflare)
+    if (!rawResponse) {
+      return {
+        titulo: '⚠️ Error de Servidor IA',
+        descripcion: `Cloudflare AI rechazó la petición en todos los modelos soportados (${errorLog.join(', ')}).\n\nNo se te han descontado créditos. Intenta de nuevo en unos minutos.`,
+        whatsapp: 'Servicio temporalmente saturado.'
+      };
+    }
+
+    try {
+      // 🚀 BLINDAJE 3: Destruir el código Markdown que la IA siempre intenta inyectar
       rawResponse = rawResponse.replace(/^```json/i, '').replace(/^```/i, '').replace(/```$/i, '').trim();
 
       const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
@@ -147,12 +171,9 @@ Antigüedad: ${antiguedad}
       console.error("🔥 FALLO IA CAPTURADO:", error);
       
       // 🚀 BLINDAJE 4: LA CURA AL "SPINNER INFINITO"
-      // Si devolvemos fail(), el frontend buggy se queda girando. 
-      // Al devolver estos strings como un éxito falso, desbloqueamos el botón INMEDIATAMENTE
-      // y el usuario recibe el aviso directo en pantalla sin perder sus datos.
       return {
-        titulo: '⚠️ Error de Conexión IA',
-        descripcion: `El servidor de Inteligencia Artificial de Cloudflare superó el tiempo de espera o está saturado.\n\nDetalle técnico para soporte: ${error.message}\n\nPor favor, intenta presionar el botón nuevamente. No se te han descontado créditos.`,
+        titulo: '⚠️ Error de Formato IA',
+        descripcion: `La IA generó una respuesta, pero con un formato corrupto que no se pudo procesar.\n\nDetalle técnico: ${error.message}\n\nPor favor, intenta presionar el botón nuevamente. No se te han descontado créditos.`,
         whatsapp: 'Intenta nuevamente más tarde.'
       };
     }
