@@ -77,13 +77,12 @@
   });
 
   // -------------------------------------------------------------
-  // NUEVO: Lógica Gráfica Tendencia 6 Meses
+  // Lógica Gráfica Tendencia 6 Meses
   // -------------------------------------------------------------
   let tendenciaMeses = $derived.by(() => {
     const hoy = new Date();
     const meses = [];
     
-    // Generar estructura de los últimos 6 meses
     for (let i = 5; i >= 0; i--) {
       const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
       meses.push({
@@ -118,7 +117,7 @@
   });
 
   // -------------------------------------------------------------
-  // NUEVO: Lógica Donut Chart (Últimos 30 días)
+  // Lógica Donut Chart (Últimos 30 días)
   // -------------------------------------------------------------
   let origenes30Dias = $derived.by(() => {
     const hace30Dias = new Date();
@@ -166,7 +165,7 @@
   <div class="p-6 sm:p-10 flex-1 overflow-auto pb-32 animate-[fadeIn_0.4s_ease-out]">
     <div class="max-w-[1400px] mx-auto space-y-8">
 
-      <!-- 🚀 TOP 4 KPIS -->
+      <!-- TOP 4 KPIS -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
         <div class="bg-zinc-950 p-8 rounded-3xl shadow-xl shadow-zinc-900/10 text-white relative overflow-hidden border border-zinc-800 flex flex-col justify-between">
@@ -213,7 +212,7 @@
           </div>
         </div>
 
-        <!-- 🚀 NUEVA TARJETA: Leads Históricos -->
+        <!-- Tarjeta de Leads Históricos -->
         <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-between group hover:border-slate-300 transition-all">
           <div class="flex items-center justify-between mb-4">
             <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Leads Históricos</p>
@@ -229,10 +228,9 @@
 
       </div>
 
-      <!-- 🚀 NUEVA SECCIÓN GRÁFICAS (Tendencia y Donut) -->
+      <!-- SECCIÓN GRÁFICAS (Tendencia y Donut) -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        <!-- Gráfica de Barras: Leads captados por mes -->
         <div class="lg:col-span-8 bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col">
           <div class="mb-8">
             <h3 class="text-lg font-black text-slate-900">Leads captados por mes</h3>
@@ -241,7 +239,6 @@
 
           <div class="flex-1 flex flex-col justify-end min-h-[180px] mb-6 pt-4">
             <div class="flex justify-between items-end h-32 gap-3 sm:gap-6 relative">
-              <!-- Líneas guía de fondo -->
               <div class="absolute inset-0 flex flex-col justify-between opacity-10 pointer-events-none">
                 <div class="w-full h-px bg-slate-900"></div>
                 <div class="w-full h-px bg-slate-900"></div>
@@ -281,7 +278,6 @@
           </div>
         </div>
 
-        <!-- Gráfica Donut: Leads por portal de origen -->
         <div class="lg:col-span-4 bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col">
           <div class="mb-8">
             <h3 class="text-lg font-black text-slate-900">Leads por portal de origen</h3>
@@ -295,7 +291,6 @@
                 <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Sin datos recientes</p>
               </div>
             {:else}
-              <!-- Chart Donut CSS -->
               <div class="relative w-44 h-44 rounded-full mb-8 shadow-[inset_0_4px_10px_rgba(0,0,0,0.1)] transition-transform hover:scale-105 duration-300" style="background: conic-gradient(
                 #10b981 0% {origenes30Dias.c1}%, 
                 #3b82f6 {origenes30Dias.c1}% {origenes30Dias.c2}%, 
@@ -307,7 +302,6 @@
                 </div>
               </div>
 
-              <!-- Leyenda -->
               <div class="w-full space-y-4 px-2">
                 <div class="flex items-center justify-between text-xs font-bold text-slate-600">
                   <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-md bg-emerald-500 shadow-sm"></span> Búsqueda Orgánica</div>
@@ -435,87 +429,6 @@
                   </div>
                 {/each}
               </div>
-            {/if}
-          </div>
-        </div>
-      </div>
-
-      <!-- 🚀 PÍXELES DE MARKETING HORIZONTALES (UI Limpia) -->
-      <div class="mt-4 pt-8 border-t border-slate-200 border-dashed">
-        <div class="mb-6">
-          <h3 class="text-xl font-black text-slate-900 flex items-center gap-2">
-            <Target class="w-6 h-6 text-slate-900" /> Integraciones de Píxeles
-          </h3>
-          <p class="text-xs font-semibold text-slate-400 mt-1">Estatus de tus herramientas de pauta y analítica vinculadas a tu inventario.</p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm hover:border-blue-200 transition-colors">
-            <div class="flex items-center gap-4">
-              <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 shadow-sm">
-                <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
-              </div>
-              <div>
-                <h4 class="text-sm font-black text-slate-900">Meta Pixel</h4>
-                {#if broker.pixel_fb}
-                  <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-1 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Trackeando</p>
-                {:else}
-                  <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">No Configurado</p>
-                {/if}
-              </div>
-            </div>
-            {#if broker.pixel_fb}
-              <a href="https://business.facebook.com/events_manager2" target="_blank" rel="noopener noreferrer" class="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 px-3.5 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm">
-                Ver Datos
-              </a>
-            {:else}
-              <a href="/admin/perfil" class="text-xs font-bold text-slate-500 bg-slate-50 border border-slate-200 hover:bg-slate-100 px-3.5 py-2 rounded-lg transition-colors shadow-sm">Configurar</a>
-            {/if}
-          </div>
-
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm hover:border-amber-200 transition-colors">
-            <div class="flex items-center gap-4">
-              <div class="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center border border-amber-100 shadow-sm">
-                <svg class="w-6 h-6 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12.24 10.285V14.4h6.806c-.275 1.765-2.056 5.174-6.806 5.174-4.095 0-7.439-3.389-7.439-7.574s3.345-7.574 7.439-7.574c2.33 0 3.891.989 4.785 1.849l3.254-3.138C18.189 1.186 15.479 0 12.24 0c-6.635 0-12 5.365-12 12s5.365 12 12 12c6.926 0 11.52-4.869 11.52-11.726 0-.788-.085-1.39-.189-1.989H12.24z"/></svg>
-              </div>
-              <div>
-                <h4 class="text-sm font-black text-slate-900">Google Analytics</h4>
-                {#if broker.pixel_google}
-                  <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-1 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Trackeando</p>
-                {:else}
-                  <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">No Configurado</p>
-                {/if}
-              </div>
-            </div>
-            {#if broker.pixel_google}
-              <a href="https://analytics.google.com" target="_blank" rel="noopener noreferrer" class="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 hover:bg-amber-100 px-3.5 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm">
-                Ver Datos
-              </a>
-            {:else}
-              <a href="/admin/perfil" class="text-xs font-bold text-slate-500 bg-slate-50 border border-slate-200 hover:bg-slate-100 px-3.5 py-2 rounded-lg transition-colors shadow-sm">Configurar</a>
-            {/if}
-          </div>
-
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm hover:border-slate-400 transition-colors">
-            <div class="flex items-center gap-4">
-              <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center border border-slate-200 shadow-sm">
-                <svg class="w-6 h-6 text-slate-900" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 2.22-1.15 4.39-2.92 5.75-1.84 1.4-4.29 1.83-6.6 1.4-2.18-.4-4.14-1.74-5.26-3.66-1.16-1.99-1.37-4.46-.57-6.57.82-2.18 2.67-3.9 4.88-4.57 1.59-.48 3.32-.46 4.88.08v4.06c-.84-.27-1.78-.34-2.65-.13-.88.21-1.67.75-2.18 1.48-.52.75-.71 1.72-.5 2.6.21.88.75 1.67 1.48 2.18.75.52 1.72.71 2.6.5 1.25-.29 2.21-1.36 2.45-2.62.06-.32.07-.65.07-.98V.02z"/></svg>
-              </div>
-              <div>
-                <h4 class="text-sm font-black text-slate-900">TikTok Pixel</h4>
-                {#if broker.pixel_tiktok}
-                  <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-1 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Trackeando</p>
-                {:else}
-                  <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">No Configurado</p>
-                {/if}
-              </div>
-            </div>
-            {#if broker.pixel_tiktok}
-              <a href="https://ads.tiktok.com" target="_blank" rel="noopener noreferrer" class="text-xs font-bold text-slate-900 bg-slate-100 border border-slate-200 hover:bg-slate-200 px-3.5 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm">
-                Ver Datos
-              </a>
-            {:else}
-              <a href="/admin/perfil" class="text-xs font-bold text-slate-500 bg-slate-50 border border-slate-200 hover:bg-slate-100 px-3.5 py-2 rounded-lg transition-colors shadow-sm">Configurar</a>
             {/if}
           </div>
         </div>
