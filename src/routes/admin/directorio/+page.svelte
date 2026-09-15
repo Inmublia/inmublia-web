@@ -1,7 +1,9 @@
+<!-- src/routes/admin/directorio/+page.svelte -->
 <script>
   import { 
     Users, Target, Sparkles, MessageSquareQuote, 
-    Search, MapPin, BadgeDollarSign, ArrowRight, Zap 
+    Search, MapPin, BadgeDollarSign, ArrowRight, Zap,
+    Download, Activity, BarChart3, Clock
   } from 'lucide-svelte';
   
   let { data } = $props();
@@ -11,7 +13,81 @@
 
   let searchQuery = $state('');
 
-  // OPTIMIZACIÓN SVELTE 5: Usamos $derived.by para procesar el bloque una sola vez y guardarlo en memoria
+  // -------------------------------------------------------------
+  // LÓGICA DE KPIS (TARJETAS SUPERIORES)
+  // -------------------------------------------------------------
+
+  // 1. Leads este mes vs Mes anterior
+  let metricasMes = $derived.by(() => {
+    const ahora = new Date();
+    const inicioEsteMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+    const inicioMesPasado = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
+    
+    let leadsEsteMes = 0;
+    let leadsMesPasado = 0;
+
+    leads.forEach(l => {
+      const fecha = new Date(l.creado_en);
+      if (fecha >= inicioEsteMes) leadsEsteMes++;
+      else if (fecha >= inicioMesPasado && fecha < inicioEsteMes) leadsMesPasado++;
+    });
+
+    let crecimiento = 0;
+    if (leadsMesPasado > 0) {
+      crecimiento = ((leadsEsteMes - leadsMesPasado) / leadsMesPasado) * 100;
+    } else if (leadsEsteMes > 0) {
+      crecimiento = 100; // Crecimiento si no había leads el mes pasado
+    }
+
+    return {
+      total: leadsEsteMes,
+      crecimiento: crecimiento.toFixed(0),
+      esPositivo: crecimiento >= 0
+    };
+  });
+
+  // 2. Leads en Negociación (Nuevos esta semana)
+  let leadsEnNegociacion = $derived.by(() => {
+    const ahora = new Date();
+    const haceUnaSemana = new Date(ahora.getTime() - (7 * 24 * 60 * 60 * 1000));
+    
+    let total = 0;
+    let nuevosSemana = 0;
+
+    leads.forEach(l => {
+      if (l.estado === 'negociacion') {
+        total++;
+        if (new Date(l.creado_en) >= haceUnaSemana) nuevosSemana++;
+      }
+    });
+
+    return { total, nuevosSemana };
+  });
+
+  // 3. Sin seguimiento (+3 días)
+  let sinSeguimiento = $derived(leads.filter(l => {
+    if (['cerrado', 'descartado'].includes(l.estado)) return false;
+    const dias = Math.floor((new Date() - new Date(l.creado_en)) / (1000 * 60 * 60 * 24));
+    return dias >= 3;
+  }).length);
+
+  // 4. Tasa de conversión (Tasa de cierre histórica)
+  let tasaConversion = $derived.by(() => {
+    const total = leads.length;
+    if (total === 0) return { actual: 0, delta: 0 };
+    
+    const ganados = leads.filter(l => l.estado === 'cerrado').length;
+    return {
+      actual: ((ganados / total) * 100).toFixed(1),
+      // Nota: El delta (vs mes anterior) requiere histórico de estatus. Por ahora mostramos 0 para no errar.
+      delta: 0 
+    };
+  });
+
+
+  // -------------------------------------------------------------
+  // LÓGICA DE MATCHMAKING (BÓVEDA)
+  // -------------------------------------------------------------
   let clientesInteligentes = $derived.by(() => {
     let mapa = {};
     
@@ -23,7 +99,8 @@
           telefono: l.telefono,
           interesesHistorial: [],
           presupuestoInferido: 0,
-          matches: []
+          matches: [],
+          estado: l.estado // Guardamos estado para exportación
         };
       }
       if (l.propiedades) {
@@ -41,7 +118,6 @@
 
       if (cliente.presupuestoInferido > 0) {
         cliente.matches = propiedades.filter(p => {
-          // Ya no necesitamos checar if(p.estatus !== 'Activa') porque el backend ya lo filtró
           if (cliente.interesesHistorial.find(i => i.id === p.id)) return false; 
           
           const minBudget = cliente.presupuestoInferido * 0.7;
@@ -64,7 +140,6 @@
     .sort((a, b) => b.matches.length - a.matches.length);
   });
 
-  // Al usar $derived.by, llamamos a la variable como arreglo directo, no como función
   let totalClientes = $derived(clientesInteligentes.length);
   let totalMatches = $derived(clientesInteligentes.reduce((acc, c) => acc + c.matches.length, 0));
   let valorPipelinePotencial = $derived(
@@ -79,7 +154,6 @@
       return;
     }
 
-    // PREVENCIÓN DE CRASH: Manejo seguro de cadenas nulas o vacías
     const nombreLead = cliente?.split(' ')[0] || 'inversor';
     const nombreBroker = broker?.nombre_comercial?.split(' ')[0] || 'tu asesor';
 
@@ -88,6 +162,34 @@
       : `Hola ${nombreLead}, te saluda ${nombreBroker}. ¿Cómo va tu búsqueda de propiedad?`;
       
     window.open(`https://wa.me/${telefono.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+  }
+
+  // -------------------------------------------------------------
+  // EXPORTACIÓN A CSV
+  // -------------------------------------------------------------
+  function descargarCSV() {
+    if (clientesInteligentes.length === 0) return alert("No hay prospectos para exportar.");
+
+    const cabeceras = ['Nombre del Prospecto', 'Teléfono', 'Correo', 'Target', 'Opciones de Match'];
+    
+    const filas = clientesInteligentes.map(l => [
+      `"${(l.nombre || '').replace(/"/g, '""')}"`,
+      `"${l.telefono || ''}"`,
+      `"${l.correo || ''}"`,
+      l.presupuestoInferido || 0,
+      l.matches.length
+    ]);
+
+    // \uFEFF asegura que Excel lea los acentos correctamente en español
+    const contenidoCSV = [cabeceras.join(','), ...filas.map(f => f.join(','))].join('\n');
+    const blob = new Blob(["\uFEFF" + contenidoCSV], { type: 'text/csv;charset=utf-8;' }); 
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Directorio_Boveda_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 </script>
 
@@ -106,9 +208,16 @@
         </p>
       </div>
       
-      <div class="relative w-full md:max-w-md">
-        <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-        <input type="text" bind:value={searchQuery} placeholder="Buscar en la bóveda..." class="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3 text-sm font-medium text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all shadow-inner backdrop-blur-md">
+      <!-- CONTROLES SUPERIORES (Buscador reducido + Botón Exportar) -->
+      <div class="flex items-center gap-3 w-full md:w-auto">
+        <div class="relative flex-1 md:w-64">
+          <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+          <input type="text" bind:value={searchQuery} placeholder="Buscar en directorio..." class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all shadow-inner backdrop-blur-md">
+        </div>
+        
+        <button onclick={descargarCSV} class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20 active:scale-95 whitespace-nowrap shrink-0">
+          <Download class="w-4 h-4" /> Exportar Leads
+        </button>
       </div>
     </div>
   </header>
@@ -116,6 +225,50 @@
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-12">
       
+      <!-- NUEVAS TARJETAS DE KPIS SUPERIORES -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <!-- Leads este mes -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-blue-500 border-x border-b border-x-slate-200 border-b-slate-200">
+          <p class="text-xs font-bold text-slate-500 mb-2">Leads este mes</p>
+          <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{metricasMes.total}</p>
+          {#if metricasMes.esPositivo}
+            <p class="text-[10px] font-bold text-emerald-600">↑ {metricasMes.crecimiento}% vs mes anterior</p>
+          {:else}
+            <p class="text-[10px] font-bold text-rose-600">↓ {Math.abs(metricasMes.crecimiento)}% vs mes anterior</p>
+          {/if}
+        </div>
+
+        <!-- En negociación -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-emerald-500 border-x border-b border-x-slate-200 border-b-slate-200">
+          <p class="text-xs font-bold text-slate-500 mb-2">En negociación</p>
+          <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{leadsEnNegociacion.total}</p>
+          {#if leadsEnNegociacion.nuevosSemana > 0}
+            <p class="text-[10px] font-bold text-emerald-600">↑ {leadsEnNegociacion.nuevosSemana} nuevos esta semana</p>
+          {:else}
+            <p class="text-[10px] font-bold text-slate-400">Sin cambios esta semana</p>
+          {/if}
+        </div>
+
+        <!-- Sin seguimiento -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-amber-500 border-x border-b border-x-slate-200 border-b-slate-200">
+          <p class="text-xs font-bold text-slate-500 mb-2">Sin seguimiento +3d</p>
+          <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{sinSeguimiento}</p>
+          {#if sinSeguimiento > 0}
+            <p class="text-[10px] font-bold text-rose-500">↑ Requieren acción</p>
+          {:else}
+            <p class="text-[10px] font-bold text-emerald-600">Al día</p>
+          {/if}
+        </div>
+
+        <!-- Tasa de conversión -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-indigo-500 border-x border-b border-x-slate-200 border-b-slate-200">
+          <p class="text-xs font-bold text-slate-500 mb-2">Tasa de conversión</p>
+          <p class="text-3xl font-black text-slate-900 tracking-tighter mb-2">{tasaConversion.actual}%</p>
+          <p class="text-[10px] font-bold text-emerald-600">↑ Calculado sobre histórico</p>
+        </div>
+      </div>
+
+      <!-- TARJETAS SECUNDARIAS DE LA BÓVEDA -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
         
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between group hover:border-slate-300 transition-all">
@@ -159,6 +312,7 @@
 
       </div>
 
+      <!-- LISTADO DE CLIENTES -->
       <div class="space-y-4">
         {#each clientesInteligentes as cliente}
           <div class="bg-white rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-slate-200 overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-[0_4px_20px_rgb(0,0,0,0.06)] hover:border-slate-300">
