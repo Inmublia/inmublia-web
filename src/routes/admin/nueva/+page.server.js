@@ -67,16 +67,17 @@ export const actions = {
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
-    // 🚀 BLINDAJE 1: REGLAS ESTRICTAS DE PÁRRAFOS SIN "ENTER"
-    const systemPrompt = `<role>Eres un Copywriter Inmobiliario en México. Actúas como una API estricta.</role>
+    // 🚀 BLINDAJE 1: REGLAS ESTRICTAS ANTI-RUPTURAS
+    const systemPrompt = `<role>Eres una API de Copywriting Inmobiliario en México.</role>
 <rules>
 1. IDIOMA: 100% Español de México.
-2. SALIDA: OBLIGATORIO responder EXCLUSIVAMENTE con un objeto JSON válido. Cero texto antes o después. Sin formato Markdown.
-3. SALTOS DE LÍNEA PROHIBIDOS: Jamás uses saltos de línea reales (Enter) dentro de los valores de texto. Para separar párrafos en la descripción, usa EXACTAMENTE el texto literal <br><br>.
-4. TONO: ${instruccionTono}
+2. SALIDA: OBLIGATORIO responder EXCLUSIVAMENTE con un objeto JSON válido. Cero Markdown, cero saludos.
+3. SALTOS DE LÍNEA: Jamás uses saltos de línea reales (Enter). Usa EXACTAMENTE el texto literal <br><br> para separar párrafos.
+4. COMILLAS: PROHIBIDO usar comillas dobles (") dentro del contenido de los textos. Usa comillas simples (').
+5. TONO: ${instruccionTono}
 </rules>`;
 
-    const userPrompt = `Genera la campaña para esta propiedad devolviendo SOLO la estructura JSON solicitada:
+    const userPrompt = `Genera la campaña para esta propiedad devolviendo SOLO el objeto JSON solicitado:
 <data>
 Operación: ${operacion}
 Tipo: ${tipo}
@@ -97,15 +98,18 @@ Antigüedad: ${antiguedad}
 }
 </json_format>`;
 
+    // 🚀 BLINDAJE 2: EL BATALLÓN DE VELOCIDAD
+    // 3B es el más rápido del mundo, jamás chocará con el timeout de Cloudflare.
     const modelosSoportados = [
-      '@cf/meta/llama-3.1-8b-instruct', 
-      '@cf/meta/llama-3-8b-instruct',   
-      '@cf/meta/llama-3.2-3b-instruct'  
+      '@cf/meta/llama-3.2-3b-instruct',      
+      '@cf/meta/llama-3.1-8b-instruct-fast', 
+      '@cf/meta/llama-3.1-8b-instruct'       
     ];
 
-    let rawResponse = null;
+    let parsedContent = null;
     let errorLog = [];
 
+    // 🚀 BLINDAJE 3: EL LOOP CON VALIDACIÓN INTERNA
     for (const modelo of modelosSoportados) {
       try {
         const response = await platform.env.AI.run(modelo, {
@@ -113,71 +117,67 @@ Antigüedad: ${antiguedad}
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          // 🚀 BLINDAJE 2: EL FIX MAESTRO PARA EVITAR QUE SE CORTE LA RESPUESTA
-          max_tokens: 1500 
+          max_tokens: 1500
         });
 
-        if (response && response.response) {
-          rawResponse = String(response.response).trim();
-          break; 
+        if (!response || !response.response) {
+          throw new Error("Respuesta vacía de la API");
         }
+
+        let rawResponse = String(response.response).trim();
+        
+        // Limpiamos basura Markdown
+        let cleanText = rawResponse.replace(/^```json/gi, '').replace(/^```/gi, '').replace(/```$/gi, '').trim();
+
+        // Buscamos las llaves
+        let firstBrace = cleanText.indexOf('{');
+        let lastBrace = cleanText.lastIndexOf('}');
+
+        if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+          throw new Error(`Respuesta truncada por Timeout: ${rawResponse.substring(0, 40)}...`);
+        }
+
+        // Extraemos estrictamente el JSON
+        let jsonString = cleanText.substring(firstBrace, lastBrace + 1);
+        
+        // Destruimos Enters ocultos
+        jsonString = jsonString.replace(/\n/g, ' ').replace(/\r/g, '');
+
+        // INTENTAMOS PARSEAR (Si la respuesta estaba cortada, esto fallará y el catch atrapará el error)
+        parsedContent = JSON.parse(jsonString);
+
+        // ¡ÉXITO TOTAL! Si el código llegó a esta línea sin explotar, rompemos el loop.
+        break; 
+
       } catch (e) {
-        console.warn(`[IA Warning] Fallo con modelo ${modelo}: ${e.message}`);
-        errorLog.push(modelo);
+        // La IA falló o Cloudflare la cortó. Guardamos el error y EL LOOP CONTINÚA al siguiente modelo.
+        const nombreModelo = modelo.split('/').pop();
+        console.warn(`[IA Warning] Fallo con ${nombreModelo}: ${e.message}`);
+        errorLog.push(`${nombreModelo}: ${e.message}`);
       }
     }
 
-    if (!rawResponse) {
+    // 🚀 BLINDAJE 4: DEFENSA FINAL SI TODOS FALLAN
+    if (!parsedContent) {
       return fail(500, { 
-        error: `Cloudflare AI rechazó la petición (${errorLog.join(', ')}). No se te han descontado créditos.` 
+        error: `Los servidores de IA están saturados.\n\nDetalle técnico: ${errorLog.join(' | ')}\n\nPor favor, presiona el botón de nuevo. No se te han descontado créditos.` 
       });
     }
 
-    try {
-      // Limpiamos Markdown si el modelo insiste en ponerlo
-      let cleanText = rawResponse.replace(/^```json/gi, '').replace(/^```/gi, '').replace(/```$/gi, '').trim();
+    // 🚀 COBRO DE CRÉDITOS SEGURO (Solo se ejecuta si se logró el parseo perfecto)
+    await locals.supabase
+      .from('brokers')
+      .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
+      .eq('id', broker.id);
 
-      // Buscamos las llaves
-      let firstBrace = cleanText.indexOf('{');
-      let lastBrace = cleanText.lastIndexOf('}');
+    // Restauramos los párrafos visuales para la UI
+    let descripcionLimpia = (parsedContent.descripcion || 'Sin descripción').replace(/<br><br>/g, '\n\n');
 
-      if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-        throw new Error("Respuesta incompleta o sin formato.");
-      }
-
-      // Extraemos solo el JSON
-      let jsonString = cleanText.substring(firstBrace, lastBrace + 1);
-      
-      // Aspiradora de "Enters" ilegales que rompen el parseo
-      jsonString = jsonString.replace(/\n/g, ' ').replace(/\r/g, '');
-
-      // Transformación segura
-      const parsedContent = JSON.parse(jsonString);
-
-      // Restauración de saltos de línea para el frontend
-      let descripcionLimpia = (parsedContent.descripcion || 'Sin descripción').replace(/<br><br>/g, '\n\n');
-
-      // 🚀 BLINDAJE 3: DESCUENTO ESTRICTO. Solo llegamos aquí si TODO fue exitoso.
-      await locals.supabase
-        .from('brokers')
-        .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
-        .eq('id', broker.id);
-
-      return {
-        titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad en Venta',
-        descripcion: descripcionLimpia,
-        whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto los detalles...'
-      };
-
-    } catch (error) {
-      console.error("🔥 FALLO IA CAPTURADO. Crudo:", rawResponse);
-      
-      // Ahora usamos fail() para que el Frontend detecte el error como un rechazo real
-      // y no procese "éxitos falsos". Garantiza que no se reste crédito visualmente.
-      return fail(500, { 
-        error: `Error de la IA al redactar. El formato devuelto estaba dañado.\nNo se descontaron créditos.\nFragmento: ${rawResponse.substring(0, 50)}...` 
-      });
-    }
+    return {
+      titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad en Venta',
+      descripcion: descripcionLimpia,
+      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto los detalles...'
+    };
   },
 
   crear: async ({ request, locals, platform }) => {
