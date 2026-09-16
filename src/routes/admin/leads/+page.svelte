@@ -3,10 +3,11 @@
   import { invalidateAll, goto } from '$app/navigation';
   import { enhance } from '$app/forms';
   import { page } from '$app/state'; 
+  import { untrack } from 'svelte';
   import { 
     Search, X, Phone, Mail, Home, Send, Trash2, Clock, UserCircle,
     GripVertical, MessageSquareQuote, BellRing, CalendarClock, CheckCircle2, MessageSquare,
-    ChevronLeft, ChevronRight
+    ChevronLeft, ChevronRight, AlertTriangle
   } from 'lucide-svelte';
   
   let { data } = $props();
@@ -38,10 +39,31 @@
   let precioCierreFinal = $state('');
   let comisionCobrada = $state('');
 
+  // Nuevo Modal de Eliminación (Sustituye al confirm nativo bloqueante)
+  let showModalEliminar = $state(false);
+  let leadPorEliminar = $state(null);
+
   let boardContainer = $state(null);
 
   let totalRecordatoriosPendientes = $derived(
     leads.filter(l => l.has_pending_reminder).length
+  );
+
+  const columnas = [
+    { id: 'nuevo', titulo: 'Nuevos Inicios', dot: 'bg-indigo-500', bgCol: 'bg-indigo-50/40', border: 'border-indigo-100', text: 'text-indigo-700' },
+    { id: 'contactado', titulo: 'En Conversación', dot: 'bg-sky-500', bgCol: 'bg-sky-50/40', border: 'border-sky-100', text: 'text-sky-700' },
+    { id: 'visita', titulo: 'Recorridos Agendados', dot: 'bg-amber-500', bgCol: 'bg-amber-50/40', border: 'border-amber-100', text: 'text-amber-700' },
+    { id: 'negociacion', titulo: 'Ofertas / Negociación', dot: 'bg-purple-500', bgCol: 'bg-purple-50/40', border: 'border-purple-100', text: 'text-purple-700' },
+    { id: 'cerrado', titulo: 'Cierres Exitosos', dot: 'bg-emerald-500', bgCol: 'bg-emerald-50/40', border: 'border-emerald-100', text: 'text-emerald-700' },
+    { id: 'descartado', titulo: 'Perdidos', dot: 'bg-slate-400', bgCol: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-500' }
+  ];
+
+  // 🚀 FIX CRÍTICO: Agrupación en O(n) para evitar filtros repetidos en el HTML
+  let leadsPorColumna = $derived(
+    columnas.reduce((acc, col) => {
+      acc[col.id] = leadsFiltrados.filter(l => l.estado === col.id);
+      return acc;
+    }, {})
   );
 
   $effect(() => {
@@ -52,7 +74,13 @@
     }
   });
 
-  $effect(() => { leads = data.leads || []; });
+  // 🚀 FIX: Previene un loop de dependencias cíclicas en Svelte 5
+  $effect(() => { 
+    const nuevosLeads = data.leads;
+    untrack(() => {
+      if (nuevosLeads) leads = nuevosLeads; 
+    });
+  });
 
   $effect(() => {
     const leadIdToOpen = page.url.searchParams.get('open');
@@ -68,15 +96,6 @@
       }
     }
   });
-
-  const columnas = [
-    { id: 'nuevo', titulo: 'Nuevos Inicios', dot: 'bg-indigo-500', bgCol: 'bg-indigo-50/40', border: 'border-indigo-100', text: 'text-indigo-700' },
-    { id: 'contactado', titulo: 'En Conversación', dot: 'bg-sky-500', bgCol: 'bg-sky-50/40', border: 'border-sky-100', text: 'text-sky-700' },
-    { id: 'visita', titulo: 'Recorridos Agendados', dot: 'bg-amber-500', bgCol: 'bg-amber-50/40', border: 'border-amber-100', text: 'text-amber-700' },
-    { id: 'negociacion', titulo: 'Ofertas / Negociación', dot: 'bg-purple-500', bgCol: 'bg-purple-50/40', border: 'border-purple-100', text: 'text-purple-700' },
-    { id: 'cerrado', titulo: 'Cierres Exitosos', dot: 'bg-emerald-500', bgCol: 'bg-emerald-50/40', border: 'border-emerald-100', text: 'text-emerald-700' },
-    { id: 'descartado', titulo: 'Perdidos', dot: 'bg-slate-400', bgCol: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-500' }
-  ];
 
   function scrollBoard(direction) {
     if (boardContainer) {
@@ -96,18 +115,22 @@
     return new Intl.DateTimeFormat('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(date);
   }
 
-  function getUrgencyStyle(dateString) {
-    if (!dateString) return 'text-slate-400';
-    const date = new Date(dateString);
-    const diffInDays = Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
-    if (diffInDays < 2) return 'text-emerald-600'; 
+  // 🚀 FIX: Lógica de Urgencia corregida y basada en la última actividad real
+  function getUrgencyStyle(lead) {
+    const fechaRef = lead.ultima_actividad || lead.actualizado_en || lead.creado_en;
+    if (!fechaRef) return 'text-slate-400';
+    const diffInDays = Math.floor((new Date() - new Date(fechaRef)) / (1000 * 60 * 60 * 24));
+    
+    if (lead.estado === 'nuevo' && diffInDays >= 1) return 'text-rose-600'; 
+    if (diffInDays < 2) return 'text-emerald-600';
     if (diffInDays < 7) return 'text-amber-600'; 
     return 'text-rose-600'; 
   }
 
-  function timeAgoLabel(dateString) {
-    if (!dateString) return 'Desconocido';
-    const date = new Date(dateString);
+  function timeAgoLabel(lead) {
+    const fechaRef = lead.ultima_actividad || lead.actualizado_en || lead.creado_en;
+    if (!fechaRef) return 'Desconocido';
+    const date = new Date(fechaRef);
     const diffInDays = Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
     if (diffInDays === 0) return 'Hoy';
     if (diffInDays === 1) return 'Ayer';
@@ -120,6 +143,11 @@
     return date <= new Date();
   }
 
+  // 🚀 FIX: Extrae las iniciales seguras (Cero dependencias de APIs)
+  function getInitials(nombre) {
+    return (nombre || '?').replace(/[^\p{L}\s]/gu, '').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+  }
+
   function arrancar(event, id) {
     draggedLeadId = id;
     event.dataTransfer.effectAllowed = 'move';
@@ -129,50 +157,79 @@
   function terminar(event) { event.target.classList.remove('opacity-30', 'scale-[0.98]'); }
   function permitirSoltar(event) { event.preventDefault(); }
 
+  // 🚀 FIX CRÍTICO: Limpieza incondicional del Drag & Drop
   async function soltar(event, nuevaColumnaId) {
     event.preventDefault();
-    if (draggedLeadId) {
-      if (nuevaColumnaId === 'cerrado') {
-        const lead = leads.find(l => l.id === draggedLeadId);
-        if (lead) {
-          leadPorCerrar = lead;
-          precioCierreFinal = lead.propiedades?.precio || '';
-          comisionCobrada = lead.propiedades?.comision || broker.comision_default || 5;
-          showModalCierre = true;
-        }
-      } else {
-        actualizarEstadoLocalYBD(draggedLeadId, nuevaColumnaId);
-        draggedLeadId = null;
+    const idParaProcesar = draggedLeadId;
+    draggedLeadId = null; // Se limpia SIEMPRE, sin importar el destino
+
+    if (!idParaProcesar) return;
+
+    if (nuevaColumnaId === 'cerrado') {
+      const lead = leads.find(l => l.id === idParaProcesar);
+      if (lead) {
+        leadPorCerrar = lead;
+        precioCierreFinal = lead.propiedades?.precio || '';
+        comisionCobrada = lead.propiedades?.comision || broker.comision_default || 5;
+        showModalCierre = true;
       }
+    } else {
+      actualizarEstadoLocalYBD(idParaProcesar, nuevaColumnaId);
     }
   }
 
-  function cancelarCierre() { showModalCierre = false; leadPorCerrar = null; draggedLeadId = null; }
+  function cancelarCierre() { showModalCierre = false; leadPorCerrar = null; }
 
+  // 🚀 FIX: Manejo robusto de errores y persistencia local en Cierres
   async function confirmarCierre() {
     const leadId = leadPorCerrar.id;
+    const precioCopy = precioCierreFinal;
+    const comisionCopy = comisionCobrada;
+    
+    // UI Update (Optimistic)
     leads = leads.map(l => l.id === leadId ? { ...l, estado: 'cerrado' } : l);
-    const formData = new FormData();
-    formData.append('id', leadId);
-    formData.append('estado', 'cerrado');
-    if (precioCierreFinal) formData.append('precio_cierre', precioCierreFinal);
-    if (comisionCobrada) formData.append('comision_cierre', comisionCobrada);
-    try {
-      await fetch('?/actualizar', { method: 'POST', body: formData, headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' } });
-      invalidateAll();
-    } catch (err) { console.error(err); }
     cancelarCierre();
+
+    try {
+      const formData = new FormData();
+      formData.append('id', leadId);
+      formData.append('estado', 'cerrado');
+      if (precioCopy) formData.append('precio_cierre', precioCopy);
+      if (comisionCopy) formData.append('comision_cierre', comisionCopy);
+      
+      const res = await fetch('?/actualizar', { method: 'POST', body: formData, headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      invalidateAll();
+    } catch (err) { 
+      // Revertimos en caso de fallo de red
+      leads = leads.map(l => l.id === leadId ? { ...l, estado: 'negociacion' } : l);
+      alert('No se pudo registrar el cierre. Verifica tu conexión.'); 
+    }
   }
 
+  // 🚀 FIX CRÍTICO: Reversión en caso de error HTTP
   async function actualizarEstadoLocalYBD(leadId, nuevoEstado) {
+    const estadoAnterior = leads.find(l => l.id === leadId)?.estado;
     leads = leads.map(l => l.id === leadId ? { ...l, estado: nuevoEstado } : l);
+    
     const formData = new FormData();
     formData.append('id', leadId);
     formData.append('estado', nuevoEstado);
+    
     try {
-      await fetch('?/actualizar', { method: 'POST', body: formData, headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' } });
+      const res = await fetch('?/actualizar', { method: 'POST', body: formData, headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' } });
+      if (!res.ok) throw new Error(`Fallo de red (${res.status})`);
+      
+      const data = await res.json();
+      if (data.type === 'error' || data.type === 'failure') {
+        throw new Error(data.data?.error || 'Error interno del servidor');
+      }
+      
       invalidateAll();
-    } catch (err) { console.error(err); alert('Falló sincronización.'); }
+    } catch (err) { 
+      leads = leads.map(l => l.id === leadId ? { ...l, estado: estadoAnterior } : l);
+      alert(`No se pudo mover la tarjeta: ${err.message}`); 
+    }
   }
 
   async function completarRecordatorio(notaId) {
@@ -221,46 +278,66 @@
     formData.append('is_recordatorio', esRecordatorio);
     if (esRecordatorio) formData.append('fecha_recordatorio', fechaFinalFormateada);
     
-    // Inserción visual instantánea (Optimistic UI)
     const nowISO = new Date().toISOString();
     const nuevaNotaObj = { id: 'temp-' + Date.now(), contenido: notaTemp, tipo: esRecordatorio ? 'recordatorio' : 'nota', fecha_recordatorio: fechaFinalFormateada, completado: false, creado_en: nowISO };
     
+    // UI Update Panel
     selectedLead.lead_notas = [nuevaNotaObj, ...selectedLead.lead_notas];
     selectedLead.actualizado_en = nowISO; 
-
-    leads = leads.map(l => l.id === selectedLead.id ? { ...l, actualizado_en: nowISO, estado: (l.estado === 'nuevo' ? 'contactado' : l.estado) } : l);
-    
     if (selectedLead.estado === 'nuevo') selectedLead.estado = 'contactado';
+
+    // 🚀 FIX CRÍTICO: Sincronización completa con el array reactivo general
+    leads = leads.map(l => {
+      if (l.id === selectedLead.id) {
+        return {
+          ...l,
+          actualizado_en: nowISO,
+          estado: l.estado === 'nuevo' ? 'contactado' : l.estado,
+          lead_notas: [nuevaNotaObj, ...(l.lead_notas || [])]
+        };
+      }
+      return l;
+    });
 
     return async ({ result, update }) => {
       guardandoNota = false;
       
-      // 🚀 CAPTURA DEL ERROR DE BASE DE DATOS
       if (result.type === 'success') {
         nuevaNotaTexto = ''; esRecordatorio = false; fechaRecordatorio = ''; horaRecordatorio = '';
         await update(); 
         const leadAct = data.leads.find(l => l.id === selectedLead.id);
         if (leadAct) selectedLead = { ...leadAct, lead_notas: [...leadAct.lead_notas] };
       } else {
-        // Escupe el error exacto que devolvió +page.server.js
         const errorDB = result.data?.error || "Error Desconocido al comunicarse con el servidor.";
         alert(`Falla detectada: ${errorDB}`);
-        
-        // Opcional: Revertimos la UI si falló
         await invalidateAll();
       }
     };
   }
 
-  async function eliminarLead(id) {
-    if (confirm('¿Eliminar prospecto permanentemente?')) {
-      leads = leads.filter(l => l.id !== id);
-      const formData = new FormData(); formData.append('id', id);
-      try {
-        await fetch('?/eliminar', { method: 'POST', body: formData, headers: { 'x-sveltekit-action': 'true' } });
-        invalidateAll();
-      } catch (err) { console.error(err); }
-    }
+  // 🚀 FIX: Modales de Eliminación no bloqueantes
+  function pedirEliminarLead(lead) {
+    leadPorEliminar = lead;
+    showModalEliminar = true;
+  }
+
+  function cancelarEliminar() {
+    leadPorEliminar = null;
+    showModalEliminar = false;
+  }
+
+  async function confirmarEliminar() {
+    const id = leadPorEliminar.id;
+    leads = leads.filter(l => l.id !== id);
+    if(selectedLead && selectedLead.id === id) cerrarPanel();
+    cancelarEliminar();
+
+    const formData = new FormData(); 
+    formData.append('id', id);
+    try {
+      await fetch('?/eliminar', { method: 'POST', body: formData, headers: { 'x-sveltekit-action': 'true' } });
+      invalidateAll();
+    } catch (err) { console.error(err); }
   }
 
   function handleKeyDown(e) {
@@ -307,7 +384,8 @@
       <ChevronRight class="w-6 h-6" />
     </button>
 
-    <div class="flex-1 overflow-x-auto kanban-board p-4 md:p-6" bind:this={boardContainer}>
+    <!-- 🚀 FIX: Deshabilita interacciones de fondo cuando el panel lateral está abierto -->
+    <div class="flex-1 overflow-x-auto kanban-board p-4 md:p-6 transition-opacity {isPanelOpen ? 'pointer-events-none select-none opacity-50' : ''}" bind:this={boardContainer}>
       <div class="flex gap-3 md:gap-4 items-start h-full pb-6 min-w-max lg:min-w-full">
         
         {#each columnas as columna}
@@ -322,12 +400,12 @@
                 {columna.titulo}
               </h2>
               <span class="text-[9px] font-black px-2 py-0.5 rounded-md bg-white/80 backdrop-blur-sm border {columna.border} {columna.text} shadow-sm">
-                {leadsFiltrados.filter(l => l.estado === columna.id).length}
+                {(leadsPorColumna[columna.id] || []).length}
               </span>
             </div>
 
             <div class="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-2.5 pb-8">
-              {#each leadsFiltrados.filter(l => l.estado === columna.id) as lead (lead.id)}
+              {#each leadsPorColumna[columna.id] || [] as lead (lead.id)}
                 
                 <div 
                   draggable="true"
@@ -341,19 +419,27 @@
                 >
                   <div class="flex items-start justify-between gap-2">
                     <div class="flex items-center gap-2 min-w-0">
+                      
+                      <!-- 🚀 FIX: Avatares Inteligentes Nativos CSS -->
                       <div class="relative shrink-0">
-                        <img src="https://ui-avatars.com/api/?name={lead.nombre}&background=f8fafc&color=0f172a" alt="Avatar" class="w-6 h-6 rounded-full border border-slate-100">
+                        <div class="w-6 h-6 rounded-full border border-slate-200 bg-slate-800 text-white flex items-center justify-center text-[8px] font-black uppercase shadow-inner">
+                          {getInitials(lead.nombre)}
+                        </div>
                         {#if lead.has_pending_reminder}
                           <div class="absolute -top-0.5 -right-0.5 bg-rose-500 rounded-full w-2 h-2 border border-white"></div>
                         {/if}
                       </div>
+
                       <div class="min-w-0 flex flex-col">
                         <h3 class="text-xs font-bold text-slate-900 leading-tight truncate">{lead.nombre}</h3>
-                        <p class="text-[9px] font-bold {getUrgencyStyle(lead.actualizado_en || lead.creado_en)} uppercase tracking-widest leading-none mt-0.5">{timeAgoLabel(lead.actualizado_en || lead.creado_en)}</p>
+                        <p class="text-[9px] font-bold {getUrgencyStyle(lead)} uppercase tracking-widest leading-none mt-0.5">{timeAgoLabel(lead)}</p>
                       </div>
                     </div>
                     
                     <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <button onclick={(e) => { e.stopPropagation(); pedirEliminarLead(lead); }} class="p-1 text-slate-300 hover:text-rose-500 transition-colors" title="Eliminar">
+                        <Trash2 class="w-3.5 h-3.5" />
+                      </button>
                       {#if lead.telefono}
                         <a href="https://wa.me/{lead.telefono.replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" onclick={(e) => e.stopPropagation()} class="p-1 text-emerald-500 hover:text-emerald-600 transition-colors" title="WhatsApp">
                           <MessageSquare class="w-3.5 h-3.5" />
@@ -386,7 +472,7 @@
 
               {/each}
 
-              {#if leadsFiltrados.filter(l => l.estado === columna.id).length === 0}
+              {#if (leadsPorColumna[columna.id] || []).length === 0}
                 <div class="flex-1 flex flex-col items-center justify-center border border-dashed {columna.border} rounded-lg bg-white/40 min-h-[80px]">
                   <p class="text-[9px] font-bold uppercase tracking-widest {columna.text} opacity-40 text-center">Soltar Aquí</p>
                 </div>
@@ -406,7 +492,10 @@
     {#if selectedLead}
       <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-transparent">
         <div class="flex items-center gap-4">
-          <img src="https://ui-avatars.com/api/?name={selectedLead.nombre}&background=0f172a&color=fff" alt="Avatar" class="w-12 h-12 rounded-full shadow-sm ring-2 ring-white">
+          <!-- 🚀 FIX: Avatar Nativo en Panel -->
+          <div class="w-12 h-12 rounded-full border-2 border-white shadow-sm bg-slate-800 text-white flex items-center justify-center text-sm font-black uppercase">
+            {getInitials(selectedLead.nombre)}
+          </div>
           <div>
             <h2 class="text-lg font-black text-slate-900 leading-tight mb-1">{selectedLead.nombre}</h2>
             <span class="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded border shadow-sm {getBadgeColor(selectedLead.estado)} inline-flex items-center gap-1.5"><div class="w-1 h-1 rounded-full bg-current opacity-60"></div> {selectedLead.estado}</span>
@@ -433,7 +522,10 @@
 
       <div class="flex-1 overflow-y-auto p-8 bg-transparent flex flex-col gap-6">
         <div>
-          <h3 class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-1.5"><Clock class="w-3 h-3" /> Bitácora de Relación</h3>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Clock class="w-3 h-3" /> Bitácora de Relación</h3>
+            <button onclick={() => pedirEliminarLead(selectedLead)} class="text-[9px] font-bold text-slate-400 hover:text-rose-500 uppercase flex items-center gap-1"><Trash2 class="w-3 h-3"/> Borrar Lead</button>
+          </div>
           
           {#if selectedLead.lead_notas && selectedLead.lead_notas.length > 0}
             <div class="flex flex-col gap-4">
@@ -453,11 +545,20 @@
                       <p class="text-xs {nota.completado ? 'text-slate-500 line-through' : 'text-slate-800'} font-medium whitespace-pre-wrap leading-relaxed mb-3">{nota.contenido}</p>
                       <div class="flex items-center justify-between pt-2.5 border-t {nota.completado ? 'border-slate-100' : (isOverdue(nota.fecha_recordatorio) ? 'border-rose-100' : 'border-amber-100')}">
                         <span class="text-[9px] font-bold text-slate-500">{formatDateTime(nota.fecha_recordatorio)}</span>
+                        
+                        <!-- 🚀 FIX: Protege notas en estado Optimistic UI -->
                         {#if !nota.completado}
-                          <button onclick={() => completarRecordatorio(nota.id)} class="text-[9px] font-black uppercase tracking-widest flex items-center gap-1 px-2.5 py-1 rounded bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors shadow-sm text-slate-600">
-                            <CheckCircle2 class="w-3 h-3" /> Resolver
-                          </button>
+                          {#if !nota.id.startsWith('temp-')}
+                            <button onclick={() => completarRecordatorio(nota.id)} class="text-[9px] font-black uppercase tracking-widest flex items-center gap-1 px-2.5 py-1 rounded bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors shadow-sm text-slate-600">
+                              <CheckCircle2 class="w-3 h-3" /> Resolver
+                            </button>
+                          {:else}
+                            <span class="text-[9px] text-slate-400 flex items-center gap-1 font-bold">
+                              <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Guardando...
+                            </span>
+                          {/if}
                         {/if}
+
                       </div>
                     </div>
                   {:else}
@@ -560,6 +661,34 @@
       </div>
     </div>
   {/if}
+
+  <!-- 🚀 FIX: Nuevo Modal de Eliminación Seguro -->
+  {#if showModalEliminar}
+    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-sm overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+        <div class="p-6 border-b border-slate-100 bg-rose-50 text-center">
+          <div class="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-3 border-4 border-white shadow-sm">
+            <AlertTriangle class="w-6 h-6 text-rose-500" />
+          </div>
+          <h3 class="text-xl font-black text-rose-950">¿Eliminar prospecto?</h3>
+        </div>
+        
+        <div class="p-6 bg-white">
+          <p class="text-xs font-medium text-slate-600 text-center">
+            Estás a punto de borrar permanentemente a <strong>{leadPorEliminar?.nombre}</strong>. Se perderá toda la bitácora y notas asociadas. Esta acción no se puede deshacer.
+          </p>
+        </div>
+        
+        <div class="p-5 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-2.5">
+          <button onclick={cancelarEliminar} class="px-5 py-2.5 rounded-lg font-bold text-slate-500 hover:bg-slate-200 transition-colors text-[10px] uppercase tracking-widest">Cancelar</button>
+          <button onclick={confirmarEliminar} class="px-5 py-2.5 rounded-lg font-black uppercase tracking-widest bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/30 transition-all text-[10px] flex items-center justify-center gap-1.5 active:scale-95">
+            <Trash2 class="w-3.5 h-3.5" /> Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
 </main>
 
 <style>
