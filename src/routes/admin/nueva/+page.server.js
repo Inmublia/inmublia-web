@@ -13,12 +13,23 @@ const TEMPLATE_MIN_PLAN = {
   prop_elite_1: 'elite'
 };
 
-// 🚀 CASCADA DE MODELOS DEFINIDA POR EL USUARIO
-const MODELS_CASCADE = [
-  '@cf/qwen/qwen3-30b-a3b-fp8',
-  '@cf/ibm/granite-4.0-h-micro',
-  '@cf/google/gemma-4-26b-a4b-it'
-];
+const MODEL_BY_PLAN = {
+  basico: {
+    id: '@cf/ibm/granite-4.0-h-micro',
+    maxTokens: 280,
+    temperature: 0.45
+  },
+  pro: {
+    id: '@cf/qwen/qwen3-30b-a3b-fp8',
+    maxTokens: 350,
+    temperature: 0.5
+  },
+  elite: {
+    id: '@cf/google/gemma-4-26b-a4b-it',
+    maxTokens: 400,
+    temperature: 0.5
+  }
+};
 
 const TONE_GUIDES = {
   lujo: 'Exclusivo, sobrio, sofisticado y enfocado en alto valor.',
@@ -59,6 +70,7 @@ function getRpcRow(data) {
 
 function normalizePlainText(value, maxLength = 100) {
   if (typeof value !== 'string') return '';
+
   return value
     .replace(/\r\n?/g, '\n')
     .replace(/[<>]/g, '')
@@ -69,6 +81,7 @@ function normalizePlainText(value, maxLength = 100) {
 
 function normalizeMultilineText(value, maxLength = 3000) {
   if (typeof value !== 'string') return '';
+
   return value
     .replace(/\r\n?/g, '\n')
     .replace(/<br\s*\/?>/gi, '\n\n')
@@ -131,9 +144,11 @@ function parseOptionalHttpsUrl(value) {
 
   try {
     const url = new URL(raw);
+
     if (url.protocol !== 'https:') {
       throw new Error('Solo se permiten URLs HTTPS.');
     }
+
     return url.toString();
   } catch {
     return undefined;
@@ -142,16 +157,25 @@ function parseOptionalHttpsUrl(value) {
 
 function isMagicValid(buffer, format) {
   const bytes = new Uint8Array(buffer);
+
   if (format === 'jpeg') {
     return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
   }
+
   if (format === 'png') {
     return (
       bytes.length >= 8 &&
-      bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
-      bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47 &&
+      bytes[4] === 0x0d &&
+      bytes[5] === 0x0a &&
+      bytes[6] === 0x1a &&
+      bytes[7] === 0x0a
     );
   }
+
   if (format === 'webp') {
     return (
       bytes.length >= 12 &&
@@ -159,6 +183,7 @@ function isMagicValid(buffer, format) {
       String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP'
     );
   }
+
   return false;
 }
 
@@ -192,7 +217,6 @@ async function validateImageFile(file, label) {
   };
 }
 
-// 🚀 FIX: Parseo robusto con extracción matemática (Soporta salidas sucias de FP8 y Micro)
 function parseAiResponse(result) {
   const raw = result?.response ?? result;
 
@@ -204,14 +228,13 @@ function parseAiResponse(result) {
     throw new Error('La IA no devolvió texto JSON.');
   }
 
-  const firstBrace = raw.indexOf('{');
-  const lastBrace = raw.lastIndexOf('}');
+  const cleaned = raw
+    .trim()
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
 
-  if (firstBrace === -1 || lastBrace === -1) {
-    throw new Error('No se detectó un objeto JSON en la respuesta.');
-  }
-
-  const cleaned = raw.substring(firstBrace, lastBrace + 1).replace(/\n|\r/g, ' ');
   return JSON.parse(cleaned);
 }
 
@@ -309,7 +332,7 @@ export const load = async ({ locals }) => {
 };
 
 export const actions = {
-  generarCampañaIA: async ({ request, locals, platform }) => {
+  generarCampa�aIA: async ({ request, locals, platform }) => {
     const user = locals.user;
 
     if (!user) {
@@ -383,17 +406,17 @@ export const actions = {
       return fail(403, { error: 'No fue posible validar el perfil de agencia.' });
     }
 
+    const plan = getPlan(broker.plan_suscripcion);
+    const model = MODEL_BY_PLAN[plan];
     const requestId = crypto.randomUUID();
 
     const reservation = await reserveAiCredit(locals.supabase, user.id, requestId);
 
     if (!reservation) {
-      return fail(403, { error: 'No tienes créditos de IA disponibles o petición duplicada.' });
+      return fail(403, { error: 'No tienes créditos de IA disponibles.' });
     }
 
     let creditConfirmed = false;
-    let finalContent = null;
-    let errorLog = [];
 
     try {
       const propertyFacts = {
@@ -419,36 +442,22 @@ export const actions = {
         'Devuelve exclusivamente JSON válido, sin Markdown ni texto adicional.',
         'El JSON debe contener exactamente: titulo, descripcion y whatsapp.',
         'titulo: máximo 10 palabras.',
-        'descripcion: máximo 3 párrafos separados por <br><br>.',
+        'descripcion: máximo 3 párrafos separados por \\n\\n.',
         'whatsapp: máximo 2 emojis.'
       ].join(' ');
 
       const userPrompt = `DATOS_PROPIEDAD=${JSON.stringify(propertyFacts)}`;
 
-      // 🚀 EJECUCIÓN EN CASCADA CON LOS MODELOS SOLICITADOS (Qwen -> Granite -> Gemma)
-      for (const modelId of MODELS_CASCADE) {
-        try {
-          const result = await platform.env.AI.run(modelId, {
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt }
-            ],
-            max_tokens: 450,
-            temperature: 0.5
-          });
+      const result = await platform.env.AI.run(model.id, {
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        max_tokens: model.maxTokens,
+        temperature: model.temperature
+      });
 
-          // Valida y parsea el resultado (arrojará error si el JSON es inválido)
-          finalContent = validateAiContent(parseAiResponse(result));
-          break; // Rompe el ciclo en cuanto el primer modelo de la lista tenga éxito
-        } catch (err) {
-          errorLog.push(`${modelId.split('/').pop()}: ${err.message}`);
-          finalContent = null; // Reinicia para que el siguiente modelo intente
-        }
-      }
-
-      if (!finalContent) {
-        throw new Error(`Cascada agotada. Errores: ${errorLog.join(' | ')}`);
-      }
+      const content = validateAiContent(parseAiResponse(result));
 
       const confirmed = await confirmAiCredit(locals.supabase, user.id, requestId);
 
@@ -459,7 +468,7 @@ export const actions = {
       creditConfirmed = true;
 
       return {
-        ...finalContent,
+        ...content,
         creditos_ia_restantes: Math.max(0, Number(reservation.remaining) || 0)
       };
     } catch (error) {
@@ -469,6 +478,7 @@ export const actions = {
 
       console.error('[AI Generation Error]', {
         requestId,
+        model: model.id,
         message: error instanceof Error ? error.message : 'Error desconocido'
       });
 
