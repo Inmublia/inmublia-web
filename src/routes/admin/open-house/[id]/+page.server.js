@@ -24,12 +24,12 @@ export async function load({ params, locals }) {
 
   if (ohError || !oh) throw error(404, 'Evento no encontrado o no tienes permisos.');
 
-  // 3. 🚀 FIX: Carga de los asistentes utilizando 'created_at' como orden seguro
+  // 3. 🚀 FIX DEFINITIVO: Ordenamos usando la columna real 'creado_en' de tu BD
   const { data: attendees, error: attError } = await locals.supabase
     .from('open_house_attendees')
     .select('*')
     .eq('open_house_id', params.id)
-    .order('created_at', { ascending: false });
+    .order('creado_en', { ascending: false });
 
   if (attError) {
     console.error("Error al cargar asistentes:", attError.message);
@@ -140,7 +140,7 @@ export const actions = {
         max_capacity: parseInt(maxCapacity, 10) 
       })
       .eq('id', id)
-      .eq('broker_id', broker.id); // <- Aseguramos que solo edita sus eventos
+      .eq('broker_id', broker.id);
 
     if (updateError) {
       console.error('Error al actualizar:', updateError);
