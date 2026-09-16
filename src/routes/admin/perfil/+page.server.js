@@ -65,8 +65,8 @@ export const actions = {
         comision_default 
       };
 
-      const plan = brokerActual.plan_suscripcion || 'basico';
-      const isPro = plan === 'pro' || plan === 'elite';
+      const plan = (brokerActual.plan_suscripcion || 'basico').toLowerCase().trim();
+      const isPro = plan === 'pro' || plan === 'profesional' || plan === 'elite';
       const isElite = plan === 'elite';
 
       if (isPro) {
@@ -142,5 +142,58 @@ export const actions = {
     if (error) return fail(500, { formId: 'webhook', error: 'Error al conectar base de datos.' });
     
     return { formId: 'webhook', success: true };
+  },
+
+  // 🚀 NUEVA ACCIÓN: PING SEGURO DESDE EL SERVIDOR (Adiós errores de CORS)
+  probarWebhook: async ({ request, locals }) => {
+    const user = locals.user;
+    if (!user) return fail(401, { error: 'No autorizado' });
+
+    const formData = await request.formData();
+    const url = formData.get('endpoint_url');
+
+    // Validación básica de URL
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        return fail(400, { error: 'Solo se permiten URLs HTTP/HTTPS válidas.' });
+      }
+    } catch {
+      return fail(400, { error: 'El formato de la URL es inválido.' });
+    }
+
+    try {
+      // Ejecuta la petición desde SvelteKit (Servidor) hacia el CRM del cliente
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Inmublia-Test': 'true'
+        },
+        body: JSON.stringify({ 
+          test: true, 
+          source: 'inmublia_admin_ping', 
+          mensaje: '¡Ping de prueba exitoso desde Inmublia!',
+          timestamp: Date.now() 
+        }),
+        // Timeout protector para que si el servidor del cliente está caído, no se cuelgue nuestra app
+        signal: AbortSignal.timeout(8000) 
+      });
+      
+      return { 
+        success: true, 
+        status: res.status, 
+        ok: res.ok 
+      };
+      
+    } catch (err) {
+      console.error("[Webhook Test Error]:", err.message);
+      
+      // Controlar Timeout explícitamente para dar mejor feedback
+      if (err.name === 'TimeoutError') {
+         return fail(504, { error: 'Tiempo de espera agotado. El servidor destino tardó más de 8 segundos en responder.' });
+      }
+      return fail(500, { error: `Rechazo de conexión: ${err.message}` });
+    }
   }
 };
