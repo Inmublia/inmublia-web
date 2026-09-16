@@ -1,3 +1,4 @@
+// src/routes/login/+page.server.js
 import { fail, redirect } from '@sveltejs/kit';
 
 export const actions = {
@@ -6,17 +7,21 @@ export const actions = {
     const email = formData.get('email');
     const password = formData.get('password');
 
+    // 🚀 FIX DE SEGURIDAD: Incluso si faltan campos, devolvemos el error genérico.
     if (!email || !password) {
-      return fail(400, { error: 'Faltan credenciales' });
+      return fail(400, { error: 'Credenciales incorrectas. Verifica tu correo y contraseña.' });
     }
 
     const { error } = await locals.supabase.auth.signInWithPassword({
-      email,
-      password
+      email: email.toString(),
+      password: password.toString()
     });
 
     if (error) {
-      return fail(400, { error: 'Correo o contraseña incorrectos' });
+      // 🚀 FIX DE SEGURIDAD (Timing Attacks / Enumeration):
+      // NUNCA devolver error.message porque Supabase podría filtrar si el correo existe o no.
+      // Siempre devolvemos exactamente la misma cadena genérica.
+      return fail(400, { error: 'Credenciales incorrectas. Verifica tu correo y contraseña.' });
     }
 
     // Para el login regular, seguimos respetando el subdominio donde esté parado
@@ -30,7 +35,9 @@ export const actions = {
     const formData = await request.formData();
     const email = formData.get('email');
 
-    if (!email) return fail(400, { error: 'Falta correo electrónico.' });
+    if (!email) {
+      return fail(400, { error: 'Por favor, ingresa un correo electrónico.' });
+    }
 
     // 🔥 FIX SAAS DEFINITIVO: Centralizamos la recuperación en el dominio raíz.
     // Esto evita que Supabase colapse si el usuario pidió la recuperación desde un subdominio.
@@ -39,11 +46,21 @@ export const actions = {
     
     const redirectUrl = `${rootDomain}/auth/callback?next=/recuperar-acceso`;
 
-    const { error } = await locals.supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await locals.supabase.auth.resetPasswordForEmail(email.toString(), {
       redirectTo: redirectUrl,
     });
 
-    if (error) return fail(400, { error: error.message });
-    return { success: true, message: 'Enlace de restablecimiento enviado con éxito.' };
+    if (error) {
+      // 🚀 FIX DE SEGURIDAD: 
+      // Registramos el error de manera interna en los logs del servidor para debugear,
+      // PERO no se lo mostramos al usuario para evitar que un atacante sepa qué correos NO están registrados.
+      console.error('[Recuperación Fallida]:', error.message);
+    }
+    
+    // 🚀 Ocultamos el resultado real: Si falló o si tuvo éxito, el cliente ve lo mismo.
+    return { 
+      success: true, 
+      message: 'Si el correo está registrado en nuestro sistema, recibirás un enlace seguro de recuperación en breve.' 
+    };
   }
 };
