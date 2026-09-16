@@ -30,15 +30,15 @@
     });
 
     let crecimiento = 0;
-    if (leadsMesPasado > 0) {
+    if (leadsMesPasado > 0 && leadsEsteMes > 0) {
       crecimiento = ((leadsEsteMes - leadsMesPasado) / leadsMesPasado) * 100;
-    } else if (leadsEsteMes > 0) {
-      crecimiento = 100; 
+    } else if (leadsMesPasado === 0 && leadsEsteMes > 0) {
+      crecimiento = 100;
     }
 
     return {
       total: leadsEsteMes,
-      crecimiento: crecimiento.toFixed(0),
+      crecimiento: Math.abs(crecimiento).toFixed(0),
       esPositivo: crecimiento >= 0
     };
   });
@@ -60,19 +60,23 @@
     return { total, nuevosSemana };
   });
 
-  let clientesInteligentes = $derived.by(() => {
+  // 🚀 FIX CRÍTICO: Separación de la Lógica Pesada vs Filtro de Búsqueda
+  // clientesBase hace el trabajo pesado UNA SOLA VEZ cuando cambian los datos reales.
+  let clientesBase = $derived.by(() => {
     let mapa = {};
     
     leads.forEach(l => {
-      // FIX: Usamos la columna real de la BD 'ultima_actividad'
       let fechaActividad = l.ultima_actividad ? new Date(l.ultima_actividad) : new Date(l.creado_en);
       if (l.lead_notas && l.lead_notas.length > 0) {
         const maxNota = new Date(Math.max(...l.lead_notas.map(n => new Date(n.creado_en))));
         if (maxNota > fechaActividad) fechaActividad = maxNota;
       }
 
-      if (!mapa[l.correo]) {
-        mapa[l.correo] = {
+      // FIX: Email Key Case-Insensitive para evitar perfiles duplicados
+      const emailKey = (l.correo || '').toLowerCase().trim();
+
+      if (!mapa[emailKey]) {
+        mapa[emailKey] = {
           nombre: l.nombre,
           correo: l.correo,
           telefono: l.telefono,
@@ -85,17 +89,17 @@
           matches: []
         };
       } else {
-        const fechaMapa = new Date(mapa[l.correo].fecha_contacto);
+        const fechaMapa = new Date(mapa[emailKey].fecha_contacto);
         if (fechaActividad > fechaMapa) {
-          mapa[l.correo].fecha_contacto = fechaActividad.toISOString();
-          mapa[l.correo].estado = (l.estado || 'nuevo').toLowerCase();
+          mapa[emailKey].fecha_contacto = fechaActividad.toISOString();
+          mapa[emailKey].estado = (l.estado || 'nuevo').toLowerCase();
         }
       }
 
       if (l.propiedades) {
-        if (!mapa[l.correo].interesesHistorial.find(i => i.id === l.propiedades.id)) {
+        if (!mapa[emailKey].interesesHistorial.find(i => i.id === l.propiedades.id)) {
           const propFull = propiedades.find(p => p.id === l.propiedades.id) || l.propiedades;
-          mapa[l.correo].interesesHistorial.push(propFull);
+          mapa[emailKey].interesesHistorial.push(propFull);
         }
       }
     });
@@ -104,11 +108,9 @@
       if (cliente.interesesHistorial.length > 0) {
         const conteoOperacion = {};
         const conteoTipo = {};
-        let sumaPrecio = 0;
         let sumaRecamaras = 0;
 
         cliente.interesesHistorial.forEach(p => {
-          sumaPrecio += Number(p.precio) || 0;
           sumaRecamaras += Number(p.recamaras) || 0;
           
           const op = p.operacion || 'Venta';
@@ -117,7 +119,13 @@
           conteoTipo[tp] = (conteoTipo[tp] || 0) + 1;
         });
 
-        cliente.presupuestoInferido = sumaPrecio / cliente.interesesHistorial.length;
+        // FIX: Uso de Mediana en lugar de Promedio para proteger contra outliers
+        const precios = cliente.interesesHistorial.map(p => Number(p.precio) || 0).sort((a,b) => a - b);
+        const mid = Math.floor(precios.length / 2);
+        cliente.presupuestoInferido = precios.length === 0 ? 0 : (precios.length % 2 === 0
+          ? (precios[mid - 1] + precios[mid]) / 2
+          : precios[mid]);
+
         const recamarasPromedio = Math.round(sumaRecamaras / cliente.interesesHistorial.length);
         
         const operacionDominante = Object.keys(conteoOperacion).reduce((a, b) => conteoOperacion[a] > conteoOperacion[b] ? a : b);
@@ -125,28 +133,23 @@
 
         cliente.perfil = { operacionDominante, tipoDominante, recamarasPromedio };
 
-        let matchesPuntuados = [];
+        // FIX: Flujo funcional con .filter y .map en lugar del return defectuoso del forEach
+        const matchesPuntuados = propiedades
+          .filter(p => !cliente.interesesHistorial.find(i => i.id === p.id))
+          .filter(p => p.operacion === operacionDominante)
+          .map(p => {
+            const diffPrecio = Math.abs(p.precio - cliente.presupuestoInferido) / (cliente.presupuestoInferido || 1);
+            if (diffPrecio > 0.30) return null;
 
-        propiedades.forEach(p => {
-          if (cliente.interesesHistorial.find(i => i.id === p.id)) return;
-          if (p.operacion !== operacionDominante) return;
+            let score = diffPrecio <= 0.15 ? 50 : 25;
+            if (p.tipo === tipoDominante) score += 25;
 
-          let score = 0;
-          const diffPrecio = Math.abs(p.precio - cliente.presupuestoInferido) / cliente.presupuestoInferido;
-          if (diffPrecio <= 0.15) score += 50;      
-          else if (diffPrecio <= 0.30) score += 25; 
-          else return; 
+            const pRec = Number(p.recamaras) || 0;
+            score += pRec >= recamarasPromedio ? 25 : (pRec === recamarasPromedio - 1 ? 10 : 0);
 
-          if (p.tipo === tipoDominante) score += 25;
-
-          const pRec = Number(p.recamaras) || 0;
-          if (pRec >= recamarasPromedio) score += 25;
-          else if (pRec === recamarasPromedio - 1) score += 10;
-
-          if (score >= 60) {
-            matchesPuntuados.push({ ...p, matchScore: score });
-          }
-        });
+            return score >= 60 ? { ...p, matchScore: score } : null;
+          })
+          .filter(Boolean); // Limpiamos los nulls
 
         cliente.matches = matchesPuntuados.sort((a, b) => {
           if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
@@ -156,12 +159,23 @@
       return cliente;
     })
     .filter(c => mostrarDescartados || c.estado !== 'descartado')
-    .filter(c => c.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) || c.correo?.toLowerCase().includes(searchQuery.toLowerCase()) || c.telefono?.includes(searchQuery))
     .sort((a, b) => new Date(b.fecha_contacto) - new Date(a.fecha_contacto)); 
   });
 
+  // 🚀 FIX: Reactividad ultra rápida en tiempo real para la búsqueda en la UI
+  let clientesInteligentes = $derived(
+    searchQuery.trim() === ''
+      ? clientesBase
+      : clientesBase.filter(c =>
+          c.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          c.correo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          c.telefono?.includes(searchQuery)
+        )
+  );
+
+  // FIX: Las métricas deben basarse en 'clientesBase' para que no fluctúen mientras buscas
   let leadsSinSeguimiento = $derived.by(() => {
-    const abandonados = clientesInteligentes.filter(c => {
+    const abandonados = clientesBase.filter(c => {
       if (['cerrado', 'descartado'].includes(c.estado)) return false;
       const dias = Math.floor((new Date() - new Date(c.fecha_contacto)) / (1000 * 60 * 60 * 24));
       return dias >= 3;
@@ -176,7 +190,7 @@
     return { actual: ((ganados / total) * 100).toFixed(1), delta: 0 };
   });
 
-  let totalMatches = $derived(clientesInteligentes.reduce((acc, c) => acc + c.matches.length, 0));
+  let totalMatches = $derived(clientesBase.reduce((acc, c) => acc + c.matches.length, 0));
   const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 
   function getEstadoStyle(estado) {
@@ -189,29 +203,33 @@
     return { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-500' };
   }
 
+  // FIX: Ajuste de Zona Horaria a nivel Calendario y no por milisegundos
   function formatearFechaRelativa(fechaIso) {
     if (!fechaIso) return 'Sin fecha';
     const fecha = new Date(fechaIso);
     const hoy = new Date();
-    const diffMs = hoy - fecha;
-    const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    const fechaLocal = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+    const hoyLocal = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+    const diffDias = Math.round((hoyLocal - fechaLocal) / (1000 * 60 * 60 * 24));
     
     const horaStr = fecha.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
 
-    if (diffDias === 0 && hoy.getDate() === fecha.getDate()) return `Hoy ${horaStr}`;
-    if (diffDias === 1 || (diffDias === 0 && hoy.getDate() !== fecha.getDate())) return `Ayer ${horaStr}`;
+    if (diffDias === 0) return `Hoy ${horaStr}`;
+    if (diffDias === 1) return `Ayer ${horaStr}`;
     if (diffDias < 7) return `Hace ${diffDias} días`;
     return fecha.toLocaleDateString('es-MX', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  function enviarWhatsApp(telefono, cliente, propiedadMatch) {
+  // FIX: Sanitización Extrema XSS para WhatsApp
+  function enviarWhatsApp(telefono, nombreCliente, propiedadMatch) {
     if (!telefono) {
       alert("Este prospecto no tiene un número de WhatsApp registrado.");
       return;
     }
 
-    const nombreLead = cliente?.split(' ')[0] || 'inversor';
-    const nombreBroker = broker?.nombre_comercial?.split(' ')[0] || 'tu asesor';
+    const nombreLead = (nombreCliente || '').replace(/[^\p{L}\s]/gu, '').split(' ')[0].trim() || 'inversor';
+    const nombreBroker = (broker?.nombre_comercial || '').replace(/[^\p{L}\s]/gu, '').split(' ')[0].trim() || 'tu asesor';
 
     const msg = propiedadMatch 
       ? `Hola ${nombreLead}, soy ${nombreBroker}. Revisando mis archivos, noté que estabas buscando propiedades de cierto perfil. Acabo de captar una exclusiva que encaja un ${propiedadMatch.matchScore}% con lo que buscabas: ${propiedadMatch.titulo}. ¿Te gustaría que te envíe el Smart Brochure?`
@@ -301,7 +319,7 @@
           {#if metricasMes.esPositivo}
             <p class="text-[10px] font-bold text-emerald-600">↑ {metricasMes.crecimiento}% vs mes ant.</p>
           {:else}
-            <p class="text-[10px] font-bold text-rose-600">↓ {Math.abs(metricasMes.crecimiento)}% vs mes ant.</p>
+            <p class="text-[10px] font-bold text-rose-600">↓ {metricasMes.crecimiento}% vs mes ant.</p>
           {/if}
         </div>
 
@@ -368,9 +386,12 @@
           
           <div class="bg-white rounded-xl shadow-[0_2px_8px_rgb(0,0,0,0.02)] border {cliente.estado === 'descartado' ? 'border-slate-100 opacity-60' : 'border-slate-200'} overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-[0_4px_15px_rgb(0,0,0,0.05)] hover:border-slate-300 hover:opacity-100">
             <div class="flex-1 p-3.5 lg:px-5 lg:py-4 border-b lg:border-b-0 lg:border-r border-slate-100 flex items-start gap-3.5">
-              <div class="w-10 h-10 mt-1 rounded-full bg-slate-100 shrink-0 shadow-inner border border-slate-200 overflow-hidden hidden sm:block">
-                <img src="https://ui-avatars.com/api/?name={cliente.nombre || 'Lead'}&background=0f172a&color=fff&bold=true&size=100" alt="Avatar" class="w-full h-full object-cover">
+              
+              <!-- 🚀 FIX: Avatar Nativo (Cero dependencias externas y seguro contra inyecciones) -->
+              <div class="w-10 h-10 mt-1 rounded-full bg-slate-800 shrink-0 border border-slate-200 flex items-center justify-center text-white text-[11px] font-black hidden sm:flex tracking-widest shadow-inner uppercase">
+                {(cliente.nombre || '?').replace(/[^\p{L}\s]/gu, '').split(' ').map(n => n[0]).slice(0, 2).join('')}
               </div>
+
               <div class="flex-1 flex flex-col justify-center min-w-0">
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-baseline gap-2.5 truncate">
@@ -416,7 +437,8 @@
                 {/if}
               </div>
             </div>
-            <div class="w-full lg:w-[250px] bg-slate-50/50 p-3 lg:p-4 shrink-0 flex flex-col justify-center relative border-t lg:border-t-0 border-slate-100">
+            <!-- 🚀 FIX: Ancho responsivo para la columna de Matchmaking -->
+            <div class="w-full lg:w-[200px] xl:w-[260px] bg-slate-50/50 p-3 lg:p-4 shrink-0 flex flex-col justify-center relative border-t lg:border-t-0 border-slate-100">
               {#if cliente.matches.length > 0}
                 {@const bestMatch = cliente.matches[0]}
                 <div class="flex items-center justify-between mb-2 relative">
