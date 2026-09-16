@@ -30,6 +30,7 @@
   function getOpenHouseStatus(openHouse) {
     if (!openHouse || !openHouse.event_date || !openHouse.time_end) return 'none';
     const now = new Date();
+    // 🚀 FIX: Asegura el parseo correcto de la fecha y hora combinada
     const eventEndString = `${openHouse.event_date}T${openHouse.time_end}`;
     return now > new Date(eventEndString) ? 'archived' : 'active';
   }
@@ -289,14 +290,17 @@
                           </span>
                         {/if}
 
+                        <!-- 🚀 FIX: Buscar de forma robusta el Open House más actual o el único que existe -->
                         {#if propiedad.open_houses && propiedad.open_houses.length > 0}
-                          {@const ohStatus = getOpenHouseStatus(propiedad.open_houses[0])}
+                          {@const activeOH = propiedad.open_houses.find(oh => getOpenHouseStatus(oh) === 'active') || [...propiedad.open_houses].sort((a,b) => new Date(b.event_date) - new Date(a.event_date))[0]}
+                          {@const ohStatus = getOpenHouseStatus(activeOH)}
+                          
                           {#if ohStatus === 'active'}
-                            <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[9px] font-bold text-indigo-700 hover:bg-indigo-100 transition-colors uppercase tracking-widest">
+                            <a href="/admin/open-house/{activeOH.id}" class="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[9px] font-bold text-indigo-700 hover:bg-indigo-100 transition-colors uppercase tracking-widest">
                               <CalendarPlus class="w-3 h-3 mr-1" /> Open House
                             </a>
                           {:else}
-                            <a href="/admin/open-house/{propiedad.open_houses[0].id}" class="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-50 transition-colors uppercase tracking-widest">
+                            <a href="/admin/open-house/{activeOH.id}" class="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-50 transition-colors uppercase tracking-widest">
                               <CalendarPlus class="w-3 h-3 mr-1" /> Histórico OH
                             </a>
                           {/if}
