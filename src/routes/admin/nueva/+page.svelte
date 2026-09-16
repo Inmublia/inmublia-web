@@ -3,20 +3,9 @@
   import { enhance, deserialize } from '$app/forms';
   import imageCompression from 'browser-image-compression';
   import { 
-    ArrowLeft, 
-    UploadCloud, 
-    Images, 
-    Sparkles, 
-    Loader2, 
-    CheckCircle2,
-    Copy, 
-    MapPin, 
-    MessageCircle, 
-    BadgeDollarSign,
-    LayoutTemplate,
-    AlertTriangle,
-    Eye,
-    Zap
+    ArrowLeft, UploadCloud, Images, Sparkles, Loader2, CheckCircle2,
+    Copy, MapPin, MessageCircle, BadgeDollarSign, LayoutTemplate,
+    AlertTriangle, Eye, Zap
   } from 'lucide-svelte';
 
   let { form, data } = $props();
@@ -33,7 +22,6 @@
   
   let textoGeneradoWhatsapp = $state('');
 
-  // Variables de Estado en tiempo real
   let valTitulo = $state('');
   let valDescripcion = $state('');
   let valPrecio = $state('');
@@ -48,11 +36,9 @@
   let valM2Terreno = $state(''); 
   let valM2Construccion = $state(''); 
 
-  // 🚀 NUEVOS ESTADOS: MANTENIMIENTO
   let cobraMantenimiento = $state(false);
   let valMantenimiento = $state('');
 
-  // --- MOTOR DE COMPRESIÓN BACKGROUND ---
   let imagePreview = $state(null);
   let galeriaPreviews = $state([]);
   let portadaLista = $state(null);
@@ -162,7 +148,6 @@
       formData.append('antiguedad', valAntiguedad || 'No especificada'); 
       formData.append('tono', tonoIA); 
 
-      // 🚀 Agregamos el mantenimiento para que la IA lo sepa
       if (cobraMantenimiento && valMantenimiento) {
         formData.append('mantenimiento', valMantenimiento.toString().replace(/[^0-9.]/g, ''));
       }
@@ -214,7 +199,6 @@
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
-  <!-- 🚀 FIX: Cabecera Estilo Premium (Oscura, con padding profundo) -->
   <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
@@ -231,7 +215,6 @@
     </div>
   </header>
 
-  <!-- 🚀 FIX: Contenedor Principal (Sobresale hacia la cabecera oscura con -mt-16) -->
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1000px] mx-auto px-4 sm:px-10 h-full">
       <div class="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 sm:p-10 mb-10">
@@ -263,7 +246,6 @@
           formData.set('m2_construccion', valM2Construccion);
           formData.set('antiguedad', valAntiguedad);
 
-          // 🚀 Agregamos la lógica de Mantenimiento al formulario
           formData.set('cobra_mantenimiento', cobraMantenimiento);
           formData.set('mantenimiento', cobraMantenimiento ? valMantenimiento : '0');
 
@@ -326,7 +308,6 @@
                 </div>
               </div>
 
-              <!-- 🚀 FIX: Fila Compartida -> Precio Mercado (Izq) / Mantenimiento (Der) -->
               <div class="sm:col-span-1">
                 <label for="precio" class="block text-xs font-semibold text-slate-500 mb-1.5">Precio de Mercado (MXN)</label>
                 <div class="relative">
@@ -338,7 +319,6 @@
               <div class="sm:col-span-1">
                 <div class="flex justify-between items-center mb-1.5">
                   <label class="block text-xs font-semibold text-slate-500">Cuota de Mantenimiento</label>
-                  <!-- Toggle Switch Nativo -->
                   <button type="button" role="switch" aria-checked={cobraMantenimiento} class="relative inline-flex h-4 w-7 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 {cobraMantenimiento ? 'bg-indigo-500' : 'bg-slate-300'}" onclick={() => cobraMantenimiento = !cobraMantenimiento}>
                     <span class="inline-block h-3 w-3 transform rounded-full bg-white transition-transform {cobraMantenimiento ? 'translate-x-3.5' : 'translate-x-0.5'}"></span>
                   </button>
@@ -352,7 +332,6 @@
                    <div class="h-10 w-full rounded-md border border-slate-100 bg-slate-50 flex items-center px-3 text-xs text-slate-400 font-medium">Sin cuota de mantenimiento</div>
                 {/if}
               </div>
-              <!-- Fin Fila Precio/Mantenimiento -->
 
               <div class="sm:col-span-2">
                 <label for="comision" class="block text-xs font-semibold text-slate-500 mb-1.5">Comisión Pactada (%) <span class="font-normal text-[10px] text-slate-400">(Opcional)</span></label>
@@ -434,7 +413,6 @@
             </div>
           </section>
 
-          <!-- SECCIÓN DE IA OPTIMIZADA CON PAYWALL DINÁMICO -->
           <section class="relative">
             <div class="bg-slate-800 rounded-[2rem] p-6 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
               
@@ -523,7 +501,6 @@
                 {/if}
               </div>
 
-              <!-- RESULTADO ÚNICO Y ELEGANTE PARA WHATSAPP -->
               {#if iaEjecutada && textoGeneradoWhatsapp}
                 <div class="mt-8 animate-[fadeIn_0.4s_ease-out] relative z-10 max-w-2xl mx-auto">
                   <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col">
@@ -563,7 +540,6 @@
             </div>
           </section>
 
-          <!-- SECCIÓN 3: AQUÍ SUCEDE LA MAGIA VISUAL DEL TYPEWRITER -->
           <section id="seccion-oficial" class="space-y-6 pt-10 border-t border-slate-100">
             <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
               <h2 class="text-xl font-bold text-slate-900 tracking-tight">3. Publicación Oficial</h2>
