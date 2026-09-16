@@ -28,19 +28,19 @@ export async function load({ locals }) {
 }
 
 export const actions = {
-  // 🚀 FIX: Nombre en inglés/sin 'ñ' para evitar errores de ruteo y codificación URL
   generarPromptIA: async ({ request, locals, platform }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
     if (!platform?.env?.AI) {
-      return fail(500, { error: 'El motor de Inteligencia Artificial (Binding AI) no está conectado.' });
+      // 🚀 FIX: Usar 400 en lugar de 500 para que SvelteKit NO oculte el string
+      return fail(400, { error: 'Falla de Infraestructura: Binding de IA no conectado en Cloudflare.' });
     }
 
     const { data: broker } = await locals.supabase
       .from('brokers').select('id, ia_creditos_disponibles').eq('auth_user_id', user.id).single();
 
-    if (!broker || broker.ia_creditos_disponibles <= 0) return fail(403, { error: 'Has agotado tus créditos.' });
+    if (!broker || broker.ia_creditos_disponibles <= 0) return fail(400, { error: 'Has agotado tus créditos de IA.' });
 
     const formData = await request.formData();
     const propiedad_id = sanitizar(formData.get('propiedad_id'), 100);
@@ -70,7 +70,7 @@ export const actions = {
           };
         }
       } catch (err) {
-        return fail(500, { error: `No se pudo leer la propiedad en la BD: ${err.message}` });
+        return fail(400, { error: `Error conectando con la BD de Propiedades: ${err.message}` });
       }
     }
 
@@ -97,7 +97,7 @@ Detalles: ${propInfo.detalles}
 <json_format>
 {
   "titulo": "[Título del evento, max 6 palabras]",
-  "descripcion": "[Párrafo 1: Gancho sobre el evento.<br><br>Párrafo 2: La experiencia de recorrer la propiedad.<br><br>Párrafo 3: Llamado urgente a registrarse.]",
+  "descripcion": "[Párrafo 1: Gancho.<br><br>Párrafo 2: La experiencia de recorrerla.<br><br>Párrafo 3: Llamado urgente a asistir.]",
   "whatsapp": "[Mensaje persuasivo para WhatsApp invitando a asistir, usa 2 emojis]"
 }
 </json_format>`;
@@ -132,10 +132,11 @@ Detalles: ${propInfo.detalles}
       }
     }
 
-    if (!parsedContent) return fail(500, { error: `Modelos de IA saturados. \nDetalle: ${errorLog.join(' | ')}` });
+    // 🚀 FIX: Usar fail(400) para que el frontend pueda leer el texto exacto del error
+    if (!parsedContent) return fail(400, { error: `Modelos de IA saturados. Detalle interno: ${errorLog.join(' | ')}` });
 
     const { data: rpcData, error: rpcError } = await locals.supabase.rpc('consumir_credito_ia', { p_user_id: user.id });
-    if (rpcError || !rpcData || rpcData.length === 0) return fail(403, { error: 'Fallo al procesar el consumo del crédito en la BD.' });
+    if (rpcError || !rpcData || rpcData.length === 0) return fail(400, { error: 'Fallo al procesar el consumo del crédito en la BD.' });
 
     return {
       titulo: parsedContent.titulo || parsedContent.Titulo || 'Open House VIP',
