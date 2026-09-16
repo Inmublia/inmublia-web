@@ -7,68 +7,124 @@
   import { onDestroy } from 'svelte';
 
   let { data, form } = $props();
+  
+  // 🚀 FIX: Eliminado el $effect defectuoso. SvelteKit actualiza `data` nativamente y lo capturamos limpio
   let broker = $state(data.broker || {});
   let currentWebhook = $derived(data.webhook || {});
 
-  // 🔥 ARQUITECTURA ZERO-TRUST: Detección inteligente de ambos estatus críticos
+  // 🚀 FIX CRÍTICO: Reactividad para los planes (Calculado siempre en tiempo real)
+  let planActual = $derived((broker.plan_suscripcion || 'basico').toLowerCase().trim());
+  let isPro = $derived(['pro', 'profesional', 'elite'].includes(planActual));
+  let isElite = $derived(planActual === 'elite');
+  let esPlanBasico = $derived(planActual === 'basico');
+
+  // 🔥 ARQUITECTURA ZERO-TRUST
   let estatusBD = $derived((broker.status_suscripcion || '').toLowerCase().trim());
   let esCancelado = $derived(['cancelada', 'canceled'].includes(estatusBD));
   let esMoroso = $derived(['past_due', 'unpaid', 'inactiva'].includes(estatusBD));
   let accesoBloqueado = $derived(esCancelado || esMoroso);
 
+  // 🚀 FIX: Unificación de feedback para todos los formularios
+  let savingProfile = $state(false);
+  let showSuccess = $state(false);
+  let successMessage = $state('');
+  let previewUrl = $state(null);
+
+  // 🚀 FIX: Inicialización segura de la URL del webhook si el servidor la envía tarde
+  let webhookUrl = $state('');
   $effect(() => {
-    if (data.broker) {
-      broker = data.broker;
+    if (currentWebhook.endpoint_url && !webhookUrl) {
+      webhookUrl = currentWebhook.endpoint_url;
     }
   });
 
-  let savingProfile = $state(false);
-  let showSuccess = $state(false);
-  let previewUrl = $state(null);
-
-  let webhookUrl = $state(currentWebhook.endpoint_url || '');
   let savingWebhook = $state(false);
   let testingWebhook = $state(false);
-  let webhookSuccess = $state(false);
 
-  let planActual = broker.plan_suscripcion || 'basico';
-  let isPro = planActual === 'pro' || planActual === 'elite';
-  let isElite = planActual === 'elite';
-  let esPlanBasico = planActual === 'basico';
+  // 🚀 FIX: Validadores de UI en tiempo real
+  let subdominioError = $derived(
+    !broker.subdominio ? '' :
+    /\s/.test(broker.subdominio) ? 'No se permiten espacios' :
+    /[^a-z0-9-]/.test(broker.subdominio) ? 'Solo letras minúsculas, números y guiones' :
+    broker.subdominio.length < 4 ? 'Mínimo 4 caracteres' :
+    broker.subdominio.startsWith('-') || broker.subdominio.endsWith('-') ? 'No puede iniciar ni terminar con guión' : ''
+  );
+
+  let whatsappValido = $derived(
+    !broker.whatsapp || /^52\d{10}$/.test((broker.whatsapp || '').replace(/\D/g, ''))
+  );
+
+  // 🚀 FIX: Blindaje de Archivos antes de subirlos a R2
+  const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+  const MAX_MB = 5;
 
   function handleFileSelect(event) {
     const file = event.target.files[0];
-    if (file) {
-      if (previewUrl) URL.revokeObjectURL(previewUrl); 
-      previewUrl = URL.createObjectURL(file);
+    if (!file) return;
+    
+    if (!TIPOS_PERMITIDOS.includes(file.type)) {
+      alert(`Formato no soportado. Por favor usa JPG, PNG o WebP.`);
+      event.target.value = ''; 
+      return;
     }
+    
+    if (file.size > MAX_MB * 1024 * 1024) {
+      alert(`La imagen es demasiado pesada (${(file.size/1024/1024).toFixed(1)}MB). El máximo es ${MAX_MB}MB.`);
+      event.target.value = '';
+      return;
+    }
+
+    if (previewUrl) URL.revokeObjectURL(previewUrl); 
+    previewUrl = URL.createObjectURL(file);
   }
 
   onDestroy(() => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   });
 
+  // 🚀 FIX CRÍTICO: El ping se manda al backend (Server Action) para no chocar con el CORS del navegador
   async function probarWebhook() {
     if (!webhookUrl) return alert('Ingresa una URL primero.');
     testingWebhook = true;
+    
     try {
-      const res = await fetch(webhookUrl, {
+      const formData = new FormData();
+      formData.append('endpoint_url', webhookUrl);
+      
+      const res = await fetch('?/probarWebhook', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ test: true, mensaje: "Ping de prueba desde Inmublia" })
+        body: formData,
+        headers: { 'x-sveltekit-action': 'true', 'accept': 'application/json' }
       });
-      if (res.ok || res.type === 'opaque') { 
-        webhookSuccess = true;
-        setTimeout(() => webhookSuccess = false, 3000);
+      
+      const resultData = await res.json();
+      
+      if (resultData.type === 'success' && resultData.data?.ok) {
+        successMessage = 'Ping exitoso. Tu endpoint está recibiendo las peticiones.';
+        showSuccess = true;
+        setTimeout(() => showSuccess = false, 3500);
       } else {
-        alert('El endpoint respondió con un error (HTTP ' + res.status + ').');
+        alert(resultData.data?.error || `El endpoint devolvió un error (HTTP ${resultData.data?.status})`);
       }
     } catch (e) {
-      alert('Error de conexión. Asegúrate de que la URL permite peticiones entrantes.');
+      alert('Error de conexión interna al intentar procesar la prueba.');
     }
     testingWebhook = false;
   }
 </script>
+
+<!-- 🚀 FIX: Toast movido a la raíz para que el 'overflow-hidden' del main no lo ampute visualmente -->
+{#if showSuccess}
+  <div class="fixed bottom-10 right-10 z-[100] p-5 bg-slate-900 rounded-2xl flex items-center gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-700 animate-[fadeIn_0.3s_ease-out]" role="alert">
+    <div class="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center shrink-0 border border-emerald-500/30">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+    </div>
+    <div class="pr-4">
+      <p class="text-sm font-black text-white tracking-wide">¡Guardado con éxito!</p>
+      <p class="text-xs font-medium text-slate-400 mt-0.5">{successMessage}</p>
+    </div>
+  </div>
+{/if}
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F8FAFC]">
   
@@ -136,18 +192,6 @@
       <!-- SI ESTÁ ACTIVO, RENDERIZA EL PERFIL NORMAL -->
       <!-- ========================================================================= -->
       {:else}
-        
-        {#if showSuccess}
-          <div class="fixed bottom-10 right-10 z-[100] p-5 bg-slate-900 rounded-2xl flex items-center gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-700 animate-[fadeIn_0.3s_ease-out]" role="alert">
-            <div class="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center shrink-0 border border-emerald-500/30">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
-            </div>
-            <div class="pr-4">
-              <p class="text-sm font-black text-white tracking-wide">¡Guardado con éxito!</p>
-              <p class="text-xs font-medium text-slate-400 mt-0.5">Tu configuración está activa y sincronizada.</p>
-            </div>
-          </div>
-        {/if}
 
         {#if form?.error && form?.formId !== 'webhook'}
            <div class="mb-6 bg-red-100 text-red-800 font-bold p-6 rounded-xl border-2 border-red-300 text-sm whitespace-pre-wrap shadow-lg" role="alert">
@@ -174,9 +218,27 @@
 
               return async ({ update, result }) => {
                 savingProfile = false;
-                if (result.type === 'failure' && result.data?.formId !== 'webhook') alert("❌ Validación: " + (result.data?.error || "Error"));
-                else if (result.type === 'error') alert("🔥 Caída Servidor: " + result.error.message);
-                else if (result.type === 'success' && result.data?.formId !== 'webhook') { showSuccess = true; setTimeout(() => showSuccess = false, 4000); await invalidateAll(); }
+                
+                if (result.type === 'failure' && result.data?.formId !== 'webhook') {
+                  alert("❌ Validación: " + (result.data?.error || "Error al guardar los datos"));
+                } 
+                else if (result.type === 'error') {
+                  alert("🔥 Caída Servidor: " + result.error.message);
+                } 
+                else if (result.type === 'success' && result.data?.formId !== 'webhook') { 
+                  // 🚀 FIX: Limpiamos la URL temporal de memoria para que el sistema use la nueva URL real de la BD
+                  if (previewUrl) {
+                    URL.revokeObjectURL(previewUrl);
+                    previewUrl = null;
+                  }
+                  
+                  broker = result.data?.broker || broker; // Actualizamos datos frescos
+                  successMessage = 'La configuración de tu agencia ha sido guardada.';
+                  showSuccess = true; 
+                  setTimeout(() => showSuccess = false, 4000); 
+                  await invalidateAll(); 
+                }
+                
                 update({ reset: false });
               };
             }}>
@@ -202,7 +264,7 @@
                     </label>
                     <div>
                       <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Logo o Fotografía</span>
-                      <p class="text-xs text-slate-400 font-medium">Recomendado: 400x400px en formato PNG o JPG.</p>
+                      <p class="text-xs text-slate-400 font-medium">Recomendado: 400x400px en formato PNG o JPG. (Máx {MAX_MB}MB)</p>
                     </div>
                   </div>
 
@@ -213,7 +275,10 @@
                   
                   <div>
                     <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">WhatsApp de Contacto</span>
-                    <input type="tel" name="whatsapp" bind:value={broker.whatsapp} required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none" placeholder="Ej. 523312345678">
+                    <input type="tel" name="whatsapp" bind:value={broker.whatsapp} required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none {!whatsappValido && broker.whatsapp ? 'border-amber-300 bg-amber-50' : ''}" placeholder="Ej. 523312345678">
+                    {#if !whatsappValido && broker.whatsapp}
+                      <p class="text-[10px] text-amber-600 font-bold mt-1.5">Recuerda incluir el código de país (Ej. 52 para México) sin el signo +</p>
+                    {/if}
                   </div>
 
                   <div>
@@ -233,9 +298,20 @@
                   <div>
                     <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Enlace Personalizado</span>
                     <div class="flex items-center">
-                      <input type="text" name="subdominio" bind:value={broker.subdominio} required class="flex-1 bg-slate-50 border border-slate-200 rounded-l-xl px-4 py-3 text-sm font-bold text-slate-900 text-right focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none">
+                      <!-- 🚀 FIX: Forzamos sanitización limpia en tiempo real en el input de Subdominio -->
+                      <input 
+                        type="text" 
+                        name="subdominio" 
+                        bind:value={broker.subdominio} 
+                        oninput={(e) => { broker.subdominio = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/--+/g, '-'); }}
+                        required 
+                        class="flex-1 bg-slate-50 border rounded-l-xl px-4 py-3 text-sm font-bold text-slate-900 text-right focus:ring-2 focus:ring-indigo-100 outline-none transition-colors {subdominioError ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-indigo-400'}"
+                      >
                       <div class="bg-slate-100 border-y border-r border-slate-200 rounded-r-xl px-4 py-3 text-sm font-medium text-slate-500 pointer-events-none">.inmublia.com</div>
                     </div>
+                    {#if subdominioError}
+                      <p class="text-[10px] text-red-500 font-bold mt-1.5">{subdominioError}</p>
+                    {/if}
                   </div>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -324,13 +400,13 @@
                       </span>
                       {#if !isElite} <span class="text-[9px] font-bold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-md">🔒 Plan Elite</span> {/if}
                     </div>
-                    <input type="text" name="pixel_tiktok" bind:value={broker.pixel_tiktok} disabled={!isElite} placeholder={isElite ? "Ej. CB1234567890" : "Exclusivo Plan Elite"} class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed">
+                    <input type="text" name="pixel_tiktok" bind:value={broker.tiktok} disabled={!isElite} placeholder={isElite ? "Ej. CB1234567890" : "Exclusivo Plan Elite"} class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed">
                   </div>
                 </div>
               </div>
 
               <div class="mt-8 flex justify-end">
-                <button type="submit" disabled={savingProfile} class="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white font-bold py-4 px-10 rounded-2xl shadow-xl flex items-center gap-3 transition-all border border-slate-700 w-full sm:w-auto">
+                <button type="submit" disabled={savingProfile || subdominioError} class="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-4 px-10 rounded-2xl shadow-xl flex items-center gap-3 transition-all border border-slate-700 w-full sm:w-auto">
                   {#if savingProfile}
                     <span class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Guardando...
                   {:else}
@@ -356,7 +432,6 @@
                 </div>
               </div>
               
-              <!-- Enlace limpio y directo al API GET -->
               <a href="/api/stripe/portal" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-3 rounded-xl transition-colors shadow-sm active:scale-95 relative z-10">
                 Gestionar Membresía
               </a>
@@ -366,6 +441,14 @@
               savingWebhook = true; 
               return async ({ update, result }) => { 
                 savingWebhook = false;
+                
+                // 🚀 FIX: Mostramos el Toast de éxito también al guardar el Webhook
+                if (result.type === 'success') {
+                  successMessage = 'El Webhook ha sido guardado y ya está activo.';
+                  showSuccess = true;
+                  setTimeout(() => showSuccess = false, 3500);
+                }
+                
                 await update({ reset: false }); 
               }; 
             }}>
@@ -387,8 +470,6 @@
                   {#if form?.formId === 'webhook'}
                     {#if form?.error}
                       <p class="text-red-400 text-[10px] font-bold mb-1">{form.error}</p>
-                    {:else if form?.success}
-                      <p class="text-emerald-400 text-[10px] font-bold mb-1">Webhook guardado exitosamente.</p>
                     {/if}
                   {/if}
 
@@ -403,7 +484,7 @@
 
                   <div class="flex gap-2 mt-2">
                     <button type="button" onclick={probarWebhook} disabled={testingWebhook || esPlanBasico || !webhookUrl} class="flex-1 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-colors border border-white/10 text-[11px] disabled:opacity-50 active:scale-95">
-                      {#if testingWebhook} Probando... {:else if webhookSuccess} <span class="text-emerald-400">Exitosa</span> {:else} Probar {/if}
+                      {#if testingWebhook} Probando... {:else} Probar {/if}
                     </button>
                     <button type="submit" disabled={esPlanBasico || savingWebhook} class="flex-1 flex items-center justify-center bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-3 rounded-xl transition-colors border border-transparent shadow-sm text-[11px] disabled:opacity-50 active:scale-95">
                       {#if savingWebhook}
