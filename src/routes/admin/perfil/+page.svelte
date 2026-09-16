@@ -3,7 +3,7 @@
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import imageCompression from 'browser-image-compression';
-  import { Settings, ShieldCheck, Loader2, Calculator, Percent, AlertOctagon } from 'lucide-svelte'; 
+  import { Settings, ShieldCheck, Loader2, Calculator, Percent, AlertOctagon, Save } from 'lucide-svelte'; 
   import { onDestroy } from 'svelte';
 
   let { data, form } = $props();
@@ -29,6 +29,9 @@
   let showSuccess = $state(false);
   let successMessage = $state('');
   let previewUrl = $state(null);
+
+  // Referencia al botón invisible de submit del formulario principal
+  let submitBtnPerfil = $state(null);
 
   // 🚀 FIX: Inicialización segura de la URL del webhook si el servidor la envía tarde
   let webhookUrl = $state('');
@@ -126,37 +129,54 @@
   </div>
 {/if}
 
-<main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F8FAFC]">
+<div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
+
+<div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
-  <header class="h-24 bg-zinc-950 border-b border-zinc-800 flex items-center px-10 shrink-0 shadow-xl shadow-zinc-900/10 z-10 relative">
-    <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none translate-x-1/4 -translate-y-1/2"></div>
-    <div class="flex items-center gap-4 relative z-10">
-      <div class="p-2.5 bg-zinc-900 rounded-xl text-white shadow-sm border border-zinc-800">
-        <Settings class="w-5 h-5 text-indigo-400" />
-      </div>
+  <!-- 🚀 FIX: Cabecera Estilo Dashboard / Design Studio -->
+  <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
+    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
+
+    <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
       <div>
-        <h1 class="text-xl font-black tracking-tight text-white">Configuración de Agencia</h1>
-        <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
+        <h1 class="text-3xl font-bold tracking-tight text-zinc-50 flex items-center gap-3">
+          <Settings class="w-7 h-7 text-indigo-400" />
+          Configuración de Agencia
+        </h1>
+        <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
           {#if esCancelado}
-            <AlertOctagon class="w-3 h-3 text-red-500" /> Estatus: <span class="text-red-400 font-black uppercase">CANCELADA</span>
+            <AlertOctagon class="w-4 h-4 text-red-500" /> Estatus: <span class="text-red-400 uppercase">CANCELADA</span>
           {:else if esMoroso}
-            <AlertOctagon class="w-3 h-3 text-amber-500" /> Estatus: <span class="text-amber-400 font-black uppercase">PAGO PENDIENTE</span>
+            <AlertOctagon class="w-4 h-4 text-amber-500" /> Estatus: <span class="text-amber-400 uppercase">PAGO PENDIENTE</span>
           {:else}
-            <ShieldCheck class="w-3 h-3 text-emerald-500" /> Nivel de acceso: <span class="text-zinc-300 uppercase">{broker.plan_suscripcion || 'Básico'}</span>
+            <ShieldCheck class="w-4 h-4 text-emerald-500" /> Nivel de acceso: <span class="uppercase text-zinc-300">{broker.plan_suscripcion || 'Básico'}</span>
           {/if}
         </p>
       </div>
+
+      {#if !accesoBloqueado}
+        <div>
+          <!-- 🚀 FIX: Botón de Guardado Superior que acciona el formulario de abajo -->
+          <button type="button" onclick={() => submitBtnPerfil?.click()} disabled={savingProfile || subdominioError} class="bg-white hover:bg-zinc-200 disabled:bg-zinc-300 disabled:text-zinc-500 text-zinc-950 font-bold py-3 px-6 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center gap-2 transition-all text-sm cursor-pointer active:scale-95">
+            {#if savingProfile}
+              <span class="w-4 h-4 border-2 border-zinc-950/30 border-t-zinc-950 rounded-full animate-spin"></span> Guardando...
+            {:else}
+              <Save class="w-4 h-4 text-indigo-500" /> Guardar Perfil
+            {/if}
+          </button>
+        </div>
+      {/if}
     </div>
   </header>
 
-  <div class="p-10 flex-1 overflow-auto pb-32">
-    <div class="max-w-5xl mx-auto h-full">
+  <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
+    <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 h-full">
 
       <!-- ========================================================================= -->
       <!-- HARD ROUTING UI: Aislamiento visual según el nivel de morosidad -->
       <!-- ========================================================================= -->
       {#if accesoBloqueado}
-        <div class="flex items-center justify-center h-[60vh]">
+        <div class="flex items-center justify-center pt-10">
           <div class="bg-white rounded-3xl max-w-lg w-full p-10 shadow-2xl text-center border border-red-100 relative overflow-hidden animate-[fadeIn_0.3s_ease-out]">
             <div class="absolute top-0 right-0 w-40 h-40 {esCancelado ? 'bg-red-500/10' : 'bg-amber-500/10'} rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
             
@@ -243,6 +263,9 @@
               };
             }}>
               
+              <!-- 🚀 FIX: Botón oculto para ser disparado desde el header superior -->
+              <button type="submit" bind:this={submitBtnPerfil} class="hidden"></button>
+
               <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
                 <div class="flex items-center gap-3 mb-6">
                   <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
@@ -404,16 +427,6 @@
                   </div>
                 </div>
               </div>
-
-              <div class="mt-8 flex justify-end">
-                <button type="submit" disabled={savingProfile || subdominioError} class="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-4 px-10 rounded-2xl shadow-xl flex items-center gap-3 transition-all border border-slate-700 w-full sm:w-auto">
-                  {#if savingProfile}
-                    <span class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Guardando...
-                  {:else}
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg> Guardar Configuración
-                  {/if}
-                </button>
-              </div>
             </form>
           </div>
 
@@ -513,8 +526,8 @@
         </div>
       {/if} <!-- FIN BLOQUE HARD ROUTING UI -->
     </div>
-  </div>
-</main>
+  </main>
+</div>
 
 <style>
   @keyframes fadeIn {
