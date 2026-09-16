@@ -20,13 +20,16 @@
   let iaEjecutada = $state(false);
   let tonoIA = $state('lujo'); 
   let textoGeneradoWhatsapp = $state('');
-  
-  // 🛡️ CONSOLA DE ERROR IN-UI
   let iaErrorMsg = $state('');
 
-  // Variables vinculadas al formulario
+  // 🚀 VARIABLES DE ESTADO ENLAZADAS (BINDING) PARA EVITAR ALUCINACIONES
   let valPropiedadId = $state('');
   let valTitle = $state('');
+  let valDate = $state('');
+  let valTimeStart = $state('');
+  let valTimeEnd = $state('');
+  let valMaxCapacity = $state('15');
+  let valBenefit = $state('');
   let valDescription = $state('');
 
   const timeOptions = [];
@@ -51,9 +54,16 @@
     }
   }
 
+  // 🚀 MOTOR BLINDADO CON EXTRACCIÓN REAL DE DATOS
   async function generarCampañaIA() {
     if (!valPropiedadId) {
-      iaErrorMsg = "Selecciona una Propiedad Base del inventario en la Sección 1 para poder redactar el contenido.";
+      iaErrorMsg = "Selecciona una Propiedad Base en la Sección 1.";
+      return;
+    }
+    // 🛡️ BLOQUEO: Si no hay datos de evento, no hay IA. Cero alucinaciones.
+    if (!valDate || !valTimeStart || !valTimeEnd) {
+      iaErrorMsg = "Por favor, completa la Fecha y los Horarios del evento en la sección superior para que la IA redacte datos reales.";
+      document.getElementById('date')?.focus();
       return;
     }
 
@@ -71,10 +81,14 @@
     const timeoutId = setTimeout(() => controller.abort(), 25000); 
 
     try {
-      // 🚀 CAPTURA TODO EL FORMULARIO PARA PASAR HORARIOS Y FECHA A LA IA
-      const formEl = document.getElementById('form-openhouse');
-      const formData = new FormData(formEl);
+      const formData = new FormData();
+      formData.append('propiedad_id', valPropiedadId);
       formData.append('tono', tonoIA); 
+      formData.append('date', valDate); 
+      formData.append('timeStart', valTimeStart); 
+      formData.append('timeEnd', valTimeEnd); 
+      formData.append('maxCapacity', valMaxCapacity); 
+      formData.append('benefit', valBenefit); 
 
       const fetchRequest = fetch('?/generarPromptIA', {
         method: 'POST',
@@ -83,23 +97,16 @@
         signal: controller.signal
       });
 
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("TIMEOUT_FORZADO")), 25000)
-      );
-
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT_FORZADO")), 25000));
       const res = await Promise.race([fetchRequest, timeoutPromise]);
       const textRes = await res.text();
       
-      if (textRes.trim().startsWith('<')) {
-        throw new Error("El servidor devolvió HTML (Posible caída de red o error de ruteo).");
-      }
+      if (textRes.trim().startsWith('<')) throw new Error("El servidor devolvió HTML (Posible caída de red).");
 
       let result;
       try {
         result = deserialize(textRes);
-      } catch (e) {
-        throw new Error(`Datos corruptos devueltos por servidor. Respuesta: ${textRes.substring(0, 100)}...`);
-      }
+      } catch (e) { throw new Error(`Datos corruptos devueltos por servidor.`); }
 
       if (result.type === 'success' && result.data) {
         creditosIA--;
@@ -115,8 +122,6 @@
         throw new Error(`${result.data?.error || JSON.stringify(result.data)}`);
       } else if (result.type === 'error') {
         throw new Error(`Error SvelteKit: ${result.error?.message || JSON.stringify(result.error)}`);
-      } else {
-        throw new Error(`Payload desconocido: ${JSON.stringify(result)}`);
       }
 
     } catch (e) {
@@ -147,7 +152,7 @@
     <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
       <div class="flex items-center gap-4 text-left w-full">
         <a href="/admin" class="text-zinc-400 hover:text-white transition-colors p-2.5 rounded-xl hover:bg-white/10 shrink-0" title="Volver al Inventario">
-          <ArrowLeft class="w-6 h-6"/>
+          <ArrowLeft class="w-6 h-6" />
         </a>
         <div>
           <h1 class="text-3xl font-bold tracking-tight text-zinc-50">Configurar Open House</h1>
@@ -157,9 +162,9 @@
 
       <button type="submit" form="form-openhouse" disabled={isSubmitting} class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95 shrink-0">
         {#if isSubmitting}
-          <Loader2 class="w-4 h-4 animate-spin text-zinc-950"/> Lanzando...
+          <Loader2 class="w-4 h-4 animate-spin text-zinc-950" /> Lanzando...
         {:else}
-          <Rocket class="w-4 h-4 text-indigo-500"/> Lanzar Evento
+          <Rocket class="w-4 h-4 text-indigo-500" /> Lanzar Evento
         {/if}
       </button>
     </div>
@@ -168,7 +173,6 @@
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 h-full">
       
-      <!-- 🚀 FIX: action="?/crear" añadido al formulario principal para evitar colisión de acciones -->
       <form id="form-openhouse" action="?/crear" method="POST" use:enhance={() => {
         isSubmitting = true;
         return async ({ update }) => { isSubmitting = false; update(); };
@@ -177,7 +181,7 @@
         <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-start gap-4">
             <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700 shrink-0">
-              <Building2 class="w-5 h-5"/>
+              <Building2 class="w-5 h-5" />
             </div>
             <div>
               <h2 class="text-lg font-black text-slate-900 tracking-tight">Identidad del Evento</h2>
@@ -214,7 +218,7 @@
         <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-start gap-4">
             <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700 shrink-0">
-              <CalendarClock class="w-5 h-5"/>
+              <CalendarClock class="w-5 h-5" />
             </div>
             <div>
               <h2 class="text-lg font-black text-slate-900 tracking-tight">Horarios y Aforos</h2>
@@ -227,22 +231,22 @@
               <div class="lg:col-span-1">
                 <label for="date" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Fecha de Convocatoria *</label>
                 <div class="relative">
-                  <CalendarDays class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"/>
-                  <input id="date" type="date" name="date" required class="w-full bg-white border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-text">
+                  <CalendarDays class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <input id="date" type="date" name="date" bind:value={valDate} required class="w-full bg-white border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-text">
                 </div>
               </div>
 
               <div class="lg:col-span-1">
                 <label for="timeStart" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Apertura *</label>
                 <div class="relative w-full">
-                  <select id="timeStart" name="timeStart" required class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer appearance-none">
+                  <select id="timeStart" name="timeStart" bind:value={valTimeStart} required class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer appearance-none">
                     <option value="">Seleccionar...</option>
                     {#each timeOptions as time}
                       <option value={time.value}>{time.label}</option>
                     {/each}
                   </select>
                   <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
-                    <Clock class="w-3.5 h-3.5"/>
+                    <Clock class="w-3.5 h-3.5" />
                   </div>
                 </div>
               </div>
@@ -250,14 +254,14 @@
               <div class="lg:col-span-1">
                 <label for="timeEnd" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cierre *</label>
                 <div class="relative w-full">
-                  <select id="timeEnd" name="timeEnd" required class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer appearance-none">
+                  <select id="timeEnd" name="timeEnd" bind:value={valTimeEnd} required class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer appearance-none">
                     <option value="">Seleccionar...</option>
                     {#each timeOptions as time}
                       <option value={time.value}>{time.label}</option>
                     {/each}
                   </select>
                   <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
-                    <Clock class="w-3.5 h-3.5"/>
+                    <Clock class="w-3.5 h-3.5" />
                   </div>
                 </div>
               </div>
@@ -265,22 +269,19 @@
               <div class="lg:col-span-1">
                 <label for="maxCapacity" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Aforo Máximo *</label>
                 <div class="relative">
-                  <Users class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"/>
-                  <input id="maxCapacity" type="number" name="maxCapacity" required min="1" max="100" placeholder="Ej. 15" class="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-center">
+                  <Users class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <input id="maxCapacity" type="number" name="maxCapacity" bind:value={valMaxCapacity} required min="1" max="100" placeholder="Ej. 15" class="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-center">
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 🚀 FIX UI: ESTRUCTURA LIMPIA Y VERTICAL -->
         <section class="relative">
-          <div class="bg-slate-800 rounded-[2rem] p-6 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
+          <div class="bg-slate-800 rounded-[2rem] p-8 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
             <div class="absolute -top-32 -right-32 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none"></div>
 
             <div class="relative z-10 w-full flex flex-col gap-6 text-left">
-              
-              <!-- Título e Instrucciones Arriba -->
               <div class="w-full">
                 <h2 class="text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
                   Estudio Creativo IA para Eventos
@@ -290,25 +291,22 @@
                   </span>
                 </h2>
                 <p class="text-sm text-slate-400 mt-2 leading-relaxed font-medium">
-                  Autogenera invitaciones magnéticas y copy para WhatsApp leyendo los datos del inventario que seleccionaste arriba.
+                  Autogenera invitaciones magnéticas y copy para WhatsApp usando los datos del formulario de arriba.
                 </p>
               </div>
 
-              <!-- Consola de Errores -->
               {#if iaErrorMsg}
                 <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-5 flex items-start gap-3 animate-[fadeIn_0.3s_ease-out]">
-                  <AlertOctagon class="w-5 h-5 text-red-400 shrink-0 mt-0.5"/>
+                  <AlertOctagon class="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                   <div class="w-full">
-                    <p class="text-sm font-black text-red-300 mb-1">Diagnóstico del Error:</p>
+                    <p class="text-sm font-black text-red-300 mb-1">Error de Generación:</p>
                     <p class="text-xs font-mono text-red-200 break-words whitespace-pre-wrap">{iaErrorMsg}</p>
                   </div>
                 </div>
               {/if}
 
-              <!-- Controles de IA en fila inferior -->
               {#if creditosIA > 0}
-                <div class="flex flex-col md:flex-row items-end gap-4 w-full bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-6 shadow-inner">
-                  
+                <div class="flex flex-col sm:flex-row items-end gap-4 w-full bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-6 shadow-inner">
                   <div class="w-full md:flex-1">
                     <label for="tono-ia" class="block text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-2">Tono de Invitación</label>
                     <div class="relative w-full">
@@ -325,22 +323,21 @@
 
                   <div class="w-full md:w-auto shrink-0 flex flex-col sm:flex-row gap-4">
                     <div class="h-[46px] px-6 flex items-center justify-center gap-2 bg-slate-800 rounded-xl border border-slate-600/80 text-xs font-bold text-slate-200 shadow-inner">
-                      <Sparkles class="w-4 h-4 text-amber-400"/>
+                      <Sparkles class="w-4 h-4 text-amber-400" />
                       {creditosIA} {creditosIA === 1 ? 'Crédito' : 'Créditos'}
                     </div>
-                    
                     <button type="button" onclick={generarCampañaIA} disabled={generandoIA} class="h-[46px] px-8 relative overflow-hidden group bg-white text-slate-900 font-bold rounded-xl transition-all disabled:opacity-50 hover:bg-slate-100 flex items-center justify-center gap-2 text-sm shadow-sm active:scale-95">
                       {#if generandoIA}
-                        <Loader2 class="animate-spin w-4 h-4 text-slate-900"/> Redactando...
+                        <Loader2 class="animate-spin w-4 h-4 text-slate-900" /> Redactando...
                       {:else}
-                        <Sparkles class="w-4 h-4 text-slate-900"/> Generar
+                        <Sparkles class="w-4 h-4 text-slate-900" /> Generar
                       {/if}
                     </button>
                   </div>
                 </div>
               {:else}
                 <div class="w-full flex items-center gap-4 bg-red-500/10 border border-red-500/30 rounded-2xl p-6">
-                  <Zap class="w-8 h-8 text-red-400 shrink-0"/>
+                  <Zap class="w-8 h-8 text-red-400 shrink-0" />
                   <div>
                     <h3 class="text-sm font-bold text-white">Créditos Agotados</h3>
                     <p class="text-xs text-red-200 mt-1">Acude a Configuración para realizar un Top-Up de IA y dominar el mercado.</p>
@@ -349,17 +346,16 @@
               {/if}
             </div>
 
-            <!-- Caja de Resultados de IA para WhatsApp -->
             {#if iaEjecutada && textoGeneradoWhatsapp}
               <div class="mt-6 animate-[fadeIn_0.4s_ease-out] relative z-10 w-full">
                 <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col w-full">
                   <div class="flex items-center justify-between mb-4">
                     <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
-                      <MessageCircle class="w-4 h-4 text-emerald-400"/> Campaña WhatsApp
+                      <MessageCircle class="w-4 h-4 text-emerald-400" /> Campaña WhatsApp
                     </h4>
                     {#if !generandoIA}
                       <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600/50">
-                        <Copy class="w-3.5 h-3.5"/> Copiar
+                        <Copy class="w-3.5 h-3.5" /> Copiar
                       </button>
                     {/if}
                   </div>
@@ -376,7 +372,7 @@
           <div class="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-4">
             <div class="flex items-start gap-4">
               <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700 shrink-0">
-                <PenTool class="w-5 h-5"/>
+                <PenTool class="w-5 h-5" />
               </div>
               <div>
                 <h2 class="text-lg font-black text-slate-900 tracking-tight">Persuasión y Copywriting</h2>
@@ -385,7 +381,7 @@
             </div>
             {#if iaEjecutada && !generandoIA}
               <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5 animate-[fadeIn_0.4s_ease-out] shrink-0">
-                <CheckCircle2 class="w-3.5 h-3.5"/> Autocompletado
+                <CheckCircle2 class="w-3.5 h-3.5" /> Autocompletado
               </span>
             {/if}
           </div>
@@ -395,8 +391,8 @@
               <div class="lg:col-span-2">
                 <label for="benefit" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Incentivo de Asistencia (Opcional)</label>
                 <div class="relative">
-                  <Gift class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"/>
-                  <input id="benefit" type="text" name="benefit" placeholder="Ej. Asesoría financiera gratuita y coctel de bienvenida" class="w-full bg-white border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 text-sm font-bold text-slate-900 placeholder:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm">
+                  <Gift class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <input id="benefit" type="text" name="benefit" bind:value={valBenefit} placeholder="Ej. Asesoría financiera gratuita y coctel de bienvenida" class="w-full bg-white border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 text-sm font-bold text-slate-900 placeholder:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm">
                 </div>
               </div>
 
@@ -410,9 +406,9 @@
 
         <button type="submit" disabled={isSubmitting} class="sm:hidden w-full inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-white hover:bg-indigo-600 h-14 gap-2 shadow-lg active:scale-95 mt-4">
           {#if isSubmitting}
-            <Loader2 class="w-5 h-5 animate-spin"/> Lanzando...
+            <Loader2 class="w-5 h-5 animate-spin" /> Lanzando...
           {:else}
-            <Rocket class="w-5 h-5"/> Lanzar Evento Oficial
+            <Rocket class="w-5 h-5" /> Lanzar Evento Oficial
           {/if}
         </button>
 
