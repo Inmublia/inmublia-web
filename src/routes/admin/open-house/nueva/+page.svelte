@@ -21,12 +21,10 @@
   let tonoIA = $state('lujo'); 
   let textoGeneradoWhatsapp = $state('');
 
-  // Variables vinculadas al formulario
   let valPropiedadId = $state('');
   let valTitle = $state('');
   let valDescription = $state('');
 
-  // Motor para generar horarios Premium (intervalos de 30 mins)
   const timeOptions = [];
   for (let i = 7; i <= 21; i++) {
     for (let m = 0; m < 60; m += 30) {
@@ -38,7 +36,6 @@
     }
   }
 
-  // --- FUNCIONES IA ---
   async function typeWriter(text, setterCallback, speed = 10) {
     if (!text) return;
     let str = String(text); 
@@ -50,6 +47,7 @@
     }
   }
 
+  // 🚀 FIX DEL LEAD DEBUGGER: KILL-SWITCH INCORPORADO
   async function generarCampañaIA() {
     if (!valPropiedadId) {
       alert("Por favor, selecciona una Propiedad Base en la sección superior para que la IA sepa de qué trata el evento.");
@@ -65,6 +63,10 @@
 
     document.getElementById('seccion-copywriting')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
+    // 💣 CORTACORRIENTE: 35 SEGUNDOS MÁXIMO
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 35000); 
+
     try {
       const formData = new FormData();
       formData.append('propiedad_id', valPropiedadId);
@@ -73,15 +75,18 @@
       const res = await fetch('?/generarCampañaIA', {
         method: 'POST',
         body: formData,
-        headers: { 'x-sveltekit-action': 'true' }
+        headers: { 'x-sveltekit-action': 'true' },
+        signal: controller.signal // Atado al cortacorriente
       });
+
+      clearTimeout(timeoutId); // Si responde antes, cancelamos la bomba
 
       const textRes = await res.text();
       let result;
       try {
         result = deserialize(textRes);
       } catch (e) {
-        throw new Error(`Respuesta del servidor inválida (${res.status}).`);
+        throw new Error(`El servidor devolvió algo que no es JSON (Posible error 500).`);
       }
 
       if (result.type === 'success' && result.data) {
@@ -95,15 +100,23 @@
           typeWriter(result.data.whatsapp, (v) => textoGeneradoWhatsapp = v, 10)
         ]);
       } else if (result.type === 'failure') {
-        throw new Error(result.data?.error || 'Error al procesar la solicitud con IA.');
+        throw new Error(result.data?.error || 'Error al procesar la solicitud en el servidor.');
       } else if (result.type === 'error') {
-        throw new Error(result.error?.message || `Fallo crítico de conexión.`);
+        throw new Error(result.error?.message || `Fallo crítico de conexión interna.`);
       }
 
     } catch (e) {
-      console.error(e);
+      clearTimeout(timeoutId);
       generandoIA = false;
-      alert(`Error en IA: ${e.message}`);
+      
+      console.error("[Lead Debugger Client] Fallo capturado:", e);
+      
+      // Si el error fue provocado por nuestro AbortController
+      if (e.name === 'AbortError') {
+        alert("TIMEOUT 🚨: El motor de Inteligencia Artificial (o la BD) se quedó colgado y tardó más de 35 segundos. Hemos forzado el cierre para no bloquear tu pantalla. Revisa la terminal de tu servidor.");
+      } else {
+        alert(`Error en IA: ${e.message}`);
+      }
     }
   }
 
@@ -117,13 +130,13 @@
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
-  <!-- 🚀 FIX: Cabecera Estilo Premium (Ancho max-w-[1000px], alineación izquierda) -->
+  <!-- 🚀 FIX UI: max-w-[1000px] asegurando anclaje a la izquierda total -->
   <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
     <div class="w-full max-w-[1000px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-      <div class="flex items-center gap-4">
-        <a href="/admin" class="text-zinc-400 hover:text-white transition-colors p-2.5 rounded-xl hover:bg-white/10" title="Volver al Inventario">
+      <div class="flex items-center gap-4 text-left">
+        <a href="/admin" class="text-zinc-400 hover:text-white transition-colors p-2.5 rounded-xl hover:bg-white/10 shrink-0" title="Volver al Inventario">
           <ArrowLeft class="w-6 h-6" />
         </a>
         <div>
@@ -132,33 +145,30 @@
         </div>
       </div>
 
-      <button type="submit" form="form-openhouse" disabled={isSubmitting} class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95">
+      <button type="submit" form="form-openhouse" disabled={isSubmitting} class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95 shrink-0">
         {#if isSubmitting}
           <Loader2 class="w-4 h-4 animate-spin text-zinc-950" />
-          Lanzando Evento...
+          Lanzando...
         {:else}
           <Rocket class="w-4 h-4 text-indigo-500" />
-          Lanzar Evento Oficial
+          Lanzar Evento
         {/if}
       </button>
     </div>
   </header>
 
-  <!-- 🚀 FIX: Contenedor Principal (Ancho max-w-[1000px]) -->
+  <!-- 🚀 FIX UI: max-w-[1000px] para estirar el formulario a la medida ideal -->
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1000px] mx-auto px-4 sm:px-10 h-full">
       
       <form id="form-openhouse" method="POST" use:enhance={() => {
         isSubmitting = true;
-        return async ({ update }) => {
-          isSubmitting = false;
-          update();
-        };
+        return async ({ update }) => { isSubmitting = false; update(); };
       }} class="space-y-8 pb-10">
         
         <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-start gap-4">
-            <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700">
+            <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700 shrink-0">
               <Building2 class="w-5 h-5" />
             </div>
             <div>
@@ -195,7 +205,7 @@
 
         <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-start gap-4">
-            <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700">
+            <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700 shrink-0">
               <CalendarClock class="w-5 h-5" />
             </div>
             <div>
@@ -261,7 +271,7 @@
 
             <div class="relative z-10">
               <div class="flex flex-col items-center w-full mb-8">
-                <h2 class="text-2xl font-black text-white tracking-tight flex items-center justify-center gap-2.5">
+                <h2 class="text-2xl font-black text-white tracking-tight flex items-center justify-center gap-2.5 text-center">
                   Estudio Creativo IA para Eventos
                   <span class="flex h-2.5 w-2.5 relative mt-0.5">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -300,11 +310,9 @@
                     <div class="h-[18px] mb-2 hidden sm:block"></div> 
                     <button type="button" onclick={generarCampañaIA} disabled={generandoIA || !valPropiedadId} class="w-full relative overflow-hidden group bg-white text-slate-900 font-bold px-6 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 flex items-center justify-center gap-2 text-sm shadow-sm active:scale-95">
                       {#if generandoIA}
-                        <Loader2 class="animate-spin w-4 h-4 text-slate-900" />
-                        Redactando...
+                        <Loader2 class="animate-spin w-4 h-4 text-slate-900" /> Redactando...
                       {:else}
-                        <Sparkles class="w-4 h-4 text-slate-900" />
-                        Generar Invitación
+                        <Sparkles class="w-4 h-4 text-slate-900" /> Generar Invitación
                       {/if}
                     </button>
                   </div>
@@ -361,7 +369,7 @@
         <div id="seccion-copywriting" class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-4">
             <div class="flex items-start gap-4">
-              <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700">
+              <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700 shrink-0">
                 <PenTool class="w-5 h-5" />
               </div>
               <div>
@@ -370,7 +378,7 @@
               </div>
             </div>
             {#if iaEjecutada && !generandoIA}
-              <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5 animate-[fadeIn_0.4s_ease-out]">
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5 animate-[fadeIn_0.4s_ease-out] shrink-0">
                 <CheckCircle2 class="w-3.5 h-3.5" /> Autocompletado
               </span>
             {/if}
