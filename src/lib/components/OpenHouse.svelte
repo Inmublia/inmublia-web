@@ -21,7 +21,8 @@
     XCircle
   } from 'lucide-svelte';
 
-  let { event = {}, attendeesDb = [] } = $props();
+  // 🚀 FIX: Interceptador de Props. Atrapa los datos sin importar si el padre usa "attendees" o "attendeesDb"
+  let { event = {}, attendeesDb = [], attendees = [] } = $props();
 
   let eventStatus = $state('upcoming'); 
   let showCheckin = $state(false);
@@ -33,7 +34,8 @@
   let scannerVideo = $state(null);
   let stream = null;
 
-  let attendees = $derived(attendeesDb);
+  // 🚀 FIX: Fusionamos las props para garantizar que los asistentes NUNCA se pierdan
+  let listadoAsistentes = $derived(attendeesDb.length > 0 ? attendeesDb : attendees);
   let timer;
 
   function updateStatus() {
@@ -63,8 +65,9 @@
     stopScanner();
   });
 
+  // 🚀 FIX EXTREMO: Emojis pasados como Unicode puro para evitar corrupción () en la URL
   let shareMsg = $derived(
-    encodeURIComponent(`🏡 Lanzamiento Exclusivo · Open House: ${event.title}\n✨ Cupo limitado. Registra tus credenciales aquí: https://${event.agent?.url}/open-house/${event.id}`)
+    encodeURIComponent(`\uD83C\uDFE1 Lanzamiento Exclusivo · Open House: ${event.title}\n\u2728 Cupo limitado. Registra tus credenciales aquí: https://${event.agent?.url}/open-house/${event.id}`)
   );
 
   async function descargarQR() {
@@ -91,9 +94,11 @@
   }
 
   function exportToCSV() {
-    const rows = [['Nombre', 'WhatsApp', 'Objetivo Comercial', 'Pre-Aprobación', 'Presupuesto', 'Check-In Físico', 'Estatus Base']];
-    attendees.forEach(a => rows.push([a.name, a.phone, a.intent, a.financial_status || 'Sin Confirmar', a.budget || 'N/A', a.checked_in ? 'SÍ' : 'NO', a.status]));
-    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+    // 🚀 FIX: Alineado con tu esquema de base de datos (budget)
+    const rows = [['Nombre', 'WhatsApp', 'Objetivo Comercial', 'Presupuesto', 'Check-In Físico', 'Estatus Base']];
+    listadoAsistentes.forEach(a => rows.push([a.name, a.phone, a.intent, a.budget || 'Sin Confirmar', a.checked_in ? 'SÍ' : 'NO', a.status]));
+    // Inyectamos BOM (\uFEFF) para que Excel lea los acentos perfectamente
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + rows.map(e => e.join(",")).join("\n");
     window.open(encodeURI(csvContent));
   }
 
@@ -126,7 +131,6 @@
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
-  <!-- 🚀 LAYOUT PREMIUM: Cabecera oscura, padding profundo y ancho 1400px -->
   <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
@@ -159,7 +163,6 @@
     </div>
   </header>
 
-  <!-- 🚀 MAIN LAYOUT: Efecto de superposición (-mt-16) y contenedor principal -->
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 h-full">
       
@@ -173,7 +176,7 @@
             </div>
           </div>
           <div class="flex items-end gap-2">
-            <p class="text-4xl font-black text-slate-900 tracking-tight">{attendees.length}</p>
+            <p class="text-4xl font-black text-slate-900 tracking-tight">{listadoAsistentes.length}</p>
             <p class="text-xs text-slate-500 font-medium mb-1">Capacidad: {event.maxCapacity}</p>
           </div>
         </div>
@@ -186,7 +189,7 @@
             </div>
           </div>
           <div class="flex items-end gap-2">
-            <p class="text-4xl font-black text-emerald-600 tracking-tight">{attendees.filter(a => a.checked_in).length}</p>
+            <p class="text-4xl font-black text-emerald-600 tracking-tight">{listadoAsistentes.filter(a => a.checked_in).length}</p>
             <p class="text-xs text-slate-500 font-medium mb-1">Check-ins Físicos</p>
           </div>
         </div>
@@ -199,7 +202,7 @@
             </div>
           </div>
           <div class="flex items-end gap-2">
-            <p class="text-4xl font-black text-amber-600 tracking-tight">{attendees.filter(a => a.intent === 'Comprar' || a.intent === 'Invertir').length}</p>
+            <p class="text-4xl font-black text-amber-600 tracking-tight">{listadoAsistentes.filter(a => a.intent === 'Comprar' || a.intent === 'Invertir').length}</p>
             <p class="text-xs text-slate-500 font-medium mb-1">Patrimonial/Inversor</p>
           </div>
         </div>
@@ -212,7 +215,7 @@
             </div>
           </div>
           <div class="flex items-end gap-2">
-            <p class="text-4xl font-black text-slate-400 tracking-tight">{attendees.filter(a => a.status === 'waitlist').length}</p>
+            <p class="text-4xl font-black text-slate-400 tracking-tight">{listadoAsistentes.filter(a => a.status === 'waitlist').length}</p>
             <p class="text-xs text-slate-500 font-medium mb-1">Pendientes</p>
           </div>
         </div>
@@ -227,7 +230,7 @@
           {/if}
         </button>
         <button class="pb-4 text-sm font-bold transition-all relative {activeTab === 'attendees' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-700'}" onclick={() => activeTab = 'attendees'}>
-          Asistentes ({attendees.length})
+          Asistentes ({listadoAsistentes.length})
           {#if activeTab === 'attendees'}
             <div class="absolute bottom-0 left-0 w-full h-0.5 bg-slate-900 rounded-t-full"></div>
           {/if}
@@ -248,7 +251,7 @@
              <p class="text-sm text-slate-500 font-medium mb-8">Utiliza estos enlaces para promover el evento exclusivo en tus redes.</p>
              
              <div class="flex flex-col gap-4">
-               <a href="https://wa.me/?text={shareMsg}" target="_blank" rel="noopener noreferrer" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors border border-emerald-200 shadow-sm text-sm uppercase tracking-wider">
+               <a href="https://api.whatsapp.com/send?text={shareMsg}" target="_blank" rel="noopener noreferrer" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors border border-emerald-200 shadow-sm text-sm uppercase tracking-wider">
                  <Share2 class="w-4 h-4" />
                  Compartir Invitación en WhatsApp
                </a>
@@ -331,13 +334,13 @@
                   <th class="w-[30%] px-8 py-5">Prospecto</th>
                   <th class="w-[20%] px-8 py-5">Contacto</th>
                   <th class="w-[15%] px-8 py-5 text-center">Interés</th>
-                  <th class="w-[15%] px-8 py-5 text-center">Capacidad</th>
+                  <th class="w-[15%] px-8 py-5 text-center">Presupuesto</th>
                   <th class="w-[15%] px-8 py-5 text-center">Estatus</th>
                   <th class="w-[20%] px-8 py-5 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100">
-                {#each attendees as att}
+                {#each listadoAsistentes as att}
                   <tr class="group hover:bg-slate-50/80 transition-colors {att.checked_in ? 'bg-emerald-50/20' : ''}">
                     <td class="px-8 py-5 truncate">
                       <div class="flex items-center gap-4">
@@ -356,7 +359,8 @@
                       {/if}
                     </td>
                     <td class="px-8 py-5 text-center truncate">
-                      <span class="text-[10px] font-bold text-slate-500">{att.financial_status || 'Sin Confirmar'}</span>
+                      <!-- 🚀 FIX: Mostrando Budget de Supabase correctamente -->
+                      <span class="text-[10px] font-bold text-slate-500">{att.budget || 'Sin Confirmar'}</span>
                     </td>
                     <td class="px-8 py-5 text-center truncate">
                       <div class="flex items-center justify-center gap-2">
@@ -389,7 +393,7 @@
                     </td>
                   </tr>
                 {/each}
-                {#if attendees.length === 0}
+                {#if listadoAsistentes.length === 0}
                   <tr>
                     <td colspan="6" class="text-center py-20 text-slate-400 font-medium">
                       <div class="flex flex-col items-center justify-center gap-4">
@@ -410,7 +414,7 @@
           <div class="bg-white p-10 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-center">
             <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Conversión Comercial (Proyección)</h4>
             <div class="text-7xl font-black text-slate-900 mb-6 tracking-tighter">
-              {attendees.length > 0 ? ((attendees.filter(a => a.intent === 'Comprar' || a.intent === 'Invertir').length / attendees.length) * 100).toFixed(0) : 0}%
+              {listadoAsistentes.length > 0 ? ((listadoAsistentes.filter(a => a.intent === 'Comprar' || a.intent === 'Invertir').length / listadoAsistentes.length) * 100).toFixed(0) : 0}%
             </div>
             <p class="text-sm text-slate-500 font-medium leading-relaxed max-w-md">Porcentaje total de la audiencia registrada que cuenta con intenciones directas de compra de capital o inversión sobre el activo.</p>
           </div>
@@ -420,15 +424,15 @@
             <div class="flex flex-col gap-6">
               <div class="flex justify-between items-center border-b border-slate-100 pb-5">
                 <span class="text-sm text-slate-600 font-bold flex items-center gap-3"><Users class="w-5 h-5 text-slate-400" /> Ocupación del Aforo</span>
-                <span class="text-lg font-black text-slate-900 bg-slate-50 px-4 py-1.5 rounded-lg border border-slate-200">{((attendees.length / event.maxCapacity) * 100).toFixed(0)}%</span>
+                <span class="text-lg font-black text-slate-900 bg-slate-50 px-4 py-1.5 rounded-lg border border-slate-200">{((listadoAsistentes.length / event.maxCapacity) * 100).toFixed(0)}%</span>
               </div>
               <div class="flex justify-between items-center border-b border-slate-100 pb-5">
                 <span class="text-sm text-slate-600 font-bold flex items-center gap-3"><CheckSquare class="w-5 h-5 text-emerald-500" /> Show-Rate (Asistencia)</span>
-                <span class="text-lg font-black text-emerald-700 bg-emerald-50 px-4 py-1.5 rounded-lg border border-emerald-200">{attendees.length > 0 ? ((attendees.filter(a => a.checked_in).length / attendees.length) * 100).toFixed(0) : 0}%</span>
+                <span class="text-lg font-black text-emerald-700 bg-emerald-50 px-4 py-1.5 rounded-lg border border-emerald-200">{listadoAsistentes.length > 0 ? ((listadoAsistentes.filter(a => a.checked_in).length / listadoAsistentes.length) * 100).toFixed(0) : 0}%</span>
               </div>
               <div class="flex justify-between items-center pb-2">
                 <span class="text-sm text-slate-600 font-bold flex items-center gap-3"><Clock class="w-5 h-5 text-amber-500" /> Cuello de Botella</span>
-                <span class="text-sm font-black text-amber-600 bg-amber-50 border border-amber-200 px-4 py-1.5 rounded-lg">{attendees.filter(a => a.status === 'waitlist').length} leads en espera</span>
+                <span class="text-sm font-black text-amber-600 bg-amber-50 border border-amber-200 px-4 py-1.5 rounded-lg">{listadoAsistentes.filter(a => a.status === 'waitlist').length} leads en espera</span>
               </div>
             </div>
           </div>
