@@ -29,30 +29,25 @@ export async function load({ locals }) {
 
 export const actions = {
   generarCampañaIA: async ({ request, locals, platform }) => {
-    console.log("[Lead Debugger] 🟢 INICIO DE PETICIÓN IA - OPEN HOUSE");
-    
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
     if (!platform?.env?.AI) {
-      console.error("[Lead Debugger] ❌ Falla Crítica: Cloudflare AI Binding no detectado.");
-      return fail(500, { error: 'El motor de IA no está conectado en el servidor local/remoto.' });
+      return fail(500, { error: 'Falla Crítica: El motor de IA no está conectado en el servidor.' });
     }
 
     const { data: broker } = await locals.supabase
       .from('brokers').select('id, ia_creditos_disponibles').eq('auth_user_id', user.id).single();
 
-    if (!broker || broker.ia_creditos_disponibles <= 0) return fail(403, { error: 'Sin créditos de IA.' });
+    if (!broker || broker.ia_creditos_disponibles <= 0) return fail(403, { error: 'Has agotado tus créditos.' });
 
     const formData = await request.formData();
     const propiedad_id = sanitizar(formData.get('propiedad_id'), 100);
     const tonoSeleccionado = sanitizar(formData.get('tono'), 50) || 'Premium / Elegante';
 
-    if (!propiedad_id) return fail(400, { error: 'Debes seleccionar una propiedad de la lista primero.' });
+    if (!propiedad_id) return fail(400, { error: 'Selecciona una propiedad base primero.' });
 
-    console.log(`[Lead Debugger] 🟡 Buscando datos de propiedad ID: ${propiedad_id} en Supabase...`);
-    
-    let propInfo = { tipo: 'Propiedad', operacion: 'Venta', precio: 'Precio a consultar', ubicacion: 'Zona exclusiva', detalles: 'Propiedad de lujo' };
+    let propInfo = { tipo: 'Propiedad', operacion: 'Venta', precio: 'A consultar', ubicacion: 'Zona exclusiva', detalles: 'De lujo' };
     
     if (propiedad_id !== 'test') {
       try {
@@ -64,7 +59,6 @@ export const actions = {
           .single();
           
         if (propError) throw propError;
-          
         if (propData) {
           propInfo = {
             tipo: propData.tipo || 'Propiedad',
@@ -74,10 +68,8 @@ export const actions = {
             detalles: `${propData.recamaras || 0} Rec. | ${propData.banos || 0} Baños | ${propData.estacionamientos || 0} Autos`
           };
         }
-        console.log(`[Lead Debugger] 🟢 Datos recuperados con éxito: ${propInfo.tipo} en ${propInfo.ubicacion}`);
       } catch (err) {
-        console.error(`[Lead Debugger] ❌ Error en Supabase:`, err.message);
-        return fail(500, { error: `No se pudo leer la propiedad base. (${err.message})` });
+        return fail(500, { error: `No se pudo leer la base de datos: ${err.message}` });
       }
     }
 
@@ -87,14 +79,13 @@ export const actions = {
       'Analítico / ROI': 'Estratégico, financiero y directo. Enfocado en plusvalía.'
     };
     
-    const systemPrompt = `<role>Eres el Director Creativo de una agencia inmobiliaria en México. Estás invitando a un OPEN HOUSE (recorrido físico de una propiedad).</role>
+    const systemPrompt = `<role>Eres el Director Creativo de una agencia inmobiliaria en México. Creas invitaciones para un OPEN HOUSE (evento físico).</role>
 <rules>
 1. IDIOMA: Español de México. Genera FOMO (miedo a perderse el evento).
-2. ESTRUCTURA: Transforma los datos en una experiencia.
-3. FORMATO: Responde SOLO con JSON válido.
-4. SALTOS: Usa <br><br> para separar párrafos.
-5. COMILLAS: Usa SOLO comillas simples (').
-6. TONO: ${guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante']}
+2. FORMATO: Responde SOLO con JSON válido.
+3. SALTOS: Usa <br><br> para separar párrafos.
+4. COMILLAS: Usa SOLO comillas simples (').
+5. TONO: ${guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante']}
 </rules>`;
 
     const userPrompt = `Genera copy comercial en JSON para invitación a Open House:
@@ -112,14 +103,12 @@ Detalles: ${propInfo.detalles}
 
     for (const modelo of modelosSoportados) {
       try {
-        console.log(`[Lead Debugger] 🟡 Ejecutando modelo de IA: ${modelo}...`);
         const result = await platform.env.AI.run(modelo, {
           messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
           max_tokens: 800
         });
 
-        if (!result) throw new Error("API devolvió vacío");
-
+        if (!result) throw new Error("Vació");
         let rawResponse = typeof result === 'string' ? result : (result.response ? String(result.response) : JSON.stringify(result));
         let cleanText = rawResponse.replace(/^```json/gi, '').replace(/^```/gi, '').replace(/```$/gi, '').trim();
 
@@ -128,29 +117,20 @@ Detalles: ${propInfo.detalles}
 
         let firstBrace = cleanText.indexOf('{');
         let lastBrace = cleanText.lastIndexOf('}');
-
-        if (firstBrace === -1 || lastBrace === -1) throw new Error("Respuesta truncada.");
+        if (firstBrace === -1 || lastBrace === -1) throw new Error("Truncado");
 
         parsedContent = JSON.parse(cleanText.substring(firstBrace, lastBrace + 1).replace(/\n|\r/g, ' '));
-        console.log(`[Lead Debugger] 🟢 IA Respondió correctamente con JSON válido.`);
         break; 
       } catch (e) {
-        console.warn(`[Lead Debugger] 🟠 Falló el modelo ${modelo}:`, e.message);
         errorLog.push(`${modelo.split('/').pop()}: ${e.message}`);
       }
     }
 
-    if (!parsedContent) {
-      console.error(`[Lead Debugger] ❌ Todos los modelos colapsaron.`);
-      return fail(500, { error: `Modelos de IA colapsados.\nDetalles: ${errorLog.join(' | ')}` });
-    }
+    if (!parsedContent) return fail(500, { error: `Modelos colapsados: ${errorLog.join(' | ')}` });
 
-    console.log(`[Lead Debugger] 🟡 Descontando crédito en base de datos...`);
     const { data: rpcData, error: rpcError } = await locals.supabase.rpc('consumir_credito_ia', { p_user_id: user.id });
+    if (rpcError || !rpcData || rpcData.length === 0) return fail(403, { error: 'Fallo al procesar crédito.' });
 
-    if (rpcError || !rpcData || rpcData.length === 0) return fail(403, { error: 'No se pudo procesar el cobro del crédito de IA.' });
-
-    console.log(`[Lead Debugger] 🟢 Todo finalizado con éxito. Devolviendo al frontend.`);
     return {
       titulo: parsedContent.titulo || parsedContent.Titulo || 'Open House Exclusivo',
       descripcion: (parsedContent.descripcion || 'Descubre esta propiedad...').replace(/<br><br>/g, '\n\n'),
@@ -159,7 +139,6 @@ Detalles: ${propInfo.detalles}
   },
 
   default: async ({ request, locals }) => {
-    // ... Tu código de default se mantiene exactamente igual (lo omito aquí por brevedad, pero asegúrate de mantenerlo)
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
@@ -167,7 +146,6 @@ Detalles: ${propInfo.detalles}
     if (!broker) return fail(401, { error: 'Broker no encontrado' });
 
     const formData = await request.formData();
-    
     const propiedad_id = formData.get('propiedad_id');
     const title = formData.get('title');
     const event_date = formData.get('date');
@@ -191,7 +169,6 @@ Detalles: ${propInfo.detalles}
       .select().single();
 
     if (insertError) return fail(500, { error: 'Error BD al guardar evento.' });
-
     throw redirect(303, `/admin/open-house/${nuevoEvento.id}`);
   }
 };
