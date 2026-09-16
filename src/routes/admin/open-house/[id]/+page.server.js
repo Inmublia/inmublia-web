@@ -1,3 +1,4 @@
+// src/routes/admin/open-house/[id]/+page.server.js
 import { fail, redirect, error } from '@sveltejs/kit';
 
 export async function load({ params, locals }) {
@@ -23,12 +24,16 @@ export async function load({ params, locals }) {
 
   if (ohError || !oh) throw error(404, 'Evento no encontrado o no tienes permisos.');
 
-  // 3. Carga de los asistentes
-  const { data: attendees } = await locals.supabase
+  // 3. 🚀 FIX: Carga de los asistentes utilizando 'created_at' como orden seguro
+  const { data: attendees, error: attError } = await locals.supabase
     .from('open_house_attendees')
     .select('*')
     .eq('open_house_id', params.id)
-    .order('creado_en', { ascending: false });
+    .order('created_at', { ascending: false });
+
+  if (attError) {
+    console.error("Error al cargar asistentes:", attError.message);
+  }
 
   return {
     attendeesDb: attendees || [],
