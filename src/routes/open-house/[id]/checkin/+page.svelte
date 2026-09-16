@@ -1,70 +1,103 @@
+<!-- src/routes/open-house/[id]/checkin/+page.svelte -->
 <script>
   import { enhance } from '$app/forms';
+  import { KeyRound, ShieldAlert, CheckCircle2, Loader2, Home } from 'lucide-svelte';
 
   let { data, form } = $props();
-  let event = $derived(data.event);
-  let submitting = $state(false);
+  let isSubmitting = $state(false);
+  let eventTitle = $derived(data?.eventTitle);
 </script>
 
-<div class="min-h-screen bg-zinc-50 flex items-center justify-center p-6 font-sans selection:bg-indigo-100">
-  <div class="max-w-md w-full bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+<div class="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
+  
+  <!-- Efectos de iluminación de fondo -->
+  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/10 blur-[120px] rounded-full pointer-events-none"></div>
+
+  <div class="relative z-10 w-full max-w-sm">
     
-    <div class="bg-slate-900 p-8 text-center text-white relative overflow-hidden">
-      <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white opacity-5 blur-2xl pointer-events-none"></div>
-      <div class="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4 relative z-10 border border-white/20">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <!-- Header Branding -->
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg">
+        <Home class="w-8 h-8 text-indigo-400" />
       </div>
-      <h1 class="text-2xl font-black mb-1 tracking-tight relative z-10">Check-in Automático</h1>
-      <p class="text-[10px] font-bold text-slate-300 uppercase tracking-widest relative z-10">{event?.propiedades?.titulo}</p>
+      <h1 class="text-2xl font-black text-white tracking-tight leading-tight">{eventTitle}</h1>
+      <p class="text-xs font-bold text-zinc-500 uppercase tracking-widest mt-3">Recepción Digital</p>
     </div>
 
-    <div class="p-8">
+    <!-- Contenedor Principal -->
+    <div class="bg-zinc-900/80 backdrop-blur-xl border border-zinc-800 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden">
+      
       {#if form?.success}
+        <!-- ESTADO: ÉXITO -->
         <div class="text-center animate-[fadeIn_0.5s_ease-out]">
-          <div class="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+          <div class="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 rounded-full mx-auto flex items-center justify-center mb-6 relative">
+            <div class="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping opacity-20"></div>
+            <CheckCircle2 class="w-10 h-10 text-emerald-500" />
           </div>
-          <h2 class="text-2xl font-black text-slate-900 mb-3 tracking-tight">¡Acceso Concedido!</h2>
-          <p class="text-sm text-slate-500 font-medium mb-6 leading-relaxed">Tu identidad ha sido validada. <strong class="text-slate-900">Puedes ingresar a la propiedad.</strong></p>
-          <div class="inline-flex px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-lg text-[10px] font-bold uppercase tracking-widest text-emerald-700">
-            {form.attendee?.name}
-          </div>
+          <h2 class="text-2xl font-black text-white mb-2">Acceso Liberado</h2>
+          <p class="text-sm text-zinc-400 font-medium leading-relaxed">Tu asistencia ha sido confirmada. Disfruta el recorrido por la propiedad.</p>
         </div>
+      
       {:else}
-        <form method="POST" use:enhance={() => {
-          submitting = true;
-          return async ({ update }) => {
-            submitting = false;
-            update();
-          };
-        }} class="space-y-6">
-          <p class="text-sm text-slate-600 font-medium text-center leading-relaxed">
-            Ingresa el número de WhatsApp con el que te registraste para liberar tu acceso físico.
-          </p>
-          
-          <div>
-            <input type="tel" name="phone" required placeholder="Número de WhatsApp" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all text-center text-lg font-black tracking-widest placeholder:text-sm placeholder:font-bold placeholder:tracking-normal placeholder:text-slate-400" />
+        <!-- ESTADO: FORMULARIO DE ACCESO -->
+        <div class="animate-[fadeIn_0.3s_ease-out]">
+          <div class="mb-8 text-center">
+            <h3 class="text-lg font-bold text-white mb-2">Verifica tu Identidad</h3>
+            <p class="text-sm text-zinc-400 font-medium">Ingresa el número de WhatsApp con el que apartaste tu lugar en la lista.</p>
           </div>
 
           {#if form?.error}
-            <div class="bg-red-50 text-red-600 border border-red-100 text-xs font-bold p-4 rounded-xl text-center shadow-sm">
-              {form.error}
+            <div class="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 animate-[fadeIn_0.2s_ease-out]">
+              <ShieldAlert class="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <p class="text-sm text-red-200 font-medium">{form.error}</p>
             </div>
           {/if}
 
-          <button type="submit" disabled={submitting} class="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg mt-2 flex justify-center items-center gap-2">
-            {#if submitting}
-              Verificando base de datos...
-            {:else}
-              Validar mi Pase
-            {/if}
-          </button>
-        </form>
+          <form method="POST" use:enhance={() => {
+            isSubmitting = true;
+            return async ({ update }) => {
+              isSubmitting = false;
+              update({ reset: false });
+            };
+          }} class="space-y-6">
+            
+            <div class="relative">
+              <input 
+                type="tel" 
+                name="phone" 
+                placeholder="Ej. 33 1234 5678" 
+                required 
+                class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl px-4 py-4 text-center text-lg font-black text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all shadow-inner tracking-widest"
+              >
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={isSubmitting} 
+              class="w-full bg-white text-zinc-950 hover:bg-zinc-200 disabled:opacity-50 disabled:pointer-events-none font-black py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95 text-sm uppercase tracking-widest"
+            >
+              {#if isSubmitting}
+                <Loader2 class="w-5 h-5 animate-spin" /> Procesando...
+              {:else}
+                <KeyRound class="w-5 h-5" /> Liberar Pase Físico
+              {/if}
+            </button>
+          </form>
+        </div>
       {/if}
     </div>
+
+    <!-- Footer Security Badge -->
+    <div class="text-center mt-8 opacity-50">
+      <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Inmublia Access Control</span>
+    </div>
+
   </div>
 </div>
 
 <style>
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 </style>
