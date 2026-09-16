@@ -1,5 +1,8 @@
+<!-- src/routes/admin/editar/[id]/+page.svelte -->
 <script>
   import { enhance } from '$app/forms';
+  import { invalidateAll } from '$app/navigation';
+  import { onDestroy } from 'svelte';
   import imageCompression from 'browser-image-compression';
   import { 
     ArrowLeft, 
@@ -25,46 +28,83 @@
   let loading = $state(false);
   let imagePreview = $state(null);
   let galeriaPreviews = $state([]);
+  
+  // 🚀 FIX: Usamos estados locales mutables para los campos. Evita leer del DOM directo con bind:this
   let isOculta = $state(propiedad.estatus === 'Pre-Mercado');
+  let pOperacion = $state(propiedad.operacion || 'Venta');
+  let pTipo = $state(propiedad.tipo || 'Casa');
+  let pPrecio = $state(propiedad.precio || '');
+  let pComision = $state(propiedad.comision || '');
+  let pUbicacion = $state(propiedad.ubicacion || '');
+  let pRecamaras = $state(propiedad.recamaras || '');
+  let pBanos = $state(propiedad.banos || '');
+  let pMedioBano = $state(propiedad.medio_bano || '');
+  let pEstacionamientos = $state(propiedad.estacionamientos || '');
+  let pM2Terreno = $state(propiedad.m2_terreno || '');
+  let pM2Construccion = $state(propiedad.m2_construccion || '');
+  let pVideoUrl = $state(propiedad.video_url || '');
+  let pRecorrido3d = $state(propiedad.recorrido_3d_url || '');
+  let pTitulo = $state(propiedad.titulo || '');
+  let pDescripcion = $state(propiedad.descripcion || '');
+  let pDestacada = $state(propiedad.destacada || false);
 
   // --- ESTADOS DE LA IA ---
   let generandoIA = $state(false);
   let iaEjecutada = $state(false);
   let tonoIA = $state('lujo');
   
-  let textoGeneradoFicha = $state({ titulo: '', descripcion: '' });
-  let textoGeneradoWhatsapp = $state('');
-  let textoGeneradoTiktok = $state('');
+  // 🚀 FIX CRÍTICO: Estado unificado para el TypeWriter, resolviendo el bug de "this wrapper"
+  let textoGenerado = $state({ titulo: '', descripcion: '', whatsapp: '', tiktok: '' });
+  let typewriterController = $state(null);
+  let copiadoId = $state(null);
 
-  // Referencias DOM
-  let inputTitulo = $state(null);
-  let inputDescripcion = $state(null);
-  let inputPrecio = $state(null);
-  let inputUbicacion = $state(null);
-  let selectTipo = $state(null);
-  let selectOperacion = $state(null);
-  let inputRecamaras = $state(null);
-
+  // 🚀 FIX CRÍTICO: Limpieza de Memory Leaks en Blob URLs
   function handleImageChange(event) {
     const file = event.target.files[0];
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
     imagePreview = file ? URL.createObjectURL(file) : null;
   }
 
+  const MAX_FOTOS = 15;
   function handleGaleriaChange(event) {
-    const files = event.target.files;
-    galeriaPreviews = Array.from(files).map(file => URL.createObjectURL(file));
+    const files = Array.from(event.target.files);
+    if (files.length > MAX_FOTOS) {
+      alert(`Solo puedes subir ${MAX_FOTOS} fotos a la vez. Seleccionaste ${files.length}.`);
+      event.target.value = '';
+      return;
+    }
+    galeriaPreviews.forEach(url => { if (url.startsWith('blob:')) URL.revokeObjectURL(url); });
+    galeriaPreviews = files.map(file => URL.createObjectURL(file));
   }
 
-  async function typeWriterEffect(targetObject, key, text, speed = 8) {
+  onDestroy(() => {
+    if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    galeriaPreviews.forEach(url => { if (url.startsWith('blob:')) URL.revokeObjectURL(url); });
+  });
+
+  // 🚀 FIX: Animación con Controlador de Aborto para no bloquear la UI
+  async function typeWriterEffect(targetObject, key, text, speed = 8, signal) {
     targetObject[key] = '';
     for (let i = 0; i < text.length; i++) {
+      if (signal?.aborted) {
+        targetObject[key] = text; // Autocompleta de golpe si se aborta
+        return;
+      }
       targetObject[key] += text.charAt(i);
       await new Promise(r => setTimeout(r, speed));
     }
   }
 
   async function generarCampañaIA() {
-    if (!inputUbicacion.value || !inputPrecio.value || !selectTipo.value) {
+    // Lectura segura desde el estado local, no desde el DOM
+    const ubicacion = pUbicacion?.trim();
+    const precio = pPrecio?.toString().trim();
+    const tipo = pTipo;
+    const operacion = pOperacion;
+
+    if (!ubicacion || !precio || !tipo) {
       alert("Faltan datos clave (Ubicación, Precio o Tipo) para generar la campaña.");
       return;
     }
@@ -76,17 +116,16 @@
 
     generandoIA = true;
     iaEjecutada = true;
-    textoGeneradoFicha = { titulo: '', descripcion: '' };
-    textoGeneradoWhatsapp = '';
-    textoGeneradoTiktok = '';
+    textoGenerado = { titulo: '', descripcion: '', whatsapp: '', tiktok: '' };
+    typewriterController = new AbortController();
 
     try {
       const formData = new FormData();
-      formData.append('ubicacion', inputUbicacion.value);
-      formData.append('precio', inputPrecio.value);
-      formData.append('tipo', selectTipo.value);
-      formData.append('operacion', selectOperacion.value);
-      formData.append('recamaras', inputRecamaras?.value || 'No especificado');
+      formData.append('ubicacion', ubicacion);
+      formData.append('precio', precio);
+      formData.append('tipo', tipo);
+      formData.append('operacion', operacion);
+      formData.append('recamaras', pRecamaras?.toString() || 'No especificado');
       formData.append('tono', tonoIA);
 
       const res = await fetch('?/generarCampañaIA', {
@@ -98,14 +137,18 @@
       const result = await res.json();
       
       if (result.type === 'success' && result.data) {
-        creditosIA--;
+        creditosIA--; 
         generandoIA = false;
         
-        Promise.all([
-          typeWriterEffect(textoGeneradoFicha, 'titulo', result.data.titulo, 15),
-          typeWriterEffect(textoGeneradoFicha, 'descripcion', result.data.descripcion, 3),
-          typeWriterEffect({ wrapper: this }, 'whatsapp', result.data.whatsapp, 5).then(() => textoGeneradoWhatsapp = result.data.whatsapp), 
-          typeWriterEffect({ wrapper: this }, 'tiktok', result.data.tiktok, 5).then(() => textoGeneradoTiktok = result.data.tiktok)
+        // 🚀 FIX: Refrescar el valor real de los créditos en background
+        invalidateAll(); 
+        
+        // 🚀 FIX: await en el Promise.all para controlar el flujo correctamente
+        await Promise.all([
+          typeWriterEffect(textoGenerado, 'titulo', result.data.titulo, 15, typewriterController.signal),
+          typeWriterEffect(textoGenerado, 'descripcion', result.data.descripcion, 3, typewriterController.signal),
+          typeWriterEffect(textoGenerado, 'whatsapp', result.data.whatsapp, 5, typewriterController.signal),
+          typeWriterEffect(textoGenerado, 'tiktok', result.data.tiktok || '', 5, typewriterController.signal)
         ]);
       } else {
         generandoIA = false;
@@ -119,14 +162,31 @@
   }
 
   function aplicarAlFormulario() {
-    if (inputTitulo && textoGeneradoFicha.titulo) inputTitulo.value = textoGeneradoFicha.titulo;
-    if (inputDescripcion && textoGeneradoFicha.descripcion) inputDescripcion.value = textoGeneradoFicha.descripcion;
-    document.getElementById('seccion-oficial').scrollIntoView({ behavior: 'smooth' });
+    typewriterController?.abort(); // Mata la animación instantáneamente
+    if (textoGenerado.titulo) pTitulo = textoGenerado.titulo;
+    if (textoGenerado.descripcion) pDescripcion = textoGenerado.descripcion;
+    document.getElementById('seccion-oficial')?.scrollIntoView({ behavior: 'smooth' });
   }
 
-  function copiarAlPortapapeles(texto) {
-    navigator.clipboard.writeText(texto);
-    alert("Copiado al portapapeles");
+  // 🚀 FIX: Copiado asíncrono, con Fallback y sin bloquear la UI con `alert`
+  async function copiarAlPortapapeles(texto, id) {
+    try {
+      await navigator.clipboard.writeText(texto);
+      copiadoId = id;
+      setTimeout(() => copiadoId = null, 2000);
+    } catch {
+      // Fallback para Safari antiguo o entornos HTTP
+      const ta = document.createElement('textarea');
+      ta.value = texto;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      copiadoId = id;
+      setTimeout(() => copiadoId = null, 2000);
+    }
   }
 </script>
 
@@ -197,7 +257,7 @@
               <div>
                 <label for="operacion" class="block text-xs font-semibold text-slate-500 mb-1.5">Operación</label>
                 <div class="relative w-full">
-                  <select bind:this={selectOperacion} id="operacion" name="operacion" value={propiedad.operacion} class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm cursor-pointer appearance-none">
+                  <select id="operacion" name="operacion" bind:value={pOperacion} class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm cursor-pointer appearance-none">
                     <option value="Venta">Venta</option>
                     <option value="Renta">Renta</option>
                   </select>
@@ -206,7 +266,7 @@
               <div>
                 <label for="tipo" class="block text-xs font-semibold text-slate-500 mb-1.5">Tipo de Inmueble</label>
                 <div class="relative w-full">
-                  <select bind:this={selectTipo} id="tipo" name="tipo" value={propiedad.tipo} class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm cursor-pointer appearance-none">
+                  <select id="tipo" name="tipo" bind:value={pTipo} class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm cursor-pointer appearance-none">
                     <option value="Casa">Casa</option>
                     <option value="Departamento">Departamento</option>
                     <option value="Terreno">Terreno</option>
@@ -218,14 +278,14 @@
                 <label for="precio" class="block text-xs font-semibold text-slate-500 mb-1.5">Precio de Mercado (MXN)</label>
                 <div class="relative">
                   <BadgeDollarSign class="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
-                  <input bind:this={inputPrecio} id="precio" type="number" name="precio" value={propiedad.precio || ''} required class="w-full bg-white border border-slate-200 rounded-lg pl-10 pr-3 py-2 text-sm font-bold ring-offset-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-sm" placeholder="Ej. 5500000">
+                  <input id="precio" type="number" name="precio" bind:value={pPrecio} required class="w-full bg-white border border-slate-200 rounded-lg pl-10 pr-3 py-2 text-sm font-bold ring-offset-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-sm" placeholder="Ej. 5500000">
                 </div>
               </div>
 
               <div class="sm:col-span-2">
                 <label for="comision" class="block text-xs font-semibold text-slate-500 mb-1.5">Comisión Pactada (%) <span class="font-normal text-[10px] text-slate-400">(Opcional)</span></label>
                 <div class="relative">
-                  <input id="comision" type="number" step="0.1" max="100" min="0" name="comision" value={propiedad.comision || ''} class="w-full bg-white border border-slate-200 rounded-lg pl-4 pr-10 py-2 text-sm font-bold ring-offset-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-sm" placeholder="Ej. 6.5">
+                  <input id="comision" type="number" step="0.1" max="100" min="0" name="comision" bind:value={pComision} class="w-full bg-white border border-slate-200 rounded-lg pl-4 pr-10 py-2 text-sm font-bold ring-offset-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-sm" placeholder="Ej. 6.5">
                   <span class="absolute right-4 top-2.5 text-slate-400 font-bold">%</span>
                 </div>
               </div>
@@ -234,17 +294,17 @@
                 <label for="ubicacion" class="block text-xs font-semibold text-slate-500 mb-1.5">Ubicación Estratégica (Colonia, Ciudad)</label>
                 <div class="relative">
                   <MapPin class="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                  <input bind:this={inputUbicacion} id="ubicacion" type="text" name="ubicacion" value={propiedad.ubicacion || ''} placeholder="Ej. Puerta de Hierro, Zapopan" class="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm">
+                  <input id="ubicacion" type="text" name="ubicacion" bind:value={pUbicacion} placeholder="Ej. Puerta de Hierro, Zapopan" class="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm">
                 </div>
               </div>
 
               <div class="col-span-2 grid grid-cols-3 sm:grid-cols-6 gap-4">
-                <div><label for="recamaras" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Recámaras</label><input bind:this={inputRecamaras} id="recamaras" type="number" name="recamaras" value={propiedad.recamaras || ''} class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-                <div><label for="banos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Baños</label><input id="banos" type="number" name="banos" value={propiedad.banos || ''} class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-                <div><label for="medio_bano" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">1/2 Baños</label><input id="medio_bano" type="number" name="medio_bano" value={propiedad.medio_bano || ''} class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-                <div><label for="estacionamientos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Autos</label><input id="estacionamientos" type="number" name="estacionamientos" value={propiedad.estacionamientos || ''} class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-                <div><label for="m2_terreno" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Terreno</label><input id="m2_terreno" type="number" name="m2_terreno" value={propiedad.m2_terreno || ''} class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-                <div><label for="m2_construccion" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Interiores</label><input id="m2_construccion" type="number" name="m2_construccion" value={propiedad.m2_construccion || ''} class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+                <div><label for="recamaras" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Recámaras</label><input id="recamaras" type="number" name="recamaras" bind:value={pRecamaras} class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+                <div><label for="banos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Baños</label><input id="banos" type="number" name="banos" bind:value={pBanos} class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+                <div><label for="medio_bano" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">1/2 Baños</label><input id="medio_bano" type="number" name="medio_bano" bind:value={pMedioBano} class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+                <div><label for="estacionamientos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Autos</label><input id="estacionamientos" type="number" name="estacionamientos" bind:value={pEstacionamientos} class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+                <div><label for="m2_terreno" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Terreno</label><input id="m2_terreno" type="number" name="m2_terreno" bind:value={pM2Terreno} class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
+                <div><label for="m2_construccion" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Interiores</label><input id="m2_construccion" type="number" name="m2_construccion" bind:value={pM2Construccion} class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
               </div>
 
               <div class="sm:col-span-2 pt-2">
@@ -269,12 +329,23 @@
                         <img src={preview} alt="Vista previa {index + 1}" class="w-full h-full object-cover rounded-md"/>
                       {/each}
                     </div>
+                    <!-- 🚀 FIX: Mostramos si hay más fotos ocultas por el slice -->
+                    {#if galeriaPreviews.length > 8}
+                      <div class="absolute bottom-2 right-2 z-20 bg-black/80 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded shadow-sm border border-white/10">
+                        +{galeriaPreviews.length - 8} adicionales
+                      </div>
+                    {/if}
                   {:else if propiedad.galeria_urls && propiedad.galeria_urls.length > 0}
                     <div class="absolute inset-0 grid grid-cols-2 sm:grid-cols-4 gap-1 z-10 p-1">
                       {#each propiedad.galeria_urls.slice(0, 8) as url, index}
                         <img src={url} alt="Foto {index + 1}" class="w-full h-full object-cover rounded-md"/>
                       {/each}
                     </div>
+                    {#if propiedad.galeria_urls.length > 8}
+                      <div class="absolute bottom-2 right-2 z-20 bg-black/80 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded shadow-sm border border-white/10">
+                        +{propiedad.galeria_urls.length - 8} adicionales
+                      </div>
+                    {/if}
                   {:else}
                     <div class="text-center z-10 relative flex flex-col items-center">
                       <Images class="h-8 w-8 text-slate-400 mb-2" />
@@ -285,7 +356,7 @@
                   <div class="absolute inset-0 bg-black/60 z-20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center backdrop-blur-sm">
                     <RefreshCw class="w-6 h-6 text-white mb-2" />
                     <span class="text-white font-bold text-sm tracking-widest uppercase cursor-pointer">Reemplazar Galería</span>
-                    <span class="text-white/70 text-[10px] mt-1">Sube hasta 15 fotos nuevas</span>
+                    <span class="text-white/70 text-[10px] mt-1">Sube hasta {MAX_FOTOS} fotos nuevas</span>
                   </div>
                   <input id="galeria_input" name="galeria" type="file" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30" onchange={handleGaleriaChange}>
                 </div>
@@ -293,12 +364,12 @@
 
               <div class="sm:col-span-2 pt-2">
                 <label for="video_url" class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Video Recorrido (YouTube / Vimeo)</label>
-                <input id="video_url" type="url" name="video_url" value={propiedad.video_url || ''} placeholder="Ej. https://www.youtube.com/watch?v=..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 shadow-sm placeholder:text-slate-300">
+                <input id="video_url" type="url" name="video_url" bind:value={pVideoUrl} placeholder="Ej. https://www.youtube.com/watch?v=..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 shadow-sm placeholder:text-slate-300">
               </div>
 
               <div class="sm:col-span-2">
                 <label for="recorrido_3d_url" class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Recorrido 3D (Matterport)</label>
-                <input id="recorrido_3d_url" type="url" name="recorrido_3d_url" value={propiedad.recorrido_3d_url || ''} placeholder="Ej. https://my.matterport.com/show/?m=..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 shadow-sm placeholder:text-slate-300">
+                <input id="recorrido_3d_url" type="url" name="recorrido_3d_url" bind:value={pRecorrido3d} placeholder="Ej. https://my.matterport.com/show/?m=..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 shadow-sm placeholder:text-slate-300">
               </div>
             </div>
           </section>
@@ -311,8 +382,9 @@
               <div class="relative z-10 flex flex-col items-center gap-10">
                 
                 <div class="text-center flex flex-col items-center">
+                  <!-- 🚀 FIX: Agregamos el número '2.' faltante en el UI -->
                   <h2 class="text-2xl font-black text-white tracking-tight flex items-center gap-2.5 justify-center">
-                    Estudio Creativo IA
+                    2. Estudio Creativo IA
                     <span class="flex h-2.5 w-2.5 relative mt-1">
                       <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
@@ -362,7 +434,7 @@
                         <Building2 class="w-4 h-4 text-indigo-400" />
                         Ficha Editorial Nueva
                       </h4>
-                      {#if !generandoIA && textoGeneradoFicha.titulo}
+                      {#if !generandoIA && textoGenerado.titulo}
                         <button type="button" onclick={aplicarAlFormulario} class="text-[10px] font-bold uppercase tracking-wider bg-slate-800 border border-slate-600/50 text-slate-300 hover:bg-slate-600 hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
                           <Check class="w-3.5 h-3.5" /> Reemplazar Textos
                         </button>
@@ -372,22 +444,22 @@
                     <div class="flex-1 space-y-5">
                       <div>
                         <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1 font-bold">Título</p>
-                        {#if generandoIA && !textoGeneradoFicha.titulo}
+                        {#if generandoIA && !textoGenerado.titulo}
                           <div class="h-6 bg-slate-600/50 rounded-lg animate-pulse w-3/4"></div>
                         {:else}
-                          <p class="text-lg font-bold text-white leading-tight">{textoGeneradoFicha.titulo}</p>
+                          <p class="text-lg font-bold text-white leading-tight">{textoGenerado.titulo}</p>
                         {/if}
                       </div>
                       <div>
                         <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1 font-bold">Descripción</p>
-                        {#if generandoIA && !textoGeneradoFicha.descripcion}
+                        {#if generandoIA && !textoGenerado.descripcion}
                           <div class="space-y-2">
                             <div class="h-3.5 bg-slate-600/50 rounded w-full animate-pulse"></div>
                             <div class="h-3.5 bg-slate-600/50 rounded w-full animate-pulse"></div>
                             <div class="h-3.5 bg-slate-600/50 rounded w-4/5 animate-pulse"></div>
                           </div>
                         {:else}
-                          <p class="text-sm text-slate-300 leading-relaxed whitespace-pre-line font-medium">{textoGeneradoFicha.descripcion}</p>
+                          <p class="text-sm text-slate-300 leading-relaxed whitespace-pre-line font-medium">{textoGenerado.descripcion}</p>
                         {/if}
                       </div>
                     </div>
@@ -400,17 +472,21 @@
                           <MessageCircle class="w-4 h-4 text-emerald-400" />
                           WhatsApp
                         </h4>
-                        {#if !generandoIA && textoGeneradoWhatsapp}
-                          <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-slate-400 hover:text-white transition-colors" title="Copiar">
-                            <Copy class="w-4 h-4" />
+                        {#if !generandoIA && textoGenerado.whatsapp}
+                          <button type="button" onclick={() => copiarAlPortapapeles(textoGenerado.whatsapp, 'whatsapp')} class="text-slate-400 hover:text-white transition-colors" title="Copiar">
+                            {#if copiadoId === 'whatsapp'}
+                              <Check class="w-4 h-4 text-emerald-400" />
+                            {:else}
+                              <Copy class="w-4 h-4" />
+                            {/if}
                           </button>
                         {/if}
                       </div>
                       <div class="text-[13px] text-slate-300 whitespace-pre-line leading-relaxed flex-1 font-medium">
-                        {#if generandoIA && !textoGeneradoWhatsapp}
+                        {#if generandoIA && !textoGenerado.whatsapp}
                            <div class="space-y-2 mt-1"><div class="h-3 bg-slate-600/50 rounded w-full animate-pulse"></div><div class="h-3 bg-slate-600/50 rounded w-3/4 animate-pulse"></div></div>
                         {:else}
-                          {textoGeneradoWhatsapp}
+                          {textoGenerado.whatsapp}
                         {/if}
                       </div>
                     </div>
@@ -421,17 +497,21 @@
                           <Video class="w-4 h-4 text-rose-400" />
                           Video
                         </h4>
-                        {#if !generandoIA && textoGeneradoTiktok}
-                          <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoTiktok)} class="text-slate-400 hover:text-white transition-colors" title="Copiar">
-                            <Copy class="w-4 h-4" />
+                        {#if !generandoIA && textoGenerado.tiktok}
+                          <button type="button" onclick={() => copiarAlPortapapeles(textoGenerado.tiktok, 'tiktok')} class="text-slate-400 hover:text-white transition-colors" title="Copiar">
+                            {#if copiadoId === 'tiktok'}
+                              <Check class="w-4 h-4 text-emerald-400" />
+                            {:else}
+                              <Copy class="w-4 h-4" />
+                            {/if}
                           </button>
                         {/if}
                       </div>
                       <div class="text-[13px] text-slate-300 whitespace-pre-line leading-relaxed flex-1 font-medium">
-                        {#if generandoIA && !textoGeneradoTiktok}
+                        {#if generandoIA && !textoGenerado.tiktok}
                            <div class="space-y-2 mt-1"><div class="h-3 bg-slate-600/50 rounded w-full animate-pulse"></div><div class="h-3 bg-slate-600/50 rounded w-3/4 animate-pulse"></div></div>
                         {:else}
-                          {textoGeneradoTiktok}
+                          {textoGenerado.tiktok}
                         {/if}
                       </div>
                     </div>
@@ -448,17 +528,17 @@
 
             <div>
               <label for="titulo" class="block text-xs font-semibold text-slate-500 mb-1.5">Título de la Publicación (Obligatorio)</label>
-              <input bind:this={inputTitulo} id="titulo" type="text" name="titulo" value={propiedad.titulo} required class="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-slate-900 text-sm font-bold shadow-sm outline-none text-slate-900">
+              <input id="titulo" type="text" name="titulo" bind:value={pTitulo} required class="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-slate-900 text-sm font-bold shadow-sm outline-none text-slate-900">
             </div>
 
             <div>
               <label for="descripcion" class="block text-xs font-semibold text-slate-500 mb-1.5">Descripción Editorial (Obligatorio)</label>
-              <textarea bind:this={inputDescripcion} id="descripcion" name="descripcion" rows="6" class="w-full bg-white border border-slate-200 rounded-lg p-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-slate-900 text-slate-800 leading-relaxed resize-y">{propiedad.descripcion}</textarea>
+              <textarea id="descripcion" name="descripcion" bind:value={pDescripcion} rows="6" class="w-full bg-white border border-slate-200 rounded-lg p-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-slate-900 text-slate-800 leading-relaxed resize-y"></textarea>
             </div>
 
             <div class="flex items-start mt-4 p-5 bg-slate-50/50 rounded-xl border border-slate-200 shadow-inner">
               <div class="flex items-center h-5 mt-0.5">
-                <input type="checkbox" id="destacada" name="destacada" checked={propiedad.destacada} class="w-4 h-4 text-slate-900 border-slate-300 focus:ring-slate-900 rounded cursor-pointer">
+                <input type="checkbox" id="destacada" name="destacada" bind:checked={pDestacada} class="w-4 h-4 text-slate-900 border-slate-300 focus:ring-slate-900 rounded cursor-pointer">
               </div>
               <div class="ml-3 flex-1">
                 <label for="destacada" class="text-sm font-semibold text-slate-900 cursor-pointer">VIP / Signature (Propiedad Destacada)</label>
