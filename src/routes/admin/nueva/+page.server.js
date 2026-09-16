@@ -60,48 +60,49 @@ export const actions = {
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
     const guiasTono = {
-      'Premium / Elegante': 'Profesional, moderno y de alto valor. Cero poético.',
-      'Familiar / Cálido': 'Seguro y funcional. Destaca la practicidad.',
-      'Analítico / ROI': 'Financiero y estratégico. Destaca la rentabilidad.'
+      'Premium / Elegante': 'Sofisticado, aspiracional y enfocado en exclusividad. Lenguaje de alto valor.',
+      'Familiar / Cálido': 'Cercano, seguro y emotivo. Enfocado en crear memorias y tranquilidad.',
+      'Analítico / ROI': 'Estratégico, financiero y directo. Enfocado en plusvalía y diseño inteligente.'
     };
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
-    // 🚀 BLINDAJE 1: REGLAS ANTI-TIMEOUT Y ANTI-FORMATO DAÑADO
-    const systemPrompt = `<role>Eres una API de Copywriting Inmobiliario en México.</role>
+    // 🚀 BLINDAJE 1: PROMPT DE COPYWRITING ÉLITE (Adiós al robot)
+    const systemPrompt = `<role>Eres el Director Creativo de una agencia inmobiliaria de lujo en México. Vendes un ESTILO DE VIDA, no solo metros cuadrados.</role>
 <rules>
-1. SALIDA: OBLIGATORIO responder EXCLUSIVAMENTE con el objeto JSON solicitado. Cero Markdown, cero saludos.
-2. LONGITUD (VITAL): Sé extremadamente conciso. Tu respuesta entera no debe superar los 350 tokens. Si te extiendes, el servidor colapsará.
-3. SALTOS DE LÍNEA: PROHIBIDO usar saltos de línea reales (Enter). Usa EXACTAMENTE <br><br> para separar párrafos.
-4. COMILLAS: PROHIBIDO usar comillas dobles (") dentro de las oraciones. Usa comillas simples (').
-5. TONO: ${instruccionTono}
+1. IDIOMA: 100% Español de México. Redacción impecable, persuasiva y sensorial.
+2. ESTRUCTURA CREATIVA: ESTÁ ESTRICTAMENTE PROHIBIDO hacer listas aburridas (ej. "Tiene 3 cuartos y 4 baños"). Debes transformar esos datos en una experiencia (ej. "Descansa en una de sus 3 amplias suites, diseñadas para la máxima privacidad").
+3. FORMATO: Responde EXCLUSIVAMENTE con el objeto JSON. Cero texto antes o después.
+4. SALTOS DE LÍNEA: PROHIBIDO usar la tecla Enter/Retorno en el texto. Para separar párrafos, usa la etiqueta literal <br><br>.
+5. COMILLAS: NUNCA uses comillas dobles (") dentro de tus textos. Usa solo comillas simples (').
+6. TONO: ${instruccionTono}
 </rules>`;
 
-    const userPrompt = `Devuelve SOLO el objeto JSON:
+    const userPrompt = `Genera un copy comercial irresistible para esta propiedad devolviendo SOLO el JSON:
 <data>
-Operación: ${operacion} | Tipo: ${tipo} | Ubic.: ${ubicacion} | Precio: $${precio} | Rec: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Ant: ${antiguedad}
+Operación: ${operacion} | Tipo: ${tipo} | Ubicación: ${ubicacion} | Precio: $${precio} MXN
+Recámaras: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Antigüedad: ${antiguedad}
 </data>
 
 <json_format>
 {
-  "titulo": "Título atractivo aquí",
-  "descripcion": "Párrafo 1 corto<br><br>Párrafo 2 corto<br><br>Párrafo 3 corto",
-  "whatsapp": "Mensaje corto WhatsApp"
+  "titulo": "[Título emocional y magnético que despierte curiosidad, max 10 palabras. NO pongas el precio aquí]",
+  "descripcion": "[Párrafo 1: Gancho emocional fuerte sobre la ubicación y el estilo de vida.<br><br>Párrafo 2: Descripción sensorial de los interiores, luz natural y acabados, integrando elegantemente la cantidad de espacios.<br><br>Párrafo 3: Cierre con un sutil sentido de urgencia y llamado a la acción a agendar visita.]",
+  "whatsapp": "[Mensaje persuasivo, amable y directo para WhatsApp, usando 2 emojis elegantes]"
 }
 </json_format>`;
 
-    // 🚀 BLINDAJE 2: EL BATALLÓN DE ORO DE CLOUDFLARE AI
-    // Estos son los modelos oficiales, estables y de bajo costo documentados.
+    // 🚀 BLINDAJE 2: CATÁLOGO DE MODELOS CLOUDFLARE SEPTIEMBRE 2026
     const modelosSoportados = [
-      '@cf/meta/llama-3.1-8b-instruct',       // El estándar actual y más soportado
-      '@cf/meta/llama-3-8b-instruct',         // Generación anterior, hiper estable
-      '@cf/mistral/mistral-7b-instruct-v0.1'  // Motor distinto, excelente para control de JSON
+      '@cf/meta/llama-3.1-8b-instruct',  // El rey de la relación velocidad/calidad
+      '@cf/google/gemma-2-9b-it',        // Excelente razonamiento creativo nativo en CF
+      '@cf/meta/llama-3.2-3b-instruct'   // Fallback de ultra-velocidad
     ];
 
     let parsedContent = null;
     let errorLog = [];
 
-    // 🚀 BLINDAJE 3: EL LOOP DE SUPERVIVENCIA REAL
+    // 🚀 BLINDAJE 3: LOOP DE EJECUCIÓN
     for (const modelo of modelosSoportados) {
       try {
         const response = await platform.env.AI.run(modelo, {
@@ -109,8 +110,8 @@ Operación: ${operacion} | Tipo: ${tipo} | Ubic.: ${ubicacion} | Precio: $${prec
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          // 🚀 EL SALVAVIDAS: 400 tokens = ~16 segundos. Garantiza que NO haya Timeout de Cloudflare.
-          max_tokens: 400
+          // El balance perfecto: 800 tokens le da espacio para redactar premium sin hacer timeout
+          max_tokens: 800
         });
 
         if (!response || !response.response) {
@@ -136,13 +137,11 @@ Operación: ${operacion} | Tipo: ${tipo} | Ubic.: ${ubicacion} | Precio: $${prec
 
         let jsonString = cleanText.substring(firstBrace, lastBrace + 1);
         
-        // Destruimos Enters ocultos
+        // Destruimos Enters ocultos para salvar el Parseo
         jsonString = jsonString.replace(/\n/g, ' ').replace(/\r/g, '');
 
-        // INTENTAMOS PARSEAR (Si el JSON se cortó, el catch atrapará el error y saltará al siguiente modelo)
         parsedContent = JSON.parse(jsonString);
-
-        break; // ¡JSON PERFECTO! Salimos del loop.
+        break; // ¡JSON PERFECTO Y COPY PREMIUM LISTO!
 
       } catch (e) {
         const nombreModelo = modelo.split('/').pop();
@@ -152,17 +151,17 @@ Operación: ${operacion} | Tipo: ${tipo} | Ubic.: ${ubicacion} | Precio: $${prec
 
     if (!parsedContent) {
       return fail(500, { 
-        error: `Cloudflare AI superó el tiempo límite en todos los modelos.\nDetalle: ${errorLog.join(' | ')}\nNo se te han descontado créditos.` 
+        error: `Todos los modelos de IA están saturados o fallaron.\nDetalle: ${errorLog.join(' | ')}\nNo se te han descontado créditos.` 
       });
     }
 
-    // 🚀 COBRO DE CRÉDITOS SEGURO: Solo se resta si el JSON fue válido.
+    // 🚀 COBRO DE CRÉDITOS SEGURO
     await locals.supabase
       .from('brokers')
       .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
       .eq('id', broker.id);
 
-    // Restauramos los <br><br> para que Svelte los lea como Enters visuales
+    // Restauramos los <br><br> a saltos de línea reales para el Frontend
     let descripcionLimpia = (parsedContent.descripcion || 'Sin descripción').replace(/<br><br>/g, '\n\n');
 
     return {
