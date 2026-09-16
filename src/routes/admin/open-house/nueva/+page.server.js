@@ -46,7 +46,6 @@ export const actions = {
     const propiedad_id = sanitizar(formData.get('propiedad_id'), 100);
     const tonoSeleccionado = sanitizar(formData.get('tono'), 50) || 'Gala / Exclusiva';
     
-    // 🚀 CAPTURA DE DATOS REALES DEL EVENTO PARA EVITAR ALUCINACIONES
     const event_date = sanitizar(formData.get('date'), 50);
     const time_start = sanitizar(formData.get('timeStart'), 20);
     const time_end = sanitizar(formData.get('timeEnd'), 20);
@@ -132,4 +131,68 @@ Incentivo Especial: ${benefit || 'Recorrido exclusivo'}
         if (!result) throw new Error("API devolvió una respuesta vacía.");
         
         let rawResponse = typeof result === 'string' ? result : (result.response ? String(result.response) : JSON.stringify(result));
-        let cleanText = rawResponse.replace(/^```json/gi, '').replace(/^
+        
+        // 🚀 FIX: Adiós al Parse Error del Build de Vite. Expresión regular a prueba de bundlers.
+        let cleanText = rawResponse.replace(/[`]{3}json/gi, '').replace(/[`]{3}/g, '').trim();
+
+        if (!cleanText.startsWith('{') && cleanText.includes('"titulo"')) cleanText = '{' + cleanText;
+        if (!cleanText.endsWith('}')) cleanText += '}';
+
+        let firstBrace = cleanText.indexOf('{');
+        let lastBrace = cleanText.lastIndexOf('}');
+        if (firstBrace === -1 || lastBrace === -1) throw new Error("JSON Truncado");
+
+        parsedContent = JSON.parse(cleanText.substring(firstBrace, lastBrace + 1).replace(/\n|\r/g, ' '));
+        break; 
+      } catch (e) {
+        errorLog.push(`${modelo.split('/').pop()}: ${e.message}`);
+      }
+    }
+
+    if (!parsedContent) return fail(400, { error: `Modelos de IA saturados. Detalle interno: ${errorLog.join(' | ')}` });
+
+    const { data: rpcData, error: rpcError } = await locals.supabase.rpc('consumir_credito_ia', { p_user_id: user.id });
+    if (rpcError || !rpcData || rpcData.length === 0) return fail(400, { error: 'Fallo al procesar el consumo del crédito en la BD.' });
+
+    return {
+      titulo: parsedContent.titulo || parsedContent.Titulo || 'Open House VIP',
+      descripcion: (parsedContent.descripcion || 'Descubre esta increíble propiedad en nuestro próximo evento.').replace(/<br><br>/g, '\n\n'),
+      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || '¡Te invito a recorrer tu próxima casa! 🏡✨'
+    };
+  },
+
+  // 🚀 FIX: Acción renombrada a 'crear' para no chocar con SvelteKit
+  crear: async ({ request, locals }) => {
+    const user = locals.user;
+    if (!user) return fail(401, { error: 'No autorizado' });
+
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', user.id).single();
+    if (!broker) return fail(401, { error: 'Broker no encontrado' });
+
+    const formData = await request.formData();
+    const propiedad_id = formData.get('propiedad_id');
+    const title = formData.get('title');
+    const event_date = formData.get('date');
+    const time_start = formData.get('timeStart');
+    const time_end = formData.get('timeEnd');
+    const max_capacity = parseInt(formData.get('maxCapacity')) || 15;
+    const benefit = formData.get('benefit');
+    const description = formData.get('description');
+
+    if (!propiedad_id || !title || !event_date || !time_start || !time_end || !description) {
+      return fail(400, { error: 'Faltan campos obligatorios' });
+    }
+
+    const { data: nuevoEvento, error: insertError } = await locals.supabase
+      .from('open_houses')
+      .insert([{
+          broker_id: broker.id,
+          propiedad_id: propiedad_id === 'test' ? null : propiedad_id, 
+          title, event_date, time_start, time_end, max_capacity, benefit, description
+      }])
+      .select().single();
+
+    if (insertError) return fail(400, { error: `Error BD al guardar evento: ${insertError.message}` });
+    throw redirect(303, `/admin/open-house/${nuevoEvento.id}`);
+  }
+};
