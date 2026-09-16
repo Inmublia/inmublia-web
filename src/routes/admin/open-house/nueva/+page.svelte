@@ -50,7 +50,7 @@
     }
   }
 
-  // 🚀 MOTOR BLINDADO QUE ESCUPE EL ERROR REAL EN PANTALLA
+  // 🚀 MOTOR DE IA
   async function generarCampañaIA() {
     if (!valPropiedadId) {
       iaErrorMsg = "Selecciona una Propiedad Base del inventario para que la IA sepa qué promocionar.";
@@ -68,7 +68,7 @@
     document.getElementById('seccion-copywriting')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 Segundos exactos
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 Segundos exactos
 
     try {
       const formData = new FormData();
@@ -83,7 +83,7 @@
       });
 
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("TIMEOUT_FORZADO")), 20000)
+        setTimeout(() => reject(new Error("TIMEOUT_FORZADO")), 25000)
       );
 
       const res = await Promise.race([fetchRequest, timeoutPromise]);
@@ -100,7 +100,6 @@
         throw new Error(`JSON corrupto devuelto por servidor. Respuesta cruda: ${textRes.substring(0, 100)}...`);
       }
 
-      // 🛡️ Lógica Exhaustiva de Extracción de Errores de SvelteKit
       if (result.type === 'success' && result.data) {
         creditosIA--;
         iaEjecutada = true;
@@ -112,22 +111,22 @@
           typeWriter(result.data.whatsapp, (v) => textoGeneradoWhatsapp = v, 10)
         ]);
       } else if (result.type === 'failure') {
-        throw new Error(`Rechazo (Status ${result.status}): ${result.data?.error || JSON.stringify(result.data)}`);
+        throw new Error(`${result.data?.error || JSON.stringify(result.data)}`);
       } else if (result.type === 'error') {
-        throw new Error(`Error de Sistema Svelte: ${result.error?.message || JSON.stringify(result.error)}`);
+        throw new Error(`Error SvelteKit: ${result.error?.message || JSON.stringify(result.error)}`);
       } else {
         throw new Error(`Payload desconocido: ${JSON.stringify(result)}`);
       }
 
     } catch (e) {
-      if (e.message === "TIMEOUT_FORZADO") {
-        iaErrorMsg = "🚨 TIMEOUT: La Inteligencia Artificial tardó más de 20s. Se abortó la conexión por seguridad.";
+      if (e.message === "TIMEOUT_FORZADO" || e.name === 'AbortError') {
+        iaErrorMsg = "🚨 TIMEOUT: La Inteligencia Artificial tardó más de 25s. Se abortó la conexión por seguridad.";
       } else {
-        iaErrorMsg = `Fallo en IA: ${e.message}`;
+        iaErrorMsg = `${e.message}`;
       }
     } finally {
       clearTimeout(timeoutId);
-      generandoIA = false; // BOTÓN LIBERADO GARANTIZADO
+      generandoIA = false; 
     }
   }
 
@@ -141,12 +140,11 @@
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
-  <!-- 🚀 FIX UI: Ancho Extendido (max-w-[1400px]) anclado a la izquierda -->
   <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
-    <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-      <div class="flex items-center gap-4 w-full">
+    <div class="w-full max-w-[1000px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div class="flex items-center gap-4 text-left">
         <a href="/admin" class="text-zinc-400 hover:text-white transition-colors p-2.5 rounded-xl hover:bg-white/10 shrink-0" title="Volver al Inventario">
           <ArrowLeft class="w-6 h-6" />
         </a>
@@ -166,11 +164,11 @@
     </div>
   </header>
 
-  <!-- 🚀 FIX UI: Main ampliado a 1400px, formularios adaptados -->
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
-    <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 h-full">
+    <div class="w-full max-w-[1000px] mx-auto px-4 sm:px-10 h-full">
       
-      <form id="form-openhouse" method="POST" use:enhance={() => {
+      <!-- 🚀 FIX: action="?/crear" añadido al formulario -->
+      <form id="form-openhouse" action="?/crear" method="POST" use:enhance={() => {
         isSubmitting = true;
         return async ({ update }) => { isSubmitting = false; update(); };
       }} class="space-y-8 pb-10">
@@ -274,12 +272,14 @@
           </div>
         </div>
 
+        <!-- 🚀 FIX UI: DISEÑO LIMPIO Y VERTICAL PARA LA IA -->
         <section class="relative">
-          <div class="bg-slate-800 rounded-[2rem] p-6 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
+          <div class="bg-slate-800 rounded-[2rem] p-8 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
             <div class="absolute -top-32 -right-32 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none"></div>
 
-            <div class="relative z-10 w-full text-left flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
-              <div class="w-full md:w-1/2">
+            <div class="relative z-10 w-full flex flex-col gap-6">
+              
+              <div class="w-full">
                 <h2 class="text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
                   Estudio Creativo IA para Eventos
                   <span class="flex h-2.5 w-2.5 relative mt-1">
@@ -292,12 +292,23 @@
                 </p>
               </div>
 
+              {#if iaErrorMsg}
+                <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3 animate-[fadeIn_0.3s_ease-out]">
+                  <AlertOctagon class="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                  <div class="w-full">
+                    <p class="text-sm font-black text-red-300 mb-1">Error de Generación:</p>
+                    <p class="text-xs font-mono text-red-200 break-words whitespace-pre-wrap">{iaErrorMsg}</p>
+                  </div>
+                </div>
+              {/if}
+
               {#if creditosIA > 0}
-                <div class="w-full md:w-1/2 bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-6 shadow-inner flex flex-col xl:flex-row items-end gap-4">
-                  <div class="w-full xl:w-7/12">
-                    <label for="tono-ia" class="block text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1.5">Tono de Invitación</label>
+                <div class="flex flex-col sm:flex-row items-end gap-4 w-full bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-5 shadow-inner">
+                  
+                  <div class="w-full sm:w-5/12">
+                    <label for="tono-ia" class="block text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-2">Tono de Invitación</label>
                     <div class="relative w-full">
-                      <select id="tono-ia" bind:value={tonoIA} class="w-full bg-slate-800 text-white border border-slate-600 text-sm font-bold rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner cursor-pointer appearance-none">
+                      <select id="tono-ia" bind:value={tonoIA} class="w-full bg-slate-800 text-white border border-slate-600 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner cursor-pointer appearance-none pr-10">
                         <option value="lujo">Gala / Exclusiva</option>
                         <option value="familiar">Casual / Familiar</option>
                         <option value="inversionista">Business / Inversión</option>
@@ -308,41 +319,36 @@
                     </div>
                   </div>
 
-                  <div class="w-full xl:w-5/12">
-                    <button type="button" onclick={generarCampañaIA} disabled={generandoIA} class="w-full relative overflow-hidden group bg-white text-slate-900 font-bold px-4 py-3.5 rounded-xl transition-all disabled:opacity-50 hover:bg-slate-100 flex items-center justify-center gap-2 text-sm shadow-sm active:scale-95">
+                  <div class="w-full sm:w-3/12">
+                    <div class="h-[46px] w-full flex items-center justify-center gap-2 bg-slate-800 rounded-xl border border-slate-600/80 text-xs font-bold text-slate-200 shadow-inner">
+                      <Sparkles class="w-4 h-4 text-amber-400" />
+                      {creditosIA} {creditosIA === 1 ? 'Crédito' : 'Créditos'}
+                    </div>
+                  </div>
+
+                  <div class="w-full sm:w-4/12 flex flex-col">
+                    <button type="button" onclick={generarCampañaIA} disabled={generandoIA} class="h-[46px] w-full relative overflow-hidden group bg-white text-slate-900 font-bold px-4 rounded-xl transition-all disabled:opacity-50 hover:bg-slate-100 flex items-center justify-center gap-2 text-sm shadow-sm active:scale-95">
                       {#if generandoIA}
                         <Loader2 class="animate-spin w-4 h-4 text-slate-900" /> Redactando...
                       {:else}
                         <Sparkles class="w-4 h-4 text-slate-900" /> Generar
                       {/if}
                     </button>
-                    <p class="text-center mt-2 text-[10px] font-bold text-slate-400 uppercase">⚡ Quedan {creditosIA}</p>
                   </div>
                 </div>
               {:else}
-                <div class="w-full md:w-1/2 flex items-center gap-4 bg-red-500/10 border border-red-500/30 rounded-2xl p-6">
+                <div class="w-full flex items-center gap-4 bg-red-500/10 border border-red-500/30 rounded-2xl p-6">
                   <Zap class="w-8 h-8 text-red-400 shrink-0" />
                   <div>
                     <h3 class="text-sm font-bold text-white">Créditos Agotados</h3>
-                    <p class="text-xs text-red-200 mt-1">Acude a Configuración para realizar un Top-Up de IA.</p>
+                    <p class="text-xs text-red-200 mt-1">Acude a Configuración para realizar un Top-Up de IA y dominar el mercado.</p>
                   </div>
                 </div>
               {/if}
             </div>
 
-            <!-- 🛡️ NUEVO DISPLAY DE ERRORES EN UI (AHORA IMPRIME TODO LO QUE EL SERVER RECHAZA) -->
-            {#if iaErrorMsg}
-              <div class="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl p-5 flex items-start gap-3 animate-[fadeIn_0.3s_ease-out]">
-                <AlertOctagon class="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-                <div class="w-full">
-                  <p class="text-sm font-black text-red-300 mb-1">Diagnóstico del Error:</p>
-                  <p class="text-xs font-mono text-red-200 break-words whitespace-pre-wrap">{iaErrorMsg}</p>
-                </div>
-              </div>
-            {/if}
-
             {#if iaEjecutada && textoGeneradoWhatsapp}
-              <div class="mt-4 animate-[fadeIn_0.4s_ease-out] relative z-10 w-full">
+              <div class="mt-6 animate-[fadeIn_0.4s_ease-out] relative z-10 w-full">
                 <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col w-full">
                   <div class="flex items-center justify-between mb-4">
                     <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
@@ -374,6 +380,11 @@
                 <p class="text-xs font-medium text-slate-500 mt-1">Defina los diferenciadores que impulsarán el registro de prospectos.</p>
               </div>
             </div>
+            {#if iaEjecutada && !generandoIA}
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5 animate-[fadeIn_0.4s_ease-out] shrink-0">
+                <CheckCircle2 class="w-3.5 h-3.5" /> Autocompletado
+              </span>
+            {/if}
           </div>
           
           <div class="p-8 space-y-6">
