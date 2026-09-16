@@ -1,30 +1,39 @@
+<!-- src/routes/login/+page.svelte -->
 <script lang="ts">
-  import { page } from '$app/stores';
+  // 🚀 FIX: Svelte 5 usa $app/state para reactividad directa sin el prefix $
+  import { page } from '$app/state';
   import { enhance } from '$app/forms';
   import { onMount } from 'svelte';
+  import { fade } from 'svelte/transition';
   import { ShieldCheck, Mail, KeyRound, Loader2, AlertCircle, Info, ArrowRight, CheckCircle2 } from 'lucide-svelte';
   
-  let { form } = $props();
-  let motivo = $derived($page.url.searchParams.get('motivo'));
+  // 🚀 FIX: Svelte 5 prohíbe mutar props directamente. Usamos una variable local para sobrescribir.
+  let { form: formProp } = $props();
+  let formOverride = $state<any>(null);
+  let formActual = $derived(formOverride ?? formProp);
+
+  let motivo = $derived(page.url.searchParams.get('motivo'));
   let cargando = $state(false);
   
-  // Estado para alternar entre Login y Recuperación
   let vistaRecuperacion = $state(false);
-
-  // 🔥 NUEVO: Estado para capturar errores que viajan en el HASH (#) de la URL
   let errorHash = $state('');
 
+  // 🚀 FIX: Rate limiting visual para evitar spam de correos de recuperación
+  let correoEnviado = $state(false);
+  let segundosRestantes = $state(0);
+
   onMount(() => {
-    // Al montarse en el cliente, revisamos si Supabase nos arrojó un error en el hash fragment
     if (window.location.hash.includes('error=')) {
       const params = new URLSearchParams(window.location.hash.slice(1));
       const errorCode = params.get('error_code');
       
       if (errorCode === 'otp_expired' || params.get('error') === 'access_denied') {
         errorHash = 'El enlace de recuperación ha expirado o ya fue utilizado. Por seguridad, solicita uno nuevo.';
-        // Si venía de un error de contraseña, abrimos automáticamente la vista de recuperación
         vistaRecuperacion = true;
       }
+
+      // 🚀 FIX CRÍTICO: Limpiar el hash de la URL para que no persista si el usuario recarga o comparte el link
+      history.replaceState(null, '', window.location.pathname + window.location.search);
     }
   });
 </script>
@@ -49,9 +58,32 @@
       </p>
     </div>
 
+    <!-- 🚀 FIX: Lógica de banners anidada (If / Else If) para evitar que se amontonen visualmente -->
     <div class="space-y-4 mb-8">
-      {#if motivo === 'inactividad' && !vistaRecuperacion}
-        <div class="flex items-center gap-3.5 px-4 py-3 bg-amber-500/10 text-amber-500 rounded-xl border border-amber-500/20 shadow-sm animate-[fadeIn_0.3s_ease-out]">
+      {#if formActual?.error || errorHash}
+        <div in:fade={{ duration: 200 }} class="flex items-center gap-3.5 px-4 py-3 bg-red-500/10 text-red-500 rounded-xl border border-red-500/20 shadow-sm">
+          <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+            <AlertCircle class="w-4 h-4" />
+          </div>
+          <div class="flex-1">
+            <p class="text-[10px] font-black uppercase tracking-widest text-red-400">Atención</p>
+            <p class="text-xs mt-0.5 font-medium">{errorHash || formActual?.error}</p>
+          </div>
+        </div>
+
+      {:else if formActual?.success}
+        <div in:fade={{ duration: 200 }} class="flex items-center gap-3.5 px-4 py-3 bg-emerald-500/10 text-emerald-500 rounded-xl border border-emerald-500/20 shadow-sm">
+          <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+            <CheckCircle2 class="w-4 h-4" />
+          </div>
+          <div class="flex-1">
+            <p class="text-[10px] font-black uppercase tracking-widest text-emerald-400">Verifica tu Bandeja</p>
+            <p class="text-xs mt-0.5 font-medium">{formActual.message}</p>
+          </div>
+        </div>
+
+      {:else if motivo === 'inactividad' && !vistaRecuperacion}
+        <div in:fade={{ duration: 200 }} class="flex items-center gap-3.5 px-4 py-3 bg-amber-500/10 text-amber-500 rounded-xl border border-amber-500/20 shadow-sm">
           <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
             <Info class="w-4 h-4" />
           </div>
@@ -60,10 +92,9 @@
             <p class="text-xs mt-0.5 font-medium">Por seguridad, tu sesión ha finalizado.</p>
           </div>
         </div>
-      {/if}
 
-      {#if motivo === 'clave_actualizada' && !vistaRecuperacion}
-        <div class="flex items-center gap-3.5 px-4 py-3 bg-emerald-500/10 text-emerald-500 rounded-xl border border-emerald-500/20 shadow-sm animate-[fadeIn_0.3s_ease-out]">
+      {:else if motivo === 'clave_actualizada' && !vistaRecuperacion}
+        <div in:fade={{ duration: 200 }} class="flex items-center gap-3.5 px-4 py-3 bg-emerald-500/10 text-emerald-500 rounded-xl border border-emerald-500/20 shadow-sm">
           <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
             <CheckCircle2 class="w-4 h-4" />
           </div>
@@ -73,53 +104,44 @@
           </div>
         </div>
       {/if}
-
-      {#if form?.error || errorHash}
-        <div class="flex items-center gap-3.5 px-4 py-3 bg-red-500/10 text-red-500 rounded-xl border border-red-500/20 shadow-sm animate-[fadeIn_0.3s_ease-out]">
-          <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
-            <AlertCircle class="w-4 h-4" />
-          </div>
-          <div class="flex-1">
-            <p class="text-[10px] font-black uppercase tracking-widest text-red-400">Enlace Inválido</p>
-            <p class="text-xs mt-0.5 font-medium">{errorHash || form?.error}</p>
-          </div>
-        </div>
-      {:else if form?.success}
-        <div class="flex items-center gap-3.5 px-4 py-3 bg-emerald-500/10 text-emerald-500 rounded-xl border border-emerald-500/20 shadow-sm animate-[fadeIn_0.3s_ease-out]">
-          <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-            <CheckCircle2 class="w-4 h-4" />
-          </div>
-          <div class="flex-1">
-            <p class="text-[10px] font-black uppercase tracking-widest text-emerald-400">Verifica tu Bandeja</p>
-            <p class="text-xs mt-0.5 font-medium">{form.message}</p>
-          </div>
-        </div>
-      {/if}
     </div>
 
+    <!-- 🚀 FIX: Transiciones Svelte nativas en el formulario para evitar saltos en el DOM -->
     {#if !vistaRecuperacion}
-      <form method="POST" action="?/ingresar" class="space-y-5 animate-[fadeIn_0.3s_ease-out]" onsubmit={() => cargando = true}>
-        
+      <!-- 🚀 FIX: 'use:enhance' asegura que el 'cargando' se reinicie a false incluso si falla la validación -->
+      <form method="POST" action="?/ingresar" 
+        transition:fade={{ duration: 150 }}
+        use:enhance={() => {
+          if (cargando) return;
+          cargando = true;
+          return async ({ update }) => {
+            cargando = false;
+            await update();
+          };
+        }} 
+        class="space-y-5"
+      >
         <div class="space-y-1.5 group">
           <label for="email" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 px-1 transition-colors group-focus-within:text-indigo-400">Credencial de Acceso</label>
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
               <Mail class="w-4 h-4" />
             </div>
-            <input type="email" name="email" id="email" placeholder="correo@agencia.com" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
+            <!-- 🚀 FIX: autocomplete attributes añadidos por seguridad y UX -->
+            <input type="email" name="email" id="email" autocomplete="username email" placeholder="correo@agencia.com" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
           </div>
         </div>
 
         <div class="space-y-1.5 group">
           <div class="flex items-center justify-between px-1">
              <label for="password" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 transition-colors group-focus-within:text-indigo-400">Llave Criptográfica</label>
-             <button type="button" onclick={() => { vistaRecuperacion = true; form = null; errorHash = ''; }} class="text-[10px] font-bold text-zinc-500 hover:text-white transition-colors">¿Olvidó su llave?</button>
+             <button type="button" onclick={() => { vistaRecuperacion = true; formOverride = null; errorHash = ''; }} class="text-[10px] font-bold text-zinc-500 hover:text-white transition-colors">¿Olvidó su llave?</button>
           </div>
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
               <KeyRound class="w-4 h-4" />
             </div>
-            <input type="password" name="password" id="password" placeholder="••••••••••••" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
+            <input type="password" name="password" id="password" autocomplete="current-password" placeholder="••••••••••••" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
           </div>
         </div>
 
@@ -138,27 +160,51 @@
       </form>
 
     {:else}
-      <form method="POST" action="?/recuperar" use:enhance={() => { cargando = true; return async ({ update }) => { cargando = false; update(); }; }} class="space-y-5 animate-[fadeIn_0.3s_ease-out]">
+      <form method="POST" action="?/recuperar" 
+        transition:fade={{ duration: 150 }}
+        use:enhance={() => { 
+          if (cargando || correoEnviado) return;
+          cargando = true; 
+          return async ({ result, update }) => { 
+            cargando = false; 
+            if (result.type === 'success' || result.data?.success) {
+              correoEnviado = true;
+              segundosRestantes = 60;
+              const timer = setInterval(() => {
+                segundosRestantes--;
+                if (segundosRestantes <= 0) {
+                  clearInterval(timer);
+                  correoEnviado = false;
+                }
+              }, 1000);
+            }
+            await update(); 
+          }; 
+        }} 
+        class="space-y-5"
+      >
         <div class="space-y-1.5 group">
           <label for="recovery_email" class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 px-1 transition-colors group-focus-within:text-indigo-400">Correo Asociado</label>
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
               <Mail class="w-4 h-4" />
             </div>
-            <input type="email" name="email" id="recovery_email" placeholder="correo@agencia.com" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
+            <input type="email" name="email" id="recovery_email" autocomplete="email" placeholder="correo@agencia.com" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
           </div>
         </div>
 
         <div class="pt-4 flex flex-col gap-3">
-          <button type="submit" disabled={cargando} class="w-full bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 disabled:hover:bg-indigo-600 font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(79,70,229,0.3)] active:scale-95 group">
+          <button type="submit" disabled={cargando || correoEnviado} class="w-full bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 disabled:hover:bg-indigo-600 disabled:cursor-not-allowed font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(79,70,229,0.3)] active:scale-95 group">
             {#if cargando}
               <Loader2 class="w-4 h-4 animate-spin text-white" /> Procesando...
+            {:else if correoEnviado}
+              <CheckCircle2 class="w-4 h-4 text-emerald-400" /> Enviado · Reenviar en {segundosRestantes}s
             {:else}
               <Mail class="w-4 h-4" /> Enviar Enlace Seguro
             {/if}
           </button>
           
-          <button type="button" onclick={() => { vistaRecuperacion = false; form = null; errorHash = ''; }} class="w-full bg-transparent hover:bg-zinc-800 text-zinc-400 font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center text-sm">
+          <button type="button" onclick={() => { vistaRecuperacion = false; formOverride = null; errorHash = ''; }} class="w-full bg-transparent hover:bg-zinc-800 text-zinc-400 font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center text-sm">
             Cancelar y regresar
           </button>
         </div>
@@ -179,10 +225,3 @@
     <p class="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">&copy; 2026 Inmublia Technologies. Secured Platform.</p>
   </footer>
 </div>
-
-<style>
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-5px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-</style>
