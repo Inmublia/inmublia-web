@@ -3,7 +3,7 @@
   import { enhance, deserialize } from '$app/forms';
   import { 
     ArrowLeft, Building2, CalendarClock, CalendarDays, Clock, Users, Gift, PenTool, 
-    Loader2, Rocket, Sparkles, Zap, MessageCircle, Copy, AlertTriangle
+    Loader2, Rocket, Sparkles, Zap, MessageCircle, Copy, AlertTriangle, AlertOctagon
   } from 'lucide-svelte';
 
   let { data } = $props();
@@ -20,6 +20,9 @@
   let iaEjecutada = $state(false);
   let tonoIA = $state('lujo'); 
   let textoGeneradoWhatsapp = $state('');
+  
+  // 🛡️ NUEVO: Consola de error in-UI para evitar silent blocks
+  let iaErrorMsg = $state('');
 
   let valPropiedadId = $state('');
   let valTitle = $state('');
@@ -47,15 +50,16 @@
     }
   }
 
-  // 🚀 FIX DEL LEAD DEBUGGER: KILL-SWITCH INCORPORADO
+  // 🛡️ MOTOR IA BLINDADO CON FINALLY Y ABORT CONTROLLER
   async function generarCampañaIA() {
     if (!valPropiedadId) {
-      alert("Por favor, selecciona una Propiedad Base en la sección superior para que la IA sepa de qué trata el evento.");
+      iaErrorMsg = "Selecciona una Propiedad Base en la sección de arriba para poder generar la campaña.";
       return;
     }
 
     if (creditosIA <= 0) return; 
 
+    iaErrorMsg = '';
     generandoIA = true;
     valTitle = '';
     valDescription = '';
@@ -63,7 +67,6 @@
 
     document.getElementById('seccion-copywriting')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    // 💣 CORTACORRIENTE: 35 SEGUNDOS MÁXIMO
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 35000); 
 
@@ -76,47 +79,48 @@
         method: 'POST',
         body: formData,
         headers: { 'x-sveltekit-action': 'true' },
-        signal: controller.signal // Atado al cortacorriente
+        signal: controller.signal
       });
 
-      clearTimeout(timeoutId); // Si responde antes, cancelamos la bomba
+      clearTimeout(timeoutId);
 
       const textRes = await res.text();
+      
+      if (textRes.trim().startsWith('<')) {
+        throw new Error("El servidor devolvió una página de error (Posible caída temporal).");
+      }
+
       let result;
       try {
         result = deserialize(textRes);
       } catch (e) {
-        throw new Error(`El servidor devolvió algo que no es JSON (Posible error 500).`);
+        throw new Error(`Datos corruptos del servidor. Intenta de nuevo.`);
       }
 
       if (result.type === 'success' && result.data) {
         creditosIA--;
-        generandoIA = false;
         iaEjecutada = true;
+        generandoIA = false; // Liberamos UI antes de arrancar la animación
         
         await Promise.all([
           typeWriter(result.data.titulo, (v) => valTitle = v, 25),
           typeWriter(result.data.descripcion, (v) => valDescription = v, 5),
           typeWriter(result.data.whatsapp, (v) => textoGeneradoWhatsapp = v, 10)
         ]);
-      } else if (result.type === 'failure') {
-        throw new Error(result.data?.error || 'Error al procesar la solicitud en el servidor.');
-      } else if (result.type === 'error') {
-        throw new Error(result.error?.message || `Fallo crítico de conexión interna.`);
+      } else {
+        throw new Error(result.data?.error || result.error?.message || "La IA falló al redactar el copy.");
       }
 
     } catch (e) {
       clearTimeout(timeoutId);
-      generandoIA = false;
-      
-      console.error("[Lead Debugger Client] Fallo capturado:", e);
-      
-      // Si el error fue provocado por nuestro AbortController
       if (e.name === 'AbortError') {
-        alert("TIMEOUT 🚨: El motor de Inteligencia Artificial (o la BD) se quedó colgado y tardó más de 35 segundos. Hemos forzado el cierre para no bloquear tu pantalla. Revisa la terminal de tu servidor.");
+        iaErrorMsg = "TIMEOUT: La Inteligencia Artificial se quedó colgada y tardó más de 35 segundos. Hemos abortado la operación por seguridad.";
       } else {
-        alert(`Error en IA: ${e.message}`);
+        iaErrorMsg = e.message;
       }
+    } finally {
+      // ESTE BLOQUE GARANTIZA QUE EL BOTÓN JAMÁS SE QUEDE PEGADO EN "REDACTANDO..."
+      generandoIA = false;
     }
   }
 
@@ -130,7 +134,6 @@
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
-  <!-- 🚀 FIX UI: max-w-[1000px] asegurando anclaje a la izquierda total -->
   <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
@@ -157,7 +160,6 @@
     </div>
   </header>
 
-  <!-- 🚀 FIX UI: max-w-[1000px] para estirar el formulario a la medida ideal -->
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1000px] mx-auto px-4 sm:px-10 h-full">
       
@@ -265,28 +267,37 @@
           </div>
         </div>
 
+        <!-- 🚀 UI RENOVADA: Título Alineado a la Izquierda y Elementos Extendidos -->
         <section class="relative">
           <div class="bg-slate-800 rounded-[2rem] p-6 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
             <div class="absolute -top-32 -right-32 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none"></div>
 
             <div class="relative z-10">
-              <div class="flex flex-col items-center w-full mb-8">
-                <h2 class="text-2xl font-black text-white tracking-tight flex items-center justify-center gap-2.5 text-center">
+              <div class="flex flex-col items-start w-full mb-8">
+                <h2 class="text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
                   Estudio Creativo IA para Eventos
-                  <span class="flex h-2.5 w-2.5 relative mt-0.5">
+                  <span class="flex h-2.5 w-2.5 relative mt-1">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                   </span>
                 </h2>
-                <p class="text-sm text-slate-400 mt-4 leading-relaxed max-w-2xl text-center font-medium">
+                <p class="text-sm text-slate-400 mt-2 leading-relaxed font-medium">
                   Autogenera invitaciones magnéticas y copy para WhatsApp leyendo los datos del inventario que seleccionaste arriba.
                 </p>
               </div>
 
+              <!-- 🛡️ NUEVO: DISPLAY DE ERRORES IN-UI -->
+              {#if iaErrorMsg}
+                <div class="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center gap-3 animate-[fadeIn_0.3s_ease-out]">
+                  <AlertOctagon class="w-5 h-5 text-red-400 shrink-0" />
+                  <p class="text-xs font-bold text-red-300">{iaErrorMsg}</p>
+                </div>
+              {/if}
+
               {#if creditosIA > 0}
-                <div class="flex flex-col sm:flex-row items-end justify-center gap-4 sm:gap-6 w-full max-w-3xl mx-auto bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-4 shadow-inner">
-                  <div class="flex flex-col items-center gap-2 w-full sm:w-1/3">
-                    <label for="tono-ia" class="text-[10px] font-bold text-slate-300 uppercase tracking-widest text-center w-full">Tono de Invitación</label>
+                <div class="flex flex-col md:flex-row items-end gap-6 w-full bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-6 shadow-inner">
+                  <div class="flex flex-col gap-2 w-full md:w-5/12">
+                    <label for="tono-ia" class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Tono de Invitación</label>
                     <div class="relative w-full">
                       <select id="tono-ia" bind:value={tonoIA} class="w-full bg-slate-800 text-white border border-slate-600 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner cursor-pointer appearance-none pr-10">
                         <option value="lujo">Gala / Exclusiva</option>
@@ -299,16 +310,16 @@
                     </div>
                   </div>
 
-                  <div class="flex items-center justify-center w-full sm:w-1/3 pb-1">
-                    <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-800 border border-slate-600/80 rounded-full text-xs font-bold text-slate-200 shadow-inner">
+                  <div class="flex items-center w-full md:w-3/12 pb-1">
+                    <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-800 border border-slate-600/80 rounded-full text-xs font-bold text-slate-200 shadow-inner w-full justify-center">
                       <Sparkles class="w-4 h-4 text-amber-400" />
                       {creditosIA} {creditosIA === 1 ? 'Crédito' : 'Créditos'}
                     </div>
                   </div>
 
-                  <div class="w-full sm:w-1/3 flex flex-col items-center">
-                    <div class="h-[18px] mb-2 hidden sm:block"></div> 
-                    <button type="button" onclick={generarCampañaIA} disabled={generandoIA || !valPropiedadId} class="w-full relative overflow-hidden group bg-white text-slate-900 font-bold px-6 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 flex items-center justify-center gap-2 text-sm shadow-sm active:scale-95">
+                  <div class="w-full md:w-4/12 flex flex-col">
+                    <div class="h-[18px] mb-2 hidden md:block"></div> 
+                    <button type="button" onclick={generarCampañaIA} disabled={generandoIA} class="w-full relative overflow-hidden group bg-white text-slate-900 font-bold px-6 py-3 rounded-xl transition-all disabled:opacity-50 hover:bg-slate-100 flex items-center justify-center gap-2 text-sm shadow-sm active:scale-95">
                       {#if generandoIA}
                         <Loader2 class="animate-spin w-4 h-4 text-slate-900" /> Redactando...
                       {:else}
@@ -318,17 +329,17 @@
                   </div>
                 </div>
               {:else}
-                <div class="w-full max-w-3xl mx-auto bg-gradient-to-br from-indigo-900/50 to-slate-900/80 border border-indigo-500/30 rounded-2xl p-8 shadow-2xl text-center relative overflow-hidden">
+                <div class="w-full bg-gradient-to-br from-indigo-900/50 to-slate-900/80 border border-indigo-500/30 rounded-2xl p-8 shadow-2xl text-center relative overflow-hidden">
                   <Zap class="w-12 h-12 text-amber-400 mx-auto mb-4 animate-bounce" />
                   {#if planSuscripcion === 'elite'}
-                    <h3 class="text-xl font-bold text-white mb-2">Límite Mensual Alcanzado (Plan Elite)</h3>
-                    <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">Has utilizado todos tus créditos. Adquiere un paquete de recarga extra (Top-Up) para continuar operando.</p>
+                    <h3 class="text-xl font-bold text-white mb-2">Límite Mensual Alcanzado</h3>
+                    <p class="text-sm text-slate-300 mb-6 mx-auto">Has utilizado todos tus créditos. Adquiere un paquete de recarga extra.</p>
                   {:else if planSuscripcion === 'pro'}
-                    <h3 class="text-xl font-bold text-white mb-2">Límite Mensual Alcanzado (Plan Pro)</h3>
-                    <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">Has utilizado tus 125 créditos. Mejora al plan <strong>Elite (500 créditos)</strong> o adquiere una recarga para operar sin límites.</p>
+                    <h3 class="text-xl font-bold text-white mb-2">Límite Mensual Alcanzado</h3>
+                    <p class="text-sm text-slate-300 mb-6 mx-auto">Mejora al plan <strong>Elite</strong> o adquiere una recarga para operar sin límites.</p>
                   {:else}
-                    <h3 class="text-xl font-bold text-white mb-2">Has agotado tus créditos (Plan Básico)</h3>
-                    <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">Mejora tu plan a <strong>Pro (125 créditos)</strong> o <strong>Elite (500 créditos)</strong> para dominar el mercado con IA.</p>
+                    <h3 class="text-xl font-bold text-white mb-2">Has agotado tus créditos</h3>
+                    <p class="text-sm text-slate-300 mb-6 mx-auto">Mejora tu plan a <strong>Pro</strong> o <strong>Elite</strong> para dominar el mercado.</p>
                   {/if}
                   <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
                     <Sparkles class="w-4 h-4" /> Solucionar
@@ -338,8 +349,8 @@
             </div>
 
             {#if iaEjecutada && textoGeneradoWhatsapp}
-              <div class="mt-8 animate-[fadeIn_0.4s_ease-out] relative z-10 max-w-2xl mx-auto">
-                <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col">
+              <div class="mt-8 animate-[fadeIn_0.4s_ease-out] relative z-10 w-full">
+                <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col w-full">
                   <div class="flex items-center justify-between mb-4">
                     <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
                       <MessageCircle class="w-4 h-4 text-emerald-400" /> Campaña WhatsApp
