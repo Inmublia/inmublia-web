@@ -67,11 +67,10 @@ export const actions = {
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
-    // 🚀 BLINDAJE 1: PROMPT DE COPYWRITING ÉLITE (Adiós al robot)
     const systemPrompt = `<role>Eres el Director Creativo de una agencia inmobiliaria de lujo en México. Vendes un ESTILO DE VIDA, no solo metros cuadrados.</role>
 <rules>
 1. IDIOMA: 100% Español de México. Redacción impecable, persuasiva y sensorial.
-2. ESTRUCTURA CREATIVA: ESTÁ ESTRICTAMENTE PROHIBIDO hacer listas aburridas (ej. "Tiene 3 cuartos y 4 baños"). Debes transformar esos datos en una experiencia (ej. "Descansa en una de sus 3 amplias suites, diseñadas para la máxima privacidad").
+2. ESTRUCTURA CREATIVA: ESTÁ ESTRICTAMENTE PROHIBIDO hacer listas aburridas (ej. "Tiene 3 cuartos y 4 baños"). Debes transformar esos datos en una experiencia.
 3. FORMATO: Responde EXCLUSIVAMENTE con el objeto JSON. Cero texto antes o después.
 4. SALTOS DE LÍNEA: PROHIBIDO usar la tecla Enter/Retorno en el texto. Para separar párrafos, usa la etiqueta literal <br><br>.
 5. COMILLAS: NUNCA uses comillas dobles (") dentro de tus textos. Usa solo comillas simples (').
@@ -86,53 +85,63 @@ Recámaras: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Antig
 
 <json_format>
 {
-  "titulo": "[Título emocional y magnético que despierte curiosidad, max 10 palabras. NO pongas el precio aquí]",
-  "descripcion": "[Párrafo 1: Gancho emocional fuerte sobre la ubicación y el estilo de vida.<br><br>Párrafo 2: Descripción sensorial de los interiores, luz natural y acabados, integrando elegantemente la cantidad de espacios.<br><br>Párrafo 3: Cierre con un sutil sentido de urgencia y llamado a la acción a agendar visita.]",
-  "whatsapp": "[Mensaje persuasivo, amable y directo para WhatsApp, usando 2 emojis elegantes]"
+  "titulo": "[Título emocional y magnético, max 10 palabras. NO pongas el precio aquí]",
+  "descripcion": "[Párrafo 1: Gancho emocional sobre el estilo de vida.<br><br>Párrafo 2: Descripción sensorial integrando los espacios.<br><br>Párrafo 3: Cierre con llamado a la acción a agendar visita.]",
+  "whatsapp": "[Mensaje persuasivo y amable para WhatsApp, usando 2 emojis]"
 }
 </json_format>`;
 
-    // 🚀 BLINDAJE 2: CATÁLOGO DE MODELOS CLOUDFLARE SEPTIEMBRE 2026
+    // 🚀 LOS MODELOS CUANTIZADOS (FP8) QUE ORDENASTE + QWEN
     const modelosSoportados = [
-      '@cf/meta/llama-3.1-8b-instruct',  // El rey de la relación velocidad/calidad
-      '@cf/google/gemma-2-9b-it',        // Excelente razonamiento creativo nativo en CF
-      '@cf/meta/llama-3.2-3b-instruct'   // Fallback de ultra-velocidad
+      '@cf/meta/llama-3.1-8b-instruct-fp8',
+      '@cf/meta/llama-3.2-3b-instruct',
+      '@cf/qwen/qwen3-30b-a3b-fp8'
     ];
 
     let parsedContent = null;
     let errorLog = [];
 
-    // 🚀 BLINDAJE 3: LOOP DE EJECUCIÓN
     for (const modelo of modelosSoportados) {
       try {
-        const response = await platform.env.AI.run(modelo, {
+        const result = await platform.env.AI.run(modelo, {
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          // El balance perfecto: 800 tokens le da espacio para redactar premium sin hacer timeout
+          // 800 tokens para que pueda redactar la campaña premium sin quedarse corto
           max_tokens: 800
         });
 
-        if (!response || !response.response) {
-          throw new Error("Respuesta vacía de la API");
+        if (!result) throw new Error("API devolvió vacío");
+
+        let rawResponse = '';
+        if (typeof result === 'string') {
+          rawResponse = result;
+        } else if (result.response) {
+          rawResponse = String(result.response);
+        } else {
+          rawResponse = JSON.stringify(result);
         }
 
-        let rawResponse = String(response.response).trim();
-        
-        let cleanText = rawResponse.replace(/^```json/gi, '').replace(/^```/gi, '').replace(/```$/gi, '').trim();
+        // 🚀 EL FIX INYECTADO PARA REPARAR EL JSON
+        let cleanText = rawResponse
+          .replace(/^```json/gi, '')
+          .replace(/^```/gi, '')
+          .replace(/```$/gi, '')
+          .trim();
+
+        // Algunos modelos pequeños omiten las llaves externas
+        // Si el texto empieza directamente con "titulo":
+        if (!cleanText.startsWith('{') && cleanText.includes('"titulo"')) {
+          cleanText = '{' + cleanText;
+          if (!cleanText.endsWith('}')) cleanText += '}';
+        }
 
         let firstBrace = cleanText.indexOf('{');
         let lastBrace = cleanText.lastIndexOf('}');
 
-        if (firstBrace === -1 && cleanText.includes('"titulo"')) {
-          cleanText = '{\n' + cleanText + '\n}';
-          firstBrace = 0;
-          lastBrace = cleanText.length - 1;
-        }
-
         if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-          throw new Error(`Respuesta truncada: ${rawResponse.substring(0, 30)}...`);
+          throw new Error(`Timeout o truncado. Fragmento: ${cleanText.substring(0, 40)}...`);
         }
 
         let jsonString = cleanText.substring(firstBrace, lastBrace + 1);
@@ -141,7 +150,7 @@ Recámaras: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Antig
         jsonString = jsonString.replace(/\n/g, ' ').replace(/\r/g, '');
 
         parsedContent = JSON.parse(jsonString);
-        break; // ¡JSON PERFECTO Y COPY PREMIUM LISTO!
+        break; // ¡JSON PERFECTO! 
 
       } catch (e) {
         const nombreModelo = modelo.split('/').pop();
@@ -151,23 +160,23 @@ Recámaras: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Antig
 
     if (!parsedContent) {
       return fail(500, { 
-        error: `Todos los modelos de IA están saturados o fallaron.\nDetalle: ${errorLog.join(' | ')}\nNo se te han descontado créditos.` 
+        error: `Fallo en IA: Todos los modelos sufrieron Timeout o fallaron.\nDetalle: ${errorLog.join(' | ')}\nNo se te han descontado créditos.` 
       });
     }
 
-    // 🚀 COBRO DE CRÉDITOS SEGURO
+    // 🚀 COBRO DE CRÉDITOS SEGURO (Solo se cobra si logramos parsear el JSON de la IA)
     await locals.supabase
       .from('brokers')
       .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
       .eq('id', broker.id);
 
-    // Restauramos los <br><br> a saltos de línea reales para el Frontend
+    // Restauramos los <br><br> a saltos de línea reales para las cajas de texto
     let descripcionLimpia = (parsedContent.descripcion || 'Sin descripción').replace(/<br><br>/g, '\n\n');
 
     return {
-      titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad en Venta',
+      titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad Exclusiva',
       descripcion: descripcionLimpia,
-      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto...'
+      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Me encantaría mostrarte esta propiedad...'
     };
   },
 
