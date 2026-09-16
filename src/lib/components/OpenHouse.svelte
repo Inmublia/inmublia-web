@@ -1,28 +1,20 @@
+<!-- src/lib/components/OpenHouse.svelte -->
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { enhance } from '$app/forms';
   import { 
-    ArrowLeft, 
-    QrCode, 
-    Copy, 
-    ExternalLink, 
-    DownloadCloud, 
-    Share2, 
-    Users, 
-    CheckSquare, 
-    TrendingUp, 
-    Clock, 
-    FileDown, 
-    Check, 
-    UserPlus,
-    Building2,
-    MessageSquareQuote,
-    ScanLine,
-    XCircle
+    ArrowLeft, QrCode, Copy, ExternalLink, DownloadCloud, Share2, 
+    Users, CheckSquare, TrendingUp, Clock, FileDown, Check, UserPlus,
+    Building2, MessageSquareQuote, ScanLine, XCircle
   } from 'lucide-svelte';
 
-  // 🚀 FIX: Interceptador de Props. Atrapa los datos sin importar si el padre usa "attendees" o "attendeesDb"
-  let { event = {}, attendeesDb = [], attendees = [] } = $props();
+  // 🚀 ARQUITECTURA INDESTRUCTIBLE DE PROPS PARA SVELTE 5
+  // Capturamos el objeto global de props para extraer todo dinámicamente sin importar cómo nos llame el padre.
+  let props = $props();
+
+  // El derivado busca recursivamente la variable, evadiendo bloqueos si el padre hace `<OpenHouse data={data} />`
+  let event = $derived(props.event || props.data?.event || {});
+  let listadoAsistentes = $derived(props.attendeesDb || props.data?.attendeesDb || props.attendees || props.data?.attendees || []);
 
   let eventStatus = $state('upcoming'); 
   let showCheckin = $state(false);
@@ -33,9 +25,6 @@
   let scanError = $state('');
   let scannerVideo = $state(null);
   let stream = null;
-
-  // 🚀 FIX: Fusionamos las props para garantizar que los asistentes NUNCA se pierdan
-  let listadoAsistentes = $derived(attendeesDb.length > 0 ? attendeesDb : attendees);
   let timer;
 
   function updateStatus() {
@@ -65,7 +54,7 @@
     stopScanner();
   });
 
-  // 🚀 FIX EXTREMO: Emojis pasados como Unicode puro para evitar corrupción () en la URL
+  // 🚀 FIX EXTREMO PARA WHATSAPP: Emojis pasados como códigos Unicode (\u) para evitar corrupción del servidor
   let shareMsg = $derived(
     encodeURIComponent(`\uD83C\uDFE1 Lanzamiento Exclusivo · Open House: ${event.title}\n\u2728 Cupo limitado. Registra tus credenciales aquí: https://${event.agent?.url}/open-house/${event.id}`)
   );
@@ -78,7 +67,7 @@
       const objectUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = objectUrl;
-      a.download = `QR-Acceso-${event.title.replace(/\s+/g, '-')}.png`;
+      a.download = `QR-Acceso-${event.title?.replace(/\s+/g, '-') || 'Evento'}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -94,10 +83,10 @@
   }
 
   function exportToCSV() {
-    // 🚀 FIX: Alineado con tu esquema de base de datos (budget)
+    // 🚀 FIX: Ajustado al schema oficial de BD de Inmublia (columna budget incluida)
     const rows = [['Nombre', 'WhatsApp', 'Objetivo Comercial', 'Presupuesto', 'Check-In Físico', 'Estatus Base']];
     listadoAsistentes.forEach(a => rows.push([a.name, a.phone, a.intent, a.budget || 'Sin Confirmar', a.checked_in ? 'SÍ' : 'NO', a.status]));
-    // Inyectamos BOM (\uFEFF) para que Excel lea los acentos perfectamente
+    // BOM (\uFEFF) para que Excel reconozca tildes en español al instante
     const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + rows.map(e => e.join(",")).join("\n");
     window.open(encodeURI(csvContent));
   }
@@ -140,7 +129,7 @@
           <ArrowLeft class="w-6 h-6" />
         </a>
         <div>
-          <h1 class="text-3xl font-bold tracking-tight text-zinc-50 truncate max-w-[250px] sm:max-w-md md:max-w-xl">{event.title}</h1>
+          <h1 class="text-3xl font-bold tracking-tight text-zinc-50 truncate max-w-[250px] sm:max-w-md md:max-w-xl">{event.title || 'Cargando Evento...'}</h1>
           <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
             <Building2 class="w-4 h-4 text-indigo-400" /> Dashboard Operativo
           </p>
@@ -177,7 +166,7 @@
           </div>
           <div class="flex items-end gap-2">
             <p class="text-4xl font-black text-slate-900 tracking-tight">{listadoAsistentes.length}</p>
-            <p class="text-xs text-slate-500 font-medium mb-1">Capacidad: {event.maxCapacity}</p>
+            <p class="text-xs text-slate-500 font-medium mb-1">Capacidad: {event.maxCapacity || '-'}</p>
           </div>
         </div>
 
@@ -251,7 +240,7 @@
              <p class="text-sm text-slate-500 font-medium mb-8">Utiliza estos enlaces para promover el evento exclusivo en tus redes.</p>
              
              <div class="flex flex-col gap-4">
-               <a href="https://api.whatsapp.com/send?text={shareMsg}" target="_blank" rel="noopener noreferrer" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors border border-emerald-200 shadow-sm text-sm uppercase tracking-wider">
+               <a href="https://wa.me/?text={shareMsg}" target="_blank" rel="noopener noreferrer" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors border border-emerald-200 shadow-sm text-sm uppercase tracking-wider">
                  <Share2 class="w-4 h-4" />
                  Compartir Invitación en WhatsApp
                </a>
@@ -287,7 +276,7 @@
                   <DownloadCloud class="w-4 h-4" />
                   Descargar PNG
                 </button>
-                <span class="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase bg-slate-50 px-3 py-2 rounded-md w-full text-center border border-slate-100">ID: {event.id.split('-')[0]}</span>
+                <span class="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase bg-slate-50 px-3 py-2 rounded-md w-full text-center border border-slate-100">ID: {event.id?.split('-')[0] || ''}</span>
               </div>
             </div>
           {/if}
@@ -359,7 +348,6 @@
                       {/if}
                     </td>
                     <td class="px-8 py-5 text-center truncate">
-                      <!-- 🚀 FIX: Mostrando Budget de Supabase correctamente -->
                       <span class="text-[10px] font-bold text-slate-500">{att.budget || 'Sin Confirmar'}</span>
                     </td>
                     <td class="px-8 py-5 text-center truncate">
@@ -398,7 +386,7 @@
                     <td colspan="6" class="text-center py-20 text-slate-400 font-medium">
                       <div class="flex flex-col items-center justify-center gap-4">
                         <Users class="w-10 h-10 text-slate-300" />
-                        Ningún prospecto ha solicitado acceso aún.
+                        Ningún prospecto ha solicitado acceso aún. Revisa la consola del servidor.
                       </div>
                     </td>
                   </tr>
@@ -424,7 +412,7 @@
             <div class="flex flex-col gap-6">
               <div class="flex justify-between items-center border-b border-slate-100 pb-5">
                 <span class="text-sm text-slate-600 font-bold flex items-center gap-3"><Users class="w-5 h-5 text-slate-400" /> Ocupación del Aforo</span>
-                <span class="text-lg font-black text-slate-900 bg-slate-50 px-4 py-1.5 rounded-lg border border-slate-200">{((listadoAsistentes.length / event.maxCapacity) * 100).toFixed(0)}%</span>
+                <span class="text-lg font-black text-slate-900 bg-slate-50 px-4 py-1.5 rounded-lg border border-slate-200">{event.maxCapacity > 0 ? ((listadoAsistentes.length / event.maxCapacity) * 100).toFixed(0) : 0}%</span>
               </div>
               <div class="flex justify-between items-center border-b border-slate-100 pb-5">
                 <span class="text-sm text-slate-600 font-bold flex items-center gap-3"><CheckSquare class="w-5 h-5 text-emerald-500" /> Show-Rate (Asistencia)</span>
