@@ -150,20 +150,28 @@
   });
 </script>
 
-<main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-slate-50 font-sans text-slate-900">
+<div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
+
+<div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
-  <header class="h-20 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between px-6 sm:px-10 shrink-0 sticky top-0 z-20 shadow-xl shadow-zinc-900/10">
-    <div>
-      <h1 class="text-xl font-black tracking-tight text-white flex items-center gap-2">
-        <LineChart class="w-5 h-5 text-indigo-400" />
-        Panel de Rendimiento
-      </h1>
-      <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">Métricas, Finanzas y Marketing</p>
+  <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
+    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
+
+    <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div>
+        <h1 class="text-3xl font-bold tracking-tight text-zinc-50 flex items-center gap-3">
+          <LineChart class="w-7 h-7 text-indigo-400" />
+          Panel de Rendimiento
+        </h1>
+        <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
+          Métricas, Finanzas y Marketing
+        </p>
+      </div>
     </div>
   </header>
 
-  <div class="p-6 sm:p-10 flex-1 overflow-auto pb-32 animate-[fadeIn_0.4s_ease-out]">
-    <div class="max-w-[1400px] mx-auto space-y-8">
+  <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
+    <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-8">
 
       <!-- TOP 4 KPIS -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -435,8 +443,8 @@
       </div>
 
     </div>
-  </div>
-</main>
+  </main>
+</div>
 
 <style>
   @keyframes fadeIn {
