@@ -21,9 +21,10 @@
   let tonoIA = $state('lujo'); 
   let textoGeneradoWhatsapp = $state('');
   
-  // 🛡️ CONSOLA DE ERROR IN-UI EXTREMA
+  // 🛡️ CONSOLA DE ERROR IN-UI
   let iaErrorMsg = $state('');
 
+  // Variables vinculadas al formulario
   let valPropiedadId = $state('');
   let valTitle = $state('');
   let valDescription = $state('');
@@ -50,10 +51,10 @@
     }
   }
 
-  // 🚀 MOTOR DE IA
+  // 🚀 MOTOR BLINDADO CON EXTRACCIÓN REAL DE DATOS
   async function generarCampañaIA() {
     if (!valPropiedadId) {
-      iaErrorMsg = "Selecciona una Propiedad Base del inventario para que la IA sepa qué promocionar.";
+      iaErrorMsg = "Selecciona una Propiedad Base del inventario en la Sección 1 para poder redactar el contenido.";
       return;
     }
 
@@ -71,8 +72,10 @@
     const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 Segundos exactos
 
     try {
-      const formData = new FormData();
-      formData.append('propiedad_id', valPropiedadId);
+      // CAPTURA TODO EL FORMULARIO ACTUAL PARA PASAR LA FECHA, HORARIOS Y AFORO A LA IA
+      const formEl = document.getElementById('form-openhouse');
+      const formData = new FormData(formEl);
+      
       formData.append('tono', tonoIA); 
 
       const fetchRequest = fetch('?/generarPromptIA', {
@@ -90,14 +93,14 @@
       const textRes = await res.text();
       
       if (textRes.trim().startsWith('<')) {
-        throw new Error("El servidor devolvió HTML (Error 500 Interno de Servidor o Caída de Red).");
+        throw new Error("El servidor devolvió HTML (Posible caída de red o error de ruteo).");
       }
 
       let result;
       try {
         result = deserialize(textRes);
       } catch (e) {
-        throw new Error(`JSON corrupto devuelto por servidor. Respuesta cruda: ${textRes.substring(0, 100)}...`);
+        throw new Error(`Datos corruptos devueltos por servidor. Respuesta: ${textRes.substring(0, 100)}...`);
       }
 
       if (result.type === 'success' && result.data) {
@@ -120,7 +123,7 @@
 
     } catch (e) {
       if (e.message === "TIMEOUT_FORZADO" || e.name === 'AbortError') {
-        iaErrorMsg = "🚨 TIMEOUT: La Inteligencia Artificial tardó más de 25s. Se abortó la conexión por seguridad.";
+        iaErrorMsg = "🚨 TIMEOUT: La IA tardó más de 25s. Se abortó la conexión por seguridad.";
       } else {
         iaErrorMsg = `${e.message}`;
       }
@@ -140,11 +143,12 @@
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
+  <!-- 🚀 LAYOUT AMPLIADO Y ALINEADO (max-w-[1400px]) -->
   <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
-    <div class="w-full max-w-[1000px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-      <div class="flex items-center gap-4 text-left">
+    <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div class="flex items-center gap-4 text-left w-full">
         <a href="/admin" class="text-zinc-400 hover:text-white transition-colors p-2.5 rounded-xl hover:bg-white/10 shrink-0" title="Volver al Inventario">
           <ArrowLeft class="w-6 h-6" />
         </a>
@@ -164,10 +168,11 @@
     </div>
   </header>
 
+  <!-- 🚀 MAIN LAYOUT AMPLIADO (max-w-[1400px]) -->
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
-    <div class="w-full max-w-[1000px] mx-auto px-4 sm:px-10 h-full">
+    <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 h-full">
       
-      <!-- 🚀 FIX: action="?/crear" añadido al formulario -->
+      <!-- 🚀 FORMULARIO CON ACCIÓN DIRECTA AL '?/crear' -->
       <form id="form-openhouse" action="?/crear" method="POST" use:enhance={() => {
         isSubmitting = true;
         return async ({ update }) => { isSubmitting = false; update(); };
@@ -272,12 +277,12 @@
           </div>
         </div>
 
-        <!-- 🚀 FIX UI: DISEÑO LIMPIO Y VERTICAL PARA LA IA -->
+        <!-- 🚀 UI REESTRUCTURADA: Texto arriba, Barra de Controles IA abajo -->
         <section class="relative">
           <div class="bg-slate-800 rounded-[2rem] p-8 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
             <div class="absolute -top-32 -right-32 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none"></div>
 
-            <div class="relative z-10 w-full flex flex-col gap-6">
+            <div class="relative z-10 w-full flex flex-col gap-6 text-left">
               
               <div class="w-full">
                 <h2 class="text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
@@ -288,12 +293,12 @@
                   </span>
                 </h2>
                 <p class="text-sm text-slate-400 mt-2 leading-relaxed font-medium">
-                  Autogenera invitaciones magnéticas y copy para WhatsApp leyendo los datos del inventario que seleccionaste arriba.
+                  Autogenera invitaciones magnéticas y copy para WhatsApp usando los datos del formulario de arriba.
                 </p>
               </div>
 
               {#if iaErrorMsg}
-                <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3 animate-[fadeIn_0.3s_ease-out]">
+                <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-5 flex items-start gap-3 animate-[fadeIn_0.3s_ease-out]">
                   <AlertOctagon class="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                   <div class="w-full">
                     <p class="text-sm font-black text-red-300 mb-1">Error de Generación:</p>
@@ -303,7 +308,7 @@
               {/if}
 
               {#if creditosIA > 0}
-                <div class="flex flex-col sm:flex-row items-end gap-4 w-full bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-5 shadow-inner">
+                <div class="flex flex-col sm:flex-row items-end gap-4 w-full bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-6 shadow-inner">
                   
                   <div class="w-full sm:w-5/12">
                     <label for="tono-ia" class="block text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-2">Tono de Invitación</label>
@@ -405,13 +410,15 @@
           </div>
         </div>
 
-        <button type="submit" disabled={isSubmitting} class="sm:hidden w-full inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-white hover:bg-indigo-600 h-14 gap-2 shadow-lg active:scale-95 mt-4">
-          {#if isSubmitting}
-            <Loader2 class="w-5 h-5 animate-spin" /> Lanzando...
-          {:else}
-            <Rocket class="w-5 h-5" /> Lanzar Evento Oficial
-          {/if}
-        </button>
+        <div class="flex justify-end pt-4">
+          <button type="submit" disabled={isSubmitting} class="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-white hover:bg-indigo-600 h-14 px-8 gap-2 shadow-lg active:scale-95">
+            {#if isSubmitting}
+              <Loader2 class="w-5 h-5 animate-spin" /> Lanzando...
+            {:else}
+              <Rocket class="w-5 h-5" /> Lanzar Evento Oficial
+            {/if}
+          </button>
+        </div>
 
       </form>
     </div>
