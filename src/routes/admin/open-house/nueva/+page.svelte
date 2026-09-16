@@ -1,3 +1,4 @@
+<!-- src/routes/admin/open-house/nueva/+page.svelte -->
 <script>
   import { enhance } from '$app/forms';
   import { 
@@ -35,32 +36,41 @@
   }
 </script>
 
-<div class="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
-  
-  <header class="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 sm:px-10 shrink-0 sticky top-0 z-40 shadow-sm">
-    <div class="flex items-center gap-4">
-      <a href="/admin" class="text-slate-500 hover:text-slate-900 transition-colors p-2 rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200" aria-label="Volver al inicio">
-        <ArrowLeft class="w-5 h-5" />
-      </a>
-      <div>
-        <h1 class="text-xl font-black tracking-tight text-slate-900">Configurar Open House</h1>
-        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Despliegue de Evento Físico</p>
-      </div>
-    </div>
+<div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
 
-    <button type="submit" form="form-openhouse" disabled={isSubmitting} class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-white hover:bg-indigo-600 h-11 px-6 gap-2 shadow-md active:scale-95">
-      {#if isSubmitting}
-        <Loader2 class="w-4 h-4 animate-spin" />
-        Lanzando Evento...
-      {:else}
-        <Rocket class="w-4 h-4" />
-        Lanzar Evento Oficial
-      {/if}
-    </button>
+<div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
+  
+  <!-- 🚀 FIX: Cabecera Estilo Premium (Oscura, con padding profundo) -->
+  <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
+    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
+
+    <div class="w-full max-w-[800px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div class="flex items-center gap-4">
+        <a href="/admin" class="text-zinc-400 hover:text-white transition-colors p-2.5 rounded-xl hover:bg-white/10" aria-label="Volver al inicio" title="Volver al Inventario">
+          <ArrowLeft class="w-6 h-6" />
+        </a>
+        <div>
+          <h1 class="text-3xl font-bold tracking-tight text-zinc-50 flex items-center gap-3">Configurar Open House</h1>
+          <p class="text-sm font-medium text-zinc-400 mt-1">Despliegue de Evento Físico</p>
+        </div>
+      </div>
+
+      <!-- 🚀 FIX: Botón de Guardado Superior en Blanco -->
+      <button type="submit" form="form-openhouse" disabled={isSubmitting} class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95">
+        {#if isSubmitting}
+          <Loader2 class="w-4 h-4 animate-spin text-zinc-950" />
+          Lanzando Evento...
+        {:else}
+          <Rocket class="w-4 h-4 text-indigo-500" />
+          Lanzar Evento Oficial
+        {/if}
+      </button>
+    </div>
   </header>
 
-  <main class="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 w-full">
-    <div class="w-full max-w-[800px] mx-auto">
+  <!-- 🚀 FIX: Contenedor Principal (Sobresale hacia la cabecera oscura con -mt-16) -->
+  <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
+    <div class="w-full max-w-[800px] mx-auto px-4 sm:px-10 h-full">
       
       <form id="form-openhouse" method="POST" use:enhance={() => {
         isSubmitting = true;
@@ -70,7 +80,7 @@
         };
       }} class="space-y-8 pb-10">
         
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-start gap-4">
             <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700">
               <Building2 class="w-5 h-5" />
@@ -107,7 +117,7 @@
           </div>
         </div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-start gap-4">
             <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700">
               <CalendarClock class="w-5 h-5" />
@@ -171,7 +181,7 @@
           </div>
         </div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-start gap-4">
             <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700">
               <PenTool class="w-5 h-5" />
@@ -212,3 +222,10 @@
     </div>
   </main>
 </div>
+
+<style>
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
