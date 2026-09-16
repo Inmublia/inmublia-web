@@ -352,10 +352,11 @@
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F8FAFC] font-sans text-slate-900">
   
-  <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
+  <!-- 🚀 FIX: Cabecera unificada. Sin restricciones de ancho (w-full) y con paddings nativos para que alcance toda la pantalla -->
+  <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-4 sm:px-8 relative overflow-hidden shrink-0">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
-    <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div class="w-full relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
       <div>
         <h1 class="text-3xl font-bold tracking-tight text-zinc-50 flex items-center gap-3">
           Pipeline
@@ -370,15 +371,15 @@
         </p>
       </div>
 
-      <div class="relative w-full md:max-w-xs hidden sm:block">
+      <div class="relative w-full md:max-w-md hidden sm:block">
         <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
         <input type="text" bind:value={searchQuery} placeholder="Buscar cliente..." class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all shadow-inner backdrop-blur-md">
       </div>
     </div>
   </header>
 
-  <!-- TABLERO KANBAN PANORÁMICO CON EFECTO DE SUPERPOSICIÓN -->
-  <div class="relative flex-1 flex overflow-hidden group z-20 -mt-16 w-full max-w-[1400px] mx-auto">
+  <!-- 🚀 FIX: TABLERO KANBAN PANORÁMICO (Aprovecha 100% de pantalla, cero scrollbars verticales indeseadas) -->
+  <div class="relative flex-1 flex overflow-hidden group z-20 -mt-16 w-full">
     
     <button onclick={() => scrollBoard(-1)} class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-indigo-50 border border-slate-200 shadow-xl w-10 h-10 rounded-full items-center justify-center text-slate-600 hover:text-indigo-600 transition-all backdrop-blur-sm cursor-pointer opacity-0 group-hover:opacity-100" aria-label="Desplazar Izquierda">
       <ChevronLeft class="w-6 h-6" />
@@ -388,13 +389,14 @@
       <ChevronRight class="w-6 h-6" />
     </button>
 
-    <!-- 🚀 FIX: Deshabilita interacciones de fondo cuando el panel lateral está abierto -->
-    <div class="flex-1 overflow-x-auto kanban-board p-4 md:p-6 transition-opacity {isPanelOpen ? 'pointer-events-none select-none opacity-50' : ''}" bind:this={boardContainer}>
-      <div class="flex gap-3 md:gap-4 items-start h-full pb-6 min-w-max lg:min-w-full">
+    <!-- 🚀 FIX: `overflow-y-hidden` mata la barra lateral gruesa. Paddings estrictos en X -->
+    <div class="flex-1 overflow-x-auto overflow-y-hidden kanban-board px-4 sm:px-8 pb-6 transition-opacity {isPanelOpen ? 'pointer-events-none select-none opacity-50' : ''}" bind:this={boardContainer}>
+      <div class="flex gap-4 items-start h-full min-w-max xl:min-w-full">
         
         {#each columnas as columna}
+          <!-- 🚀 FIX: flex-1 permite que se estiren matemáticamente según la pantalla disponible, evitando scrolls -->
           <div 
-            class="flex-1 min-w-[240px] w-[260px] lg:w-auto shrink-0 {columna.bgCol} border {columna.border} rounded-xl p-3 flex flex-col h-[calc(100vh-130px)] shadow-[0_2px_10px_rgba(0,0,0,0.02)] bg-white/60 backdrop-blur-sm"
+            class="flex-1 min-w-[240px] xl:min-w-[200px] shrink-0 {columna.bgCol} border {columna.border} rounded-xl p-3 flex flex-col h-[calc(100vh-180px)] shadow-[0_2px_10px_rgba(0,0,0,0.02)] bg-white/60 backdrop-blur-sm"
             ondragover={permitirSoltar}
             ondrop={(e) => soltar(e, columna.id)}
           >
@@ -696,9 +698,13 @@
 </main>
 
 <style>
-  .kanban-board::-webkit-scrollbar { height: 10px; }
+  /* 🚀 FIX CRÍTICO: Eliminamos la regla de Height para que JAMÁS afecte al scroll vertical. Anulamos el block gris */
+  .kanban-board::-webkit-scrollbar { 
+    height: 8px; 
+    width: 0px; 
+  }
   .kanban-board::-webkit-scrollbar-track { background: transparent; }
-  .kanban-board::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid #F8FAFC; }
+  .kanban-board::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
   .kanban-board::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
   .kanban-board { cursor: grab; }
   .kanban-board:active { cursor: grabbing; }
