@@ -5,9 +5,9 @@ import { fail, redirect } from '@sveltejs/kit';
 const sanitizar = (str, maxLen = 100) => {
   if (!str) return '';
   return String(str)
-    .replace(/[<>]/g, '')           // Elimina HTML básico
-    .replace(/\n|\r/g, ' ')         // Elimina saltos que rompan el prompt
-    .substring(0, maxLen)           // Limita longitud
+    .replace(/[<>]/g, '')           
+    .replace(/\n|\r/g, ' ')         
+    .substring(0, maxLen)           
     .trim();
 };
 
@@ -15,7 +15,6 @@ export async function load({ locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
-  // Búsqueda estricta por ID de Autenticación usando el cliente seguro
   const { data: broker, error: brokerError } = await locals.supabase
     .from('brokers')
     .select('*')
@@ -27,7 +26,6 @@ export async function load({ locals }) {
     throw redirect(303, '/login?error=broker-not-found');
   }
 
-  // Obtenemos solo los títulos y IDs para el selector
   const { data: propiedades } = await locals.supabase
     .from('propiedades')
     .select('id, titulo, operacion')
@@ -43,13 +41,13 @@ export async function load({ locals }) {
 }
 
 export const actions = {
-  // 🤖 ACTION PARA LA INTELIGENCIA ARTIFICIAL (Basado en la arquitectura de 'Nueva Propiedad')
+  // 🤖 ACTION CORREGIDO PARA LA IA
   generarCampañaIA: async ({ request, locals, platform }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
     if (!platform?.env?.AI) {
-      return fail(500, { error: 'Falla Crítica: El Binding "AI" no está conectado.' });
+      return fail(500, { error: 'Falla Crítica: El motor de IA no está conectado en el servidor.' });
     }
 
     const { data: broker } = await locals.supabase
@@ -66,27 +64,35 @@ export const actions = {
     const propiedad_id = sanitizar(formData.get('propiedad_id'), 100);
     const tonoSeleccionado = sanitizar(formData.get('tono'), 50) || 'Premium / Elegante';
 
-    if (!propiedad_id) return fail(400, { error: 'Debes seleccionar una propiedad primero.' });
+    if (!propiedad_id) {
+      return fail(400, { error: 'Debes seleccionar una propiedad de la lista primero.' });
+    }
 
-    // Extraer los datos de la propiedad para alimentar a la IA
-    let propInfo = { tipo: 'Inmueble', operacion: 'Venta', precio: 'No especificado', ubicacion: 'Exclusiva', detalles: '' };
+    // 🚀 Lógica robusta para extraer info
+    let propInfo = { tipo: 'Propiedad', operacion: 'Venta', precio: 'Precio a consultar', ubicacion: 'Zona exclusiva', detalles: 'Propiedad de lujo' };
     
     if (propiedad_id !== 'test') {
-      const { data: propData } = await locals.supabase
-        .from('propiedades')
-        .select('*')
-        .eq('id', propiedad_id)
-        .eq('broker_id', broker.id)
-        .single();
-        
-      if (propData) {
-        propInfo = {
-          tipo: propData.tipo,
-          operacion: propData.operacion,
-          precio: `$${new Intl.NumberFormat('es-MX').format(propData.precio)} MXN`,
-          ubicacion: propData.ubicacion,
-          detalles: `${propData.recamaras} Rec. | ${propData.banos} Baños | ${propData.estacionamientos} Autos`
-        };
+      try {
+        const { data: propData, error: propError } = await locals.supabase
+          .from('propiedades')
+          .select('tipo, operacion, precio, ubicacion, recamaras, banos, estacionamientos')
+          .eq('id', propiedad_id)
+          .eq('broker_id', broker.id)
+          .single();
+          
+        if (propError) throw propError;
+          
+        if (propData) {
+          propInfo = {
+            tipo: propData.tipo || 'Propiedad',
+            operacion: propData.operacion || 'Venta',
+            precio: propData.precio ? `$${new Intl.NumberFormat('es-MX').format(propData.precio)} MXN` : 'Precio a consultar',
+            ubicacion: propData.ubicacion || 'Zona exclusiva',
+            detalles: `${propData.recamaras || 0} Rec. | ${propData.banos || 0} Baños | ${propData.estacionamientos || 0} Autos`
+          };
+        }
+      } catch (err) {
+        return fail(500, { error: `No se pudo leer la propiedad base. (${err.message})` });
       }
     }
 
@@ -98,17 +104,17 @@ export const actions = {
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
-    const systemPrompt = `<role>Eres el Director Creativo de una agencia inmobiliaria de lujo en México. Estás organizando un OPEN HOUSE (evento físico).</role>
+    const systemPrompt = `<role>Eres el Director Creativo de una agencia inmobiliaria en México. Estás invitando a un OPEN HOUSE (recorrido físico de una propiedad).</role>
 <rules>
-1. IDIOMA: Español de México. Redacción impecable y persuasiva que invite a la ASISTENCIA.
-2. ESTRUCTURA: Transforma los datos fríos en una invitación a vivir la experiencia presencial.
-3. FORMATO: Responde EXCLUSIVAMENTE con un objeto JSON válido.
-4. SALTOS DE LÍNEA: PROHIBIDO usar Enter. Usa la etiqueta literal <br><br> para separar párrafos.
-5. COMILLAS: Usa SOLO comillas simples (') dentro de las descripciones.
+1. IDIOMA: Español de México. Redacción impecable y persuasiva que genere FOMO (miedo a perderse el evento).
+2. ESTRUCTURA: Transforma los datos en una experiencia.
+3. FORMATO: Responde SOLO con JSON válido. Cero texto extra.
+4. SALTOS: Usa <br><br> para separar párrafos.
+5. COMILLAS: Usa SOLO comillas simples (').
 6. TONO: ${instruccionTono}
 </rules>`;
 
-    const userPrompt = `Genera un copy comercial irresistible para la invitación a un OPEN HOUSE de esta propiedad, en JSON:
+    const userPrompt = `Genera copy comercial en JSON para la invitación a un Open House:
 <data>
 Operación: ${propInfo.operacion} | Tipo: ${propInfo.tipo} | Ubicación: ${propInfo.ubicacion} | Precio: ${propInfo.precio}
 Detalles: ${propInfo.detalles}
@@ -116,9 +122,9 @@ Detalles: ${propInfo.detalles}
 
 <json_format>
 {
-  "titulo": "[Título del evento, ej: Open House Exclusivo: Residencia de Autor]",
-  "descripcion": "[Párrafo 1: Gancho emocional sobre descubrir la propiedad.<br><br>Párrafo 2: Lo que experimentarán durante el recorrido.<br><br>Párrafo 3: Sentido de urgencia y llamado a asegurar su lugar hoy mismo.]",
-  "whatsapp": "[Mensaje persuasivo para enviar por WhatsApp invitando al Open House, usando 2 o 3 emojis]"
+  "titulo": "[Título del evento corto, max 6 palabras]",
+  "descripcion": "[Párrafo 1: Gancho.<br><br>Párrafo 2: La experiencia de recorrerla.<br><br>Párrafo 3: Urgencia para registrarse.]",
+  "whatsapp": "[Mensaje corto para enviar por WhatsApp invitando, con 2 emojis]"
 }
 </json_format>`;
 
@@ -144,7 +150,6 @@ Detalles: ${propInfo.detalles}
         if (!result) throw new Error("API devolvió vacío");
 
         let rawResponse = typeof result === 'string' ? result : (result.response ? String(result.response) : JSON.stringify(result));
-
         let cleanText = rawResponse.replace(/^```json/gi, '').replace(/^```/gi, '').replace(/```$/gi, '').trim();
 
         if (!cleanText.startsWith('{') && cleanText.includes('"titulo"')) {
@@ -156,7 +161,7 @@ Detalles: ${propInfo.detalles}
         let lastBrace = cleanText.lastIndexOf('}');
 
         if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-          throw new Error(`Timeout o truncado. Fragmento: ${cleanText.substring(0, 40)}...`);
+          throw new Error(`Truncado. ${cleanText.substring(0, 30)}...`);
         }
 
         let jsonString = cleanText.substring(firstBrace, lastBrace + 1);
@@ -166,31 +171,24 @@ Detalles: ${propInfo.detalles}
         break; 
 
       } catch (e) {
-        const nombreModelo = modelo.split('/').pop();
-        errorLog.push(`${nombreModelo}: ${e.message}`);
+        errorLog.push(`${modelo.split('/').pop()}: ${e.message}`);
       }
     }
 
     if (!parsedContent) {
-      return fail(500, { 
-        error: `Fallo en IA: Todos los modelos sufrieron Timeout o fallaron.\nDetalle: ${errorLog.join(' | ')}\nNo se te han descontado créditos.` 
-      });
+      return fail(500, { error: `Modelos colapsados.\nDetalle: ${errorLog.join(' | ')}` });
     }
 
-    const { data: rpcData, error: rpcError } = await locals.supabase.rpc('consumir_credito_ia', {
-      p_user_id: user.id
-    });
+    const { data: rpcData, error: rpcError } = await locals.supabase.rpc('consumir_credito_ia', { p_user_id: user.id });
 
     if (rpcError || !rpcData || rpcData.length === 0) {
-      return fail(403, { error: 'Sin créditos de IA disponibles para finalizar la acción.' });
+      return fail(403, { error: 'No se pudo procesar el cobro del crédito de IA.' });
     }
-
-    let descripcionLimpia = (parsedContent.descripcion || 'Sin descripción').replace(/<br><br>/g, '\n\n');
 
     return {
       titulo: parsedContent.titulo || parsedContent.Titulo || 'Open House Exclusivo',
-      descripcion: descripcionLimpia,
-      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te invito a nuestro Open House...'
+      descripcion: (parsedContent.descripcion || 'Descubre esta propiedad...').replace(/<br><br>/g, '\n\n'),
+      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || '¡Te invito a conocerla! 🏡✨'
     };
   },
 
@@ -198,12 +196,7 @@ Detalles: ${propInfo.detalles}
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
-    const { data: broker } = await locals.supabase
-      .from('brokers')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .single();
-
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', user.id).single();
     if (!broker) return fail(401, { error: 'Broker no encontrado' });
 
     const formData = await request.formData();
@@ -223,26 +216,14 @@ Detalles: ${propInfo.detalles}
 
     const { data: nuevoEvento, error: insertError } = await locals.supabase
       .from('open_houses')
-      .insert([
-        {
+      .insert([{
           broker_id: broker.id,
           propiedad_id: propiedad_id === 'test' ? null : propiedad_id, 
-          title,
-          event_date,
-          time_start,
-          time_end,
-          max_capacity,
-          benefit,
-          description
-        }
-      ])
-      .select()
-      .single();
+          title, event_date, time_start, time_end, max_capacity, benefit, description
+      }])
+      .select().single();
 
-    if (insertError) {
-      console.error("Error al crear Open House:", insertError);
-      return fail(500, { error: 'Error en la base de datos al guardar el evento.' });
-    }
+    if (insertError) return fail(500, { error: 'Error BD al guardar evento.' });
 
     throw redirect(303, `/admin/open-house/${nuevoEvento.id}`);
   }
