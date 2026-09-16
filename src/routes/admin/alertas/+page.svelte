@@ -1,5 +1,8 @@
+<!-- src/routes/admin/alertas/+page.svelte -->
 <script>
   import { enhance } from '$app/forms';
+  import { fly, fade } from 'svelte/transition';
+  import { onDestroy } from 'svelte';
   import { 
     Bell, 
     CalendarClock, 
@@ -11,38 +14,84 @@
   } from 'lucide-svelte';
 
   let { data } = $props();
-  // Filtramos para mostrar solo lo que no esté leído/completado en la vista principal
-  let alertasActivas = $state(data.alertas?.filter(a => !a.estado) || []);
 
+  // 🚀 FIX CRÍTICO: Reactividad Unificada usando un Set para ocultar optimísticamente
+  let idsOcultos = $state(new Set());
+  
+  // El derivado siempre será la fuente de la verdad (Datos del Servidor - Ocultos Locales)
+  let alertasActivas = $derived(
+    (data.alertas || []).filter(a => !a.estado && !idsOcultos.has(`${a._origen}-${a._id}`))
+  );
+
+  // 🚀 FIX: Timer Reactivo. Actualiza 'ahora' cada minuto para evitar calcular en cada render y reflejar urgencia en tiempo real
+  let ahora = $state(new Date());
+  const intervalo = setInterval(() => { ahora = new Date(); }, 60_000);
+  onDestroy(() => clearInterval(intervalo));
+
+  // 🚀 FIX: Fallo silencioso en fechas corruptas
   function formatFecha(fechaISO) {
     if (!fechaISO) return '';
-    const options = { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
-    return new Intl.DateTimeFormat('es-MX', options).format(new Date(fechaISO));
+    const fecha = new Date(fechaISO);
+    if (isNaN(fecha.getTime())) return 'Fecha no disponible';
+    
+    return new Intl.DateTimeFormat('es-MX', { 
+      weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' 
+    }).format(fecha);
   }
 
+  // 🚀 FIX: Lógica memoizada con `ahora` en lugar de llamar a new Date() cien veces
   function esVencida(fechaISO) {
     if (!fechaISO) return false;
-    return new Date(fechaISO) < new Date();
+    const fecha = new Date(fechaISO);
+    if (isNaN(fecha.getTime())) return false;
+    return fecha < ahora;
   }
 
-  // Actualización optimista para que la alerta desaparezca de inmediato al darle clic
+  // Actualización optimista basada en Set
   function manejadorLeida({ formData }) {
     const id = formData.get('id');
-    alertasActivas = alertasActivas.filter(a => a._id !== id);
+    const origen = formData.get('origen');
+    const keyCompuesta = `${origen}-${id}`;
+    
+    // Ocultar Inmediatamente
+    idsOcultos = new Set([...idsOcultos, keyCompuesta]);
     
     return async ({ result, update }) => {
       if (result.type !== 'success') {
-        // Si falla el servidor, recargamos los datos para devolver la alerta a la pantalla
+        // Revertir en caso de fallo de red
+        idsOcultos = new Set([...idsOcultos].filter(k => k !== keyCompuesta));
         await update(); 
-        alertasActivas = data.alertas?.filter(a => !a.estado) || [];
+        alert('Fallo de red: No se pudo marcar como leída.');
+      } else {
+        // En éxito, opcionalmente limpiamos el set porque el servidor ya actualizó data
+        idsOcultos = new Set([...idsOcultos].filter(k => k !== keyCompuesta));
+        await update();
       }
     };
   }
 
+  // 🚀 FIX: Restauración correcta del "Limpiar Todo"
   function manejadorLimpiezaTotal() {
-    alertasActivas = [];
+    const todasLasKeys = (data.alertas || [])
+      .filter(a => !a.estado)
+      .map(a => `${a._origen}-${a._id}`);
+    
+    // Almacenamos el snapshot por si falla
+    const snapshotIds = new Set(idsOcultos);
+    
+    // Ocultar todo optimísticamente
+    idsOcultos = new Set([...idsOcultos, ...todasLasKeys]);
+
     return async ({ result, update }) => {
-      if (result.type !== 'success') await update();
+      if (result.type !== 'success') {
+        // Restaurar estado visual
+        idsOcultos = snapshotIds;
+        await update();
+        alert('Fallo de red: No se pudieron limpiar las alertas.');
+      } else {
+        idsOcultos = new Set();
+        await update();
+      }
     };
   }
 </script>
@@ -72,19 +121,25 @@
     </div>
   </header>
 
-  <div class="p-6 sm:p-10 max-w-4xl mx-auto w-full">
+  <div class="p-6 sm:p-10 max-w-4xl mx-auto w-full relative">
     
     {#if alertasActivas.length === 0}
-      <div class="flex flex-col items-center justify-center py-20 opacity-60 bg-white rounded-3xl border border-slate-200 border-dashed shadow-sm">
+      <!-- 🚀 Animación fade para cuando se vacía todo -->
+      <div in:fade={{ duration: 400, delay: 200 }} class="flex flex-col items-center justify-center py-20 opacity-60 bg-white rounded-3xl border border-slate-200 border-dashed shadow-sm">
         <CheckCircle2 class="w-16 h-16 text-emerald-400 mb-4" />
         <h2 class="text-lg font-black text-slate-700">Todo al día</h2>
         <p class="text-sm font-medium text-slate-500 mt-1">No tienes notificaciones ni recordatorios pendientes.</p>
       </div>
     {:else}
-      <div class="flex flex-col gap-4 animate-[fadeIn_0.3s_ease-out]">
-        {#each alertasActivas as alerta (alerta._id)}
-          <div class="bg-white rounded-2xl p-5 border shadow-sm transition-all hover:shadow-md flex flex-col sm:flex-row sm:items-start gap-4 
-            {alerta._origen === 'recordatorio' && esVencida(alerta.fecha) ? 'border-rose-200' : 'border-slate-200'}">
+      <div class="flex flex-col gap-4">
+        <!-- 🚀 FIX: Key Compuesta robusta y transiciones Svelte Fly -->
+        {#each alertasActivas as alerta (`${alerta._origen}-${alerta._id}`)}
+          <div 
+            in:fly={{ y: 20, duration: 300 }} 
+            out:fly={{ x: 100, opacity: 0, duration: 250 }}
+            class="bg-white rounded-2xl p-5 border shadow-sm transition-all hover:shadow-md flex flex-col sm:flex-row sm:items-start gap-4 
+            {alerta._origen === 'recordatorio' && esVencida(alerta.fecha) ? 'border-rose-200 bg-rose-50/10' : 'border-slate-200'}"
+          >
             
             <div class="shrink-0 mt-1">
               {#if alerta._origen === 'recordatorio'}
@@ -118,6 +173,7 @@
 
             <div class="shrink-0 sm:self-center mt-4 sm:mt-0">
               <form method="POST" action="?/marcarLeida" use:enhance={manejadorLeida}>
+                <!-- 🚀 Envío de datos corregido -->
                 <input type="hidden" name="id" value={alerta._id}>
                 <input type="hidden" name="origen" value={alerta._origen}>
                 
@@ -131,6 +187,16 @@
           </div>
         {/each}
       </div>
+      
+      {#if data.total_alertas > alertasActivas.length}
+        <div class="mt-8 text-center" in:fade>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+            Mostrando {alertasActivas.length} de {data.total_alertas} alertas pendientes.
+          </p>
+          <p class="text-xs text-slate-500 font-medium">Por favor resuelve algunas alertas para ver las más antiguas.</p>
+        </div>
+      {/if}
+
     {/if}
   </div>
 </main>
