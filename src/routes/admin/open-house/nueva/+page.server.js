@@ -28,12 +28,13 @@ export async function load({ locals }) {
 }
 
 export const actions = {
-  generarCampañaIA: async ({ request, locals, platform }) => {
+  // 🚀 FIX: Nombre en inglés/sin 'ñ' para evitar errores de ruteo y codificación URL
+  generarPromptIA: async ({ request, locals, platform }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
     if (!platform?.env?.AI) {
-      return fail(500, { error: 'Falla Crítica: El motor de IA no está conectado en el servidor.' });
+      return fail(500, { error: 'El motor de Inteligencia Artificial (Binding AI) no está conectado.' });
     }
 
     const { data: broker } = await locals.supabase
@@ -45,9 +46,9 @@ export const actions = {
     const propiedad_id = sanitizar(formData.get('propiedad_id'), 100);
     const tonoSeleccionado = sanitizar(formData.get('tono'), 50) || 'Premium / Elegante';
 
-    if (!propiedad_id) return fail(400, { error: 'Selecciona una propiedad base primero.' });
+    if (!propiedad_id) return fail(400, { error: 'Selecciona una propiedad base del menú primero.' });
 
-    let propInfo = { tipo: 'Propiedad', operacion: 'Venta', precio: 'A consultar', ubicacion: 'Zona exclusiva', detalles: 'De lujo' };
+    let propInfo = { tipo: 'Propiedad', operacion: 'Venta', precio: 'Precio a consultar', ubicacion: 'Zona exclusiva', detalles: 'Propiedad de alto valor' };
     
     if (propiedad_id !== 'test') {
       try {
@@ -63,38 +64,42 @@ export const actions = {
           propInfo = {
             tipo: propData.tipo || 'Propiedad',
             operacion: propData.operacion || 'Venta',
-            precio: propData.precio ? `$${new Intl.NumberFormat('es-MX').format(propData.precio)} MXN` : 'Precio a consultar',
-            ubicacion: propData.ubicacion || 'Zona exclusiva',
+            precio: propData.precio ? `$${new Intl.NumberFormat('es-MX').format(propData.precio)} MXN` : 'A consultar',
+            ubicacion: propData.ubicacion || 'Zona Exclusiva',
             detalles: `${propData.recamaras || 0} Rec. | ${propData.banos || 0} Baños | ${propData.estacionamientos || 0} Autos`
           };
         }
       } catch (err) {
-        return fail(500, { error: `No se pudo leer la base de datos: ${err.message}` });
+        return fail(500, { error: `No se pudo leer la propiedad en la BD: ${err.message}` });
       }
     }
 
     const guiasTono = {
       'Premium / Elegante': 'Sofisticado, aspiracional y exclusivo. Lenguaje de alto valor.',
       'Familiar / Cálido': 'Cercano, seguro y emotivo. Enfocado en crear memorias.',
-      'Analítico / ROI': 'Estratégico, financiero y directo. Enfocado en plusvalía.'
+      'Analítico / ROI': 'Estratégico, financiero y directo. Enfocado en plusvalía y retorno.'
     };
     
-    const systemPrompt = `<role>Eres el Director Creativo de una agencia inmobiliaria en México. Creas invitaciones para un OPEN HOUSE (evento físico).</role>
+    const systemPrompt = `<role>Eres el Director Creativo de una agencia inmobiliaria de lujo. Estás invitando a un OPEN HOUSE (evento físico presencial).</role>
 <rules>
-1. IDIOMA: Español de México. Genera FOMO (miedo a perderse el evento).
-2. FORMATO: Responde SOLO con JSON válido.
-3. SALTOS: Usa <br><br> para separar párrafos.
-4. COMILLAS: Usa SOLO comillas simples (').
+1. IDIOMA: Español de México. Genera FOMO (urgencia por asistir al evento).
+2. FORMATO: Responde SOLO con un objeto JSON válido. Cero texto extra.
+3. SALTOS: Usa la etiqueta <br><br> para separar párrafos. NO uses la tecla Enter.
+4. COMILLAS: Usa SOLO comillas simples (') en tus descripciones.
 5. TONO: ${guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante']}
 </rules>`;
 
-    const userPrompt = `Genera copy comercial en JSON para invitación a Open House:
+    const userPrompt = `Redacta copy persuasivo en JSON para invitar a un Open House.
 <data>
 Operación: ${propInfo.operacion} | Tipo: ${propInfo.tipo} | Ubicación: ${propInfo.ubicacion} | Precio: ${propInfo.precio}
 Detalles: ${propInfo.detalles}
 </data>
 <json_format>
-{ "titulo": "[Título max 6 palabras]", "descripcion": "[Párrafo 1.<br><br>Párrafo 2.<br><br>Párrafo 3.]", "whatsapp": "[Mensaje corto WhatsApp con 2 emojis]" }
+{
+  "titulo": "[Título del evento, max 6 palabras]",
+  "descripcion": "[Párrafo 1: Gancho sobre el evento.<br><br>Párrafo 2: La experiencia de recorrer la propiedad.<br><br>Párrafo 3: Llamado urgente a registrarse.]",
+  "whatsapp": "[Mensaje persuasivo para WhatsApp invitando a asistir, usa 2 emojis]"
+}
 </json_format>`;
 
     const modelosSoportados = ['@cf/meta/llama-3.1-8b-instruct-fp8', '@cf/meta/llama-3.2-3b-instruct'];
@@ -108,7 +113,8 @@ Detalles: ${propInfo.detalles}
           max_tokens: 800
         });
 
-        if (!result) throw new Error("Vació");
+        if (!result) throw new Error("API devolvió una respuesta vacía.");
+        
         let rawResponse = typeof result === 'string' ? result : (result.response ? String(result.response) : JSON.stringify(result));
         let cleanText = rawResponse.replace(/^```json/gi, '').replace(/^```/gi, '').replace(/```$/gi, '').trim();
 
@@ -117,7 +123,7 @@ Detalles: ${propInfo.detalles}
 
         let firstBrace = cleanText.indexOf('{');
         let lastBrace = cleanText.lastIndexOf('}');
-        if (firstBrace === -1 || lastBrace === -1) throw new Error("Truncado");
+        if (firstBrace === -1 || lastBrace === -1) throw new Error("JSON Truncado");
 
         parsedContent = JSON.parse(cleanText.substring(firstBrace, lastBrace + 1).replace(/\n|\r/g, ' '));
         break; 
@@ -126,15 +132,15 @@ Detalles: ${propInfo.detalles}
       }
     }
 
-    if (!parsedContent) return fail(500, { error: `Modelos colapsados: ${errorLog.join(' | ')}` });
+    if (!parsedContent) return fail(500, { error: `Modelos de IA saturados. \nDetalle: ${errorLog.join(' | ')}` });
 
     const { data: rpcData, error: rpcError } = await locals.supabase.rpc('consumir_credito_ia', { p_user_id: user.id });
-    if (rpcError || !rpcData || rpcData.length === 0) return fail(403, { error: 'Fallo al procesar crédito.' });
+    if (rpcError || !rpcData || rpcData.length === 0) return fail(403, { error: 'Fallo al procesar el consumo del crédito en la BD.' });
 
     return {
-      titulo: parsedContent.titulo || parsedContent.Titulo || 'Open House Exclusivo',
-      descripcion: (parsedContent.descripcion || 'Descubre esta propiedad...').replace(/<br><br>/g, '\n\n'),
-      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || '¡Te invito a conocerla! 🏡✨'
+      titulo: parsedContent.titulo || parsedContent.Titulo || 'Open House VIP',
+      descripcion: (parsedContent.descripcion || 'Descubre esta increíble propiedad en nuestro próximo evento.').replace(/<br><br>/g, '\n\n'),
+      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || '¡Te invito a recorrer tu próxima casa! 🏡✨'
     };
   },
 
