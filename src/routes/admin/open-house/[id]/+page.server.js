@@ -19,12 +19,14 @@ export async function load({ params, locals }) {
     .from('open_houses')
     .select('*, propiedades(*)')
     .eq('id', params.id)
-    .eq('broker_id', broker.id) // <- CANDADO DE SEGURIDAD
+    .eq('broker_id', broker.id)
     .single();
 
   if (ohError || !oh) throw error(404, 'Evento no encontrado o no tienes permisos.');
 
-  // 3. 🚀 FIX DEFINITIVO: Ordenamos usando la columna real 'creado_en' de tu BD
+  // 3. 🚀 RADAR DE EXTRACCIÓN: Trazabilidad exacta en consola
+  console.log(`[Lead Debugger Server] Buscando asistentes para el evento ID: ${params.id}`);
+  
   const { data: attendees, error: attError } = await locals.supabase
     .from('open_house_attendees')
     .select('*')
@@ -32,7 +34,9 @@ export async function load({ params, locals }) {
     .order('creado_en', { ascending: false });
 
   if (attError) {
-    console.error("Error al cargar asistentes:", attError.message);
+    console.error("[Lead Debugger Server] ❌ Error SQL al consultar asistentes:", attError.message);
+  } else {
+    console.log(`[Lead Debugger Server] ✅ Éxito. Asistentes extraídos de la BD: ${attendees?.length || 0}`);
   }
 
   return {
@@ -84,7 +88,6 @@ export const actions = {
     const formData = await request.formData();
     const attendeeId = formData.get('attendee_id');
 
-    // Validación de seguridad de doble capa
     const isOwner = await verifyOwnership(locals.supabase, attendeeId, broker.id);
     if (!isOwner) return fail(403, { error: 'Operación denegada.' });
 
