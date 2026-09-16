@@ -13,11 +13,11 @@ const TEMPLATE_MIN_PLAN = {
   prop_elite_1: 'elite'
 };
 
-// 🚀 CASCADA DE MODELOS DEFINIDA POR EL USUARIO
+// 🚀 CASCADA DE MODELOS REALES Y ESTABLES EN CLOUDFLARE (Sin Llama)
 const MODELS_CASCADE = [
-  '@cf/qwen/qwen3-30b-a3b-fp8',
-  '@cf/ibm/granite-4.0-h-micro',
-  '@cf/google/gemma-4-26b-a4b-it'
+  '@cf/qwen/qwen1.5-14b-chat-awq',         // Principal: Excelente razonamiento
+  '@cf/mistral/mistral-7b-instruct-v0.2',  // Secundario: Rápido y estructurado
+  '@cf/google/gemma-7b-it'                 // Fallback: Red de seguridad
 ];
 
 const TONE_GUIDES = {
@@ -192,7 +192,6 @@ async function validateImageFile(file, label) {
   };
 }
 
-// 🚀 FIX: Parseo robusto con extracción matemática (Soporta salidas sucias de FP8 y Micro)
 function parseAiResponse(result) {
   const raw = result?.response ?? result;
 
@@ -425,7 +424,6 @@ export const actions = {
 
       const userPrompt = `DATOS_PROPIEDAD=${JSON.stringify(propertyFacts)}`;
 
-      // 🚀 EJECUCIÓN EN CASCADA CON LOS MODELOS SOLICITADOS (Qwen -> Granite -> Gemma)
       for (const modelId of MODELS_CASCADE) {
         try {
           const result = await platform.env.AI.run(modelId, {
@@ -433,16 +431,15 @@ export const actions = {
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt }
             ],
-            max_tokens: 450,
+            max_tokens: 1200, // 🚀 Límite expandido para evitar cortes a mitad del JSON
             temperature: 0.5
           });
 
-          // Valida y parsea el resultado (arrojará error si el JSON es inválido)
           finalContent = validateAiContent(parseAiResponse(result));
-          break; // Rompe el ciclo en cuanto el primer modelo de la lista tenga éxito
+          break; 
         } catch (err) {
           errorLog.push(`${modelId.split('/').pop()}: ${err.message}`);
-          finalContent = null; // Reinicia para que el siguiente modelo intente
+          finalContent = null; 
         }
       }
 
