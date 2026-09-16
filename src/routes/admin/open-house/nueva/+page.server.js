@@ -28,14 +28,10 @@ export async function load({ locals }) {
 }
 
 export const actions = {
-  // 🤖 ACCIÓN NOMBRADA PARA LA IA
   generarPromptIA: async ({ request, locals, platform }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
-
-    if (!platform?.env?.AI) {
-      return fail(400, { error: 'Falla Crítica: El Binding "AI" no está conectado en el servidor.' });
-    }
+    if (!platform?.env?.AI) return fail(400, { error: 'El Binding "AI" no está conectado en el servidor.' });
 
     const { data: broker } = await locals.supabase
       .from('brokers').select('id, ia_creditos_disponibles').eq('auth_user_id', user.id).single();
@@ -46,11 +42,12 @@ export const actions = {
     const propiedad_id = sanitizar(formData.get('propiedad_id'), 100);
     const tonoSeleccionado = sanitizar(formData.get('tono'), 50) || 'Gala / Exclusiva';
     
+    // CAPTURAMOS LOS DATOS DEL EVENTO (Si vienen vacíos, el frontend ya lo debió haber bloqueado, pero es doble candado)
     const event_date = sanitizar(formData.get('date'), 50);
     const time_start = sanitizar(formData.get('timeStart'), 20);
     const time_end = sanitizar(formData.get('timeEnd'), 20);
     const max_capacity = sanitizar(formData.get('maxCapacity'), 10);
-    const benefit = sanitizar(formData.get('benefit'), 100);
+    const benefit = sanitizar(formData.get('benefit'), 150);
 
     if (!propiedad_id) return fail(400, { error: 'Selecciona una propiedad base del menú primero.' });
 
@@ -104,7 +101,7 @@ Detalles: ${propInfo.detalles}
 
 <datos_evento>
 Fecha: ${event_date || '[Fecha por definir]'}
-Horario: ${time_start || '[Hora de inicio]'} a ${time_end || '[Hora de cierre]'}
+Horario: ${time_start || '[Hora inicio]'} a ${time_end || '[Hora fin]'}
 Aforo Máximo: ${max_capacity || 'Cupo limitado'} personas
 Incentivo Especial: ${benefit || 'Recorrido exclusivo'}
 </datos_evento>
@@ -131,8 +128,6 @@ Incentivo Especial: ${benefit || 'Recorrido exclusivo'}
         if (!result) throw new Error("API devolvió una respuesta vacía.");
         
         let rawResponse = typeof result === 'string' ? result : (result.response ? String(result.response) : JSON.stringify(result));
-        
-        // 🚀 FIX: Adiós al Parse Error del Build de Vite. Expresión regular a prueba de bundlers.
         let cleanText = rawResponse.replace(/[`]{3}json/gi, '').replace(/[`]{3}/g, '').trim();
 
         if (!cleanText.startsWith('{') && cleanText.includes('"titulo"')) cleanText = '{' + cleanText;
@@ -161,7 +156,6 @@ Incentivo Especial: ${benefit || 'Recorrido exclusivo'}
     };
   },
 
-  // 🚀 FIX: Acción renombrada a 'crear' para no chocar con SvelteKit
   crear: async ({ request, locals }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
