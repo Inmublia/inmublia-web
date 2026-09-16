@@ -8,23 +8,20 @@
     Building2, MessageSquareQuote, ScanLine, XCircle
   } from 'lucide-svelte';
 
-  // 🚀 ARQUITECTURA INDESTRUCTIBLE DE PROPS PARA SVELTE 5
-  // Capturamos el objeto global de props para extraer todo dinámicamente sin importar cómo nos llame el padre.
-  let props = $props();
-
-  // El derivado busca recursivamente la variable, evadiendo bloqueos si el padre hace `<OpenHouse data={data} />`
-  let event = $derived(props.event || props.data?.event || {});
-  let listadoAsistentes = $derived(props.attendeesDb || props.data?.attendeesDb || props.attendees || props.data?.attendees || []);
+  // Svelte 5: Capturamos las variables directamente
+  let { event = {}, attendeesDb = [] } = $props();
 
   let eventStatus = $state('upcoming'); 
   let showCheckin = $state(false);
   let activeTab = $state('overview');
   
-  // Estados para el Escáner QR
   let showScanner = $state(false);
   let scanError = $state('');
   let scannerVideo = $state(null);
   let stream = null;
+
+  // Reactividad directa al array de la base de datos
+  let listadoAsistentes = $derived(attendeesDb || []);
   let timer;
 
   function updateStatus() {
@@ -54,9 +51,12 @@
     stopScanner();
   });
 
-  // 🚀 FIX EXTREMO PARA WHATSAPP: Emojis pasados como códigos Unicode (\u) para evitar corrupción del servidor
+  // 🚀 FIX ÉLITE: Reconstrucción Hexadecimal de Emojis para evadir corrupción del Servidor ()
+  const emojiCasa = String.fromCodePoint(0x1F3E1);
+  const emojiBrillo = String.fromCodePoint(0x2728);
+  
   let shareMsg = $derived(
-    encodeURIComponent(`\uD83C\uDFE1 Lanzamiento Exclusivo · Open House: ${event.title}\n\u2728 Cupo limitado. Registra tus credenciales aquí: https://${event.agent?.url}/open-house/${event.id}`)
+    encodeURIComponent(`${emojiCasa} Lanzamiento Exclusivo · Open House: ${event.title}\n${emojiBrillo} Cupo limitado. Registra tus credenciales aquí: https://${event.agent?.url}/open-house/${event.id}`)
   );
 
   async function descargarQR() {
@@ -83,10 +83,9 @@
   }
 
   function exportToCSV() {
-    // 🚀 FIX: Ajustado al schema oficial de BD de Inmublia (columna budget incluida)
     const rows = [['Nombre', 'WhatsApp', 'Objetivo Comercial', 'Presupuesto', 'Check-In Físico', 'Estatus Base']];
     listadoAsistentes.forEach(a => rows.push([a.name, a.phone, a.intent, a.budget || 'Sin Confirmar', a.checked_in ? 'SÍ' : 'NO', a.status]));
-    // BOM (\uFEFF) para que Excel reconozca tildes en español al instante
+    // Inyectamos BOM (\uFEFF) para que los acentos salgan perfectos en Excel
     const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + rows.map(e => e.join(",")).join("\n");
     window.open(encodeURI(csvContent));
   }
@@ -240,7 +239,7 @@
              <p class="text-sm text-slate-500 font-medium mb-8">Utiliza estos enlaces para promover el evento exclusivo en tus redes.</p>
              
              <div class="flex flex-col gap-4">
-               <a href="https://wa.me/?text={shareMsg}" target="_blank" rel="noopener noreferrer" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors border border-emerald-200 shadow-sm text-sm uppercase tracking-wider">
+               <a href="https://api.whatsapp.com/send?text={shareMsg}" target="_blank" rel="noopener noreferrer" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors border border-emerald-200 shadow-sm text-sm uppercase tracking-wider">
                  <Share2 class="w-4 h-4" />
                  Compartir Invitación en WhatsApp
                </a>
@@ -386,7 +385,7 @@
                     <td colspan="6" class="text-center py-20 text-slate-400 font-medium">
                       <div class="flex flex-col items-center justify-center gap-4">
                         <Users class="w-10 h-10 text-slate-300" />
-                        Ningún prospecto ha solicitado acceso aún. Revisa la consola del servidor.
+                        Ningún prospecto ha solicitado acceso aún.
                       </div>
                     </td>
                   </tr>
