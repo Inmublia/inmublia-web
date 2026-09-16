@@ -352,29 +352,33 @@
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F8FAFC] font-sans text-slate-900">
   
-  <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 sticky top-0 z-20 shadow-sm">
-    <div class="flex items-center gap-3">
-      <div class="p-2 bg-slate-900 rounded-lg text-white shadow-sm border border-slate-800">
-        <MessageSquareQuote class="w-4 h-4 text-indigo-400" />
-      </div>
-      <h1 class="text-lg font-black tracking-tight text-slate-900 flex items-center gap-3">
-        Pipeline
-        {#if totalRecordatoriosPendientes > 0}
-          <span class="bg-rose-500 text-white text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md animate-pulse shadow-sm ring-1 ring-rose-100 flex items-center gap-1">
-            <BellRing class="w-2.5 h-2.5" /> {totalRecordatoriosPendientes} Pendientes
-          </span>
-        {/if}
-      </h1>
-    </div>
+  <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
+    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
-    <div class="relative w-full max-w-xs hidden sm:block">
-      <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-      <input type="text" bind:value={searchQuery} placeholder="Buscar cliente..." class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all shadow-inner">
+    <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div>
+        <h1 class="text-3xl font-bold tracking-tight text-zinc-50 flex items-center gap-3">
+          Pipeline
+          {#if totalRecordatoriosPendientes > 0}
+            <span class="bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md animate-pulse shadow-sm ring-1 ring-rose-500/50 flex items-center gap-1">
+              <BellRing class="w-3 h-3" /> {totalRecordatoriosPendientes} Pendientes
+            </span>
+          {/if}
+        </h1>
+        <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
+          <MessageSquareQuote class="w-4 h-4" /> Gestión de Prospectos CRM
+        </p>
+      </div>
+
+      <div class="relative w-full md:max-w-xs hidden sm:block">
+        <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+        <input type="text" bind:value={searchQuery} placeholder="Buscar cliente..." class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all shadow-inner backdrop-blur-md">
+      </div>
     </div>
   </header>
 
-  <!-- TABLERO KANBAN PANORÁMICO -->
-  <div class="relative flex-1 flex overflow-hidden group">
+  <!-- TABLERO KANBAN PANORÁMICO CON EFECTO DE SUPERPOSICIÓN -->
+  <div class="relative flex-1 flex overflow-hidden group z-20 -mt-16 w-full max-w-[1400px] mx-auto">
     
     <button onclick={() => scrollBoard(-1)} class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-indigo-50 border border-slate-200 shadow-xl w-10 h-10 rounded-full items-center justify-center text-slate-600 hover:text-indigo-600 transition-all backdrop-blur-sm cursor-pointer opacity-0 group-hover:opacity-100" aria-label="Desplazar Izquierda">
       <ChevronLeft class="w-6 h-6" />
@@ -390,7 +394,7 @@
         
         {#each columnas as columna}
           <div 
-            class="flex-1 min-w-[240px] w-[260px] lg:w-auto shrink-0 {columna.bgCol} border {columna.border} rounded-xl p-3 flex flex-col h-[calc(100vh-130px)] shadow-[0_2px_10px_rgba(0,0,0,0.02)]"
+            class="flex-1 min-w-[240px] w-[260px] lg:w-auto shrink-0 {columna.bgCol} border {columna.border} rounded-xl p-3 flex flex-col h-[calc(100vh-130px)] shadow-[0_2px_10px_rgba(0,0,0,0.02)] bg-white/60 backdrop-blur-sm"
             ondragover={permitirSoltar}
             ondrop={(e) => soltar(e, columna.id)}
           >
