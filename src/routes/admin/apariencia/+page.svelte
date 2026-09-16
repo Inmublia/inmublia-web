@@ -1,3 +1,4 @@
+<!-- src/routes/admin/apariencia/+page.svelte -->
 <script module>
   export const catalogoGlobal = [
     { id: 'classic', nombre: 'Classic Minimalist', desc: 'Diseño limpio y tradicional.', minPlan: 'basico' },
@@ -57,47 +58,51 @@
   }
 </script>
 
-<main class="flex-1 flex flex-col h-screen overflow-hidden bg-[#F8FAFC]">
+<div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
+
+<div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
-  <header class="h-24 bg-white border-b border-slate-200 flex items-center justify-between px-10 shrink-0 shadow-sm z-10 relative">
-    <div class="flex items-center gap-4">
-      <div class="p-2.5 bg-slate-900 rounded-xl text-white shadow-sm border border-slate-800">
-        <Palette class="w-5 h-5 text-amber-400" />
-      </div>
+  <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
+    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
+
+    <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
       <div>
-        <h1 class="text-xl font-black tracking-tight text-slate-900">Design Studio</h1>
-        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
-          <ShieldCheck class="w-3 h-3 text-emerald-500" /> Cuenta: <span class="text-slate-800 uppercase">{planSuscripcion}</span>
+        <h1 class="text-3xl font-bold tracking-tight text-zinc-50 flex items-center gap-3">
+          <Palette class="w-7 h-7 text-amber-400" />
+          Design Studio
+        </h1>
+        <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
+          <ShieldCheck class="w-4 h-4 text-emerald-500" /> Cuenta: <span class="uppercase text-zinc-300">{planSuscripcion}</span>
         </p>
       </div>
-    </div>
 
-    <div>
-      <form method="POST" action="?/updateTemplate" use:enhance={() => {
-        savingProfile = true;
-        return async ({ update, result }) => {
-          savingProfile = false;
-          if (result.type === 'failure') alert("❌ Error: " + (result.data?.error || "Desconocido"));
-          else if (result.type === 'success') { showSuccess = true; setTimeout(() => showSuccess = false, 4000); await invalidateAll(); }
-          update({ reset: false });
-        };
-      }}>
-        <input type="hidden" name="template_seleccionado" value={selectedTemplate}>
-        <input type="hidden" name="template_id_catalog" value={selectedLanding}>
-        
-        <button type="submit" disabled={savingProfile} class="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white font-bold py-3 px-6 rounded-xl shadow-md flex items-center gap-2 transition-all text-sm cursor-pointer active:scale-95">
-          {#if savingProfile}
-            <span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Guardando...
-          {:else}
-            <Save class="w-4 h-4 text-amber-400" /> Guardar Configuración Global
-          {/if}
-        </button>
-      </form>
+      <div>
+        <form method="POST" action="?/updateTemplate" use:enhance={() => {
+          savingProfile = true;
+          return async ({ update, result }) => {
+            savingProfile = false;
+            if (result.type === 'failure') alert("❌ Error: " + (result.data?.error || "Desconocido"));
+            else if (result.type === 'success') { showSuccess = true; setTimeout(() => showSuccess = false, 4000); await invalidateAll(); }
+            update({ reset: false });
+          };
+        }}>
+          <input type="hidden" name="template_seleccionado" value={selectedTemplate}>
+          <input type="hidden" name="template_id_catalog" value={selectedLanding}>
+          
+          <button type="submit" disabled={savingProfile} class="bg-white hover:bg-zinc-200 disabled:bg-zinc-300 disabled:text-zinc-500 text-zinc-950 font-bold py-3 px-6 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center gap-2 transition-all text-sm cursor-pointer active:scale-95">
+            {#if savingProfile}
+              <span class="w-4 h-4 border-2 border-zinc-950/30 border-t-zinc-950 rounded-full animate-spin"></span> Guardando...
+            {:else}
+              <Save class="w-4 h-4 text-amber-500" /> Guardar Configuración Global
+            {/if}
+          </button>
+        </form>
+      </div>
     </div>
   </header>
 
-  <div class="p-6 md:p-10 flex-1 overflow-auto pb-32">
-    <div class="max-w-6xl mx-auto space-y-8">
+  <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
+    <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-8">
 
       {#if form?.error}
         <div class="p-3.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 shadow-sm">
@@ -209,5 +214,12 @@
       </div>
 
     </div>
-  </div>
-</main>
+  </main>
+</div>
+
+<style>
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
