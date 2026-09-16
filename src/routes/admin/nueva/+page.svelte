@@ -5,7 +5,7 @@
   import { 
     ArrowLeft, UploadCloud, Images, Sparkles, Loader2, CheckCircle2,
     Copy, MapPin, MessageCircle, BadgeDollarSign, LayoutTemplate,
-    AlertTriangle, Eye, Zap
+    AlertTriangle, Eye, Zap, AlertOctagon
   } from 'lucide-svelte';
 
   let { form, data } = $props();
@@ -19,6 +19,7 @@
   let generandoIA = $state(false);
   let iaEjecutada = $state(false);
   let tonoIA = $state('lujo'); 
+  let iaErrorMsg = $state('');
   
   let textoGeneradoWhatsapp = $state('');
 
@@ -53,15 +54,15 @@
   };
 
   const catalogoTemplates = [
-    { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80' },
-    { id: 'prop_basic_2', nombre: 'Clean Showcase', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80' },
-    { id: 'prop_pro_1', nombre: 'Lead Magnet', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=80' },
-    { id: 'prop_pro_2', nombre: 'Modern Asymmetric', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&q=80' },
-    { id: 'prop_pro_3', nombre: 'Editorial Story', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1600607687931-cece5ce21460?w=600&q=80' },
-    { id: 'prop_elite_1', nombre: 'Luxury Immersive', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=600&q=80' },
-    { id: 'prop_elite_2', nombre: 'Cinematic Tour', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=600&q=80' },
-    { id: 'prop_elite_3', nombre: 'Prestige Dark', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&q=80' },
-    { id: 'prop_elite_4', nombre: 'Panoramic 3D', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=600&q=80' }
+    { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico', img: '[https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80](https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80)' },
+    { id: 'prop_basic_2', nombre: 'Clean Showcase', minPlan: 'basico', img: '[https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80](https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80)' },
+    { id: 'prop_pro_1', nombre: 'Lead Magnet', minPlan: 'pro', img: '[https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=80](https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=80)' },
+    { id: 'prop_pro_2', nombre: 'Modern Asymmetric', minPlan: 'pro', img: '[https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&q=80](https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&q=80)' },
+    { id: 'prop_pro_3', nombre: 'Editorial Story', minPlan: 'pro', img: '[https://images.unsplash.com/photo-1600607687931-cece5ce21460?w=600&q=80](https://images.unsplash.com/photo-1600607687931-cece5ce21460?w=600&q=80)' },
+    { id: 'prop_elite_1', nombre: 'Luxury Immersive', minPlan: 'elite', img: '[https://images.unsplash.com/photo-1513694203232-719a280e022f?w=600&q=80](https://images.unsplash.com/photo-1513694203232-719a280e022f?w=600&q=80)' },
+    { id: 'prop_elite_2', nombre: 'Cinematic Tour', minPlan: 'elite', img: '[https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=600&q=80](https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=600&q=80)' },
+    { id: 'prop_elite_3', nombre: 'Prestige Dark', minPlan: 'elite', img: '[https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&q=80](https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&q=80)' },
+    { id: 'prop_elite_4', nombre: 'Panoramic 3D', minPlan: 'elite', img: '[https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=600&q=80](https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=600&q=80)' }
   ];
 
   function puedeUsarTemplate(minPlan) {
@@ -118,22 +119,26 @@
   }
 
   async function generarCampañaIA() {
+    iaErrorMsg = '';
     const precioLimpio = valPrecio.toString().replace(/[^0-9.]/g, '');
 
     if (!valUbicacion || !precioLimpio || !valTipo) {
-      alert("Por favor, llena al menos: Tipo, Precio y Ubicación en la Sección 1.");
+      iaErrorMsg = "Por favor, llena al menos: Tipo, Precio y Ubicación en la Sección 1 para generar el copy.";
       return;
     }
 
     if (creditosIA <= 0) return; 
 
     generandoIA = true;
-    
     valTitulo = '';
     valDescripcion = '';
     textoGeneradoWhatsapp = '';
 
     document.getElementById('seccion-oficial')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    const controller = new AbortController();
+    // 35 segundos para dar margen al modelo llama-3.1 en Cloudflare
+    const timeoutId = setTimeout(() => controller.abort(), 35000); 
 
     try {
       const formData = new FormData();
@@ -152,24 +157,30 @@
         formData.append('mantenimiento', valMantenimiento.toString().replace(/[^0-9.]/g, ''));
       }
 
-      const res = await fetch('?/generarCampañaIA', {
+      const fetchRequest = fetch('?/generarCampañaIA', {
         method: 'POST',
         body: formData,
-        headers: { 'x-sveltekit-action': 'true' }
+        headers: { 'x-sveltekit-action': 'true' },
+        signal: controller.signal
       });
 
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT_FORZADO")), 35000));
+      const res = await Promise.race([fetchRequest, timeoutPromise]);
       const textRes = await res.text();
+      
+      if (textRes.trim().startsWith('<')) throw new Error("El servidor devolvió HTML (Posible caída de red).");
+
       let result;
       try {
         result = deserialize(textRes);
       } catch (e) {
-        throw new Error(`Respuesta no válida del servidor. Código: ${res.status}`);
+        throw new Error(`Datos corruptos devueltos por servidor.`);
       }
 
       if (result.type === 'success' && result.data) {
         creditosIA--;
-        generandoIA = false;
         iaEjecutada = true;
+        generandoIA = false; 
         
         await Promise.all([
           typeWriter(result.data.titulo, (v) => valTitulo = v, 25),
@@ -177,15 +188,20 @@
           typeWriter(result.data.whatsapp, (v) => textoGeneradoWhatsapp = v, 10)
         ]);
       } else if (result.type === 'failure') {
-        throw new Error(result.data?.error || 'Error de validación al generar IA.');
+        throw new Error(`${result.data?.error || JSON.stringify(result.data)}`);
       } else if (result.type === 'error') {
-        throw new Error(result.error?.message || `Acceso denegado (HTTP ${res.status}).`);
+        throw new Error(`Error SvelteKit: ${result.error?.message || JSON.stringify(result.error)}`);
       }
 
     } catch (e) {
-      console.error(e);
-      generandoIA = false;
-      alert(`Fallo en IA: ${e.message}`);
+      if (e.message === "TIMEOUT_FORZADO" || e.name === 'AbortError') {
+        iaErrorMsg = "🚨 TIMEOUT: La IA tardó más de 35s en responder. Se abortó la conexión por seguridad. Tu crédito fue reembolsado.";
+      } else {
+        iaErrorMsg = `${e.message}`;
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      generandoIA = false; 
     }
   }
 
@@ -403,12 +419,12 @@
 
               <div class="sm:col-span-2 pt-2">
                 <label for="video_url" class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Video Recorrido (YouTube / Vimeo)</label>
-                <input id="video_url" type="url" name="video_url" placeholder="Ej. https://www.youtube.com/watch?v=..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 shadow-sm">
+                <input id="video_url" type="url" name="video_url" placeholder="Ej. [https://www.youtube.com/watch?v=](https://www.youtube.com/watch?v=)..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 shadow-sm">
               </div>
 
               <div class="sm:col-span-2">
                 <label for="recorrido_3d_url" class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Recorrido 3D (Matterport)</label>
-                <input id="recorrido_3d_url" type="url" name="recorrido_3d_url" placeholder="Ej. https://my.matterport.com/show/?m=..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 shadow-sm">
+                <input id="recorrido_3d_url" type="url" name="recorrido_3d_url" placeholder="Ej. [https://my.matterport.com/show/?m=](https://my.matterport.com/show/?m=)..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 shadow-sm">
               </div>
             </div>
           </section>
@@ -431,6 +447,16 @@
                     Autogenera descripción comercial de alta conversión y copy profesional para WhatsApp basado en tus datos numéricos. 
                   </p>
                 </div>
+
+                {#if iaErrorMsg}
+                  <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-5 flex items-start gap-3 mb-6 animate-[fadeIn_0.3s_ease-out] w-full max-w-3xl mx-auto">
+                    <AlertOctagon class="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                    <div class="w-full">
+                      <p class="text-sm font-black text-red-300 mb-1">Diagnóstico del Motor IA:</p>
+                      <p class="text-xs font-mono text-red-200 break-words whitespace-pre-wrap">{iaErrorMsg}</p>
+                    </div>
+                  </div>
+                {/if}
 
                 {#if creditosIA > 0}
                   <div class="flex flex-col sm:flex-row items-end justify-center gap-4 sm:gap-6 w-full max-w-3xl mx-auto bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-4 shadow-inner">
@@ -600,7 +626,7 @@
                        <img 
                          src={template.img} 
                          alt={template.nombre} 
-                         onerror={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1e293b/ffffff?text=Inmublia+Template'; }}
+                         onerror={(e) => { e.target.onerror = null; e.target.src = '[https://placehold.co/600x400/1e293b/ffffff?text=Inmublia+Template](https://placehold.co/600x400/1e293b/ffffff?text=Inmublia+Template)'; }}
                          class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                        />
                        {#if activo}
