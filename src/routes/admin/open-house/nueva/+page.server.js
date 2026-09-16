@@ -1,14 +1,9 @@
 // src/routes/admin/open-house/nueva/+page.server.js
 import { fail, redirect } from '@sveltejs/kit';
 
-// 🛡️ FUNCIÓN DE SANITIZACIÓN PARA PREVENIR PROMPT INJECTION
 const sanitizar = (str, maxLen = 100) => {
   if (!str) return '';
-  return String(str)
-    .replace(/[<>]/g, '')           
-    .replace(/\n|\r/g, ' ')         
-    .substring(0, maxLen)           
-    .trim();
+  return String(str).replace(/[<>]/g, '').replace(/\n|\r/g, ' ').substring(0, maxLen).trim();
 };
 
 export async function load({ locals }) {
@@ -16,21 +11,13 @@ export async function load({ locals }) {
   if (!user) throw redirect(303, '/login');
 
   const { data: broker, error: brokerError } = await locals.supabase
-    .from('brokers')
-    .select('*')
-    .eq('auth_user_id', user.id)
-    .single();
+    .from('brokers').select('*').eq('auth_user_id', user.id).single();
 
-  if (brokerError || !broker) {
-    console.error("No se encontró broker asociado al token:", user.id);
-    throw redirect(303, '/login?error=broker-not-found');
-  }
+  if (brokerError || !broker) throw redirect(303, '/login?error=broker-not-found');
 
   const { data: propiedades } = await locals.supabase
-    .from('propiedades')
-    .select('id, titulo, operacion')
-    .eq('broker_id', broker.id)
-    .order('creado_en', { ascending: false });
+    .from('propiedades').select('id, titulo, operacion')
+    .eq('broker_id', broker.id).order('creado_en', { ascending: false });
 
   return {
     broker,
@@ -41,34 +28,30 @@ export async function load({ locals }) {
 }
 
 export const actions = {
-  // 🤖 ACTION CORREGIDO PARA LA IA
   generarCampañaIA: async ({ request, locals, platform }) => {
+    console.log("[Lead Debugger] 🟢 INICIO DE PETICIÓN IA - OPEN HOUSE");
+    
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
     if (!platform?.env?.AI) {
-      return fail(500, { error: 'Falla Crítica: El motor de IA no está conectado en el servidor.' });
+      console.error("[Lead Debugger] ❌ Falla Crítica: Cloudflare AI Binding no detectado.");
+      return fail(500, { error: 'El motor de IA no está conectado en el servidor local/remoto.' });
     }
 
     const { data: broker } = await locals.supabase
-      .from('brokers')
-      .select('id, ia_creditos_disponibles')
-      .eq('auth_user_id', user.id)
-      .single();
+      .from('brokers').select('id, ia_creditos_disponibles').eq('auth_user_id', user.id).single();
 
-    if (!broker || broker.ia_creditos_disponibles <= 0) {
-      return fail(403, { error: 'Has agotado tus créditos de IA.' });
-    }
+    if (!broker || broker.ia_creditos_disponibles <= 0) return fail(403, { error: 'Sin créditos de IA.' });
 
     const formData = await request.formData();
     const propiedad_id = sanitizar(formData.get('propiedad_id'), 100);
     const tonoSeleccionado = sanitizar(formData.get('tono'), 50) || 'Premium / Elegante';
 
-    if (!propiedad_id) {
-      return fail(400, { error: 'Debes seleccionar una propiedad de la lista primero.' });
-    }
+    if (!propiedad_id) return fail(400, { error: 'Debes seleccionar una propiedad de la lista primero.' });
 
-    // 🚀 Lógica robusta para extraer info
+    console.log(`[Lead Debugger] 🟡 Buscando datos de propiedad ID: ${propiedad_id} en Supabase...`);
+    
     let propInfo = { tipo: 'Propiedad', operacion: 'Venta', precio: 'Precio a consultar', ubicacion: 'Zona exclusiva', detalles: 'Propiedad de lujo' };
     
     if (propiedad_id !== 'test') {
@@ -91,59 +74,47 @@ export const actions = {
             detalles: `${propData.recamaras || 0} Rec. | ${propData.banos || 0} Baños | ${propData.estacionamientos || 0} Autos`
           };
         }
+        console.log(`[Lead Debugger] 🟢 Datos recuperados con éxito: ${propInfo.tipo} en ${propInfo.ubicacion}`);
       } catch (err) {
+        console.error(`[Lead Debugger] ❌ Error en Supabase:`, err.message);
         return fail(500, { error: `No se pudo leer la propiedad base. (${err.message})` });
       }
     }
 
     const guiasTono = {
-      'Premium / Elegante': 'Sofisticado, aspiracional y enfocado en exclusividad. Lenguaje de alto valor.',
-      'Familiar / Cálido': 'Cercano, seguro y emotivo. Enfocado en crear memorias y tranquilidad.',
-      'Analítico / ROI': 'Estratégico, financiero y directo. Enfocado en plusvalía y diseño inteligente.'
+      'Premium / Elegante': 'Sofisticado, aspiracional y exclusivo. Lenguaje de alto valor.',
+      'Familiar / Cálido': 'Cercano, seguro y emotivo. Enfocado en crear memorias.',
+      'Analítico / ROI': 'Estratégico, financiero y directo. Enfocado en plusvalía.'
     };
     
-    const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
-
     const systemPrompt = `<role>Eres el Director Creativo de una agencia inmobiliaria en México. Estás invitando a un OPEN HOUSE (recorrido físico de una propiedad).</role>
 <rules>
-1. IDIOMA: Español de México. Redacción impecable y persuasiva que genere FOMO (miedo a perderse el evento).
+1. IDIOMA: Español de México. Genera FOMO (miedo a perderse el evento).
 2. ESTRUCTURA: Transforma los datos en una experiencia.
-3. FORMATO: Responde SOLO con JSON válido. Cero texto extra.
+3. FORMATO: Responde SOLO con JSON válido.
 4. SALTOS: Usa <br><br> para separar párrafos.
 5. COMILLAS: Usa SOLO comillas simples (').
-6. TONO: ${instruccionTono}
+6. TONO: ${guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante']}
 </rules>`;
 
-    const userPrompt = `Genera copy comercial en JSON para la invitación a un Open House:
+    const userPrompt = `Genera copy comercial en JSON para invitación a Open House:
 <data>
 Operación: ${propInfo.operacion} | Tipo: ${propInfo.tipo} | Ubicación: ${propInfo.ubicacion} | Precio: ${propInfo.precio}
 Detalles: ${propInfo.detalles}
 </data>
-
 <json_format>
-{
-  "titulo": "[Título del evento corto, max 6 palabras]",
-  "descripcion": "[Párrafo 1: Gancho.<br><br>Párrafo 2: La experiencia de recorrerla.<br><br>Párrafo 3: Urgencia para registrarse.]",
-  "whatsapp": "[Mensaje corto para enviar por WhatsApp invitando, con 2 emojis]"
-}
+{ "titulo": "[Título max 6 palabras]", "descripcion": "[Párrafo 1.<br><br>Párrafo 2.<br><br>Párrafo 3.]", "whatsapp": "[Mensaje corto WhatsApp con 2 emojis]" }
 </json_format>`;
 
-    const modelosSoportados = [
-      '@cf/meta/llama-3.1-8b-instruct-fp8',
-      '@cf/meta/llama-3.2-3b-instruct',
-      '@cf/qwen/qwen3-30b-a3b-fp8'
-    ];
-
+    const modelosSoportados = ['@cf/meta/llama-3.1-8b-instruct-fp8', '@cf/meta/llama-3.2-3b-instruct'];
     let parsedContent = null;
     let errorLog = [];
 
     for (const modelo of modelosSoportados) {
       try {
+        console.log(`[Lead Debugger] 🟡 Ejecutando modelo de IA: ${modelo}...`);
         const result = await platform.env.AI.run(modelo, {
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
+          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
           max_tokens: 800
         });
 
@@ -152,39 +123,34 @@ Detalles: ${propInfo.detalles}
         let rawResponse = typeof result === 'string' ? result : (result.response ? String(result.response) : JSON.stringify(result));
         let cleanText = rawResponse.replace(/^```json/gi, '').replace(/^```/gi, '').replace(/```$/gi, '').trim();
 
-        if (!cleanText.startsWith('{') && cleanText.includes('"titulo"')) {
-          cleanText = '{' + cleanText;
-          if (!cleanText.endsWith('}')) cleanText += '}';
-        }
+        if (!cleanText.startsWith('{') && cleanText.includes('"titulo"')) cleanText = '{' + cleanText;
+        if (!cleanText.endsWith('}')) cleanText += '}';
 
         let firstBrace = cleanText.indexOf('{');
         let lastBrace = cleanText.lastIndexOf('}');
 
-        if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-          throw new Error(`Truncado. ${cleanText.substring(0, 30)}...`);
-        }
+        if (firstBrace === -1 || lastBrace === -1) throw new Error("Respuesta truncada.");
 
-        let jsonString = cleanText.substring(firstBrace, lastBrace + 1);
-        jsonString = jsonString.replace(/\n/g, ' ').replace(/\r/g, ''); 
-
-        parsedContent = JSON.parse(jsonString);
+        parsedContent = JSON.parse(cleanText.substring(firstBrace, lastBrace + 1).replace(/\n|\r/g, ' '));
+        console.log(`[Lead Debugger] 🟢 IA Respondió correctamente con JSON válido.`);
         break; 
-
       } catch (e) {
+        console.warn(`[Lead Debugger] 🟠 Falló el modelo ${modelo}:`, e.message);
         errorLog.push(`${modelo.split('/').pop()}: ${e.message}`);
       }
     }
 
     if (!parsedContent) {
-      return fail(500, { error: `Modelos colapsados.\nDetalle: ${errorLog.join(' | ')}` });
+      console.error(`[Lead Debugger] ❌ Todos los modelos colapsaron.`);
+      return fail(500, { error: `Modelos de IA colapsados.\nDetalles: ${errorLog.join(' | ')}` });
     }
 
+    console.log(`[Lead Debugger] 🟡 Descontando crédito en base de datos...`);
     const { data: rpcData, error: rpcError } = await locals.supabase.rpc('consumir_credito_ia', { p_user_id: user.id });
 
-    if (rpcError || !rpcData || rpcData.length === 0) {
-      return fail(403, { error: 'No se pudo procesar el cobro del crédito de IA.' });
-    }
+    if (rpcError || !rpcData || rpcData.length === 0) return fail(403, { error: 'No se pudo procesar el cobro del crédito de IA.' });
 
+    console.log(`[Lead Debugger] 🟢 Todo finalizado con éxito. Devolviendo al frontend.`);
     return {
       titulo: parsedContent.titulo || parsedContent.Titulo || 'Open House Exclusivo',
       descripcion: (parsedContent.descripcion || 'Descubre esta propiedad...').replace(/<br><br>/g, '\n\n'),
@@ -193,6 +159,7 @@ Detalles: ${propInfo.detalles}
   },
 
   default: async ({ request, locals }) => {
+    // ... Tu código de default se mantiene exactamente igual (lo omito aquí por brevedad, pero asegúrate de mantenerlo)
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
