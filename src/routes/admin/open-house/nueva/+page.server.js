@@ -33,7 +33,6 @@ export const actions = {
     if (!user) return fail(401, { error: 'No autorizado' });
 
     if (!platform?.env?.AI) {
-      // 🚀 FIX: Usar 400 en lugar de 500 para que SvelteKit NO oculte el string
       return fail(400, { error: 'Falla de Infraestructura: Binding de IA no conectado en Cloudflare.' });
     }
 
@@ -132,7 +131,6 @@ Detalles: ${propInfo.detalles}
       }
     }
 
-    // 🚀 FIX: Usar fail(400) para que el frontend pueda leer el texto exacto del error
     if (!parsedContent) return fail(400, { error: `Modelos de IA saturados. Detalle interno: ${errorLog.join(' | ')}` });
 
     const { data: rpcData, error: rpcError } = await locals.supabase.rpc('consumir_credito_ia', { p_user_id: user.id });
@@ -145,7 +143,8 @@ Detalles: ${propInfo.detalles}
     };
   },
 
-  default: async ({ request, locals }) => {
+  // 🚀 FIX: Renombrado de 'default' a 'crear' para no chocar con las acciones nombradas
+  crear: async ({ request, locals }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
