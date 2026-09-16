@@ -26,36 +26,73 @@ export const load = async ({ locals }) => {
   }
 };
 
+// 🛡️ FUNCIÓN DE SANITIZACIÓN PARA PREVENIR PROMPT INJECTION
+const sanitizar = (str, maxLen = 100) => {
+  if (!str) return '';
+  return String(str)
+    .replace(/[<>]/g, '')           // Elimina HTML básico
+    .replace(/\n|\r/g, ' ')         // Elimina saltos que rompan el prompt
+    .substring(0, maxLen)           // Limita longitud
+    .trim();
+};
+
+// 🛡️ FUNCIÓN DE PARSEO DE NÚMEROS ROBUSTA (Formato MX / Europeo)
+const cleanNumber = (val) => {
+  if (!val && val !== 0) return 0;
+  const str = String(val).trim();
+  
+  const dots = (str.match(/\./g) || []).length;
+  const commas = (str.match(/,/g) || []).length;
+  
+  let normalized = str;
+  if (dots > 1) {
+    // Formato europeo: 1.500.000 -> quitamos puntos
+    normalized = str.replace(/\./g, '').replace(',', '.');
+  } else if (commas > 0 && dots > 0) {
+    // Formato MX formal: 1,500,000.50 -> quitamos comas
+    normalized = str.replace(/,/g, '');
+  } else {
+    // Limpieza general
+    normalized = str.replace(/[^0-9.]/g, '');
+  }
+  
+  const result = parseFloat(normalized);
+  return isNaN(result) ? 0 : result;
+};
+
 export const actions = {
   generarCampañaIA: async ({ request, locals, platform }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
     if (!platform?.env?.AI) {
-      return fail(500, { error: 'Falla de Servidor: El Binding "AI" no está conectado en Cloudflare.' });
+      return fail(500, { error: 'Falla Crítica: El Binding "AI" no está conectado.' });
     }
 
-    const { data: broker } = await locals.supabase
+    // Chequeo inicial ligero (Para abortar si ya están en 0 y no gastar en Cloudflare)
+    const { data: checkBroker } = await locals.supabase
       .from('brokers')
-      .select('id, ia_creditos_disponibles')
+      .select('ia_creditos_disponibles')
       .eq('auth_user_id', user.id)
       .single();
 
-    if (!broker || broker.ia_creditos_disponibles <= 0) {
+    if (!checkBroker || checkBroker.ia_creditos_disponibles <= 0) {
       return fail(403, { error: 'Has agotado tus créditos de IA.' });
     }
 
     const formData = await request.formData();
-    const ubicacion = formData.get('ubicacion');
-    const precio = formData.get('precio');
-    const tipo = formData.get('tipo');
-    const operacion = formData.get('operacion');
-    const tonoSeleccionado = formData.get('tono') || 'Premium / Elegante';
-    const recamaras = formData.get('recamaras') || '0';
-    const banos = formData.get('banos') || '0';
-    const medio_bano = formData.get('medio_bano') || '0';
-    const estacionamientos = formData.get('estacionamientos') || '0';
-    const antiguedad = formData.get('antiguedad') || 'No especificada';
+    
+    // 🛡️ APLICAMOS SANITIZACIÓN A TODAS LAS VARIABLES DE ENTRADA
+    const ubicacion = sanitizar(formData.get('ubicacion'), 100);
+    const precio = sanitizar(formData.get('precio'), 30);
+    const tipo = sanitizar(formData.get('tipo'), 50);
+    const operacion = sanitizar(formData.get('operacion'), 30);
+    const tonoSeleccionado = sanitizar(formData.get('tono'), 50) || 'Premium / Elegante';
+    const recamaras = sanitizar(formData.get('recamaras'), 10) || '0';
+    const banos = sanitizar(formData.get('banos'), 10) || '0';
+    const medio_bano = sanitizar(formData.get('medio_bano'), 10) || '0';
+    const estacionamientos = sanitizar(formData.get('estacionamientos'), 10) || '0';
+    const antiguedad = sanitizar(formData.get('antiguedad'), 50) || 'No especificada';
 
     if (!ubicacion || !precio) return fail(400, { error: 'Se requiere precio y ubicación.' });
 
@@ -67,17 +104,17 @@ export const actions = {
     
     const instruccionTono = guiasTono[tonoSeleccionado] || guiasTono['Premium / Elegante'];
 
-    const systemPrompt = `<role>Eres el Director Creativo de una agencia inmobiliaria de lujo en México. Vendes un ESTILO DE VIDA, no solo metros cuadrados.</role>
+    const systemPrompt = `<role>Eres el Director Creativo de una agencia inmobiliaria de lujo en México. Vendes un ESTILO DE VIDA.</role>
 <rules>
-1. IDIOMA: 100% Español de México. Redacción impecable, persuasiva y sensorial.
-2. ESTRUCTURA CREATIVA: ESTÁ ESTRICTAMENTE PROHIBIDO hacer listas aburridas (ej. "Tiene 3 cuartos y 4 baños"). Debes transformar esos datos en una experiencia.
-3. FORMATO: Responde EXCLUSIVAMENTE con el objeto JSON. Cero texto antes o después.
-4. SALTOS DE LÍNEA: PROHIBIDO usar la tecla Enter/Retorno en el texto. Para separar párrafos, usa la etiqueta literal <br><br>.
-5. COMILLAS: NUNCA uses comillas dobles (") dentro de tus textos. Usa solo comillas simples (').
+1. IDIOMA: Español de México. Redacción impecable y persuasiva.
+2. ESTRUCTURA: Transforma los datos fríos en una experiencia emocional.
+3. FORMATO: Responde EXCLUSIVAMENTE con un objeto JSON válido.
+4. SALTOS DE LÍNEA: PROHIBIDO usar Enter. Usa la etiqueta literal <br><br> para separar párrafos.
+5. COMILLAS: Usa SOLO comillas simples (') dentro de las descripciones.
 6. TONO: ${instruccionTono}
 </rules>`;
 
-    const userPrompt = `Genera un copy comercial irresistible para esta propiedad devolviendo SOLO el JSON:
+    const userPrompt = `Genera un copy comercial irresistible para esta propiedad en JSON:
 <data>
 Operación: ${operacion} | Tipo: ${tipo} | Ubicación: ${ubicacion} | Precio: $${precio} MXN
 Recámaras: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Antigüedad: ${antiguedad}
@@ -85,13 +122,13 @@ Recámaras: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Antig
 
 <json_format>
 {
-  "titulo": "[Título emocional y magnético, max 10 palabras. NO pongas el precio aquí]",
-  "descripcion": "[Párrafo 1: Gancho emocional sobre el estilo de vida.<br><br>Párrafo 2: Descripción sensorial integrando los espacios.<br><br>Párrafo 3: Cierre con llamado a la acción a agendar visita.]",
-  "whatsapp": "[Mensaje persuasivo y amable para WhatsApp, usando 2 emojis]"
+  "titulo": "[Título emocional y magnético, max 10 palabras]",
+  "descripcion": "[Párrafo 1: Gancho emocional.<br><br>Párrafo 2: Descripción sensorial.<br><br>Párrafo 3: Llamado a la acción.]",
+  "whatsapp": "[Mensaje persuasivo para WhatsApp, usando 2 emojis]"
 }
 </json_format>`;
 
-    // 🚀 LOS MODELOS CUANTIZADOS (FP8) QUE ORDENASTE + QWEN
+    // 🚀 TUS MODELOS DE VANGUARDIA (Optimizados y Cuantizados para Velocidad Absoluta)
     const modelosSoportados = [
       '@cf/meta/llama-3.1-8b-instruct-fp8',
       '@cf/meta/llama-3.2-3b-instruct',
@@ -108,7 +145,6 @@ Recámaras: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Antig
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          // 800 tokens para que pueda redactar la campaña premium sin quedarse corto
           max_tokens: 800
         });
 
@@ -123,15 +159,13 @@ Recámaras: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Antig
           rawResponse = JSON.stringify(result);
         }
 
-        // 🚀 EL FIX INYECTADO PARA REPARAR EL JSON
+        // 🚀 EL FIX MAGISTRAL QUE SOLICITASTE PARA LAS LLAVES
         let cleanText = rawResponse
           .replace(/^```json/gi, '')
           .replace(/^```/gi, '')
           .replace(/```$/gi, '')
           .trim();
 
-        // Algunos modelos pequeños omiten las llaves externas
-        // Si el texto empieza directamente con "titulo":
         if (!cleanText.startsWith('{') && cleanText.includes('"titulo"')) {
           cleanText = '{' + cleanText;
           if (!cleanText.endsWith('}')) cleanText += '}';
@@ -145,9 +179,7 @@ Recámaras: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Antig
         }
 
         let jsonString = cleanText.substring(firstBrace, lastBrace + 1);
-        
-        // Destruimos Enters ocultos para salvar el Parseo
-        jsonString = jsonString.replace(/\n/g, ' ').replace(/\r/g, '');
+        jsonString = jsonString.replace(/\n/g, ' ').replace(/\r/g, ''); // Mata Enters ocultos
 
         parsedContent = JSON.parse(jsonString);
         break; // ¡JSON PERFECTO! 
@@ -164,19 +196,24 @@ Recámaras: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Antig
       });
     }
 
-    // 🚀 COBRO DE CRÉDITOS SEGURO (Solo se cobra si logramos parsear el JSON de la IA)
-    await locals.supabase
-      .from('brokers')
-      .update({ ia_creditos_disponibles: broker.ia_creditos_disponibles - 1 })
-      .eq('id', broker.id);
+    // 🚀 DEFENSA CRÍTICA: COBRO ATÓMICO ANTI RACE-CONDITION
+    // Usamos el RPC que creaste en Supabase. Garantiza que no pase a negativos.
+    const { data: rpcData, error: rpcError } = await locals.supabase.rpc('consumir_credito_ia', {
+      p_user_id: user.id
+    });
 
-    // Restauramos los <br><br> a saltos de línea reales para las cajas de texto
+    if (rpcError || !rpcData || rpcData.length === 0) {
+      // Si llega aquí, significa que spameó el botón en 2 tabs y este fue el request lento.
+      return fail(403, { error: 'Sin créditos de IA disponibles para finalizar la acción.' });
+    }
+
+    // Restauramos los <br><br> a saltos de línea reales
     let descripcionLimpia = (parsedContent.descripcion || 'Sin descripción').replace(/<br><br>/g, '\n\n');
 
     return {
       titulo: parsedContent.titulo || parsedContent.Titulo || 'Propiedad Exclusiva',
       descripcion: descripcionLimpia,
-      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Me encantaría mostrarte esta propiedad...'
+      whatsapp: parsedContent.whatsapp || parsedContent.WhatsApp || parsedContent.Whatsapp || '¡Hola! Te comparto esta propiedad...'
     };
   },
 
@@ -222,6 +259,17 @@ Recámaras: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Antig
       return fail(400, { error: 'Faltan campos obligatorios o la foto de portada.' });
     }
 
+    // 🛡️ DEFENSA CRÍTICA: LÍMITES DE R2 (Tipos permitidos y tamaño máx 8MB)
+    const MAX_SIZE_MB = 8;
+    const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/jpg'];
+
+    if (imagen.size > MAX_SIZE_MB * 1024 * 1024) {
+      return fail(400, { error: `La foto de portada supera el límite de ${MAX_SIZE_MB}MB. Su tamaño es ${(imagen.size / 1024 / 1024).toFixed(1)}MB.` });
+    }
+    if (!TIPOS_PERMITIDOS.includes(imagen.type)) {
+      return fail(400, { error: `Formato de portada no soportado (${imagen.type}). Usa JPG, PNG o WebP.` });
+    }
+
     const { data: broker } = await locals.supabase
       .from('brokers')
       .select('id, comision_default')
@@ -244,40 +292,48 @@ Recámaras: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Antig
       const baseCdnUrl = CDN_DOMAIN.replace(/\/$/, "");
       portadaUrl = `${baseCdnUrl}/${fileName}`;
     } catch (uploadError) {
-      return fail(500, { error: `Error R2 Portada: ${uploadError.message}` });
+      return fail(500, { error: `Error en servidor al subir portada: ${uploadError.message}` });
     }
 
+    // 🛡️ DEFENSA CRÍTICA: LÍMITE Y REPORTES DE GALERÍA
     const validGaleriaArchivos = galeriaArchivos.filter(file => file && file.size > 0);
     
+    if (validGaleriaArchivos.length > 20) {
+      return fail(400, { error: 'Por rendimiento, solo puedes subir un máximo de 20 fotos en la galería por carga.' });
+    }
+
     const galeriaPromises = validGaleriaArchivos.map(async (file, index) => {
+      // Validación individual de la galería
+      if (file.size > MAX_SIZE_MB * 1024 * 1024) throw new Error(`Foto ${index + 1} excede ${MAX_SIZE_MB}MB`);
+      if (!TIPOS_PERMITIDOS.includes(file.type)) throw new Error(`Foto ${index + 1} tiene formato inválido`);
+
       const ext = file.name.split('.').pop() || 'webp';
-      const gName = `${broker.id}/${Date.now()}-${index}-${Math.random().toString(36).substring(2, 6)}.${ext}`;
+      const gName = `${broker.id}/${Date.now()}-${index}-${crypto.randomUUID().split('-')[0]}.${ext}`;
       const gBuffer = await file.arrayBuffer();
       
-      try {
-        await platform.env.INMUBLIA_BUCKET.put(gName, gBuffer, {
-          httpMetadata: { contentType: file.type || 'image/webp' }
-        });
-        const baseCdnUrl = CDN_DOMAIN.replace(/\/$/, "");
-        return `${baseCdnUrl}/${gName}`;
-      } catch (gError) {
-        console.error("Error R2 Galería:", gError);
-        return null;
-      }
+      await platform.env.INMUBLIA_BUCKET.put(gName, gBuffer, {
+        httpMetadata: { contentType: file.type || 'image/webp' }
+      });
+      const baseCdnUrl = CDN_DOMAIN.replace(/\/$/, "");
+      return `${baseCdnUrl}/${gName}`;
     });
 
-    const galeriaResults = await Promise.all(galeriaPromises);
-    const galeriaUrls = galeriaResults.filter(url => url !== null);
+    // Promise.allSettled para no perder el tracking si una sola foto falla
+    const galeriaResults = await Promise.allSettled(galeriaPromises);
+    const galeriaUrls = [];
+    const galeriaFallidas = [];
 
+    for (const result of galeriaResults) {
+      if (result.status === 'fulfilled' && result.value) {
+        galeriaUrls.push(result.value);
+      } else {
+        galeriaFallidas.push(result.reason?.message ?? 'Error desconocido');
+      }
+    }
+
+    // 🛡️ DEFENSA CRÍTICA: SLUGS MÁS ROBUSTOS (Evita colisiones matemáticas)
     const baseSlug = titulo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-    const sufijoUnico = Math.random().toString(36).substring(2, 6);
-    const slug = `${baseSlug}-${sufijoUnico}`;
-
-    const cleanNumber = (val) => {
-        if (!val) return 0;
-        const cleaned = String(val).replace(/[^0-9.]/g, ''); 
-        return parseFloat(cleaned) || 0;
-    };
+    const slug = `${baseSlug}-${crypto.randomUUID().split('-')[0]}`; // 8 Caracteres alfanuméricos seguros
 
     const { error: insertError } = await locals.supabase
       .from('propiedades')
@@ -296,10 +352,10 @@ Recámaras: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Antig
         comision: comisionFinal,
         m2_terreno: cleanNumber(m2_terreno), 
         m2_construccion: cleanNumber(m2_construccion), 
-        recamaras: parseInt(recamaras) || 0,
+        recamaras: cleanNumber(recamaras),
         banos: cleanNumber(banos), 
-        medio_bano: parseInt(medio_bano) || 0,
-        estacionamientos: parseInt(estacionamientos) || 0,
+        medio_bano: cleanNumber(medio_bano),
+        estacionamientos: cleanNumber(estacionamientos),
         imagen_url: portadaUrl,
         galeria_urls: galeriaUrls, 
         video_url,
@@ -307,7 +363,13 @@ Recámaras: ${recamaras} | Baños: ${banos} | Autos: ${estacionamientos} | Antig
         template_id 
       });
 
-    if (insertError) return fail(500, { error: `Error SQL: ${insertError.message}` });
+    if (insertError) return fail(500, { error: `Error de Base de Datos: ${insertError.message}` });
+    
+    // Si hubo fotos fallidas, lo ideal sería notificar al usuario, pero para no romper el flujo
+    // de SvelteKit redirect, enviamos a admin. (Podemos añadir notificaciones Toast después).
+    if (galeriaFallidas.length > 0) {
+      console.warn(`[Inmublia Warning] ${galeriaFallidas.length} fotos fallaron al subirse:`, galeriaFallidas);
+    }
     
     throw redirect(303, '/admin');
   }
