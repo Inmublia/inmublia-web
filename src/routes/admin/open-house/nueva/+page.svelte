@@ -21,7 +21,7 @@
   let tonoIA = $state('lujo'); 
   let textoGeneradoWhatsapp = $state('');
   
-  // 🛡️ NUEVO: Consola de error in-UI para evitar silent blocks
+  // 🛡️ CONSOLA DE ERROR IN-UI 
   let iaErrorMsg = $state('');
 
   let valPropiedadId = $state('');
@@ -50,10 +50,10 @@
     }
   }
 
-  // 🛡️ MOTOR IA BLINDADO CON FINALLY Y ABORT CONTROLLER
+  // 🚀 MOTOR BLINDADO CON PROMISE.RACE
   async function generarCampañaIA() {
     if (!valPropiedadId) {
-      iaErrorMsg = "Selecciona una Propiedad Base en la sección de arriba para poder generar la campaña.";
+      iaErrorMsg = "Selecciona una Propiedad Base de tu inventario (Sección 1) para que la IA sepa qué promocionar.";
       return;
     }
 
@@ -67,40 +67,42 @@
 
     document.getElementById('seccion-copywriting')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 35000); 
-
     try {
       const formData = new FormData();
       formData.append('propiedad_id', valPropiedadId);
       formData.append('tono', tonoIA); 
 
-      const res = await fetch('?/generarCampañaIA', {
+      // 💣 BOMBA DE TIEMPO (20 Segundos máximos antes de matar la conexión)
+      const fetchRequest = fetch('?/generarPromptIA', {
         method: 'POST',
         body: formData,
-        headers: { 'x-sveltekit-action': 'true' },
-        signal: controller.signal
+        headers: { 'x-sveltekit-action': 'true' }
       });
 
-      clearTimeout(timeoutId);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("TIMEOUT_FORZADO")), 20000)
+      );
+
+      // El que gane primero: La respuesta del server o la explosión de 20 segundos
+      const res = await Promise.race([fetchRequest, timeoutPromise]);
 
       const textRes = await res.text();
       
       if (textRes.trim().startsWith('<')) {
-        throw new Error("El servidor devolvió una página de error (Posible caída temporal).");
+        throw new Error("El servidor devolvió una caída temporal (Error 500 HTML).");
       }
 
       let result;
       try {
         result = deserialize(textRes);
       } catch (e) {
-        throw new Error(`Datos corruptos del servidor. Intenta de nuevo.`);
+        throw new Error(`Datos corruptos devueltos por el servidor. Intenta de nuevo.`);
       }
 
       if (result.type === 'success' && result.data) {
         creditosIA--;
         iaEjecutada = true;
-        generandoIA = false; // Liberamos UI antes de arrancar la animación
+        generandoIA = false; // Liberamos el botón para que comience a teclear limpio
         
         await Promise.all([
           typeWriter(result.data.titulo, (v) => valTitle = v, 25),
@@ -108,18 +110,17 @@
           typeWriter(result.data.whatsapp, (v) => textoGeneradoWhatsapp = v, 10)
         ]);
       } else {
-        throw new Error(result.data?.error || result.error?.message || "La IA falló al redactar el copy.");
+        throw new Error(result.data?.error || result.error?.message || "La IA falló al redactar el contenido.");
       }
 
     } catch (e) {
-      clearTimeout(timeoutId);
-      if (e.name === 'AbortError') {
-        iaErrorMsg = "TIMEOUT: La Inteligencia Artificial se quedó colgada y tardó más de 35 segundos. Hemos abortado la operación por seguridad.";
+      if (e.message === "TIMEOUT_FORZADO") {
+        iaErrorMsg = "🚨 TIMEOUT: La Inteligencia Artificial tardó demasiado en responder (más de 20s). La conexión ha sido abortada por tu seguridad.";
       } else {
         iaErrorMsg = e.message;
       }
     } finally {
-      // ESTE BLOQUE GARANTIZA QUE EL BOTÓN JAMÁS SE QUEDE PEGADO EN "REDACTANDO..."
+      // GARANTÍA ABSOLUTA DE QUE EL BOTÓN NO SE QUEDA TRABADO
       generandoIA = false;
     }
   }
@@ -150,11 +151,9 @@
 
       <button type="submit" form="form-openhouse" disabled={isSubmitting} class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95 shrink-0">
         {#if isSubmitting}
-          <Loader2 class="w-4 h-4 animate-spin text-zinc-950" />
-          Lanzando...
+          <Loader2 class="w-4 h-4 animate-spin text-zinc-950" /> Lanzando...
         {:else}
-          <Rocket class="w-4 h-4 text-indigo-500" />
-          Lanzar Evento
+          <Rocket class="w-4 h-4 text-indigo-500" /> Lanzar Evento Oficial
         {/if}
       </button>
     </div>
@@ -267,12 +266,12 @@
           </div>
         </div>
 
-        <!-- 🚀 UI RENOVADA: Título Alineado a la Izquierda y Elementos Extendidos -->
+        <!-- 🚀 UI RENOVADA: Título a la izquierda, Box de Error y Diseño Abierto -->
         <section class="relative">
           <div class="bg-slate-800 rounded-[2rem] p-6 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
             <div class="absolute -top-32 -right-32 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none"></div>
 
-            <div class="relative z-10">
+            <div class="relative z-10 w-full text-left">
               <div class="flex flex-col items-start w-full mb-8">
                 <h2 class="text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
                   Estudio Creativo IA para Eventos
@@ -286,7 +285,7 @@
                 </p>
               </div>
 
-              <!-- 🛡️ NUEVO: DISPLAY DE ERRORES IN-UI -->
+              <!-- 🛡️ NUEVO DISPLAY DE ERRORES EN UI -->
               {#if iaErrorMsg}
                 <div class="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center gap-3 animate-[fadeIn_0.3s_ease-out]">
                   <AlertOctagon class="w-5 h-5 text-red-400 shrink-0" />
@@ -362,14 +361,7 @@
                     {/if}
                   </div>
                   <div class="text-sm text-slate-300 whitespace-pre-line leading-relaxed">
-                    {#if generandoIA}
-                       <div class="space-y-2 mt-1">
-                         <div class="h-3 bg-slate-700/50 rounded w-full animate-pulse"></div>
-                         <div class="h-3 bg-slate-700/50 rounded w-5/6 animate-pulse"></div>
-                       </div>
-                    {:else}
-                      {textoGeneradoWhatsapp}
-                    {/if}
+                    {textoGeneradoWhatsapp}
                   </div>
                 </div>
               </div>
