@@ -17,10 +17,11 @@ export async function load({ url, locals }) {
     env.SUPABASE_SERVICE_ROLE_KEY
   );
 
-  // 🚀 FIX DEFINITIVO: Sin ORDER BY en SQL. Traemos la tabla tal cual para evitar colapsos.
+  // Consulta exacta ordenando por tu columna 'creado_en'
   const { data: agencias, error: dbError } = await supabaseAdmin
     .from('brokers')
     .select('*')
+    .order('creado_en', { ascending: false })
     .limit(100);
 
   if (dbError) {
@@ -34,25 +35,21 @@ export async function load({ url, locals }) {
     filtradas = filtradas.filter(a => 
       (a.nombre_comercial && a.nombre_comercial.toLowerCase().includes(q)) || 
       (a.subdominio && a.subdominio.toLowerCase().includes(q)) ||
-      (a.email && a.email.toLowerCase().includes(q)) ||
-      (a.correo && a.correo.toLowerCase().includes(q))
+      (a.email && a.email.toLowerCase().includes(q))
     );
   }
 
-  // 🚀 Mapeo en Javascript. Si la columna no existe en tu tabla, no pasa nada, pone un valor por defecto.
+  // Mapeo preciso a las columnas reales de Inmublia
   const agenciasFormateadas = filtradas.map(a => {
-    // Buscamos cualquier variante posible de fecha que puedas tener
-    const rawDate = a.created_at || a.fecha_registro || a.inserted_at || a.creado_en;
-    
     return {
       id: a.id,
       nombre: a.nombre_comercial || a.subdominio || 'Agencia sin nombre',
       agencia: a.nombre_comercial || 'Independiente',
-      email: a.email || a.correo || 'N/A', 
-      plan: a.plan || a.tipo_plan || 'Básico',
+      email: a.email || 'N/A', 
+      plan: a.plan_suscripcion || 'Básico',
       estado: a.status_suscripcion || 'Activo',
-      creditos_ia: a.creditos_ia || 0,
-      registro_fmt: rawDate ? new Date(rawDate).toLocaleDateString('es-MX') : 'Desconocida'
+      creditos_ia: a.ia_creditos_disponibles || 0,
+      registro_fmt: a.creado_en ? new Date(a.creado_en).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Desconocida'
     };
   });
 
