@@ -3,11 +3,12 @@ import { json } from '@sveltejs/kit';
 export async function POST({ locals, platform }) {
   if (!platform?.env?.AI) return json({ error: 'AI no conectada' }, { status: 500 });
 
-  const nuevosConocimientos = [
-    { categoria: 'Crear Propiedad', contenido: 'Para crear o subir una nueva propiedad en Inmublia, haz clic en el botón "+ Nueva Propiedad" en el panel principal. Debes completar obligatoriamente la ubicación, un precio válido, el tipo de inmueble (Casa, Departamento, etc.) y la operación (Venta o Renta). También deberás proporcionar un título y una descripción.' },
-    { categoria: 'Multimedia Propiedad', contenido: 'Al cargar una propiedad nueva, es obligatorio subir una foto de portada. Opcionalmente, puedes añadir hasta 20 fotos adicionales en la galería. Las imágenes deben ser JPG, PNG o WebP, y no superar los 8MB cada una. Además, puedes agregar URLs seguras (HTTPS) para enlazar videos y recorridos 3D.' },
-    { categoria: 'Uso IA Propiedad', contenido: 'Durante la creación de una propiedad, puedes usar el "Estudio Creativo IA" para autogenerar el título, la descripción y un copy para WhatsApp basándose en las características del inmueble (recámaras, baños, m2). Utilizar esta función consume 1 Crédito IA atómico de tu cuenta.' },
-    { categoria: 'Open House', contenido: 'Para crear o configurar un evento de Open House, dirígete al módulo "Open House" en la consola operativa. El sistema generará un control de acceso físico mediante escaneo QR y tecnología NFC, permitiendo a los visitantes hacer un Check-in automático validando su número de WhatsApp en la plataforma.' }
+const nuevosConocimientos = [
+    { categoria: 'Funcionalidad IA', contenido: 'El Estudio Creativo IA es el motor de inteligencia artificial de Inmublia. Su función es leer los datos duros de tu propiedad (m2, recámaras, ubicación, amenidades) y autogenerar un título atractivo, una descripción persuasiva lista para publicar y un texto optimizado (copy) para enviar por WhatsApp.' },
+    { categoria: 'Consumo de Créditos', contenido: 'Cada vez que oprimes el botón para generar o regenerar textos en el Estudio Creativo IA, se consume exactamente 1 Crédito IA de tu saldo mensual. Si agotas los créditos de tu plan, puedes adquirir paquetes adicionales (Top-Ups) para seguir utilizando la herramienta.' },
+    { categoria: 'Tonos de Redacción', contenido: 'Puedes controlar el estilo de los textos generados por la IA seleccionando uno de los tres tonos de redacción disponibles: Premium/Elegante (enfocado en lujo y exclusividad), Familiar/Cálido (emotivo, ideal para familias) y Analítico/ROI (enfocado en números, ideal para inversionistas).' },
+    { categoria: 'Reembolsos Automáticos', contenido: 'Inmublia cuenta con un protocolo de protección de créditos. Si el motor de inteligencia artificial experimenta una caída, un error de red (Timeout), o te entrega un texto dañado o con formato incorrecto, el sistema detecta la falla y realiza un reembolso automático de 1 crédito a tu cuenta.' },
+    { categoria: 'Buenas Prácticas', contenido: 'Si después de generar textos 2 o 3 veces el resultado no te convence, te recomendamos modificar el Tono de redacción o detallar mejor la información de la propiedad antes de volver a intentar. Esto evitará que agotes tus créditos rápidamente en una sola propiedad.' }
   ];
 
   try {
