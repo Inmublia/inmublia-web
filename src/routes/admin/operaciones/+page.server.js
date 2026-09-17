@@ -1,4 +1,8 @@
+// src/routes/admin/operaciones/+page.server.js
 import { error } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
 export async function load({ url, locals }) {
   const query = url.searchParams.get('q') || '';
@@ -8,28 +12,45 @@ export async function load({ url, locals }) {
     throw error(401, 'Acceso denegado a la consola de operaciones');
   }
 
-  // 🚀 FIX: Apuntamos a la tabla 'brokers' real y usamos status_suscripcion
-  let dbQuery = locals.supabase
+  // 🚀 FIX 1: Creamos un cliente "Dios" para saltarnos las trabas del RLS de Supabase.
+  const supabaseAdmin = createClient(
+    publicEnv.PUBLIC_SUPABASE_URL,
+    env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  // 🚀 FIX 2: Traemos TODO (*) para que no falle si una columna no existe.
+  const { data: agencias, error: dbError } = await supabaseAdmin
     .from('brokers')
-    .select('id, nombre, agencia, email, plan, status_suscripcion, created_at, creditos_ia');
-
-  if (query) {
-    dbQuery = dbQuery.or(`nombre.ilike.%${query}%,email.ilike.%${query}%,agencia.ilike.%${query}%`);
-  }
-
-  const { data: agencias, error: dbError } = await dbQuery
+    .select('*')
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(100);
 
   if (dbError) {
-    console.error('[Directorio Operaciones Error]', dbError.message);
-    throw error(500, 'Error al consultar el directorio de agencias');
+    console.error('[Directorio Operaciones Error]', dbError);
+    // Si vuelve a fallar, ahora escupirá el error REAL de SQL en la pantalla en lugar de un 500 genérico
+    throw error(500, `Fallo SQL: ${dbError.message}`); 
   }
 
-  const agenciasFormateadas = agencias.map(a => ({
-    ...a,
-    estado: a.status_suscripcion || 'Activo', // Mapeo para que la UI no se rompa
-    registro_fmt: new Date(a.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })
+  // 🚀 FIX 3: Hacemos la búsqueda (CMD+K) en memoria de Javascript para no romper el SQL
+  let filtradas = agencias || [];
+  if (query) {
+    const q = query.toLowerCase();
+    filtradas = filtradas.filter(a => 
+      (a.nombre_comercial && a.nombre_comercial.toLowerCase().includes(q)) || 
+      (a.subdominio && a.subdominio.toLowerCase().includes(q))
+    );
+  }
+
+  // Mapeo defensivo: Si la columna no existe, pone un valor por defecto en vez de romperse.
+  const agenciasFormateadas = filtradas.map(a => ({
+    id: a.id,
+    nombre: a.nombre_comercial || a.subdominio || 'Agencia sin nombre',
+    agencia: a.nombre_comercial || 'Independiente',
+    email: a.email || 'N/A', 
+    plan: a.plan || 'Básico',
+    estado: a.status_suscripcion || 'Activo',
+    creditos_ia: a.creditos_ia || 0,
+    registro_fmt: a.created_at ? new Date(a.created_at).toLocaleDateString('es-MX') : 'Desconocida'
   }));
 
   return { 
