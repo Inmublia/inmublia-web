@@ -1,20 +1,18 @@
 <!-- src/routes/admin/operaciones/[broker_id]/+page.svelte -->
 <script>
+  import { enhance } from '$app/forms';
   import { 
     ArrowLeft, Search, Building2, Activity, Sparkles, 
     AlertOctagon, CheckCircle2, Clock, ShieldAlert, KeyRound, Terminal, Database
   } from 'lucide-svelte';
 
-  // 🚀 DATOS REALES CONECTADOS MEDIANTE RUNAS DERIVADAS
   let { data } = $props();
   
   let broker = $derived(data?.broker || {});
   let timeline = $derived(data?.timeline || []);
 
   let searchQuery = $state('');
-  let activeTab = $state('timeline'); // 'timeline', 'ia'
-  
-  // 🚀 ESTADO PARA EL INSPECTOR IA
+  let activeTab = $state('timeline'); 
   let selectedEvent = $state(null);
 
   function inspeccionarEvento(item) {
@@ -62,7 +60,6 @@
       
       <aside class="w-full lg:w-[380px] shrink-0 flex flex-col gap-6">
         
-        <!-- Bloque 1: Identidad -->
         <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden relative">
           <div class="h-20 bg-slate-50 border-b border-slate-100"></div>
           <div class="px-8 pb-8 flex flex-col items-center text-center -mt-10">
@@ -94,7 +91,6 @@
           </div>
         </div>
 
-        <!-- Bloque 2: Economía y Límites -->
         <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="px-8 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
             <Activity class="w-4 h-4 text-slate-400" />
@@ -127,7 +123,6 @@
           </div>
         </div>
 
-        <!-- Bloque 3: Acciones Críticas (Soporte / God Mode) -->
         <div class="bg-slate-800 rounded-3xl shadow-lg border border-slate-700 p-8 relative overflow-hidden">
           <div class="absolute -top-16 -right-16 w-32 h-32 bg-indigo-500/10 blur-[40px] rounded-full pointer-events-none"></div>
           
@@ -136,10 +131,15 @@
           </h3>
           
           <div class="flex flex-col gap-3 relative z-10">
-            <button class="w-full flex items-center justify-between px-5 py-4 bg-slate-900 hover:bg-indigo-600 border border-slate-700 hover:border-indigo-500 rounded-xl text-sm font-bold text-white transition-colors shadow-inner group active:scale-95">
-              <span class="flex items-center gap-2"><KeyRound class="w-4 h-4 text-indigo-400 group-hover:text-white transition-colors" /> Impersonar Usuario</span>
-              <ArrowLeft class="w-4 h-4 rotate-180 opacity-50 group-hover:opacity-100 transition-opacity" />
-            </button>
+            
+            <!-- 🚀 FORMULARIO PARA DISPARAR EL GOD MODE -->
+            <form method="POST" action="/admin/operaciones/{broker.id}/impersonar" use:enhance>
+              <button type="submit" class="w-full flex items-center justify-between px-5 py-4 bg-slate-900 hover:bg-indigo-600 border border-slate-700 hover:border-indigo-500 rounded-xl text-sm font-bold text-white transition-colors shadow-inner group active:scale-95">
+                <span class="flex items-center gap-2"><KeyRound class="w-4 h-4 text-indigo-400 group-hover:text-white transition-colors" /> Impersonar Usuario</span>
+                <ArrowLeft class="w-4 h-4 rotate-180 opacity-50 group-hover:opacity-100 transition-opacity" />
+              </button>
+            </form>
+
             <button class="w-full flex items-center justify-start px-5 py-4 bg-slate-900 hover:bg-rose-500/20 border border-slate-700 hover:border-rose-500/50 rounded-xl text-sm font-bold text-rose-200 hover:text-rose-400 transition-colors shadow-inner active:scale-95">
               <AlertOctagon class="w-4 h-4 mr-2" /> Suspender Cuenta
             </button>
@@ -195,7 +195,6 @@
               {:else}
                 <div class="relative border-l-2 border-slate-100 ml-3 space-y-8 pb-4">
                   {#each timeline as item}
-                    <!-- 🚀 FIX: Interactividad. Al hacer clic, enviamos al Inspector IA -->
                     <button 
                       type="button"
                       onclick={() => inspeccionarEvento(item)}
@@ -220,7 +219,6 @@
               {/if}
             {:else}
               {#if selectedEvent}
-                <!-- 🚀 VISOR JSON PARA EL SOPORTE TÉCNICO -->
                 <div class="bg-slate-900 rounded-2xl p-6 shadow-inner overflow-x-auto border border-slate-800 h-full animate-[fadeIn_0.3s_ease-out]">
                   <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-4">
                     <h3 class="text-sm font-bold text-indigo-400">{selectedEvent.evento}</h3>
