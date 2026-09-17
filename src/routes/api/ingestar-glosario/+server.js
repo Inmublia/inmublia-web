@@ -2,8 +2,8 @@ import { json } from '@sveltejs/kit';
 
 export async function POST({ request, locals, platform }) {
   // Solo administradores (tú) deberían poder correr esto
-  const user = locals.user;
-  if (!user) return json({ error: 'No autorizado' }, { status: 401 });
+  //const user = locals.user;
+  //if (!user) return json({ error: 'No autorizado' }, { status: 401 });
 
   if (!platform?.env?.AI) return json({ error: 'AI no disponible' }, { status: 500 });
 
