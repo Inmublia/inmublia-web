@@ -1,12 +1,23 @@
+// src/routes/api/chat/+server.js
 import { json } from '@sveltejs/kit';
 
 export async function POST({ request, locals, platform }) {
-  const user = locals.user;
-  if (!user) return json({ error: 'No autorizado' }, { status: 401 });
+  // 🚀 FIX: Consultamos la sesión directamente a Supabase para evitar el salto del hook
+  const { data: { user } } = await locals.supabase.auth.getUser();
+  
+  if (!user) {
+    return json({ error: 'No autorizado' }, { status: 401 });
+  }
 
   const { mensaje } = await request.json();
-  if (!mensaje) return json({ error: 'Mensaje vacío' }, { status: 400 });
-  if (!platform?.env?.AI) return json({ error: 'Servicio AI no conectado' }, { status: 500 });
+  
+  if (!mensaje) {
+    return json({ error: 'Mensaje vacío' }, { status: 400 });
+  }
+  
+  if (!platform?.env?.AI) {
+    return json({ error: 'Servicio AI no conectado' }, { status: 500 });
+  }
 
   try {
     // 1. Convertir la pregunta del usuario en un vector
