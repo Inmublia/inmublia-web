@@ -24,6 +24,7 @@ export async function load({ params, locals }) {
   const [perfilRes, propiedadesRes, auditoriaRes] = await Promise.all([
     supabaseAdmin.from('brokers').select('*').eq('id', brokerId).single(),
     supabaseAdmin.from('propiedades').select('id', { count: 'exact', head: true }).eq('broker_id', brokerId),
+    // La tabla audit_logs sí usa 'created_at' porque así la declaramos en la Fase 1
     supabaseAdmin.from('audit_logs').select('*').eq('agency_id', brokerId).eq('is_archived', false).order('created_at', { ascending: false }).limit(50)
   ]);
 
@@ -58,19 +59,17 @@ export async function load({ params, locals }) {
   });
 
   const b = perfilRes.data;
-  const rawDate = b.created_at || b.fecha_registro || b.inserted_at || b.creado_en;
 
-  // 🚀 Mapeo en JS protegido
   return {
     broker: {
       id: brokerId,
       nombre: b.nombre_comercial || b.subdominio || 'Agencia sin nombre',
       agencia: b.nombre_comercial || 'Agencia Independiente',
-      email: b.email || b.correo || 'N/A',
-      plan: b.plan || b.tipo_plan || 'Básico',
+      email: b.email || 'N/A',
+      plan: b.plan_suscripcion || 'Básico',
       estado: b.status_suscripcion || 'Activo',
-      registro: rawDate ? new Date(rawDate).toLocaleDateString('es-MX') : 'Desconocida',
-      creditos_ia: b.creditos_ia ?? 0,
+      registro: b.creado_en ? new Date(b.creado_en).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Desconocida',
+      creditos_ia: b.ia_creditos_disponibles ?? 0,
       propiedades_activas: propiedadesRes.count || 0
     },
     timeline,
