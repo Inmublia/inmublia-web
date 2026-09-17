@@ -1,9 +1,10 @@
 <!-- src/routes/admin/open-house/nueva/+page.svelte -->
 <script>
   import { enhance, deserialize } from '$app/forms';
+  import { invalidateAll } from '$app/navigation';
   import { 
     ArrowLeft, Building2, CalendarClock, CalendarDays, Clock, Users, Gift, PenTool, 
-    Loader2, Rocket, Sparkles, Zap, MessageCircle, Copy, AlertOctagon
+    Loader2, Rocket, Sparkles, Zap, MessageCircle, Copy, AlertOctagon, Check, CheckCircle2
   } from 'lucide-svelte';
 
   let { data } = $props();
@@ -21,6 +22,7 @@
   let tonoIA = $state('lujo'); 
   let textoGeneradoWhatsapp = $state('');
   let iaErrorMsg = $state('');
+  let copiadoWhatsapp = $state(false);
 
   // 🚀 VARIABLES DE ESTADO ENLAZADAS (BINDING) PARA EVITAR ALUCINACIONES
   let valPropiedadId = $state('');
@@ -31,6 +33,9 @@
   let valMaxCapacity = $state('15');
   let valBenefit = $state('');
   let valDescription = $state('');
+
+  // 🚀 FIX: Validación derivada de horarios lógicos
+  let horarioValido = $derived(!valTimeStart || !valTimeEnd || valTimeStart < valTimeEnd);
 
   const timeOptions = [];
   for (let i = 7; i <= 21; i++) {
@@ -43,11 +48,18 @@
     }
   }
 
-  async function typeWriter(text, setterCallback, speed = 10) {
+  // 🚀 FIX: TypeWriter protegido por AbortSignal
+  async function typeWriter(text, setterCallback, speed = 10, signal) {
     if (!text) return;
     let str = String(text); 
     let current = '';
+    setterCallback('');
+    
     for (let i = 0; i < str.length; i++) {
+      if (signal?.aborted) { 
+        setterCallback(str); 
+        return; 
+      }
       current += str.charAt(i);
       setterCallback(current);
       await new Promise(r => setTimeout(r, speed));
@@ -60,10 +72,16 @@
       iaErrorMsg = "Selecciona una Propiedad Base en la Sección 1.";
       return;
     }
+    
     // 🛡️ BLOQUEO: Si no hay datos de evento, no hay IA. Cero alucinaciones.
     if (!valDate || !valTimeStart || !valTimeEnd) {
-      iaErrorMsg = "Por favor, completa la Fecha y los Horarios del evento en la sección superior para que la IA redacte datos reales.";
+      iaErrorMsg = "Completa la Fecha y Horarios del evento para que la IA redacte datos reales.";
       document.getElementById('date')?.focus();
+      return;
+    }
+    
+    if (!horarioValido) {
+      iaErrorMsg = "El horario de cierre debe ser posterior a la apertura.";
       return;
     }
 
@@ -75,8 +93,7 @@
     valDescription = '';
     textoGeneradoWhatsapp = '';
 
-    document.getElementById('seccion-copywriting')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
+    // 🚀 FIX: Un solo mecanismo de timeout limpio (AbortController)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25000); 
 
@@ -90,45 +107,51 @@
       formData.append('maxCapacity', valMaxCapacity); 
       formData.append('benefit', valBenefit); 
 
-      const fetchRequest = fetch('?/generarPromptIA', {
+      const res = await fetch('?/generarPromptIA', {
         method: 'POST',
         body: formData,
         headers: { 'x-sveltekit-action': 'true' },
         signal: controller.signal
       });
 
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT_FORZADO")), 25000));
-      const res = await Promise.race([fetchRequest, timeoutPromise]);
       const textRes = await res.text();
       
-      if (textRes.trim().startsWith('<')) throw new Error("El servidor devolvió HTML (Posible caída de red).");
+      if (textRes.trim().startsWith('<')) throw new Error("Posible caída de red");
 
       let result;
       try {
         result = deserialize(textRes);
-      } catch (e) { throw new Error(`Datos corruptos devueltos por servidor.`); }
+      } catch (e) { throw new Error("Datos corruptos"); }
 
       if (result.type === 'success' && result.data) {
-        creditosIA--;
+        // 🚀 FIX: Descuento Optimista + Sincronización en BD
+        creditosIA = result.data.creditos_restantes ?? (creditosIA - 1);
+        invalidateAll(); 
+        
         iaEjecutada = true;
         generandoIA = false; 
         
+        const sig = controller.signal;
         await Promise.all([
-          typeWriter(result.data.titulo, (v) => valTitle = v, 25),
-          typeWriter(result.data.descripcion, (v) => valDescription = v, 5),
-          typeWriter(result.data.whatsapp, (v) => textoGeneradoWhatsapp = v, 10)
+          typeWriter(result.data.titulo, (v) => valTitle = v, 25, sig),
+          typeWriter(result.data.descripcion, (v) => valDescription = v, 5, sig),
+          typeWriter(result.data.whatsapp, (v) => textoGeneradoWhatsapp = v, 10, sig)
         ]);
+        
+        // 🚀 FIX: Scroll al resultado de IA una vez que empieza a escribir
+        setTimeout(() => document.getElementById('seccion-resultado-ia')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
       } else if (result.type === 'failure') {
-        throw new Error(`${result.data?.error || JSON.stringify(result.data)}`);
+        throw new Error(`${result.data?.error || "Falla en generación"}`);
       } else if (result.type === 'error') {
-        throw new Error(`Error SvelteKit: ${result.error?.message || JSON.stringify(result.error)}`);
+        throw new Error(`${result.error?.message || "Error del servidor"}`);
       }
 
     } catch (e) {
-      if (e.message === "TIMEOUT_FORZADO" || e.name === 'AbortError') {
-        iaErrorMsg = "🚨 TIMEOUT: La IA tardó más de 25s. Se abortó la conexión por seguridad.";
+      if (e.name === 'AbortError') {
+        iaErrorMsg = "La IA tardó más de 25 segundos. Intenta de nuevo por favor.";
       } else {
-        iaErrorMsg = `${e.message}`;
+        // 🚀 FIX: Mensaje amigable, sin mostrar código crudo
+        iaErrorMsg = `Error al generar: ${e.message.split(':')[0] || 'Intenta de nuevo en un momento'}`;
       }
     } finally {
       clearTimeout(timeoutId);
@@ -136,9 +159,19 @@
     }
   }
 
-  function copiarAlPortapapeles(texto) {
-    navigator.clipboard.writeText(texto);
-    alert("Copiado al portapapeles");
+  // 🚀 FIX: Portapapeles Seguro y Asíncrono
+  async function copiarAlPortapapeles(texto) {
+    try {
+      await navigator.clipboard.writeText(texto);
+    } catch {
+      const ta = Object.assign(document.createElement('textarea'), {
+        value: texto, style: 'position:fixed;opacity:0'
+      });
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+    }
+    copiadoWhatsapp = true;
+    setTimeout(() => copiadoWhatsapp = false, 2200);
   }
 </script>
 
@@ -160,7 +193,8 @@
         </div>
       </div>
 
-      <button type="submit" form="form-openhouse" disabled={isSubmitting} class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95 shrink-0">
+      <!-- 🚀 FIX: Bloquear submit durante generación de IA para evitar envíos parciales -->
+      <button type="submit" form="form-openhouse" disabled={isSubmitting || generandoIA} class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95 shrink-0">
         {#if isSubmitting}
           <Loader2 class="w-4 h-4 animate-spin text-zinc-950" /> Lanzando...
         {:else}
@@ -198,8 +232,9 @@
                   {#each propiedades as prop}
                     <option value={prop.id}>{prop.titulo} ({prop.operacion})</option>
                   {/each}
+                  <!-- 🚀 FIX: Eliminado el activo de prueba que enviaba "test" a producción -->
                   {#if propiedades.length === 0}
-                    <option value="test">Casa en Col. Americana (Activo de Prueba)</option>
+                    <option value="" disabled>Sin propiedades activas — agrega una propiedad primero</option>
                   {/if}
                 </select>
                 <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
@@ -254,7 +289,7 @@
               <div class="lg:col-span-1">
                 <label for="timeEnd" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cierre *</label>
                 <div class="relative w-full">
-                  <select id="timeEnd" name="timeEnd" bind:value={valTimeEnd} required class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer appearance-none">
+                  <select id="timeEnd" name="timeEnd" bind:value={valTimeEnd} required class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer appearance-none {!horarioValido && valTimeEnd ? 'border-red-400 ring-1 ring-red-400' : ''}">
                     <option value="">Seleccionar...</option>
                     {#each timeOptions as time}
                       <option value={time.value}>{time.label}</option>
@@ -264,6 +299,10 @@
                     <Clock class="w-3.5 h-3.5" />
                   </div>
                 </div>
+                <!-- 🚀 FIX: Mensaje visual de error de validación de horas -->
+                {#if !horarioValido && valTimeEnd}
+                  <p class="text-red-500 text-[10px] font-bold mt-1.5">El cierre debe ser posterior a la apertura.</p>
+                {/if}
               </div>
 
               <div class="lg:col-span-1">
@@ -299,8 +338,9 @@
                 <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-5 flex items-start gap-3 animate-[fadeIn_0.3s_ease-out]">
                   <AlertOctagon class="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                   <div class="w-full">
-                    <p class="text-sm font-black text-red-300 mb-1">Error de Generación:</p>
-                    <p class="text-xs font-mono text-red-200 break-words whitespace-pre-wrap">{iaErrorMsg}</p>
+                    <p class="text-sm font-black text-red-300 mb-1">Aviso:</p>
+                    <!-- 🚀 FIX: Mensaje formateado para lectura limpia por el broker -->
+                    <p class="text-xs text-red-200">{iaErrorMsg}</p>
                   </div>
                 </div>
               {/if}
@@ -346,25 +386,33 @@
               {/if}
             </div>
 
-            {#if iaEjecutada && textoGeneradoWhatsapp}
-              <div class="mt-6 animate-[fadeIn_0.4s_ease-out] relative z-10 w-full">
-                <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col w-full">
-                  <div class="flex items-center justify-between mb-4">
-                    <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
-                      <MessageCircle class="w-4 h-4 text-emerald-400" /> Campaña WhatsApp
-                    </h4>
-                    {#if !generandoIA}
-                      <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600/50">
-                        <Copy class="w-3.5 h-3.5" /> Copiar
-                      </button>
-                    {/if}
-                  </div>
-                  <div class="text-sm text-slate-300 whitespace-pre-line leading-relaxed">
-                    {textoGeneradoWhatsapp}
+            <!-- 🚀 FIX: Id ancla agregado para el auto-scroll al generar IA -->
+            <div id="seccion-resultado-ia">
+              {#if iaEjecutada && textoGeneradoWhatsapp}
+                <div class="mt-6 animate-[fadeIn_0.4s_ease-out] relative z-10 w-full">
+                  <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col w-full">
+                    <div class="flex items-center justify-between mb-4">
+                      <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
+                        <MessageCircle class="w-4 h-4 text-emerald-400" /> Campaña WhatsApp
+                      </h4>
+                      {#if !generandoIA}
+                        <!-- 🚀 FIX: Botón con estado copiado (Check) o inicial (Copy) -->
+                        <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600/50">
+                          {#if copiadoWhatsapp}
+                            <Check class="w-3.5 h-3.5 text-emerald-400"/> Copiado
+                          {:else}
+                            <Copy class="w-3.5 h-3.5"/> Copiar
+                          {/if}
+                        </button>
+                      {/if}
+                    </div>
+                    <div class="text-sm text-slate-300 whitespace-pre-line leading-relaxed">
+                      {textoGeneradoWhatsapp}
+                    </div>
                   </div>
                 </div>
-              </div>
-            {/if}
+              {/if}
+            </div>
           </div>
         </section>
 
@@ -380,6 +428,7 @@
               </div>
             </div>
             {#if iaEjecutada && !generandoIA}
+              <!-- 🚀 FIX: Ícono CheckCircle2 ahora se utiliza correctamente -->
               <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5 animate-[fadeIn_0.4s_ease-out] shrink-0">
                 <CheckCircle2 class="w-3.5 h-3.5" /> Autocompletado
               </span>
@@ -404,7 +453,8 @@
           </div>
         </div>
 
-        <button type="submit" disabled={isSubmitting} class="sm:hidden w-full inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-white hover:bg-indigo-600 h-14 gap-2 shadow-lg active:scale-95 mt-4">
+        <!-- 🚀 FIX: Bloquear submit durante generación de IA (Versión Mobile) -->
+        <button type="submit" disabled={isSubmitting || generandoIA} class="sm:hidden w-full inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-white hover:bg-indigo-600 h-14 gap-2 shadow-lg active:scale-95 mt-4">
           {#if isSubmitting}
             <Loader2 class="w-5 h-5 animate-spin" /> Lanzando...
           {:else}
