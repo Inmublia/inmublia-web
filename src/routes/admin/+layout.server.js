@@ -34,8 +34,8 @@ export async function load({ locals, setHeaders, url, depends }) {
     const estatusBloqueados = ['cancelada', 'canceled', 'inactiva', 'past_due', 'unpaid'];
     const isPerfilPage = url.pathname.startsWith('/admin/perfil');
 
-    if (estatusBloqueados.includes(status) && !isPerfilPage) {
-      // Expulsión inmediata bloqueando la carga de cualquier otra sección del admin
+    // 🚀 BARRERA RBAC (Fix): Si Soporte impersona una cuenta morosa, no debe ser expulsado
+    if (estatusBloqueados.includes(status) && !isPerfilPage && !locals.isImpersonating) {
       throw redirect(303, '/admin/perfil?alerta=pago_requerido');
     }
     // ============================================================================
@@ -85,7 +85,6 @@ export async function load({ locals, setHeaders, url, depends }) {
       return Array.isArray(leadData) ? leadData[0] : leadData;
     };
 
-    // Evaluamos el tiempo transcurrido para generar alertas crudas en memoria con texto dinámico
     const alertasAbandono = (leadsActivos || []).filter(lead => {
        if (!lead.ultima_actividad) return false;
        const act = new Date(lead.ultima_actividad);
@@ -142,11 +141,13 @@ export async function load({ locals, setHeaders, url, depends }) {
       session,
       user,
       broker,
-      alertasGlobales: alertasUnificadas 
+      alertasGlobales: alertasUnificadas,
+      // 🚀 EXPOSICIÓN DE ESTADO DE IMPERSONACIÓN AL FRONTEND
+      isImpersonating: locals.isImpersonating || false 
     };
 
   } catch (err) {
     console.error("Error en layout global:", err);
-    return { session, user, broker: null, alertasGlobales: [] }; 
+    return { session, user, broker: null, alertasGlobales: [], isImpersonating: false }; 
   }
 }
