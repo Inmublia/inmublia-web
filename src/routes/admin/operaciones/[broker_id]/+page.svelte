@@ -64,10 +64,10 @@
           <div class="h-20 bg-slate-50 border-b border-slate-100"></div>
           <div class="px-8 pb-8 flex flex-col items-center text-center -mt-10">
             <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center text-indigo-900 font-black text-2xl mb-4 border-4 border-white shadow-sm ring-1 ring-slate-100">
-              {broker.nombre ? broker.nombre.charAt(0) + (broker.nombre.split(' ')[1]?.charAt(0) || '') : '??'}
+              {broker.nombre ? broker.nombre.charAt(0).toUpperCase() : '??'}
             </div>
-            <h2 class="text-xl font-black text-slate-900 tracking-tight">{broker.nombre || 'Cargando...'}</h2>
-            <p class="text-sm font-medium text-slate-500">{broker.email || '...'}</p>
+            <h2 class="text-xl font-black text-slate-900 tracking-tight">{broker.nombre}</h2>
+            <p class="text-sm font-medium text-slate-500">{broker.email}</p>
             
             <div class="flex items-center gap-2 mt-4">
               <span class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-100">
@@ -132,8 +132,8 @@
           
           <div class="flex flex-col gap-3 relative z-10">
             
-            <!-- 🚀 FORMULARIO PARA DISPARAR EL GOD MODE -->
-            <form method="POST" action="/admin/operaciones/{broker.id}/impersonar" use:enhance>
+            <!-- 🚀 FIX: action="?/impersonar" invoca la acción SvelteKit nativa sin depender de otros archivos -->
+            <form method="POST" action="?/impersonar" use:enhance>
               <button type="submit" class="w-full flex items-center justify-between px-5 py-4 bg-slate-900 hover:bg-indigo-600 border border-slate-700 hover:border-indigo-500 rounded-xl text-sm font-bold text-white transition-colors shadow-inner group active:scale-95">
                 <span class="flex items-center gap-2"><KeyRound class="w-4 h-4 text-indigo-400 group-hover:text-white transition-colors" /> Impersonar Usuario</span>
                 <ArrowLeft class="w-4 h-4 rotate-180 opacity-50 group-hover:opacity-100 transition-opacity" />
