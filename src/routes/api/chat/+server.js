@@ -55,7 +55,8 @@ ${contextoSupabase}
 
     // 5. Ejecutar DeepSeek 
     // 🚀 FIX: Se purgaron temperature y max_tokens para evitar choques con el Wrapper de Cloudflare
-    const result = await platform.env.AI.run('@cf/deepseek-ai/deepseek-r1-distill-qwen-7b', {
+    // 5. Ejecutar DeepSeek (Versión V4 Flash)
+    const result = await platform.env.AI.run('@cf/deepseek-ai/deepseek-v4-flash-0731', {
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: mensaje }
