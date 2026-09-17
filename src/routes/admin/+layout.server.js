@@ -19,11 +19,17 @@ export async function load({ locals, setHeaders, url, depends }) {
   }
 
   try {
-    const { data: broker, error: brokerError } = await locals.supabase
-      .from('brokers')
-      .select('*')
-      .eq('auth_user_id', user.id)
-      .single();
+    // 🚀 FIX CRÍTICO (El Agujero): Si estamos impersonando, locals.tenantId tiene el ID del broker cliente.
+    // Usamos locals.tenantId como fuente primaria de verdad, y user.id como fallback.
+    let query = locals.supabase.from('brokers').select('*');
+    
+    if (locals.tenantId) {
+      query = query.eq('id', locals.tenantId);
+    } else {
+      query = query.eq('auth_user_id', user.id);
+    }
+    
+    const { data: broker, error: brokerError } = await query.single();
 
     if (brokerError || !broker) throw new Error("Broker no encontrado");
 
@@ -34,7 +40,7 @@ export async function load({ locals, setHeaders, url, depends }) {
     const estatusBloqueados = ['cancelada', 'canceled', 'inactiva', 'past_due', 'unpaid'];
     const isPerfilPage = url.pathname.startsWith('/admin/perfil');
 
-    // 🚀 BARRERA RBAC (Fix): Si Soporte impersona una cuenta morosa, no debe ser expulsado
+    // Si el superadmin impersona una cuenta morosa, no debe ser expulsado
     if (estatusBloqueados.includes(status) && !isPerfilPage && !locals.isImpersonating) {
       throw redirect(303, '/admin/perfil?alerta=pago_requerido');
     }
@@ -45,24 +51,24 @@ export async function load({ locals, setHeaders, url, depends }) {
     endOfToday.setHours(23, 59, 59, 999);
     const endOfTodayISO = endOfToday.toISOString();
     
-    // 1. Recordatorios Manuales
-    const { data: recordatorios, error: errRec } = await locals.supabase
+    // 1. Recordatorios Manuales (Ahora amarrado al broker correcto)
+    const { data: recordatorios } = await locals.supabase
       .from('lead_notas')
       .select('id, contenido, fecha_recordatorio, completado, leads(id, nombre)')
-      .eq('broker_id', user.id)
+      .eq('broker_id', broker.id) // Cambiado de user.id a broker.id
       .eq('tipo', 'recordatorio')
       .eq('completado', false)
       .lte('fecha_recordatorio', endOfTodayISO);
 
     // 2. Notificaciones Explícitas del Sistema
-    const { data: notificaciones, error: errNotif } = await locals.supabase
+    const { data: notificaciones } = await locals.supabase
       .from('notificaciones_agente')
       .select('id, titulo, mensaje, creado_en, leida, leads(id, nombre)')
       .eq('broker_id', broker.id)
       .eq('leida', false);
 
-    // 3. MOTOR DE SEMÁFORO DE ABANDONO (La nueva inteligencia)
-    const { data: leadsActivos, error: errLeadsActivos } = await locals.supabase
+    // 3. MOTOR DE SEMÁFORO DE ABANDONO
+    const { data: leadsActivos } = await locals.supabase
       .from('leads')
       .select('id, nombre, estado, ultima_actividad')
       .eq('broker_id', broker.id)
@@ -113,7 +119,7 @@ export async function load({ locals, setHeaders, url, depends }) {
        };
     });
 
-    // 4. Unificar, ordenar y aplicar Paginación Estricta (Top 20)
+    // 4. Unificar, ordenar y aplicar Paginación Estricta
     const alertasUnificadas = [
       ...(recordatorios || []).map(r => ({
         id: r.id,
@@ -135,14 +141,13 @@ export async function load({ locals, setHeaders, url, depends }) {
       })),
       ...alertasAbandono
     ].sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0))
-     .slice(0, 20); // PROTECCIÓN DE RENDIMIENTO
+     .slice(0, 20); 
 
     return {
       session,
       user,
       broker,
       alertasGlobales: alertasUnificadas,
-      // 🚀 EXPOSICIÓN DE ESTADO DE IMPERSONACIÓN AL FRONTEND
       isImpersonating: locals.isImpersonating || false 
     };
 
