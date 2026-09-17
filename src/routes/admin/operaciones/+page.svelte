@@ -2,17 +2,15 @@
 <script>
   import { goto } from '$app/navigation';
   import { 
-    Search, Users, Activity, CheckCircle2, ShieldAlert, ArrowRight, Building2, Terminal
+    Search, Users, Activity, CheckCircle2, ShieldAlert, ArrowRight, Building2, Terminal, Sparkles 
   } from 'lucide-svelte';
 
   let { data } = $props();
   let agencias = $derived(data.agencias || []);
   
-  // Mantenemos el estado de la búsqueda sincronizado con la URL
   let searchQuery = $state(data.query || '');
   let isSearching = $state(false);
 
-  // Búsqueda real-time con delay (Debounce)
   let searchTimeout;
   function handleSearch() {
     isSearching = true;
@@ -20,7 +18,7 @@
     searchTimeout = setTimeout(() => {
       goto(`/admin/operaciones?q=${encodeURIComponent(searchQuery)}`, { keepFocus: true, noScroll: true });
       isSearching = false;
-    }, 400); // 400ms delay para no saturar la base de datos al teclear
+    }, 400); 
   }
 </script>
 
@@ -56,7 +54,6 @@
       
       <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[600px]">
         
-        <!-- Buscador Global -->
         <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center gap-4 justify-between">
           <div class="relative w-full sm:w-[500px]">
             <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 {isSearching ? 'animate-pulse text-indigo-500' : ''}" />
@@ -73,7 +70,6 @@
           </div>
         </div>
 
-        <!-- Tabla Directorio -->
         <div class="overflow-x-auto flex-1">
           <table class="w-full text-left border-collapse">
             <thead>
@@ -100,17 +96,16 @@
               {/if}
 
               {#each agencias as agencia}
-                <!-- 🚀 Fila Clickable: Redirige al Customer 360 -->
                 <tr onclick={() => goto(`/admin/operaciones/${agencia.id}`)} class="hover:bg-slate-50/80 transition-colors cursor-pointer group">
                   <td class="px-6 py-4">
                     <div class="flex items-center gap-3">
                       <div class="w-10 h-10 bg-indigo-50 rounded-full border border-indigo-100 flex items-center justify-center text-indigo-700 font-black text-sm shrink-0">
-                        {agencia.nombre ? agencia.nombre.charAt(0) : '?'}
+                        {agencia.nombre ? agencia.nombre.charAt(0).toUpperCase() : '?'}
                       </div>
                       <div class="min-w-0">
-                        <p class="text-sm font-black text-slate-900 truncate group-hover:text-indigo-600 transition-colors">{agencia.nombre || 'Desconocido'}</p>
+                        <p class="text-sm font-black text-slate-900 truncate group-hover:text-indigo-600 transition-colors">{agencia.nombre}</p>
                         <p class="text-xs font-medium text-slate-500 truncate flex items-center gap-1 mt-0.5">
-                          <Building2 class="w-3 h-3" /> {agencia.agencia || 'Sin Agencia'}
+                          <Building2 class="w-3 h-3" /> {agencia.agencia}
                         </p>
                       </div>
                     </div>
@@ -119,12 +114,12 @@
                   <td class="px-6 py-4 hidden sm:table-cell">
                     <div class="flex flex-col items-start gap-1">
                       <span class="px-2 py-1 rounded bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider border border-slate-200">
-                        {agencia.plan || 'Básico'}
+                        {agencia.plan}
                       </span>
-                      {#if agencia.estado === 'Activa' || agencia.estado === 'Activo'}
+                      {#if agencia.estado === 'activa' || agencia.estado === 'activo' || agencia.estado === 'active'}
                         <span class="text-[10px] font-bold text-emerald-600 flex items-center gap-1 uppercase"><CheckCircle2 class="w-3 h-3"/> Activo</span>
                       {:else}
-                        <span class="text-[10px] font-bold text-rose-600 flex items-center gap-1 uppercase"><ShieldAlert class="w-3 h-3"/> Suspendido</span>
+                        <span class="text-[10px] font-bold text-rose-600 flex items-center gap-1 uppercase"><ShieldAlert class="w-3 h-3"/> {agencia.estado}</span>
                       {/if}
                     </div>
                   </td>
@@ -132,7 +127,7 @@
                   <td class="px-6 py-4 hidden md:table-cell">
                     <div class="flex items-center gap-2">
                       <Sparkles class="w-3.5 h-3.5 text-amber-500" />
-                      <span class="text-sm font-black text-slate-700">{agencia.creditos_ia ?? 0}</span>
+                      <span class="text-sm font-black text-slate-700">{agencia.creditos_ia}</span>
                     </div>
                   </td>
 
