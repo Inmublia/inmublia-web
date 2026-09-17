@@ -1,5 +1,8 @@
 // src/routes/admin/+layout.server.js
 import { redirect } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
 export async function load({ locals, setHeaders, url, depends }) {
   depends('supabase:auth');
@@ -19,9 +22,14 @@ export async function load({ locals, setHeaders, url, depends }) {
   }
 
   try {
-    let query = locals.supabase.from('brokers').select('*');
-    
-    if (locals.tenantId) {
+    // 🚀 FIX: Si estás impersonando, usamos el cliente Dios para saltar el RLS
+    let db = locals.supabase;
+    if (locals.isImpersonating) {
+      db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    }
+
+    let query = db.from('brokers').select('*');
+    if (locals.isImpersonating && locals.tenantId) {
       query = query.eq('id', locals.tenantId);
     } else {
       query = query.eq('auth_user_id', user.id);
@@ -31,26 +39,21 @@ export async function load({ locals, setHeaders, url, depends }) {
 
     if (brokerError || !broker) throw new Error("Broker no encontrado");
 
-    // ============================================================================
-    // BOUNCER GLOBAL (HARD GATE DE SUSPENSIÓN)
-    // ============================================================================
     const status = (broker.status_suscripcion || '').toLowerCase().trim();
     const estatusBloqueados = ['cancelada', 'canceled', 'inactiva', 'past_due', 'unpaid'];
     const isPerfilPage = url.pathname.startsWith('/admin/perfil');
 
-    // Si el superadmin impersona una cuenta morosa, no debe ser expulsado
     if (estatusBloqueados.includes(status) && !isPerfilPage && !locals.isImpersonating) {
       throw redirect(303, '/admin/perfil?alerta=pago_requerido');
     }
-    // ============================================================================
 
     const now = new Date();
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
     const endOfTodayISO = endOfToday.toISOString();
     
-    // 1. Recordatorios Manuales
-    const { data: recordatorios } = await locals.supabase
+    // TODAS estas consultas ahora usan 'db' (Que se salta el RLS si estás impersonando)
+    const { data: recordatorios } = await db
       .from('lead_notas')
       .select('id, contenido, fecha_recordatorio, completado, leads(id, nombre)')
       .eq('broker_id', broker.id)
@@ -58,15 +61,13 @@ export async function load({ locals, setHeaders, url, depends }) {
       .eq('completado', false)
       .lte('fecha_recordatorio', endOfTodayISO);
 
-    // 2. Notificaciones Explícitas del Sistema
-    const { data: notificaciones } = await locals.supabase
+    const { data: notificaciones } = await db
       .from('notificaciones_agente')
       .select('id, titulo, mensaje, creado_en, leida, leads(id, nombre)')
       .eq('broker_id', broker.id)
       .eq('leida', false);
 
-    // 3. MOTOR DE SEMÁFORO DE ABANDONO
-    const { data: leadsActivos } = await locals.supabase
+    const { data: leadsActivos } = await db
       .from('leads')
       .select('id, nombre, estado, ultima_actividad')
       .eq('broker_id', broker.id)
@@ -93,10 +94,8 @@ export async function load({ locals, setHeaders, url, depends }) {
        if (!lead.ultima_actividad) return false;
        const act = new Date(lead.ultima_actividad);
        const diffHours = (now - act) / (1000 * 60 * 60);
-       
        if (lead.estado === 'nuevo' && diffHours >= 24) return true;
        if (['contactado', 'visita', 'negociacion'].includes(lead.estado) && diffHours >= 72) return true;
-       
        return false;
     }).map(lead => {
        const act = new Date(lead.ultima_actividad);
@@ -117,7 +116,6 @@ export async function load({ locals, setHeaders, url, depends }) {
        };
     });
 
-    // 4. Unificar, ordenar y aplicar Paginación Estricta
     const alertasUnificadas = [
       ...(recordatorios || []).map(r => ({
         id: r.id,
@@ -147,11 +145,12 @@ export async function load({ locals, setHeaders, url, depends }) {
       broker,
       alertasGlobales: alertasUnificadas,
       isImpersonating: locals.isImpersonating || false,
+      // 🚀 FIX DEFINITIVO: Obligamos a que el rol interno que llegue al menú sea SIEMPRE el tuyo (guardado en locals)
       rolInterno: locals.rol_interno || 'broker'
     };
 
   } catch (err) {
     console.error("Error en layout global:", err);
-    return { session, user, broker: null, alertasGlobales: [], isImpersonating: false, rolInterno: 'broker' }; 
+    return { session, user, broker: null, alertasGlobales: [], isImpersonating: false, rolInterno: locals.rol_interno || 'broker' }; 
   }
 }
