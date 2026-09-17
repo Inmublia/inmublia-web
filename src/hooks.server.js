@@ -113,6 +113,8 @@ export async function handle({ event, resolve }) {
       .single();
 
     if (userBroker) {
+      // 🚀 FIX: Anclamos tu rol globalmente para que el menú NUNCA desaparezca al impersonar
+      event.locals.rol_interno = userBroker.rol_interno;
       event.locals.tenantId = userBroker.id;
       
       const status = (userBroker.status_suscripcion || '').toLowerCase().trim();
@@ -147,7 +149,6 @@ export async function handle({ event, resolve }) {
         if (!isInterno) {
           throw error(403, 'Acceso Restringido. Área exclusiva de personal autorizado.');
         }
-        event.locals.rol_interno = userBroker.rol_interno;
       }
 
       // 🚀 MOTOR DE IMPERSONACIÓN (GOD MODE DE SOLO LECTURA)
