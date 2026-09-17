@@ -19,8 +19,6 @@ export async function load({ locals, setHeaders, url, depends }) {
   }
 
   try {
-    // 🚀 FIX CRÍTICO (El Agujero): Si estamos impersonando, locals.tenantId tiene el ID del broker cliente.
-    // Usamos locals.tenantId como fuente primaria de verdad, y user.id como fallback.
     let query = locals.supabase.from('brokers').select('*');
     
     if (locals.tenantId) {
@@ -51,11 +49,11 @@ export async function load({ locals, setHeaders, url, depends }) {
     endOfToday.setHours(23, 59, 59, 999);
     const endOfTodayISO = endOfToday.toISOString();
     
-    // 1. Recordatorios Manuales (Ahora amarrado al broker correcto)
+    // 1. Recordatorios Manuales
     const { data: recordatorios } = await locals.supabase
       .from('lead_notas')
       .select('id, contenido, fecha_recordatorio, completado, leads(id, nombre)')
-      .eq('broker_id', broker.id) // Cambiado de user.id a broker.id
+      .eq('broker_id', broker.id)
       .eq('tipo', 'recordatorio')
       .eq('completado', false)
       .lte('fecha_recordatorio', endOfTodayISO);
@@ -148,11 +146,12 @@ export async function load({ locals, setHeaders, url, depends }) {
       user,
       broker,
       alertasGlobales: alertasUnificadas,
-      isImpersonating: locals.isImpersonating || false 
+      isImpersonating: locals.isImpersonating || false,
+      rolInterno: locals.rol_interno || 'broker'
     };
 
   } catch (err) {
     console.error("Error en layout global:", err);
-    return { session, user, broker: null, alertasGlobales: [], isImpersonating: false }; 
+    return { session, user, broker: null, alertasGlobales: [], isImpersonating: false, rolInterno: 'broker' }; 
   }
 }
