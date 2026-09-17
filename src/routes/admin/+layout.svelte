@@ -1,7 +1,10 @@
+<!-- src/routes/admin/+layout.svelte -->
 <script>
   import Sidebar from '$lib/components/Sidebar.svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
-  import SoporteWidget from '$lib/components/SoporteWidget.svelte'; // 🚀 Importado el widget
+  import SoporteWidget from '$lib/components/SoporteWidget.svelte'; 
+  import BannerSoporte from '$lib/components/admin/BannerSoporte.svelte'; // 🚀 Importado el Banner
+  
   import { onMount } from 'svelte';
   import { invalidate } from '$app/navigation';
   import { createBrowserClient } from '@supabase/ssr';
@@ -31,15 +34,19 @@
 <div class="flex h-screen w-full bg-slate-50 overflow-hidden font-sans relative">
   <Sidebar />
   
-  <!-- 🚀 FIX: Subimos la campana a bottom-24 para dejarle espacio al botón del chat abajo -->
   <div class="absolute bottom-24 right-6 sm:bottom-28 sm:right-8 z-[100]">
     <NotificationBell />
   </div>
 
-  <div class="flex-1 h-screen overflow-y-auto relative min-w-0">
-    {@render children()}
+  <!-- 🚀 Contenedor principal que maneja el Banner en la parte superior -->
+  <div class="flex-1 h-screen overflow-hidden flex flex-col relative min-w-0">
+    <BannerSoporte isImpersonating={data.isImpersonating} />
+    
+    <!-- El scroll se mueve a este contenedor interior para que el banner quede pegado arriba -->
+    <div class="flex-1 overflow-y-auto w-full relative">
+      {@render children()}
+    </div>
   </div>
 
-  <!-- 🚀 El Widget del chat (Tiene posición fixed bottom-6 internamente) -->
   <SoporteWidget />
 </div>
