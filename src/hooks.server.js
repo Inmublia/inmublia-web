@@ -106,9 +106,10 @@ export async function handle({ event, resolve }) {
       throw redirect(303, `/login?motivo=inactividad`);
     }
 
+    // 🚀 INYECCIÓN RBAC: Agregamos "rol_interno" al select de tu base de datos
     const { data: userBroker } = await event.locals.supabase
       .from('brokers')
-      .select('id, subdominio, status_suscripcion')
+      .select('id, subdominio, status_suscripcion, rol_interno')
       .eq('auth_user_id', user.id)
       .single();
 
@@ -141,6 +142,21 @@ export async function handle({ event, resolve }) {
         if (event.request.method === 'POST' && !isPlanesPage) {
           throw error(403, 'Acción denegada por suspensión de cuenta.');
         }
+      }
+
+      // 🚀 BARRERA RBAC: Proteger el Centro de Operaciones
+      if (pathname.startsWith('/admin/operaciones')) {
+        const rolesAutorizados = ['soporte', 'operaciones', 'ingenieria', 'superadmin'];
+        
+        if (!userBroker.rol_interno || !rolesAutorizados.includes(userBroker.rol_interno)) {
+          const clientIp = event.request.headers.get('cf-connecting-ip') || 'desconocida';
+          console.warn(`[SEGURIDAD] Intento de acceso denegado a Operaciones. Broker ID: ${userBroker.id} | IP: ${clientIp}`);
+          
+          throw error(403, 'Acceso Restringido. Área exclusiva de personal autorizado de Inmublia.');
+        }
+        
+        // Inyectamos el rol en locals para usarlo en la UI (ocultar botones peligrosos)
+        event.locals.rol_interno = userBroker.rol_interno;
       }
 
       if (userBroker.subdominio) {
