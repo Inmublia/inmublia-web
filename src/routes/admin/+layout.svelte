@@ -1,6 +1,7 @@
 <script>
   import Sidebar from '$lib/components/Sidebar.svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
+  import SoporteWidget from '$lib/components/SoporteWidget.svelte'; // 🚀 Importado el widget
   import { onMount } from 'svelte';
   import { invalidate } from '$app/navigation';
   import { createBrowserClient } from '@supabase/ssr';
@@ -30,11 +31,15 @@
 <div class="flex h-screen w-full bg-slate-50 overflow-hidden font-sans relative">
   <Sidebar />
   
-  <div class="absolute bottom-6 right-6 sm:bottom-8 sm:right-8 z-[100]">
+  <!-- 🚀 FIX: Subimos la campana a bottom-24 para dejarle espacio al botón del chat abajo -->
+  <div class="absolute bottom-24 right-6 sm:bottom-28 sm:right-8 z-[100]">
     <NotificationBell />
   </div>
 
   <div class="flex-1 h-screen overflow-y-auto relative min-w-0">
     {@render children()}
   </div>
+
+  <!-- 🚀 El Widget del chat (Tiene posición fixed bottom-6 internamente) -->
+  <SoporteWidget />
 </div>
