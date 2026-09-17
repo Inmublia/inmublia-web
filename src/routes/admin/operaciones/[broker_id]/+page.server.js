@@ -1,4 +1,8 @@
+// src/routes/admin/operaciones/[broker_id]/+page.server.js
 import { error } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
 export async function load({ params, locals }) {
   const brokerId = params.broker_id;
@@ -12,32 +16,22 @@ export async function load({ params, locals }) {
     throw error(401, 'Acceso denegado a la consola de operaciones');
   }
 
+  // 🚀 FIX 1: Cliente con Service Role Key
+  const supabaseAdmin = createClient(
+    publicEnv.PUBLIC_SUPABASE_URL,
+    env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  // 🚀 FIX 2: Consultas blindadas (Bypasseando RLS y evitando pedir columnas que no existen)
   const [perfilRes, propiedadesRes, auditoriaRes] = await Promise.all([
-    // 🚀 FIX: Apuntamos a 'brokers' y usamos status_suscripcion
-    locals.supabase
-      .from('brokers')
-      .select('nombre, agencia, email, plan, status_suscripcion, created_at, creditos_ia')
-      .eq('id', brokerId)
-      .single(),
-
-    locals.supabase
-      .from('propiedades')
-      .select('id', { count: 'exact', head: true })
-      .eq('broker_id', brokerId)
-      .in('estatus', ['publica', 'pre-mercado']),
-
-    locals.supabase
-      .from('audit_logs')
-      .select('*')
-      .eq('agency_id', brokerId)
-      .eq('is_archived', false)
-      .order('created_at', { ascending: false })
-      .limit(50)
+    supabaseAdmin.from('brokers').select('*').eq('id', brokerId).single(),
+    supabaseAdmin.from('propiedades').select('id', { count: 'exact', head: true }).eq('broker_id', brokerId),
+    supabaseAdmin.from('audit_logs').select('*').eq('agency_id', brokerId).eq('is_archived', false).order('created_at', { ascending: false }).limit(50)
   ]);
 
   if (perfilRes.error) {
-    console.error('[Consola 360] Fallo al cargar perfil:', perfilRes.error.message);
-    throw error(404, 'No se encontró el registro del Broker');
+    console.error('[Consola 360] Fallo al cargar perfil:', perfilRes.error);
+    throw error(404, `No se encontró la información del Broker: ${perfilRes.error.message}`);
   }
 
   const rawLogs = auditoriaRes.data || [];
@@ -67,15 +61,16 @@ export async function load({ params, locals }) {
 
   const b = perfilRes.data;
 
+  // 🚀 FIX 3: Mapeo defensivo de propiedades
   return {
     broker: {
       id: brokerId,
-      nombre: b.nombre || 'Sin Nombre',
-      agencia: b.agencia || 'Agencia Independiente',
-      email: b.email || 'sin-correo@inmublia.com',
+      nombre: b.nombre_comercial || b.subdominio || 'Agencia sin nombre',
+      agencia: b.nombre_comercial || 'Agencia Independiente',
+      email: b.email || 'N/A',
       plan: b.plan || 'Básico',
       estado: b.status_suscripcion || 'Activo',
-      registro: new Date(b.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }),
+      registro: b.created_at ? new Date(b.created_at).toLocaleDateString('es-MX') : 'Desconocida',
       creditos_ia: b.creditos_ia ?? 0,
       propiedades_activas: propiedadesRes.count || 0
     },
