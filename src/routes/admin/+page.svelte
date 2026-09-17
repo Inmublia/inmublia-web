@@ -123,15 +123,6 @@
   }
 </script>
 
-  //Boton Agente soporte 
-  <button onclick={async () => {
-  const res = await fetch('/api/ingestar-glosario', { method: 'POST' });
-  const data = await res.json();
-  alert(data.message || data.error);
-  }} class="bg-blue-500 text-white p-2 rounded">
-  Alimentar Cerebro IA
-  </button>
-
 <div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
 
 <div class="w-full flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
