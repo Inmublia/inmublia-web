@@ -16,13 +16,11 @@ export async function load({ params, locals }) {
     throw error(401, 'Acceso denegado a la consola de operaciones');
   }
 
-  // 🚀 FIX 1: Cliente con Service Role Key
   const supabaseAdmin = createClient(
     publicEnv.PUBLIC_SUPABASE_URL,
     env.SUPABASE_SERVICE_ROLE_KEY
   );
 
-  // 🚀 FIX 2: Consultas blindadas (Bypasseando RLS y evitando pedir columnas que no existen)
   const [perfilRes, propiedadesRes, auditoriaRes] = await Promise.all([
     supabaseAdmin.from('brokers').select('*').eq('id', brokerId).single(),
     supabaseAdmin.from('propiedades').select('id', { count: 'exact', head: true }).eq('broker_id', brokerId),
@@ -60,17 +58,18 @@ export async function load({ params, locals }) {
   });
 
   const b = perfilRes.data;
+  const rawDate = b.created_at || b.fecha_registro || b.inserted_at || b.creado_en;
 
-  // 🚀 FIX 3: Mapeo defensivo de propiedades
+  // 🚀 Mapeo en JS protegido
   return {
     broker: {
       id: brokerId,
       nombre: b.nombre_comercial || b.subdominio || 'Agencia sin nombre',
       agencia: b.nombre_comercial || 'Agencia Independiente',
-      email: b.email || 'N/A',
-      plan: b.plan || 'Básico',
+      email: b.email || b.correo || 'N/A',
+      plan: b.plan || b.tipo_plan || 'Básico',
       estado: b.status_suscripcion || 'Activo',
-      registro: b.created_at ? new Date(b.created_at).toLocaleDateString('es-MX') : 'Desconocida',
+      registro: rawDate ? new Date(rawDate).toLocaleDateString('es-MX') : 'Desconocida',
       creditos_ia: b.creditos_ia ?? 0,
       propiedades_activas: propiedadesRes.count || 0
     },
