@@ -5,7 +5,7 @@ import { redirect } from '@sveltejs/kit';
  * Lógica unificada para destruir la sesión local y del servidor.
  */
 async function handleLogout({ locals, cookies, url }) {
-  // 1. Destrucción inmediata de la cookie manual (solo requiere path)
+  // 1 Destrucción inmediata de la cookie manual (solo requiere path)
   cookies.delete('inmublia-auth-token', { path: '/' });
 
   // 2. Intento controlado de invalidación en el servidor de Supabase.
