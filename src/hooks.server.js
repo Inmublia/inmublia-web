@@ -98,7 +98,7 @@ export async function handle({ event, resolve }) {
     }
   };
 
-  // 3. SEGURIDAD PRIVADA Y PROTECCIÓN DE RUTAS (HARD ROUTING)
+  // 3. SEGURIDAD PRIVADA Y PROTECCIÓN DE RUTAS
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/bienvenida')) {
     const { user } = await event.locals.safeGetSession();
     
@@ -106,7 +106,6 @@ export async function handle({ event, resolve }) {
       throw redirect(303, `/login?motivo=inactividad`);
     }
 
-    // 🚀 INYECCIÓN RBAC: Agregamos "rol_interno" al select de tu base de datos
     const { data: userBroker } = await event.locals.supabase
       .from('brokers')
       .select('id, subdominio, status_suscripcion, rol_interno')
@@ -124,39 +123,49 @@ export async function handle({ event, resolve }) {
       if (!isLogout && (isCanceled || isPastDue)) {
         const isPlanesPage = pathname.startsWith('/admin/planes');
         const isPerfilPage = pathname.startsWith('/admin/perfil');
-        const isStripeApi = pathname.startsWith('/api/stripe'); // Única ruta libre
+        const isStripeApi = pathname.startsWith('/api/stripe');
 
-        // REGLA 1: Cuenta Cancelada Definitiva -> Obligado a contratar de nuevo
         if (isCanceled && !isPlanesPage && !isStripeApi) {
           if (event.request.method === 'POST') throw error(403, 'Suscripción cancelada.');
           throw redirect(303, '/admin/planes?alerta=cuenta_cancelada');
         } 
-        // REGLA 2: Pago Pendiente / Rechazado -> Encerrado en Perfil para actualizar tarjeta
         else if (isPastDue && !isPerfilPage && !isStripeApi) {
           if (event.request.method === 'POST') throw error(403, 'Actualiza tu método de pago.');
           throw redirect(303, '/admin/perfil');
         }
 
-        // EL MURO FINAL: Bloqueo inquebrantable de mutación de datos (POST) para morosos
-        // EXCEPCIÓN: Permitimos POST en la página de planes para que Stripe pueda iniciar el Checkout
         if (event.request.method === 'POST' && !isPlanesPage) {
           throw error(403, 'Acción denegada por suspensión de cuenta.');
         }
       }
 
       // 🚀 BARRERA RBAC: Proteger el Centro de Operaciones
+      const rolesAutorizados = ['soporte', 'operaciones', 'ingenieria', 'superadmin'];
+      const isInterno = userBroker.rol_interno && rolesAutorizados.includes(userBroker.rol_interno);
+
       if (pathname.startsWith('/admin/operaciones')) {
-        const rolesAutorizados = ['soporte', 'operaciones', 'ingenieria', 'superadmin'];
-        
-        if (!userBroker.rol_interno || !rolesAutorizados.includes(userBroker.rol_interno)) {
-          const clientIp = event.request.headers.get('cf-connecting-ip') || 'desconocida';
-          console.warn(`[SEGURIDAD] Intento de acceso denegado a Operaciones. Broker ID: ${userBroker.id} | IP: ${clientIp}`);
-          
-          throw error(403, 'Acceso Restringido. Área exclusiva de personal autorizado de Inmublia.');
+        if (!isInterno) {
+          throw error(403, 'Acceso Restringido. Área exclusiva de personal autorizado.');
         }
-        
-        // Inyectamos el rol en locals para usarlo en la UI (ocultar botones peligrosos)
         event.locals.rol_interno = userBroker.rol_interno;
+      }
+
+      // 🚀 MOTOR DE IMPERSONACIÓN (GOD MODE DE SOLO LECTURA)
+      const shadowBrokerId = event.cookies.get('inmublia_shadow_tenant');
+
+      if (shadowBrokerId && isInterno) {
+        event.locals.tenantId = shadowBrokerId;
+        event.locals.isImpersonating = true;
+
+        // Muro de Contención Estricto: Si no es GET, lo bloqueamos (a menos que intente salir)
+        const method = event.request.method;
+        const isExitRoute = pathname.includes('/salir-impersonacion');
+        
+        if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method) && !isExitRoute && !isLogout) {
+          throw error(403, 'Modo Visualización Activo (Solo Lectura): No tienes permitido alterar la información de este cliente.');
+        }
+      } else {
+        event.locals.isImpersonating = false;
       }
 
       if (userBroker.subdominio) {
