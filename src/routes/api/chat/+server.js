@@ -2,7 +2,6 @@
 import { json } from '@sveltejs/kit';
 
 export async function POST({ request, locals, platform }) {
-  // 🚀 FIX: Consultamos la sesión directamente a Supabase para evitar el salto del hook
   const { data: { user } } = await locals.supabase.auth.getUser();
   
   if (!user) {
@@ -20,27 +19,29 @@ export async function POST({ request, locals, platform }) {
   }
 
   try {
-    // 1. Convertir la pregunta del usuario en un vector
+    // 1. Convertir la pregunta
     const { data: queryEmbeddings } = await platform.env.AI.run('@cf/baai/bge-m3', {
       text: [mensaje]
     });
     const queryVector = queryEmbeddings[0];
 
-    // 2. Buscar en Supabase el contexto que más se parezca (RAG)
+    // 2. Buscar en Supabase
     const { data: contextoData, error: rpcError } = await locals.supabase.rpc('match_soporte_glosario', {
       query_embedding: queryVector,
-      match_threshold: 0.5, // Similitud mínima del 50%
-      match_count: 3        // Traer máximo 3 reglas relevantes
+      match_threshold: 0.5,
+      match_count: 3
     });
 
-    if (rpcError) throw rpcError;
+    if (rpcError) {
+      throw new Error(`Fallo en Supabase (RPC): ${rpcError.message}`);
+    }
 
-    // 3. Extraer el texto de las reglas encontradas
+    // 3. Extraer el texto
     const contextoSupabase = contextoData && contextoData.length > 0
       ? contextoData.map(c => `- ${c.contenido}`).join('\n')
       : 'No se encontró información relevante en el manual sobre este tema.';
 
-    // 4. Prompt Restrictivo (El muro de contención para DeepSeek)
+    // 4. Prompt Restrictivo
     const systemPrompt = `Eres el Agente de Soporte Técnico Nivel 1 de Inmublia.
 Eres amable, directo y sumamente profesional.
 
@@ -52,14 +53,13 @@ Si la respuesta NO está dentro del <contexto>, tienes PROHIBIDO inventar una so
 ${contextoSupabase}
 </contexto>`;
 
-    // 5. Ejecutar DeepSeek
+    // 5. Ejecutar DeepSeek 
+    // 🚀 FIX: Se purgaron temperature y max_tokens para evitar choques con el Wrapper de Cloudflare
     const result = await platform.env.AI.run('@cf/deepseek-ai/deepseek-r1-distill-qwen-7b', {
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: mensaje }
-      ],
-      max_tokens: 300,
-      temperature: 0.1
+      ]
     });
 
     const respuestaTexto = typeof result === 'string' ? result : (result.response || 'Sin respuesta del modelo.');
@@ -68,6 +68,8 @@ ${contextoSupabase}
 
   } catch (error) {
     console.error('[Soporte RAG Error]', error.message);
-    return json({ error: 'Agente fuera de línea.' }, { status: 500 });
+    
+    // 🚀 FIX: Exponemos el error técnico real directo en tu chat
+    return json({ error: `Detalle técnico CF: ${error.message}` }, { status: 500 });
   }
 }
