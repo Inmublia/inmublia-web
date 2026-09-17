@@ -7,11 +7,16 @@
     Settings, 
     LogOut,
     Target,
-    Palette
+    Palette,
+    Terminal
   } from 'lucide-svelte';
   
   let broker = $derived($page.data.broker || {});
   let rutaActual = $derived($page.url.pathname);
+
+  const rolesOperativos = ['soporte', 'operaciones', 'ingenieria', 'superadmin'];
+  let miRol = $derived($page.data.rolInterno || 'broker');
+  let tieneAcceso = $derived(rolesOperativos.includes(miRol));
 </script>
 
 <aside class="w-[260px] bg-zinc-950 flex flex-col hidden md:flex shrink-0 shadow-2xl z-10 h-screen font-sans">
@@ -59,6 +64,16 @@
       <Settings class="w-4 h-4 {rutaActual.includes('/admin/perfil') ? 'text-indigo-400' : 'text-zinc-500'}" />
       Configuración
     </a>
+
+    {#if tieneAcceso}
+      <div class="pt-4 mt-4 border-t border-zinc-800/50">
+        <p class="px-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Administración</p>
+        <a href="/admin/operaciones" class="flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold transition-all {rutaActual.includes('/admin/operaciones') ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 border border-transparent'}">
+          <Terminal class="w-4 h-4 {rutaActual.includes('/admin/operaciones') ? 'text-rose-400' : 'text-zinc-500'}" />
+          Consola Central
+        </a>
+      </div>
+    {/if}
   </nav>
   
   <div class="p-6 border-t border-zinc-800/50 bg-zinc-950 shrink-0">
