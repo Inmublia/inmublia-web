@@ -8,15 +8,6 @@
     Pencil, Trash2, EyeOff, CheckCircle2, BadgeDollarSign, TrendingUp, Handshake
   } from 'lucide-svelte';
 
-  //Boton Agente soporte 
-  <button onclick={async () => {
-  const res = await fetch('/api/ingestar-glosario', { method: 'POST' });
-  const data = await res.json();
-  alert(data.message || data.error);
-  }} class="bg-blue-500 text-white p-2 rounded">
-  Alimentar Cerebro IA
-  </button>
-
   let { data } = $props();
   let broker = $derived(data.broker);
   let propiedades = $derived(data.propiedades || []);
@@ -131,6 +122,15 @@
     return Math.max(0, Math.ceil(3 - diasTranscurridos));
   }
 </script>
+
+  //Boton Agente soporte 
+  <button onclick={async () => {
+  const res = await fetch('/api/ingestar-glosario', { method: 'POST' });
+  const data = await res.json();
+  alert(data.message || data.error);
+  }} class="bg-blue-500 text-white p-2 rounded">
+  Alimentar Cerebro IA
+  </button>
 
 <div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
 
