@@ -13,11 +13,11 @@ const TEMPLATE_MIN_PLAN = {
   prop_elite_1: 'elite'
 };
 
-// 🚀 CASCADA DE MODELOS REALES Y ESTABLES EN CLOUDFLARE (Sin Llama)
+// 🚀 TUS MODELOS EXIGIDOS COMPROBADOS
 const MODELS_CASCADE = [
-  '@cf/qwen/qwen1.5-14b-chat-awq',         // Principal: Excelente razonamiento
-  '@cf/mistral/mistral-7b-instruct-v0.2',  // Secundario: Rápido y estructurado
-  '@cf/google/gemma-7b-it'                 // Fallback: Red de seguridad
+  '@cf/qwen/qwen3-30b-a3b-fp8',
+  '@cf/ibm/granite-4.0-h-micro',
+  '@cf/google/gemma-4-26b-a4b-it'
 ];
 
 const TONE_GUIDES = {
@@ -210,7 +210,8 @@ function parseAiResponse(result) {
     throw new Error('No se detectó un objeto JSON en la respuesta.');
   }
 
-  const cleaned = raw.substring(firstBrace, lastBrace + 1).replace(/\n|\r/g, ' ');
+  // Se limpia de forma agresiva para que JSON.parse no explote
+  const cleaned = raw.substring(firstBrace, lastBrace + 1).replace(/[\n\r]/g, ' ').replace(/\\/g, '\\\\');
   return JSON.parse(cleaned);
 }
 
@@ -227,7 +228,7 @@ function validateAiContent(payload) {
   );
 
   if (!titulo || !descripcion || !whatsapp) {
-    throw new Error('La IA no devolvió todos los campos requeridos.');
+    throw new Error('La IA no devolvió todos los campos requeridos en el JSON.');
   }
 
   return { titulo, descripcion, whatsapp };
@@ -426,17 +427,16 @@ export const actions = {
 
       for (const modelId of MODELS_CASCADE) {
         try {
+          // Petición purgada de parámetros conflictivos para que Cloudflare no rechace el Micro o el FP8
           const result = await platform.env.AI.run(modelId, {
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt }
-            ],
-            max_tokens: 1200, // 🚀 Límite expandido para evitar cortes a mitad del JSON
-            temperature: 0.5
+            ]
           });
 
           finalContent = validateAiContent(parseAiResponse(result));
-          break; 
+          break; // Rompe el ciclo en cuanto el primer modelo de la lista tenga éxito
         } catch (err) {
           errorLog.push(`${modelId.split('/').pop()}: ${err.message}`);
           finalContent = null; 
@@ -444,7 +444,7 @@ export const actions = {
       }
 
       if (!finalContent) {
-        throw new Error(`Cascada agotada. Errores: ${errorLog.join(' | ')}`);
+        throw new Error(`Detalle técnico: ${errorLog.join(' | ')}`);
       }
 
       const confirmed = await confirmAiCredit(locals.supabase, user.id, requestId);
@@ -469,8 +469,9 @@ export const actions = {
         message: error instanceof Error ? error.message : 'Error desconocido'
       });
 
-      return fail(502, {
-        error: 'No fue posible generar el contenido. Tu crédito fue reembolsado.'
+      // 🚀 SE ACABÓ EL MISTERIO: Exponemos el error completo usando 400
+      return fail(400, {
+        error: `No fue posible generar el contenido. \n\n${error instanceof Error ? error.message : 'Error desconocido'}. \n\nTu crédito fue reembolsado atómicamente.`
       });
     }
   },
