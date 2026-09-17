@@ -1,5 +1,5 @@
 // src/routes/admin/operaciones/[broker_id]/+page.server.js
-import { error } from '@sveltejs/kit';
+import { error, redirect, fail } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
@@ -24,7 +24,6 @@ export async function load({ params, locals }) {
   const [perfilRes, propiedadesRes, auditoriaRes] = await Promise.all([
     supabaseAdmin.from('brokers').select('*').eq('id', brokerId).single(),
     supabaseAdmin.from('propiedades').select('id', { count: 'exact', head: true }).eq('broker_id', brokerId),
-    // La tabla audit_logs sí usa 'created_at' porque así la declaramos en la Fase 1
     supabaseAdmin.from('audit_logs').select('*').eq('agency_id', brokerId).eq('is_archived', false).order('created_at', { ascending: false }).limit(50)
   ]);
 
@@ -76,3 +75,39 @@ export async function load({ params, locals }) {
     miRol: locals.rol_interno 
   };
 }
+
+// 🚀 FIX DEFINITIVO: La acción nativa de Impersonar (Cero dependencias)
+export const actions = {
+  impersonar: async (event) => {
+    const brokerIdToImpersonate = event.params.broker_id;
+    const { user } = await event.locals.safeGetSession();
+
+    // Validar Rol Interno por seguridad
+    if (!event.locals.rol_interno) {
+      return fail(403, { error: 'No tienes permisos operativos para impersonar cuentas.' });
+    }
+
+    // Inyectar la cookie de Sesión Sombra (15 minutos)
+    event.cookies.set('inmublia_shadow_tenant', brokerIdToImpersonate, {
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 15 
+    });
+
+    // Auditoría Inline (Sin depender de archivos externos)
+    const supabaseAdmin = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const ip = event.request.headers.get('cf-connecting-ip') || 'desconocida';
+
+    await supabaseAdmin.from('audit_logs').insert({
+      agency_id: brokerIdToImpersonate,
+      actor_id: user.id,
+      action_type: 'admin.impersonation.started',
+      status: 'warning',
+      metadata: { mensaje: 'Sesión de soporte (Solo Lectura) iniciada.', network: { ip } }
+    });
+
+    throw redirect(303, '/admin');
+  }
+};
