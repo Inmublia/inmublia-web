@@ -1,5 +1,8 @@
 // src/routes/admin/+page.server.js
 import { redirect, fail } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
 export async function load({ locals, setHeaders, url, depends }) {
   depends('supabase:auth');
@@ -12,17 +15,30 @@ export async function load({ locals, setHeaders, url, depends }) {
   }
 
   try {
-    const { data: broker, error: brokerError } = await locals.supabase
-      .from('brokers')
-      .select('*')
-      .eq('auth_user_id', user.id)
-      .single();
+    // 🚀 BYPASS RLS: Si está impersonando, usamos el cliente Dios
+    let db = locals.supabase;
+    
+    if (locals.isImpersonating) {
+      db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+      // Ojo: locals.tenantId ya tiene el ID del cliente impersonado gracias al layout.server.js global
+    }
+
+    // 1. Buscamos al broker usando el target correcto
+    let query = db.from('brokers').select('*');
+    if (locals.isImpersonating && locals.tenantId) {
+       query = query.eq('id', locals.tenantId);
+    } else {
+       query = query.eq('auth_user_id', user.id);
+    }
+    
+    const { data: broker, error: brokerError } = await query.single();
 
     if (brokerError || !broker) throw new Error("Broker no encontrado");
 
     const nowIso = new Date().toISOString();
 
-    const { data: alertasPendientes, error: alertasError } = await locals.supabase
+    // 2. Traemos las alertas (Usando la DB liberada de RLS)
+    const { data: alertasPendientes, error: alertasError } = await db
       .from('lead_notas')
       .select('id, contenido, fecha_recordatorio, completado, leads(id, nombre)')
       .eq('broker_id', broker.id)
@@ -32,8 +48,8 @@ export async function load({ locals, setHeaders, url, depends }) {
 
     if (alertasError) console.error("Error cargando alertas:", alertasError);
 
-    // En el Admin, traemos TODO el inventario sin ocultarlo a los 3 días
-    const { data: propiedades, error: propError } = await locals.supabase
+    // 3. Traemos TODO el inventario (Usando la DB liberada de RLS)
+    const { data: propiedades, error: propError } = await db
       .from('propiedades')
       .select(`
         id, 
@@ -78,6 +94,9 @@ export async function load({ locals, setHeaders, url, depends }) {
 
 export const actions = {
   marcarVendida: async ({ request, locals }) => {
+    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
+    if (locals.isImpersonating) return fail(403, { error: 'Modo Solo Lectura: No puedes alterar el inventario del cliente.' });
+    
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
@@ -108,6 +127,7 @@ export const actions = {
   },
 
   deshacerVendida: async ({ request, locals }) => {
+    if (locals.isImpersonating) return fail(403, { error: 'Modo Solo Lectura.' });
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
@@ -138,6 +158,7 @@ export const actions = {
   },
 
   eliminar: async ({ request, locals, platform }) => {
+    if (locals.isImpersonating) return fail(403, { error: 'Modo Solo Lectura.' });
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
