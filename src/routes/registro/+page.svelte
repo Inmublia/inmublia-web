@@ -68,7 +68,8 @@
     subdominioDisponible !== false
   );
 
-  let form = $props().form;
+  // 🚀 FIX: Sintaxis obligatoria de Svelte 5 para inicialización
+  let { form } = $props();
 </script>
 
 <svelte:head>
