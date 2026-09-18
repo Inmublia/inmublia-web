@@ -84,12 +84,9 @@
 
 <div class="min-h-screen bg-slate-50 font-sans selection:bg-indigo-500 selection:text-white pb-24">
   <header class="w-full h-20 flex items-center justify-between px-6 lg:px-12 bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200/50">
-    <a href="/" class="flex items-center gap-2">
-      <!-- 🚀 FIX: Logo agregado en el header -->
-      <div class="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center shadow-sm">
-        <img src="/logo.png" alt="Inmublia" class="w-5 h-5 object-contain filter invert" />
-      </div>
-      <span class="font-black text-xl tracking-tight text-slate-900">Inmublia</span>
+    <a href="/" class="flex items-center">
+      <!-- 🚀 FIX: Logo en tamaño amplio, respetando fondo original y eliminando caja oscura limitante -->
+      <img src="/logo.png" alt="Inmublia" class="h-10 md:h-12 w-auto object-contain drop-shadow-sm" />
     </a>
     <a href="/login" class="text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors">
       Ya tengo cuenta &rarr;
@@ -124,13 +121,11 @@
     </div>
   </main>
 
-  <!-- 🚀 FIX: Cambiado a lg:grid-cols-4 para acomodar la nueva tarjeta de Trial Elite -->
   <div class="max-w-[90rem] mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start mb-16">
     {#each planes as plan}
       <div class="relative bg-white rounded-3xl p-6 border {plan.destacado ? 'border-indigo-500 shadow-2xl shadow-indigo-500/10 scale-100 md:scale-105 z-10' : 'border-slate-200 shadow-xl shadow-slate-200/50'} flex flex-col h-full transition-transform duration-300">
         
         {#if plan.badge}
-          <!-- 🚀 FIX: Badge Verde para el Trial, Índigo para el Pro -->
           <div class="absolute -top-3 left-0 right-0 flex justify-center">
             <span class="{plan.id === 'trial' ? 'bg-emerald-500' : 'bg-indigo-500'} text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-md">
               {plan.badge}
@@ -139,7 +134,6 @@
         {/if}
 
         <div class="flex items-center gap-3 mb-6 mt-2">
-          <!-- 🚀 FIX: Ícono Verde para el Trial -->
           <div class="w-10 h-10 rounded-xl flex items-center justify-center {plan.destacado ? 'bg-indigo-50 text-indigo-600' : plan.id === 'trial' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-600'}">
             <plan.icono class="w-5 h-5" />
           </div>
@@ -148,13 +142,11 @@
 
         <div class="mb-4 h-16">
           {#if plan.id === 'trial'}
-            <!-- Render especial de precio para el Trial -->
             <div class="flex items-baseline gap-1">
               <span class="text-4xl font-black text-slate-900">Gratis</span>
             </div>
             <p class="text-[10px] font-bold text-emerald-600 mt-2">Prueba Élite x 14 días</p>
           {:else}
-            <!-- Render normal para los de pago -->
             <div class="flex items-baseline gap-1">
               <span class="text-2xl font-black text-slate-900">$</span>
               <span class="text-4xl font-black text-slate-900 tracking-tight">
@@ -172,7 +164,6 @@
           {/if}
         </div>
 
-        <!-- 🚀 FIX: Altura fija (h-10) en la descripción para alinear las tarjetas -->
         <p class="text-xs font-medium text-slate-600 mb-6 h-10">{plan.descripcion}</p>
 
         <ul class="space-y-3 mb-8 flex-1">
@@ -193,7 +184,6 @@
           {/each}
         </ul>
 
-        <!-- 🚀 FIX: Modificación de botón para dar énfasis verde al Trial -->
         <a 
           href="/registro?plan={plan.id}&ciclo={facturacionAnual ? 'anual' : 'mensual'}"
           class="w-full py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-200 
@@ -208,7 +198,6 @@
     {/each}
   </div>
 
-  <!-- BANNER DE ADD-ON: Dominio Personalizado -->
   <div class="max-w-4xl mx-auto px-6">
     <div class="bg-slate-900 rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl border border-slate-800">
       <div class="flex items-center gap-5">
