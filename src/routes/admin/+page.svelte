@@ -124,13 +124,13 @@
 </script>
 
 //Boton EAV
-<button onclick={async () => {
-  const res = await fetch('/api/ingestar-nuevas', { method: 'POST' });
-  const data = await res.json();
-  alert(data.message || data.error);
-}} class="bg-emerald-600 text-white font-bold py-2 px-4 rounded mb-4">
-  Inyectar Documentación Propiedades
-</button>
+//<button onclick={async () => {
+  //const res = await fetch('/api/ingestar-nuevas', { method: 'POST' });
+  //const data = await res.json();
+  //alert(data.message || data.error);
+//}} class="bg-emerald-600 text-white font-bold py-2 px-4 rounded mb-4">
+  //Inyectar Documentación Propiedades
+//</button>
 
 <div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
 
