@@ -8,23 +8,25 @@
 
   let { data, form } = $props();
   
-  // 🚀 FIX: Eliminado el $effect defectuoso. SvelteKit actualiza `data` nativamente y lo capturamos limpio
   let broker = $state(data.broker || {});
+  
+  // 🚀 FIX: Sincronizamos data de SvelteKit con nuestro estado mutable para matar el Warning de Reactividad
+  $effect(() => {
+    if (data.broker) broker = data.broker;
+  });
+
   let currentWebhook = $derived(data.webhook || {});
 
-  // 🚀 FIX CRÍTICO: Reactividad para los planes (Calculado siempre en tiempo real)
   let planActual = $derived((broker.plan_suscripcion || 'basico').toLowerCase().trim());
   let isPro = $derived(['pro', 'profesional', 'elite'].includes(planActual));
   let isElite = $derived(planActual === 'elite');
   let esPlanBasico = $derived(planActual === 'basico');
 
-  // 🔥 ARQUITECTURA ZERO-TRUST & LIMITES DE TRIAL
   let estatusBD = $derived((broker.status_suscripcion || '').toLowerCase().trim());
   let esCancelado = $derived(['cancelada', 'canceled'].includes(estatusBD));
   let esMoroso = $derived(['past_due', 'unpaid', 'inactiva'].includes(estatusBD));
   let accesoBloqueado = $derived(esCancelado || esMoroso);
   
-  // 🚀 FIX: Cálculo de días restantes de Trial en tiempo real
   let esTrial = $derived(estatusBD === 'trial');
   let trialRestante = $derived(() => {
     if (!esTrial || !broker.trial_ends_at) return 0;
@@ -34,16 +36,13 @@
     return days < 0 ? 0 : days;
   });
 
-  // 🚀 FIX: Unificación de feedback para todos los formularios
   let savingProfile = $state(false);
   let showSuccess = $state(false);
   let successMessage = $state('');
   let previewUrl = $state(null);
 
-  // Referencia al botón invisible de submit del formulario principal
   let submitBtnPerfil = $state(null);
 
-  // 🚀 FIX: Inicialización segura de la URL del webhook si el servidor la envía tarde
   let webhookUrl = $state('');
   $effect(() => {
     if (currentWebhook.endpoint_url && !webhookUrl) {
@@ -54,7 +53,6 @@
   let savingWebhook = $state(false);
   let testingWebhook = $state(false);
 
-  // 🚀 FIX: Validadores de UI en tiempo real (Corregido a Mínimo 3 caracteres para hacer match con el Registro)
   let subdominioError = $derived(
     !broker.subdominio ? '' :
     /\s/.test(broker.subdominio) ? 'No se permiten espacios' :
@@ -67,7 +65,6 @@
     !broker.whatsapp || /^52\d{10}$/.test((broker.whatsapp || '').replace(/\D/g, ''))
   );
 
-  // 🚀 FIX: Blindaje de Archivos antes de subirlos a R2
   const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
   const MAX_MB = 5;
 
@@ -95,7 +92,6 @@
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   });
 
-  // 🚀 FIX CRÍTICO: El ping se manda al backend (Server Action) para no chocar con el CORS del navegador
   async function probarWebhook() {
     if (!webhookUrl) return alert('Ingresa una URL primero.');
     testingWebhook = true;
@@ -126,7 +122,6 @@
   }
 </script>
 
-<!-- 🚀 FIX: Toast movido a la raíz para que el 'overflow-hidden' del main no lo ampute visualmente -->
 {#if showSuccess}
   <div class="fixed bottom-10 right-10 z-[100] p-5 bg-slate-900 rounded-2xl flex items-center gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-700 animate-[fadeIn_0.3s_ease-out]" role="alert">
     <div class="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center shrink-0 border border-emerald-500/30">
@@ -143,7 +138,6 @@
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
-  <!-- 🚀 FIX: Cabecera Estilo Dashboard / Design Studio -->
   <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
@@ -168,7 +162,6 @@
 
       {#if !accesoBloqueado}
         <div>
-          <!-- 🚀 FIX: Botón de Guardado Superior que acciona el formulario de abajo -->
           <button type="button" onclick={() => submitBtnPerfil?.click()} disabled={savingProfile || subdominioError} class="bg-white hover:bg-zinc-200 disabled:bg-zinc-300 disabled:text-zinc-500 text-zinc-950 font-bold py-3 px-6 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center gap-2 transition-all text-sm cursor-pointer active:scale-95">
             {#if savingProfile}
               <span class="w-4 h-4 border-2 border-zinc-950/30 border-t-zinc-950 rounded-full animate-spin"></span> Guardando...
@@ -184,16 +177,12 @@
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 h-full">
 
-      <!-- ========================================================================= -->
-      <!-- HARD ROUTING UI: Aislamiento visual según el nivel de morosidad -->
-      <!-- ========================================================================= -->
       {#if accesoBloqueado}
         <div class="flex items-center justify-center pt-10">
           <div class="bg-white rounded-3xl max-w-lg w-full p-10 shadow-2xl text-center border border-red-100 relative overflow-hidden animate-[fadeIn_0.3s_ease-out]">
             <div class="absolute top-0 right-0 w-40 h-40 {esCancelado ? 'bg-red-500/10' : 'bg-amber-500/10'} rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
             
             {#if esCancelado}
-              <!-- VISTA PARA CANCELADOS -->
               <AlertOctagon class="w-16 h-16 text-red-500 mx-auto mb-5 relative z-10" />
               <h2 class="text-2xl font-black text-slate-900 mb-3 relative z-10">Suscripción Cancelada</h2>
               <p class="text-sm text-slate-600 mb-8 leading-relaxed font-medium relative z-10">
@@ -203,7 +192,6 @@
                 Ver Planes y Contratar
               </a>
             {:else}
-              <!-- VISTA PARA MOROSOS (past_due) -->
               <AlertOctagon class="w-16 h-16 text-amber-500 mx-auto mb-5 relative z-10" />
               <h2 class="text-2xl font-black text-slate-900 mb-3 relative z-10">Método de Pago Rechazado</h2>
               <p class="text-sm text-slate-600 mb-8 leading-relaxed font-medium relative z-10">
@@ -220,9 +208,6 @@
           </div>
         </div>
 
-      <!-- ========================================================================= -->
-      <!-- SI ESTÁ ACTIVO, RENDERIZA EL PERFIL NORMAL -->
-      <!-- ========================================================================= -->
       {:else}
 
         {#if form?.error && form?.formId !== 'webhook'}
@@ -258,13 +243,12 @@
                   alert("🔥 Caída Servidor: " + result.error.message);
                 } 
                 else if (result.type === 'success' && result.data?.formId !== 'webhook') { 
-                  // 🚀 FIX: Limpiamos la URL temporal de memoria para que el sistema use la nueva URL real de la BD
                   if (previewUrl) {
                     URL.revokeObjectURL(previewUrl);
                     previewUrl = null;
                   }
                   
-                  broker = result.data?.broker || broker; // Actualizamos datos frescos
+                  broker = result.data?.broker || broker; 
                   successMessage = 'La configuración de tu agencia ha sido guardada.';
                   showSuccess = true; 
                   setTimeout(() => showSuccess = false, 4000); 
@@ -275,8 +259,8 @@
               };
             }}>
               
-              <!-- 🚀 FIX: Botón oculto para ser disparado desde el header superior -->
-              <button type="submit" bind:this={submitBtnPerfil} class="hidden"></button>
+              <!-- 🚀 FIX: Atributo aria-hidden="true" para eliminar Warning de accesibilidad y botón "con texto" que no se lee -->
+              <button type="submit" aria-hidden="true" bind:this={submitBtnPerfil} class="hidden">Guardar</button>
 
               <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
                 <div class="flex items-center gap-3 mb-6">
@@ -333,7 +317,6 @@
                   <div>
                     <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Enlace Personalizado</span>
                     <div class="flex items-center">
-                      <!-- 🚀 FIX: Forzamos sanitización limpia en tiempo real en el input de Subdominio -->
                       <input 
                         type="text" 
                         name="subdominio" 
@@ -344,7 +327,6 @@
                       >
                       <div class="bg-slate-100 border-y border-r border-slate-200 rounded-r-xl px-4 py-3 text-sm font-medium text-slate-500 pointer-events-none">.inmublia.com</div>
                     </div>
-                    <!-- 🚀 FIX: Mensaje de error (ahora exige solo mínimo 3 caracteres) -->
                     {#if subdominioError}
                       <p class="text-[10px] text-red-500 font-bold mt-1.5">{subdominioError}</p>
                     {/if}
@@ -445,7 +427,6 @@
 
           <div class="lg:col-span-4 space-y-6">
             
-            <!-- 🚀 FIX: Tarjeta de Membresía Actualizada para soportar Modo Trial -->
             <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 relative overflow-hidden">
               <div class="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-full blur-3xl -mr-10 -mt-10"></div>
               <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10">Membresía Actual</h4>
@@ -480,7 +461,6 @@
               return async ({ update, result }) => { 
                 savingWebhook = false;
                 
-                // 🚀 FIX: Mostramos el Toast de éxito también al guardar el Webhook
                 if (result.type === 'success') {
                   successMessage = 'El Webhook ha sido guardado y ya está activo.';
                   showSuccess = true;
@@ -549,7 +529,7 @@
             </form>
           </div>
         </div>
-      {/if} <!-- FIN BLOQUE HARD ROUTING UI -->
+      {/if}
     </div>
   </main>
 </div>
