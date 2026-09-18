@@ -1,8 +1,9 @@
+<!-- src/routes/[slug]/+page.svelte -->
 <script>
   import { page } from '$app/stores';
   import PropertySeo from '$lib/components/PropertySeo.svelte';
   
-  // 🔥 Componente que inyecta Meta, GA4 y TikTok Pixel dinámicamente (NUEVO)
+  // 🔥 Componente que inyecta Meta, GA4 y TikTok Pixel dinámicamente
   import AnalyticsScripts from '$lib/components/AnalyticsScripts.svelte';
 
   // 🔥 Componente unificado para la experiencia Brochure
@@ -38,53 +39,66 @@
   let templateId = $derived(data.templateForzado || data.propiedad?.template_id || 'prop_basic_1');
 
   // 🔥 LÓGICA DE NEGOCIO CENTRALIZADA: GATEKEEPER DEL SMART BROCHURE
-  // Valida estatus estricto antes de permitir el cambio de interfaz
   let urlPideBrochure = $derived($page.url.searchParams.get('brochure') === 'true');
   let planActual = $derived(broker?.plan_suscripcion?.toLowerCase()?.trim() || 'basico');
   let estatusActual = $derived(broker?.status_suscripcion?.toLowerCase()?.trim() || 'inactiva');
-  let tienePlanPremium = $derived((planActual === 'pro' || planActual === 'elite') && estatusActual === 'activa');
+  
+  // 🚀 FIX: Reconocer 'trial' como un estatus sano y darle permiso premium para usar Brochures
+  let tienePlanPremium = $derived(
+    (planActual === 'pro' || planActual === 'elite') && 
+    (estatusActual === 'activa' || estatusActual === 'trial')
+  );
   
   let isBrochure = $derived(urlPideBrochure && tienePlanPremium);
+
+  // 🚀 ESTRATEGIA PLG: EL MURO DE FRUSTRACIÓN (SILENCIOSO)
+  // Si el estatus es problemático ('past_due', 'cancelada', 'inactiva' o 'unpaid'), activamos el filtro gris.
+  let cuentaSuspendida = $derived(
+    ['cancelada', 'canceled', 'inactiva', 'past_due', 'unpaid'].includes(estatusActual)
+  );
+
 </script>
 
-{#if propiedad.id && broker.id}
+{#if propiedad.id && broker.id && !cuentaSuspendida}
   <PropertySeo {propiedad} {broker} {urlActual} />
-  
-  <!-- Inyección segura SSR de los Píxeles de Tracking -->
+  <!-- Inyección segura SSR de los Píxeles de Tracking (Solo si la cuenta está activa) -->
   <AnalyticsScripts {broker} />
 {/if}
 
-{#if isBrochure}
-  <SmartBrochure {data} {form} />
-{:else}
-  {#if templateId === 'prop_basic_1' || templateId === 'classic'}
-    <Basic1 {data} {form} />
-
-  {:else if templateId === 'prop_basic_2' || templateId === 'clean'}
-    <Basic2 {data} {form} />
-
-  {:else if templateId === 'prop_pro_1' || templateId === 'modern'}
-    <Pro1 {data} {form} />
-
-  {:else if templateId === 'prop_pro_2'}
-    <Pro2 {data} {form} />
-
-  {:else if templateId === 'prop_pro_3' || templateId === 'editorial'}
-    <Pro3 {data} {form} />
-
-  {:else if templateId === 'prop_elite_1' || templateId === 'luxury'}
-    <Elite1 {data} {form} />
-
-  {:else if templateId === 'prop_elite_2' || templateId === 'cinematic'}
-    <Elite2 {data} {form} />
-
-  {:else if templateId === 'prop_elite_3'}
-    <Elite3 {data} {form} />
-
-  {:else if templateId === 'prop_elite_4'}
-    <Elite4 {data} {form} />
-
+<!-- 🚀 INYECCIÓN DEL FILTRO GRIS Y BLOQUEO DE INTERACCIÓN (Sin Banner) -->
+<div class="{cuentaSuspendida ? 'grayscale-[1] blur-[2px] pointer-events-none select-none overflow-hidden h-screen' : ''}">
+  {#if isBrochure}
+    <SmartBrochure {data} {form} />
   {:else}
-    <Basic1 {data} {form} />
+    {#if templateId === 'prop_basic_1' || templateId === 'classic'}
+      <Basic1 {data} {form} />
+
+    {:else if templateId === 'prop_basic_2' || templateId === 'clean'}
+      <Basic2 {data} {form} />
+
+    {:else if templateId === 'prop_pro_1' || templateId === 'modern'}
+      <Pro1 {data} {form} />
+
+    {:else if templateId === 'prop_pro_2'}
+      <Pro2 {data} {form} />
+
+    {:else if templateId === 'prop_pro_3' || templateId === 'editorial'}
+      <Pro3 {data} {form} />
+
+    {:else if templateId === 'prop_elite_1' || templateId === 'luxury'}
+      <Elite1 {data} {form} />
+
+    {:else if templateId === 'prop_elite_2' || templateId === 'cinematic'}
+      <Elite2 {data} {form} />
+
+    {:else if templateId === 'prop_elite_3'}
+      <Elite3 {data} {form} />
+
+    {:else if templateId === 'prop_elite_4'}
+      <Elite4 {data} {form} />
+
+    {:else}
+      <Basic1 {data} {form} />
+    {/if}
   {/if}
-{/if}
+</div>
