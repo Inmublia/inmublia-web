@@ -1,20 +1,35 @@
+// src/routes/admin/leads/+page.server.js
 import { fail, redirect } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
 
-  const { data: broker, error: brokerError } = await locals.supabase
-    .from('brokers')
-    .select('*')
-    .eq('auth_user_id', locals.user.id)
-    .single();
+  // 🚀 BYPASS RLS: Inyectamos Cliente Dios para el God Mode
+  let db = locals.supabase;
+  if (locals.isImpersonating) {
+    db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+
+  // 1. Buscamos el ID correcto (El tuyo, o el del cliente si estás impersonando)
+  let query = db.from('brokers').select('*');
+  if (locals.isImpersonating && locals.tenantId) {
+    query = query.eq('id', locals.tenantId);
+  } else {
+    query = query.eq('auth_user_id', locals.user.id);
+  }
+
+  const { data: broker, error: brokerError } = await query.single();
 
   if (brokerError || !broker) {
     console.error('🔥 Error al consultar perfil de broker:', brokerError?.message);
     return { broker: null, leads: [] };
   }
 
-  const { data: leads, error: leadsError } = await locals.supabase
+  // 2. Traemos todos los prospectos SIN MURO RLS (Usando 'db')
+  const { data: leads, error: leadsError } = await db
     .from('leads')
     .select(`*, propiedades (*), lead_notas (*)`)
     .eq('broker_id', broker.id)
@@ -51,6 +66,8 @@ export const load = async ({ locals }) => {
 
 export const actions = {
   actualizar: async ({ request, locals }) => {
+    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
+    if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización: No puedes alterar los prospectos del cliente.' });
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
     const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
@@ -65,7 +82,7 @@ export const actions = {
 
     let actualizaciones = { 
         estado,
-        ultima_actividad: new Date().toISOString() // FIX: Nombre correcto
+        ultima_actividad: new Date().toISOString() 
     };
     
     if (estado === 'cerrado') {
@@ -82,6 +99,8 @@ export const actions = {
   },
 
   eliminar: async ({ request, locals }) => {
+    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
+    if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
     const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
@@ -96,6 +115,8 @@ export const actions = {
   },
 
   guardarNota: async ({ request, locals }) => {
+    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
+    if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización: No puedes agregar notas al cliente.' });
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
     const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
@@ -129,7 +150,7 @@ export const actions = {
     }
 
     let actualizacionesLead = { 
-        ultima_actividad: new Date().toISOString() // FIX: Nombre correcto
+        ultima_actividad: new Date().toISOString()
     };
 
     if (lead.estado === 'nuevo') {
@@ -147,6 +168,8 @@ export const actions = {
   },
 
   completarRecordatorio: async ({ request, locals }) => {
+    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
+    if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
     if (!locals.user) return fail(401, { error: 'No autorizado' });
     const formData = await request.formData();
     const notaId = formData.get('nota_id');
