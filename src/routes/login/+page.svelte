@@ -1,13 +1,11 @@
 <!-- src/routes/login/+page.svelte -->
 <script lang="ts">
-  // 🚀 FIX: Svelte 5 usa $app/state para reactividad directa sin el prefix $
   import { page } from '$app/state';
   import { enhance } from '$app/forms';
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import { ShieldCheck, Mail, KeyRound, Loader2, AlertCircle, Info, ArrowRight, CheckCircle2 } from 'lucide-svelte';
   
-  // 🚀 FIX: Svelte 5 prohíbe mutar props directamente. Usamos una variable local para sobrescribir.
   let { form: formProp } = $props();
   let formOverride = $state<any>(null);
   let formActual = $derived(formOverride ?? formProp);
@@ -18,7 +16,6 @@
   let vistaRecuperacion = $state(false);
   let errorHash = $state('');
 
-  // 🚀 FIX: Rate limiting visual para evitar spam de correos de recuperación
   let correoEnviado = $state(false);
   let segundosRestantes = $state(0);
 
@@ -32,7 +29,6 @@
         vistaRecuperacion = true;
       }
 
-      // 🚀 FIX CRÍTICO: Limpiar el hash de la URL para que no persista si el usuario recarga o comparte el link
       history.replaceState(null, '', window.location.pathname + window.location.search);
     }
   });
@@ -47,18 +43,19 @@
     <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>
 
     <div class="flex flex-col items-center mb-10">
-      <div class="w-14 h-14 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center mb-8 shadow-inner ring-1 ring-white/5">
-        <img src="/logo.png" alt="Inmublia" class="h-8 w-auto filter invert opacity-90">
+      <!-- 🚀 FIX: Logo limpio sin caja negra ni bordes -->
+      <div class="mb-8">
+        <img src="/logo.png" alt="Inmublia" class="h-10 w-auto filter invert drop-shadow-md">
       </div>
       <h1 class="text-3xl font-black tracking-tighter leading-tight text-center text-white drop-shadow-sm">
         {vistaRecuperacion ? 'Recuperar Acceso' : 'Consola Operativa'}
       </h1>
+      <!-- 🚀 FIX: Subtítulo simplificado -->
       <p class="text-xs text-zinc-400 mt-3 text-center font-medium max-w-[280px] tracking-wide">
-        {vistaRecuperacion ? 'Ingresa tu correo para recibir un enlace seguro de restablecimiento.' : 'Gestión patrimonial exclusiva. Identifícate para acceder a tu entorno.'}
+        {vistaRecuperacion ? 'Ingresa tu correo para recibir un enlace seguro de restablecimiento.' : 'Identifícate para acceder a tu entorno de trabajo seguro.'}
       </p>
     </div>
 
-    <!-- 🚀 FIX: Lógica de banners anidada (If / Else If) para evitar que se amontonen visualmente -->
     <div class="space-y-4 mb-8">
       {#if formActual?.error || errorHash}
         <div in:fade={{ duration: 200 }} class="flex items-center gap-3.5 px-4 py-3 bg-red-500/10 text-red-500 rounded-xl border border-red-500/20 shadow-sm">
@@ -106,9 +103,7 @@
       {/if}
     </div>
 
-    <!-- 🚀 FIX: Transiciones Svelte nativas en el formulario para evitar saltos en el DOM -->
     {#if !vistaRecuperacion}
-      <!-- 🚀 FIX: 'use:enhance' asegura que el 'cargando' se reinicie a false incluso si falla la validación -->
       <form method="POST" action="?/ingresar" 
         transition:fade={{ duration: 150 }}
         use:enhance={() => {
@@ -127,7 +122,6 @@
             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
               <Mail class="w-4 h-4" />
             </div>
-            <!-- 🚀 FIX: autocomplete attributes añadidos por seguridad y UX -->
             <input type="email" name="email" id="email" autocomplete="username email" placeholder="correo@agencia.com" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
           </div>
         </div>
@@ -214,8 +208,9 @@
     <div class="mt-10 pt-8 border-t border-white/5 text-center">
       <p class="text-xs text-zinc-500 font-medium">
         ¿Aún no tienes infraestructura propia? <br>
-        <a href="/registro" class="inline-flex items-center gap-1 font-bold text-white hover:text-indigo-400 transition-colors mt-2">
-          Contactar a Ventas Inmublia <ArrowRight class="w-3 h-3" />
+        <!-- 🚀 FIX: Enlace ajustado a la landing pública PLG -->
+        <a href="https://inmublia.com/planes" class="inline-flex items-center gap-1 font-bold text-white hover:text-indigo-400 transition-colors mt-2">
+          Ver nuestros planes <ArrowRight class="w-3 h-3" />
         </a>
       </p>
     </div>
