@@ -43,9 +43,9 @@
     <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>
 
     <div class="flex flex-col items-center mb-10">
-      <!-- 🚀 FIX: Logo en su color original (sin invert) sobre fondo blanco con bordes sutiles para que resalte en el tema oscuro -->
-      <div class="mb-8 w-24 h-16 bg-white rounded-xl flex items-center justify-center shadow-lg border border-white/10">
-        <img src="/logo.png" alt="Inmublia" class="h-8 w-auto object-contain">
+      <!-- 🚀 FIX: Logo sin fondo, masivo, alineado con la marca. -->
+      <div class="mb-8 w-40 h-20 flex items-center justify-center">
+        <img src="/logo.png" alt="Inmublia" class="w-full h-full object-contain">
       </div>
       <h1 class="text-3xl font-black tracking-tighter leading-tight text-center text-white drop-shadow-sm">
         {vistaRecuperacion ? 'Recuperar Acceso' : 'Consola Operativa'}
