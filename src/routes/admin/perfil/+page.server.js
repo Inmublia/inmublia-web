@@ -1,29 +1,52 @@
 // src/routes/admin/perfil/+page.server.js
 import { fail, redirect } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
 export async function load({ locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
-  const { data: broker, error } = await locals.supabase
-    .from('brokers')
-    .select('*')
-    .eq('auth_user_id', user.id)
-    .single();
+  // 🚀 BYPASS RLS: Inyectamos Cliente Dios para el God Mode
+  let db = locals.supabase;
+  if (locals.isImpersonating) {
+    db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+
+  // 1. Buscamos el ID correcto (El tuyo, o el del cliente si estás impersonando)
+  let query = db.from('brokers').select('*');
+  if (locals.isImpersonating && locals.tenantId) {
+    query = query.eq('id', locals.tenantId);
+  } else {
+    query = query.eq('auth_user_id', user.id);
+  }
+
+  const { data: broker, error } = await query.single();
 
   if (error || !broker) throw redirect(303, '/login');
 
-  const { data: webhook } = await locals.supabase
-    .from('agency_webhooks')
-    .select('*')
-    .eq('agency_id', user.id)
-    .single();
+  // 2. Traer Webhooks asegurándonos de usar el ID del broker correcto
+  let webhookQuery = db.from('agency_webhooks').select('*');
+  
+  if (locals.isImpersonating && locals.tenantId) {
+    // Si estamos impersonando, el webhook guarda 'agency_id' pero en realidad es el 'auth_user_id'. 
+    // Necesitamos el 'auth_user_id' del cliente impersonado.
+    webhookQuery = webhookQuery.eq('agency_id', broker.auth_user_id);
+  } else {
+    webhookQuery = webhookQuery.eq('agency_id', user.id);
+  }
+
+  const { data: webhook } = await webhookQuery.single();
 
   return { broker, webhook };
 }
 
 export const actions = {
   updateProfile: async ({ request, locals }) => {
+    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
+    if (locals.isImpersonating) return fail(403, { formId: 'profile', error: 'Modo Visualización: No puedes modificar el perfil del cliente.' });
+    
     try {
       const user = locals.user;
       if (!user) return fail(401, { formId: 'profile', error: 'Sesión expirada. Vuelve a iniciar sesión.' });
@@ -112,6 +135,9 @@ export const actions = {
   },
 
   guardarWebhook: async ({ request, locals }) => {
+    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
+    if (locals.isImpersonating) return fail(403, { formId: 'webhook', error: 'Modo Visualización: No puedes modificar las integraciones del cliente.' });
+    
     const user = locals.user;
     if (!user) throw redirect(303, '/login');
 
@@ -144,15 +170,15 @@ export const actions = {
     return { formId: 'webhook', success: true };
   },
 
-  // 🚀 NUEVA ACCIÓN: PING SEGURO DESDE EL SERVIDOR (Adiós errores de CORS)
   probarWebhook: async ({ request, locals }) => {
+    // Aquí NO bloqueamos la acción si estamos impersonando. 
+    // Un administrador debería poder lanzar un "Ping" de prueba al servidor del cliente para ayudarle a depurar.
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
     const formData = await request.formData();
     const url = formData.get('endpoint_url');
 
-    // Validación básica de URL
     try {
       const parsed = new URL(url);
       if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
@@ -163,7 +189,6 @@ export const actions = {
     }
 
     try {
-      // Ejecuta la petición desde SvelteKit (Servidor) hacia el CRM del cliente
       const res = await fetch(url, {
         method: 'POST',
         headers: {
@@ -176,7 +201,6 @@ export const actions = {
           mensaje: '¡Ping de prueba exitoso desde Inmublia!',
           timestamp: Date.now() 
         }),
-        // Timeout protector para que si el servidor del cliente está caído, no se cuelgue nuestra app
         signal: AbortSignal.timeout(8000) 
       });
       
@@ -188,8 +212,6 @@ export const actions = {
       
     } catch (err) {
       console.error("[Webhook Test Error]:", err.message);
-      
-      // Controlar Timeout explícitamente para dar mejor feedback
       if (err.name === 'TimeoutError') {
          return fail(504, { error: 'Tiempo de espera agotado. El servidor destino tardó más de 8 segundos en responder.' });
       }
