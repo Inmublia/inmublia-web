@@ -113,16 +113,22 @@ export async function handle({ event, resolve }) {
       .single();
 
     if (userBroker) {
-      // 🚀 FIX: Anclamos tu rol globalmente para que el menú NUNCA desaparezca al impersonar
       event.locals.rol_interno = userBroker.rol_interno;
       event.locals.tenantId = userBroker.id;
       
       const status = (userBroker.status_suscripcion || '').toLowerCase().trim();
       const isLogout = pathname.includes('/logout');
+      
+      // 🚀 FIX TRIAL: Reconocer 'trial' y 'active' como estados saludables
+      const isTrial = status === 'trial';
+      const isActive = status === 'active' || status === 'activa';
+      
+      // Estados problemáticos
       const isCanceled = ['cancelada', 'canceled'].includes(status);
       const isPastDue = ['past_due', 'unpaid', 'inactiva'].includes(status);
 
-      if (!isLogout && (isCanceled || isPastDue)) {
+      // Si no es un Logout, y la cuenta NO está sana (ni Trial ni Activa)
+      if (!isLogout && !isTrial && !isActive) {
         const isPlanesPage = pathname.startsWith('/admin/planes');
         const isPerfilPage = pathname.startsWith('/admin/perfil');
         const isStripeApi = pathname.startsWith('/api/stripe');
@@ -158,7 +164,6 @@ export async function handle({ event, resolve }) {
         event.locals.tenantId = shadowBrokerId;
         event.locals.isImpersonating = true;
 
-        // Muro de Contención Estricto: Si no es GET, lo bloqueamos (a menos que intente salir)
         const method = event.request.method;
         const isExitRoute = pathname.includes('/salir-impersonacion');
         
