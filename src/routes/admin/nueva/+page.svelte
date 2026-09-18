@@ -5,12 +5,17 @@
   import { 
     ArrowLeft, UploadCloud, Images, Sparkles, Loader2, CheckCircle2,
     Copy, MapPin, MessageCircle, BadgeDollarSign, LayoutTemplate,
-    AlertTriangle, Eye, Zap, AlertOctagon
+    AlertTriangle, Eye, Zap, AlertOctagon, Lock
   } from 'lucide-svelte';
 
   let { form, data } = $props();
   let creditosIA = $state(data?.creditos_ia ?? 15);
   let planSuscripcion = $derived(data?.plan_suscripcion ?? 'basico'); 
+  
+  // 🚀 EXTRACCIÓN DE PAYWALLS DESDE EL LAYOUT (Sin romper lógica extra)
+  let hitPropsPaywall = $derived(data?.limits?.hitPropsPaywall || false);
+  let maxProps = $derived(data?.limits?.maxProps || 0);
+  let currentProps = $derived(data?.limits?.currentProps || 0);
   
   let loading = $state(false);
   let isOculta = $state(false);
@@ -54,15 +59,15 @@
   };
 
   const catalogoTemplates = [
-    { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico', img: '[https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80](https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80)' },
-    { id: 'prop_basic_2', nombre: 'Clean Showcase', minPlan: 'basico', img: '[https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80](https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80)' },
-    { id: 'prop_pro_1', nombre: 'Lead Magnet', minPlan: 'pro', img: '[https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=80](https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=80)' },
-    { id: 'prop_pro_2', nombre: 'Modern Asymmetric', minPlan: 'pro', img: '[https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&q=80](https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&q=80)' },
-    { id: 'prop_pro_3', nombre: 'Editorial Story', minPlan: 'pro', img: '[https://images.unsplash.com/photo-1600607687931-cece5ce21460?w=600&q=80](https://images.unsplash.com/photo-1600607687931-cece5ce21460?w=600&q=80)' },
-    { id: 'prop_elite_1', nombre: 'Luxury Immersive', minPlan: 'elite', img: '[https://images.unsplash.com/photo-1513694203232-719a280e022f?w=600&q=80](https://images.unsplash.com/photo-1513694203232-719a280e022f?w=600&q=80)' },
-    { id: 'prop_elite_2', nombre: 'Cinematic Tour', minPlan: 'elite', img: '[https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=600&q=80](https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=600&q=80)' },
-    { id: 'prop_elite_3', nombre: 'Prestige Dark', minPlan: 'elite', img: '[https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&q=80](https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&q=80)' },
-    { id: 'prop_elite_4', nombre: 'Panoramic 3D', minPlan: 'elite', img: '[https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=600&q=80](https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=600&q=80)' }
+    { id: 'prop_basic_1', nombre: 'Essential Focus', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80' },
+    { id: 'prop_basic_2', nombre: 'Clean Showcase', minPlan: 'basico', img: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80' },
+    { id: 'prop_pro_1', nombre: 'Lead Magnet', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=80' },
+    { id: 'prop_pro_2', nombre: 'Modern Asymmetric', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&q=80' },
+    { id: 'prop_pro_3', nombre: 'Editorial Story', minPlan: 'pro', img: 'https://images.unsplash.com/photo-1600607687931-cece5ce21460?w=600&q=80' },
+    { id: 'prop_elite_1', nombre: 'Luxury Immersive', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=600&q=80' },
+    { id: 'prop_elite_2', nombre: 'Cinematic Tour', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=600&q=80' },
+    { id: 'prop_elite_3', nombre: 'Prestige Dark', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&q=80' },
+    { id: 'prop_elite_4', nombre: 'Panoramic 3D', minPlan: 'elite', img: 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=600&q=80' }
   ];
 
   function puedeUsarTemplate(minPlan) {
@@ -137,7 +142,6 @@
     document.getElementById('seccion-oficial')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     const controller = new AbortController();
-    // 35 segundos para dar margen al modelo llama-3.1 en Cloudflare
     const timeoutId = setTimeout(() => controller.abort(), 35000); 
 
     try {
@@ -240,6 +244,11 @@
         {/if}
 
         <form method="POST" action="?/crear" enctype="multipart/form-data" use:enhance={async ({ formData, cancel }) => { 
+          if (hitPropsPaywall) {
+             cancel();
+             window.location.href = '/admin/perfil?alerta=limite_alcanzado';
+             return;
+          }
           if (comprimiendoGaleria) {
             alert("Aún estamos procesando las fotos de tu galería. Espera un par de segundos.");
             cancel();
@@ -280,7 +289,25 @@
           return async ({ update }) => { loading = false; update(); }; 
         }} class="space-y-12">
           
-          <section class="space-y-6">
+          <!-- 🚀 FIX: AVISO DE PAYWALL (Solo si ya llegó al límite) -->
+          {#if hitPropsPaywall}
+             <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-[fadeIn_0.4s_ease-out] shadow-sm">
+                <div class="flex gap-4">
+                  <div class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                    <Lock class="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 class="text-lg font-bold text-indigo-900">Límite de Inventario Alcanzado</h3>
+                    <p class="text-sm text-indigo-700 mt-1 font-medium">Has publicado {currentProps} de {maxProps} propiedades permitidas en tu plan actual.</p>
+                  </div>
+                </div>
+                <a href="/admin/perfil" class="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl transition-all shadow-md active:scale-95 text-sm">
+                  Actualizar Plan
+                </a>
+             </div>
+          {/if}
+
+          <section class="space-y-6 {hitPropsPaywall ? 'opacity-50 pointer-events-none' : ''}">
             <div class="border-b border-slate-100 pb-3">
               <h2 class="text-xl font-bold text-slate-900 tracking-tight">1. Estructura y Multimedia</h2>
             </div>
@@ -419,17 +446,17 @@
 
               <div class="sm:col-span-2 pt-2">
                 <label for="video_url" class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Video Recorrido (YouTube / Vimeo)</label>
-                <input id="video_url" type="url" name="video_url" placeholder="Ej. [https://www.youtube.com/watch?v=](https://www.youtube.com/watch?v=)..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 shadow-sm">
+                <input id="video_url" type="url" name="video_url" placeholder="Ej. https://www.youtube.com/watch?v=..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 shadow-sm">
               </div>
 
               <div class="sm:col-span-2">
                 <label for="recorrido_3d_url" class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Recorrido 3D (Matterport)</label>
-                <input id="recorrido_3d_url" type="url" name="recorrido_3d_url" placeholder="Ej. [https://my.matterport.com/show/?m=](https://my.matterport.com/show/?m=)..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 shadow-sm">
+                <input id="recorrido_3d_url" type="url" name="recorrido_3d_url" placeholder="Ej. https://my.matterport.com/show/?m=..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 shadow-sm">
               </div>
             </div>
           </section>
 
-          <section class="relative">
+          <section class="relative {hitPropsPaywall ? 'opacity-50 pointer-events-none' : ''}">
             <div class="bg-slate-800 rounded-[2rem] p-6 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
               
               <div class="absolute -top-32 -right-32 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none"></div>
@@ -514,6 +541,14 @@
                       <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
                         <Sparkles class="w-4 h-4" /> Mejorar a Plan Elite
                       </a>
+                    {:else if planSuscripcion === 'trial'}
+                      <h3 class="text-xl font-bold text-white mb-2">Has agotado tus créditos de Prueba</h3>
+                      <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
+                        La IA redacta más rápido y mejor. Actualiza a <strong>Pro</strong> o <strong>Elite</strong> para desbloquear todo el poder de tu Estudio Creativo en Inmublia.
+                      </p>
+                      <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
+                        <Sparkles class="w-4 h-4" /> Actualizar Plan
+                      </a>
                     {:else}
                       <h3 class="text-xl font-bold text-white mb-2">Has agotado tus créditos (Plan Básico)</h3>
                       <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
@@ -566,7 +601,7 @@
             </div>
           </section>
 
-          <section id="seccion-oficial" class="space-y-6 pt-10 border-t border-slate-100">
+          <section id="seccion-oficial" class="space-y-6 pt-10 border-t border-slate-100 {hitPropsPaywall ? 'opacity-50 pointer-events-none' : ''}">
             <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
               <h2 class="text-xl font-bold text-slate-900 tracking-tight">3. Publicación Oficial</h2>
               {#if iaEjecutada && !generandoIA}
@@ -598,7 +633,7 @@
             </div>
           </section>
 
-          <section class="space-y-6 pt-10 border-t border-slate-100">
+          <section class="space-y-6 pt-10 border-t border-slate-100 {hitPropsPaywall ? 'opacity-50 pointer-events-none' : ''}">
             <div class="border-b border-slate-100 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h2 class="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
@@ -626,7 +661,7 @@
                        <img 
                          src={template.img} 
                          alt={template.nombre} 
-                         onerror={(e) => { e.target.onerror = null; e.target.src = '[https://placehold.co/600x400/1e293b/ffffff?text=Inmublia+Template](https://placehold.co/600x400/1e293b/ffffff?text=Inmublia+Template)'; }}
+                         onerror={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1e293b/ffffff?text=Inmublia+Template'; }}
                          class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                        />
                        {#if activo}
@@ -660,15 +695,24 @@
 
           <div class="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-100">
             <a href="/admin" class="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold py-2.5 px-6 rounded-lg transition-colors text-sm text-center">Cancelar</a>
-            <button type="submit" disabled={loading || comprimiendoGaleria} class="bg-slate-900 text-white font-bold py-2.5 px-8 rounded-lg disabled:opacity-50 shadow-sm hover:bg-slate-800 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-95">
-              {#if loading || comprimiendoGaleria}
-                <Loader2 class="animate-spin w-4 h-4 text-white" />
-                 Procesando...
-              {:else}
-                 <UploadCloud class="w-4 h-4" />
-                 {isOculta ? 'Guardar Pre-Mercado' : 'Publicar Propiedad'}
-              {/if}
-            </button>
+            
+            <!-- 🚀 FIX: Mutación dinámica del botón de Acción Principal según el Paywall -->
+            {#if hitPropsPaywall}
+              <a href="/admin/perfil" class="bg-indigo-600 text-white font-bold py-2.5 px-8 rounded-lg shadow-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-95">
+                 <Lock class="w-4 h-4" />
+                 Actualizar Plan para Continuar
+              </a>
+            {:else}
+              <button type="submit" disabled={loading || comprimiendoGaleria} class="bg-slate-900 text-white font-bold py-2.5 px-8 rounded-lg disabled:opacity-50 shadow-sm hover:bg-slate-800 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-95">
+                {#if loading || comprimiendoGaleria}
+                  <Loader2 class="animate-spin w-4 h-4 text-white" />
+                   Procesando...
+                {:else}
+                   <UploadCloud class="w-4 h-4" />
+                   {isOculta ? 'Guardar Pre-Mercado' : 'Publicar Propiedad'}
+                {/if}
+              </button>
+            {/if}
           </div>
         </form>
       </div>
