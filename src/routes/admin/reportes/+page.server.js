@@ -1,26 +1,38 @@
 // src/routes/admin/reportes/+page.server.js
 import { redirect } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
 
-  // CORRECCIÓN: Unificando la identidad. Buscar por auth_user_id en lugar de email.
-  const { data: broker, error: brokerError } = await locals.supabase
-    .from('brokers')
-    .select('*')
-    .eq('auth_user_id', locals.user.id) 
-    .single();
+  // 🚀 BYPASS RLS: Inyectamos Cliente Dios para el God Mode
+  let db = locals.supabase;
+  if (locals.isImpersonating) {
+    db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+
+  // 1. Buscamos el ID correcto (El tuyo, o el del cliente si estás impersonando)
+  let query = db.from('brokers').select('*');
+  if (locals.isImpersonating && locals.tenantId) {
+    query = query.eq('id', locals.tenantId);
+  } else {
+    query = query.eq('auth_user_id', locals.user.id);
+  }
+
+  const { data: broker, error: brokerError } = await query.single();
 
   if (brokerError || !broker) throw redirect(303, '/login');
 
-  // Traemos todos los leads y la información de la propiedad que les interesa
-  const { data: leads } = await locals.supabase
+  // 2. Traemos todos los leads y la información de la propiedad (Usando 'db' sin Muro RLS)
+  const { data: leads } = await db
     .from('leads')
     .select(`*, propiedades (id, titulo, precio, operacion, estatus)`)
     .eq('broker_id', broker.id);
 
-  // Traemos el inventario general para cruzar datos
-  const { data: propiedades } = await locals.supabase
+  // 3. Traemos el inventario general para cruzar datos (Usando 'db' sin Muro RLS)
+  const { data: propiedades } = await db
     .from('propiedades')
     .select('id, titulo, precio, operacion, estatus')
     .eq('broker_id', broker.id);
