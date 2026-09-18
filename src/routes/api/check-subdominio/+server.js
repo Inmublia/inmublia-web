@@ -9,7 +9,7 @@ export async function GET({ url, locals }) {
   }
 
   try {
-    // 🚀 Usamos maybeSingle() porque si no encuentra nada, es una buena noticia (está disponible)
+    // 🚀 Usamos maybeSingle() porque si no encuentra nada, es una buena noticia (está disponible :))
     const { data, error } = await locals.supabase
       .from('brokers')
       .select('id')
