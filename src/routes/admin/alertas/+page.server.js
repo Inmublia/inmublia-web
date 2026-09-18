@@ -1,19 +1,33 @@
+// src/routes/admin/alertas/+page.server.js
 import { fail, redirect } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
 export async function load({ locals }) {
   const user = locals.user;
   if (!user) throw redirect(303, '/login');
 
-  const { data: broker } = await locals.supabase
-    .from('brokers')
-    .select('id')
-    .eq('auth_user_id', user.id)
-    .single();
+  // 🚀 BYPASS RLS: Inyectamos Cliente Dios para el God Mode
+  let db = locals.supabase;
+  if (locals.isImpersonating) {
+    db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+
+  // 1. Buscamos el ID correcto (El tuyo, o el del cliente si estás impersonando)
+  let query = db.from('brokers').select('id');
+  if (locals.isImpersonating && locals.tenantId) {
+    query = query.eq('id', locals.tenantId);
+  } else {
+    query = query.eq('auth_user_id', user.id);
+  }
+
+  const { data: broker } = await query.single();
 
   if (!broker) throw redirect(303, '/login');
 
   // 1. Extraer Notificaciones del Sistema (Caja B)
-  const { data: notificaciones, error: errNotif } = await locals.supabase
+  const { data: notificaciones, error: errNotif } = await db
     .from('notificaciones_agente')
     .select('id, tipo, titulo, mensaje, leida, creado_en')
     .eq('broker_id', broker.id)
@@ -22,7 +36,7 @@ export async function load({ locals }) {
   if (errNotif) console.error("Error notificaciones:", errNotif);
 
   // 2. Extraer Recordatorios de Leads pendientes (Caja A)
-  const { data: recordatorios, error: errRec } = await locals.supabase
+  const { data: recordatorios, error: errRec } = await db
     .from('lead_notas')
     .select('id, contenido, fecha_recordatorio, completado, leads(nombre)')
     .eq('broker_id', broker.id)
@@ -68,6 +82,9 @@ export async function load({ locals }) {
 
 export const actions = {
   marcarLeida: async ({ request, locals }) => {
+    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
+    if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización: No puedes alterar las notificaciones del cliente.' });
+    
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
@@ -100,6 +117,9 @@ export const actions = {
   },
 
   marcarTodas: async ({ locals }) => {
+    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
+    if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
+    
     const user = locals.user;
     if (!user) return fail(401);
 
