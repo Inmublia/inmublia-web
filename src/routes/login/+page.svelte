@@ -43,8 +43,9 @@
     <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>
 
     <div class="flex flex-col items-center mb-10">
-      <div class="mb-8">
-        <img src="/logo.png" alt="Inmublia" class="h-10 w-auto filter invert drop-shadow-md">
+      <!-- 🚀 FIX: Logo en su color original (sin invert) sobre fondo blanco con bordes sutiles para que resalte en el tema oscuro -->
+      <div class="mb-8 w-24 h-16 bg-white rounded-xl flex items-center justify-center shadow-lg border border-white/10">
+        <img src="/logo.png" alt="Inmublia" class="h-8 w-auto object-contain">
       </div>
       <h1 class="text-3xl font-black tracking-tighter leading-tight text-center text-white drop-shadow-sm">
         {vistaRecuperacion ? 'Recuperar Acceso' : 'Consola Operativa'}
@@ -120,7 +121,6 @@
             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
               <Mail class="w-4 h-4" />
             </div>
-            <!-- 🚀 FIX: Warning A11y de Autocomplete inválido resuelto -->
             <input type="email" name="email" id="email" autocomplete="email" placeholder="correo@agencia.com" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
           </div>
         </div>
