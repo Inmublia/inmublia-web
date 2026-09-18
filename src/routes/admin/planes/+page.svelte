@@ -1,12 +1,16 @@
 <!-- src/routes/admin/planes/+page.svelte -->
 <script>
   import { enhance } from '$app/forms';
-  import { CheckCircle2, Zap, ShieldCheck, AlertOctagon, Loader2 } from 'lucide-svelte';
+  import { page } from '$app/stores';
+  import { CheckCircle2, Zap, ShieldCheck, AlertOctagon, Loader2, Lock } from 'lucide-svelte';
 
   let { data, form } = $props();
   let alerta = $derived(data.alerta);
   let estatus = $derived(data.broker?.status_suscripcion || 'active');
   let esCancelado = $derived(['cancelada', 'canceled'].includes(estatus));
+  
+  // 🚀 Extraemos si estamos en God Mode desde el layout master
+  let GodMode = $derived($page.data.isImpersonating || false);
 
   let isAnnual = $state(true);
   let isProcessing = $state(false);
@@ -17,15 +21,15 @@
       mensual: 'price_1UFgBoJHda98KYP8zVxz1V2h',
       anual: 'price_1UFgCSJHda98KYP8WAfuaRCU',
       name: 'Básico',
-      priceM: '349',
-      priceA: '290'
+      priceM: '499',
+      priceA: '399'
     },
     pro: {
       mensual: 'price_1UFgDVJHda98KYP8Hvvb7jIU',
       anual: 'price_1UF3y9JHda98KYP83uVDd0rF',
       name: 'Pro',
-      priceM: '749',
-      priceA: '599'
+      priceM: '899',
+      priceA: '749'
     },
     elite: {
       mensual: 'price_1UF3vVJHda98KYP8sEBcENHN',
@@ -46,6 +50,16 @@
 </script>
 
 <div class="min-h-screen bg-slate-50 flex flex-col font-sans">
+  
+  {#if GodMode}
+    <div class="bg-indigo-600 text-white px-6 py-2.5 flex items-center justify-center gap-3 shadow-md z-50">
+      <Lock class="w-4 h-4 shrink-0" />
+      <p class="text-xs font-bold uppercase tracking-widest">
+        Estás inspeccionando este perfil. No puedes modificar sus suscripciones de Stripe.
+      </p>
+    </div>
+  {/if}
+
   <!-- Banner Reactivo para Usuarios Cancelados -->
   {#if esCancelado || alerta === 'cuenta_cancelada'}
     <div class="bg-red-500 text-white px-6 py-4 flex items-center justify-center gap-3 shadow-md z-50">
@@ -107,8 +121,8 @@
           <li class="flex items-start gap-3 text-sm text-slate-700 font-medium"><CheckCircle2 class="w-5 h-5 text-emerald-500 shrink-0" /> 15 Créditos IA mensuales</li>
           <li class="flex items-start gap-3 text-sm text-slate-700 font-medium"><CheckCircle2 class="w-5 h-5 text-emerald-500 shrink-0" /> 2 Plantillas Web</li>
         </ul>
-        <button type="submit" disabled={isProcessing} class="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-4 rounded-xl transition-colors disabled:opacity-50 flex justify-center">
-          {isProcessing ? 'Conectando...' : 'Elegir Básico'}
+        <button type="submit" disabled={isProcessing || GodMode} class="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center">
+          {isProcessing ? 'Conectando...' : GodMode ? 'Acción Bloqueada' : 'Elegir Básico'}
         </button>
       </form>
 
@@ -134,8 +148,8 @@
           <li class="flex items-start gap-3 text-sm text-slate-200 font-medium"><CheckCircle2 class="w-5 h-5 text-amber-400 shrink-0" /> Tracking (Meta Pixel & GA4)</li>
           <li class="flex items-start gap-3 text-sm text-slate-200 font-medium"><CheckCircle2 class="w-5 h-5 text-amber-400 shrink-0" /> Webhook API Access</li>
         </ul>
-        <button type="submit" disabled={isProcessing} class="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-4 rounded-xl transition-colors disabled:opacity-50 flex justify-center shadow-lg shadow-amber-500/20">
-          {isProcessing ? 'Conectando...' : 'Elegir Pro'}
+        <button type="submit" disabled={isProcessing || GodMode} class="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center shadow-lg shadow-amber-500/20">
+          {isProcessing ? 'Conectando...' : GodMode ? 'Acción Bloqueada' : 'Elegir Pro'}
         </button>
       </form>
 
@@ -157,8 +171,8 @@
           <li class="flex items-start gap-3 text-sm text-slate-700 font-medium"><CheckCircle2 class="w-5 h-5 text-indigo-500 shrink-0" /> TikTok Pixel ID</li>
           <li class="flex items-start gap-3 text-sm text-slate-700 font-medium"><CheckCircle2 class="w-5 h-5 text-indigo-500 shrink-0" /> Todas las plantillas Elite</li>
         </ul>
-        <button type="submit" disabled={isProcessing} class="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-4 rounded-xl transition-colors disabled:opacity-50 flex justify-center">
-          {isProcessing ? 'Conectando...' : 'Elegir Elite'}
+        <button type="submit" disabled={isProcessing || GodMode} class="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center">
+          {isProcessing ? 'Conectando...' : GodMode ? 'Acción Bloqueada' : 'Elegir Elite'}
         </button>
       </form>
 
