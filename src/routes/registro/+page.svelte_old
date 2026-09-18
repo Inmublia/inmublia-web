@@ -1,6 +1,6 @@
 <!-- src/routes/registro/+page.svelte -->
 <script>
-  // FIX: Importación moderna de Svelte 5 para reactividad de página
+  // FIX: Importación moderna de Svelte 5 para reactividad de página.
   import { page } from '$app/state';
   import { ArrowRight, CheckCircle2, ShieldCheck, Loader2, X } from 'lucide-svelte';
 
