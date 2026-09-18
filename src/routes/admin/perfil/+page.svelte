@@ -10,7 +10,6 @@
   
   let broker = $state(data.broker || {});
   
-  // 🚀 FIX: Sincronizamos data de SvelteKit con nuestro estado mutable para matar el Warning de Reactividad
   $effect(() => {
     if (data.broker) broker = data.broker;
   });
@@ -259,7 +258,6 @@
               };
             }}>
               
-              <!-- 🚀 FIX: Atributo aria-hidden="true" para eliminar Warning de accesibilidad y botón "con texto" que no se lee -->
               <button type="submit" aria-hidden="true" bind:this={submitBtnPerfil} class="hidden">Guardar</button>
 
               <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
@@ -427,31 +425,33 @@
 
           <div class="lg:col-span-4 space-y-6">
             
-            <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 relative overflow-hidden">
-              <div class="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-full blur-3xl -mr-10 -mt-10"></div>
+            <!-- 🚀 FIX: Tarjeta de Membresía Actualizada con colores Dark (igual que el módulo de Webhook) -->
+            <div class="bg-[#111827] text-white p-8 rounded-3xl shadow-xl relative overflow-hidden flex flex-col">
+              <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white opacity-5 blur-2xl pointer-events-none"></div>
+              
               <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10">Membresía Actual</h4>
               
               <div class="flex items-center gap-4 mb-6 relative z-10">
                 {#if esTrial}
-                   <div class="w-12 h-12 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-md shrink-0">
+                   <div class="w-12 h-12 bg-white/10 text-white rounded-xl flex items-center justify-center shadow-md shrink-0 border border-white/20">
                      <ShieldCheck class="w-6 h-6" />
                    </div>
                    <div>
-                     <h3 class="text-lg font-black text-slate-900 uppercase">TRIAL ÉLITE</h3>
-                     <p class="text-[11px] font-bold text-indigo-600 tracking-wider mt-1">{trialRestante()} DÍAS RESTANTES</p>
+                     <h3 class="text-lg font-black text-white uppercase tracking-tight">TRIAL ÉLITE</h3>
+                     <p class="text-[11px] font-bold text-amber-400 tracking-wider mt-1">{trialRestante()} DÍAS RESTANTES</p>
                    </div>
-                {:else}
-                   <div class="w-12 h-12 bg-slate-900 text-amber-400 rounded-xl flex items-center justify-center shadow-md shrink-0">
+                {#else}
+                   <div class="w-12 h-12 bg-white/10 text-white rounded-xl flex items-center justify-center shadow-md shrink-0 border border-white/20">
                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
                    </div>
                    <div>
-                     <h3 class="text-lg font-black text-slate-900 uppercase">Inmublia {broker.plan_suscripcion || 'Básico'}</h3>
-                     <p class="text-[11px] font-bold text-emerald-600 tracking-wider mt-1">Membresía Activa</p>
+                     <h3 class="text-lg font-black text-white uppercase tracking-tight">Inmublia {broker.plan_suscripcion || 'Básico'}</h3>
+                     <p class="text-[11px] font-bold text-emerald-400 tracking-wider mt-1">Membresía Activa</p>
                    </div>
                 {/if}
               </div>
               
-              <a href="/api/stripe/portal" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 {esTrial ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-yellow-400 hover:bg-yellow-500 text-slate-900'} font-bold py-3 rounded-xl transition-colors shadow-sm active:scale-95 relative z-10">
+              <a href="/api/stripe/portal" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-3 rounded-xl transition-colors shadow-sm active:scale-95 relative z-10">
                 Gestionar Membresía
               </a>
             </div>
