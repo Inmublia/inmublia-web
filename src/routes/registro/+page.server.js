@@ -2,10 +2,10 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+import { Resend } from 'resend';
 import { env as publicEnv } from '$env/dynamic/public';
 import { env as privateEnv } from '$env/dynamic/private';
 
-// 🚀 Los IDs de Stripe de Inmublia
 const STRIPE_PRICES = {
   basico: { mensual: 'price_1UFgBoJHda98KYP8zVxz1V2h', anual: 'price_1UFgCSJHda98KYP8WAfuaRCU' },
   pro:    { mensual: 'price_1UFgDVJHda98KYP8Hvvb7jIU', anual: 'price_1UF3y9JHda98KYP83uVDd0rF' },
@@ -13,6 +13,9 @@ const STRIPE_PRICES = {
 };
 
 const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
+
+// 🚀 FIX: Inicializamos el cliente de Resend para el correo transaccional
+const resend = new Resend(privateEnv.RESEND_API_KEY);
 
 export const actions = {
   default: async ({ request, locals }) => {
@@ -54,7 +57,7 @@ export const actions = {
       trialEndsAt.setDate(trialEndsAt.getDate() + 14);
     }
 
-    // 3. Crear Infraestructura Tenant (Service Role para bypass de RLS)
+    // 3. Crear Infraestructura Tenant
     const db = createClient(publicEnv.PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
 
     const { data: newBroker, error: dbError } = await db.from('brokers').insert({
@@ -72,20 +75,50 @@ export const actions = {
       if (dbError.code === '23505') {
         return fail(400, { error: 'Este subdominio ya está ocupado. Por favor elige otro.' });
       }
-      return fail(500, { error: 'Error al inicializar tu entorno de trabajo.' });
+      return fail(500, { error: `Falla en BD: ${dbError.message}` });
     }
 
-    // 4. DIRECCIONAMIENTO DUAL
+    // 🚀 FIX: 4. El Correo de Onboarding (Fire and Forget)
+    // Usamos Promesa sin await para que el usuario no tenga que esperar a que el email se envíe antes de ser redirigido
+    const planNameDisplay = isTrial ? 'Trial Élite (14 días)' : `Plan ${finalPlan.charAt(0).toUpperCase() + finalPlan.slice(1)}`;
+    const loginUrl = `https://${subdominio}.inmublia.com/login`;
+
+    resend.emails.send({
+      from: 'Inmublia <bienvenida@inmublia.com>', // Configura este correo verificado en tu panel de Resend
+      to: email,
+      subject: `¡Bienvenido a Inmublia, ${agencia}!`,
+      html: `
+        <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #1e1b4b;">Tu entorno está listo.</h2>
+          <p>Hola, <strong>${agencia}</strong>.</p>
+          <p>Gracias por elegir Inmublia. Tu infraestructura inmobiliaria ha sido desplegada con éxito. Guarda este correo; aquí tienes la información vital de tu cuenta:</p>
+          
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0 0 10px 0;"><strong>Enlace de acceso a consola:</strong><br> <a href="${loginUrl}" style="color: #4f46e5;">${loginUrl}</a></p>
+            <p style="margin: 0 0 10px 0;"><strong>Usuario:</strong><br> ${email}</p>
+            <p style="margin: 0;"><strong>Plan Actual:</strong><br> ${planNameDisplay}</p>
+          </div>
+
+          <p>Para ingresar a la consola, haz clic en el enlace de acceso e introduce la contraseña que creaste en el registro.</p>
+          
+          <div style="margin-top: 30px; text-align: center;">
+            <a href="${loginUrl}" style="background-color: #0f172a; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Acceder a mi Consola</a>
+          </div>
+
+          <p style="font-size: 12px; color: #64748b; margin-top: 40px; text-align: center;">
+            Inmublia Technologies.<br>
+            Si tienes dudas, simplemente responde a este correo.
+          </p>
+        </div>
+      `
+    }).catch(e => console.error("Error enviando email de bienvenida:", e));
+
+    // 5. DIRECCIONAMIENTO DUAL
     if (isTrial) {
-      // Vía Rápida: Lo metemos directo a su nuevo dashboard
       throw redirect(303, `https://${subdominio}.inmublia.com/admin`);
     } else {
-      // Vía Premium: Lo mandamos al cajero de Stripe
       const priceId = STRIPE_PRICES[planId]?.[ciclo];
-      
-      if (!priceId) {
-         return fail(400, { error: 'El plan seleccionado no está disponible en este momento.' });
-      }
+      if (!priceId) return fail(400, { error: 'El plan seleccionado no está disponible en este momento.' });
 
       try {
         const session = await stripe.checkout.sessions.create({
@@ -93,7 +126,7 @@ export const actions = {
           payment_method_types: ['card'],
           line_items: [{ price: priceId, quantity: 1 }],
           mode: 'subscription',
-          metadata: { broker_id: newBroker.id }, // El webhook lo usará para activar la cuenta
+          metadata: { broker_id: newBroker.id }, 
           success_url: `https://${subdominio}.inmublia.com/admin/perfil?alerta=pago_exitoso`,
           cancel_url: `https://inmublia.com/planes`
         });
