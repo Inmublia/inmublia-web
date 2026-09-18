@@ -4,12 +4,7 @@
     TrendingUp, 
     Activity, 
     BarChart3, 
-    Search, 
-    MousePointerClick, 
-    Crosshair, 
-    ExternalLink, 
     RefreshCw, 
-    Megaphone,
     LineChart,
     PieChart,
     Building2,
@@ -28,9 +23,17 @@
   
   const formatearDinero = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
 
+  // 🚀 FIX: CÁLCULOS CRUZADOS (LEADS + PROPIEDADES VENDIDAS)
   let totalLeads = $derived(leads.length);
-  let leadsGanados = $derived(leads.filter(l => l.estado === 'cerrado').length);
-  let tasaCierre = $derived(totalLeads > 0 ? ((leadsGanados / totalLeads) * 100).toFixed(1) : 0);
+  
+  // Propiedades que se marcaron como "Vendida" en el inventario
+  let propiedadesVendidas = $derived(propiedades.filter(p => p.estatus === 'Vendida'));
+  
+  // Leads ganados en el CRM
+  let leadsGanados = $derived(leads.filter(l => l.estado === 'cerrado'));
+  
+  // 🚀 Tasa de Cierre General: (Leads Ganados / Total de Leads)
+  let tasaCierre = $derived(totalLeads > 0 ? ((leadsGanados.length / totalLeads) * 100).toFixed(1) : 0);
   
   let leadsEstancados = $derived(leads.filter(l => {
     if (l.estado === 'cerrado' || l.estado === 'descartado') return false;
@@ -45,11 +48,32 @@
     return acc;
   }, 0));
 
-  let revenueWon = $derived(leads.filter(l => l.estado === 'cerrado').reduce((acc, lead) => {
-    const precioBase = lead.precio_cierre || lead.propiedades?.precio || 0;
-    const porcentajeCierre = lead.comision_cierre ? (lead.comision_cierre / 100) : comisionBroker;
-    return acc + (precioBase * porcentajeCierre);
-  }, 0));
+  // 🚀 FIX: Comisiones Ganadas Reales (Leads Cerrados + Inventario Vendido Huerfano)
+  let revenueWon = $derived.by(() => {
+    // 1. Sumamos lo cerrado en el CRM (que tiene prioridad de datos exactos)
+    let totalCrm = leadsGanados.reduce((acc, lead) => {
+      const precioBase = lead.precio_cierre || lead.propiedades?.precio || 0;
+      const porcentajeCierre = lead.comision_cierre ? (lead.comision_cierre / 100) : comisionBroker;
+      return acc + (precioBase * porcentajeCierre);
+    }, 0);
+
+    // 2. Sumamos las propiedades "Vendidas" que NO tienen un lead cerrado asociado para evitar duplicidad
+    const idsPropiedadesCerradasEnCrm = leadsGanados.map(l => l.propiedades?.id).filter(id => id);
+    let totalInventarioHuerfano = propiedadesVendidas
+      .filter(p => !idsPropiedadesCerradasEnCrm.includes(p.id))
+      .reduce((acc, prop) => {
+         return acc + ((prop.precio || 0) * comisionBroker);
+      }, 0);
+
+    return totalCrm + totalInventarioHuerfano;
+  });
+
+  // 🚀 FIX: Transacciones Totales
+  let totalCierres = $derived.by(() => {
+     const idsPropiedadesCerradasEnCrm = leadsGanados.map(l => l.propiedades?.id).filter(id => id);
+     const huerfanos = propiedadesVendidas.filter(p => !idsPropiedadesCerradasEnCrm.includes(p.id)).length;
+     return leadsGanados.length + huerfanos;
+  });
 
   let funnel = $derived({
     nuevo: leads.filter(l => l.estado === 'nuevo').length,
@@ -77,9 +101,9 @@
   });
 
   // -------------------------------------------------------------
-  // Lógica Gráfica Tendencia 6 Meses
+  // Lógica Gráfica Tendencia 6 Meses (COMISIONES GENERADAS)
   // -------------------------------------------------------------
-  let tendenciaMeses = $derived.by(() => {
+  let tendenciaComisionesMeses = $derived.by(() => {
     const hoy = new Date();
     const meses = [];
     
@@ -89,18 +113,35 @@
         m: d.getMonth(), 
         y: d.getFullYear(), 
         label: d.toLocaleDateString('es-MX', { month: 'short' }).replace('.', ''),
-        count: 0
+        count: 0 // Aquí sumaremos el dinero
       });
     }
 
-    leads.forEach(l => {
-      const d = new Date(l.creado_en);
+    // Sumamos comisiones de CRM
+    leadsGanados.forEach(l => {
+      const d = new Date(l.updated_at || l.creado_en); // Fecha de cierre o creación
       const match = meses.find(x => x.m === d.getMonth() && x.y === d.getFullYear());
-      if (match) match.count++;
+      if (match) {
+        const precioBase = l.precio_cierre || l.propiedades?.precio || 0;
+        const porcentajeCierre = l.comision_cierre ? (l.comision_cierre / 100) : comisionBroker;
+        match.count += (precioBase * porcentajeCierre);
+      }
+    });
+
+    // Sumamos comisiones huerfanas de inventario
+    const idsPropiedadesCerradasEnCrm = leadsGanados.map(l => l.propiedades?.id).filter(id => id);
+    propiedadesVendidas.forEach(p => {
+       if(!idsPropiedadesCerradasEnCrm.includes(p.id)) {
+          const d = new Date(p.updated_at);
+          const match = meses.find(x => x.m === d.getMonth() && x.y === d.getFullYear());
+          if (match) {
+             match.count += ((p.precio || 0) * comisionBroker);
+          }
+       }
     });
 
     const total6m = meses.reduce((sum, curr) => sum + curr.count, 0);
-    const promedio = (total6m / 6).toFixed(1);
+    const promedio = (total6m / 6);
     
     let mejorMes = meses[0];
     meses.forEach(m => { if(m.count > mejorMes.count) mejorMes = m; });
@@ -200,14 +241,14 @@
           <div>
             <h2 class="text-4xl font-black tracking-tighter text-slate-900 truncate">{formatearDinero(revenueWon)}</h2>
             <p class="text-[11px] font-semibold text-slate-500 mt-2 flex items-center gap-1.5">
-              Calculado de <strong class="text-emerald-600">{leadsGanados} cierres</strong>.
+              Calculado de <strong class="text-emerald-600">{totalCierres} transacciones</strong>.
             </p>
           </div>
         </div>
 
         <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-between">
           <div class="flex items-center justify-between mb-4">
-            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Tasa de Cierre General</p>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Tasa de Cierre (CRM)</p>
             <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
               <TrendingUp class="w-4 h-4" />
             </div>
@@ -236,13 +277,13 @@
 
       </div>
 
-      <!-- SECCIÓN GRÁFICAS (Tendencia y Donut) -->
+      <!-- SECCIÓN GRÁFICAS (Tendencia Financiera y Donut) -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         <div class="lg:col-span-8 bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col">
           <div class="mb-8">
-            <h3 class="text-lg font-black text-slate-900">Leads captados por mes</h3>
-            <p class="text-xs font-semibold text-slate-400 mt-1">Total: {tendenciaMeses.total} leads en los últimos 6 meses</p>
+            <h3 class="text-lg font-black text-slate-900">Comisiones generadas por mes</h3>
+            <p class="text-xs font-semibold text-slate-400 mt-1">Total: {formatearDinero(tendenciaComisionesMeses.total)} MXN en los últimos 6 meses</p>
           </div>
 
           <div class="flex-1 flex flex-col justify-end min-h-[180px] mb-6 pt-4">
@@ -253,13 +294,15 @@
                 <div class="w-full h-px bg-slate-900"></div>
               </div>
 
-              {#each tendenciaMeses.datos as mes, i}
+              {#each tendenciaComisionesMeses.datos as mes, i}
                 <div class="flex-1 flex flex-col items-center gap-2 group relative z-10 h-full justify-end">
-                  <span class="text-[10px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-5 bg-slate-900 text-white px-2 py-0.5 rounded-md shadow-sm">{mes.count}</span>
+                  <span class="text-[10px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-5 bg-slate-900 text-white px-2 py-0.5 rounded-md shadow-sm">
+                    {formatearDinero(mes.count)}
+                  </span>
                   
-                  <div class="w-full max-w-[40px] {i === 5 ? 'bg-indigo-500 shadow-[0_4px_15px_rgba(99,102,241,0.4)]' : 'bg-slate-100 hover:bg-slate-200'} rounded-t-lg transition-all duration-500 cursor-pointer" style="height: {(mes.count / tendenciaMeses.maxCount) * 100}%"></div>
+                  <div class="w-full max-w-[40px] {i === 5 ? 'bg-emerald-500 shadow-[0_4px_15px_rgba(16,185,129,0.4)]' : 'bg-slate-100 hover:bg-slate-200'} rounded-t-lg transition-all duration-500 cursor-pointer" style="height: {(mes.count / tendenciaComisionesMeses.maxCount) * 100}%"></div>
                   
-                  <span class="text-[10px] font-bold {i === 5 ? 'text-indigo-600' : 'text-slate-400'} capitalize mt-1 flex items-center gap-0.5">
+                  <span class="text-[10px] font-bold {i === 5 ? 'text-emerald-600' : 'text-slate-400'} capitalize mt-1 flex items-center gap-0.5">
                     {mes.label} {#if i === 5}<span class="text-[8px]">↑</span>{/if}
                   </span>
                 </div>
@@ -271,16 +314,16 @@
           <div class="grid grid-cols-3 gap-4 pt-2">
             <div>
               <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Promedio mensual</p>
-              <p class="text-xl font-black text-slate-900">{tendenciaMeses.promedio}</p>
+              <p class="text-xl font-black text-slate-900">{formatearDinero(tendenciaComisionesMeses.promedio)}</p>
             </div>
             <div>
               <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Mejor mes</p>
-              <p class="text-xl font-black text-emerald-600 capitalize"><span class="text-sm font-bold text-slate-900">{tendenciaMeses.mejorMes.label}</span> • {tendenciaMeses.mejorMes.count}</p>
+              <p class="text-xl font-black text-emerald-600 capitalize"><span class="text-sm font-bold text-slate-900 truncate block sm:inline">{tendenciaComisionesMeses.mejorMes.label}</span> • {formatearDinero(tendenciaComisionesMeses.mejorMes.count)}</p>
             </div>
             <div>
-              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tendencia</p>
-              <p class="text-xl font-black {tendenciaMeses.tendencia >= 0 ? 'text-emerald-600' : 'text-rose-500'}">
-                {tendenciaMeses.tendencia >= 0 ? '↑' : '↓'} {Math.abs(tendenciaMeses.tendencia)}%
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Crecimiento</p>
+              <p class="text-xl font-black {tendenciaComisionesMeses.tendencia >= 0 ? 'text-emerald-600' : 'text-rose-500'}">
+                {tendenciaComisionesMeses.tendencia >= 0 ? '↑' : '↓'} {Math.abs(tendenciaComisionesMeses.tendencia)}%
               </p>
             </div>
           </div>
