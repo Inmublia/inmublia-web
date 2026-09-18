@@ -95,7 +95,8 @@
       <h1 class="text-3xl font-black text-slate-900 mb-2">Configura tu Espacio</h1>
       <p class="text-slate-500 font-medium mb-8 text-sm">Crea tu agencia y obtén acceso inmediato a tu consola.</p>
 
-      <form method="POST" use:enhance={() => {
+      <!-- 🚀 FIX: autocomplete="off" para evitar que el navegador guarde el form y lo inyecte después -->
+      <form method="POST" autocomplete="off" use:enhance={() => {
           loading = true;
           return async ({ result, update }) => {
             if (result.type === 'redirect') {
@@ -137,13 +138,15 @@
 
         <div class="pt-2">
           <label for="email" class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Correo Electrónico</label>
-          <input type="email" id="email" name="email" bind:value={valEmail} required placeholder="director@agencia.com" class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+          <!-- 🚀 FIX: autocomplete="new-password" le dice a Chrome/Edge explícitamente "NO RELLENES ESTO CON MIS DATOS" -->
+          <input type="email" id="email" name="email" bind:value={valEmail} autocomplete="new-password" required placeholder="director@agencia.com" class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
         </div>
 
         <div class="pt-2">
           <label for="password" class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Crear Contraseña</label>
           <div class="relative">
-            <input type="password" id="password" name="password" bind:value={valPassword} required minlength="6" placeholder="••••••••" class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 pl-10 font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+            <!-- 🚀 FIX: autocomplete="new-password" aplicado a la contraseña también -->
+            <input type="password" id="password" name="password" bind:value={valPassword} autocomplete="new-password" required minlength="6" placeholder="••••••••" class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 pl-10 font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
             <Lock class="w-4 h-4 text-slate-400 absolute left-4 top-4" />
           </div>
         </div>
