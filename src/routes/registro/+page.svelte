@@ -1,6 +1,7 @@
+<!-- src/routes/registro/+page.svelte -->
 <script>
   import { page } from '$app/stores';
-  import { Building2, ArrowRight, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-svelte';
+  import { ArrowRight, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-svelte';
 
   // Leemos el plan y ciclo desde la URL (viene de la página /planes)
   let planId = $page.url.searchParams.get('plan') || 'pro';
@@ -9,19 +10,19 @@
   let loading = $state(false);
   let errorMsg = $state('');
 
-  // Mapeamos los IDs de Stripe (Asegúrate de que coincidan con los de tu dashboard de Stripe)
+  // 🚀 IDs EXACTOS DE STRIPE (Sincronizados con tus precios reales)
   const stripePrices = {
     basico: {
-      mensual: 'price_basico_mensual_id', // Sustituye con tu ID real de Stripe
-      anual: 'price_basico_anual_id'      // Sustituye con tu ID real de Stripe
+      mensual: 'price_1UFgBoJHda98KYP8zVxz1V2h', 
+      anual: 'price_1UFgCSJHda98KYP8WAfuaRCU'     
     },
     pro: {
-      mensual: 'price_1TfAJKJHda98KYP8coylMcTp', // Extraído de tu Webhook
-      anual: 'price_pro_anual_id'                // Sustituye con tu ID real de Stripe
+      mensual: 'price_1UFgDVJHda98KYP8Hvvb7jIU', 
+      anual: 'price_1UF3y9JHda98KYP83uVDd0rF'                
     },
     elite: {
-      mensual: 'price_1TfAJdJHda98KYP8KzZTwXDf', // Extraído de tu Webhook
-      anual: 'price_elite_anual_id'              // Sustituye con tu ID real de Stripe
+      mensual: 'price_1UF3vVJHda98KYP8sEBcENHN', 
+      anual: 'price_1UF3wrJHda98KYP82p3McSSj'              
     }
   };
 
@@ -90,11 +91,11 @@
   <div class="hidden md:flex flex-col justify-between w-1/3 bg-slate-900 text-white p-12 relative overflow-hidden">
     <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-indigo-500/20 to-transparent"></div>
     <div class="relative z-10">
-      <a href="/" class="flex items-center gap-2 mb-16">
-        <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
-          <Building2 class="w-5 h-5 text-white" />
-        </div>
-        <span class="font-black text-xl tracking-tight text-white">Inmublia</span>
+      
+      <!-- 🚀 FIX LOGO: Tu logotipo oficial renderizado aquí -->
+      <a href="/" class="flex items-center gap-3 mb-16">
+        <img src="/logo.png" alt="Inmublia Logo" class="w-10 h-10 object-contain rounded-lg shadow-sm" />
+        <span class="font-black text-2xl tracking-tight text-white">Inmublia</span>
       </a>
       
       <h2 class="text-3xl font-black mb-4">Estás a un paso de escalar tu agencia.</h2>
@@ -123,6 +124,13 @@
   <!-- Columna Derecha (Formulario de Checkout B2B) -->
   <div class="flex-1 flex flex-col justify-center px-6 py-12 md:px-24 bg-slate-50">
     <div class="max-w-md w-full mx-auto bg-white p-8 sm:p-10 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100">
+      
+      <!-- 🚀 FIX LOGO MÓVIL: Mostramos el logo también en móvil porque la columna izquierda se oculta -->
+      <div class="md:hidden flex items-center gap-2 mb-8 border-b border-slate-100 pb-6">
+        <img src="/logo.png" alt="Inmublia Logo" class="w-8 h-8 object-contain rounded-md" />
+        <span class="font-black text-xl tracking-tight text-slate-900">Inmublia</span>
+      </div>
+
       <h1 class="text-3xl font-black text-slate-900 mb-2">Configura tu Espacio</h1>
       <p class="text-slate-500 font-medium mb-8 text-sm">Crea la base de tu agencia y procede al pago seguro.</p>
 
