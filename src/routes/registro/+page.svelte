@@ -95,7 +95,6 @@
       <h1 class="text-3xl font-black text-slate-900 mb-2">Configura tu Espacio</h1>
       <p class="text-slate-500 font-medium mb-8 text-sm">Crea tu agencia y obtén acceso inmediato a tu consola.</p>
 
-      <!-- 🚀 FIX: autocomplete="off" para evitar que el navegador guarde el form y lo inyecte después -->
       <form method="POST" autocomplete="off" use:enhance={() => {
           loading = true;
           return async ({ result, update }) => {
@@ -122,7 +121,8 @@
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Subdominio Asignado</label>
+          <!-- 🚀 FIX: Cambiado label a div para eliminar el Warning de A11y de Svelte -->
+          <div class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Subdominio Asignado</div>
           <div class="flex items-center w-full h-12 bg-slate-100 border rounded-xl px-4 overflow-hidden transition-colors {subdominioDisponible === false ? 'border-red-300 bg-red-50' : subdominioDisponible === true ? 'border-indigo-300 bg-indigo-50/30' : 'border-slate-200'}">
             <span class="text-slate-400 font-medium">https://</span>
             <span class="text-indigo-600 font-bold px-1 overflow-hidden text-ellipsis whitespace-nowrap">{valSubdominio() || 'tuagencia'}</span>
@@ -138,14 +138,12 @@
 
         <div class="pt-2">
           <label for="email" class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Correo Electrónico</label>
-          <!-- 🚀 FIX: autocomplete="new-password" le dice a Chrome/Edge explícitamente "NO RELLENES ESTO CON MIS DATOS" -->
           <input type="email" id="email" name="email" bind:value={valEmail} autocomplete="new-password" required placeholder="director@agencia.com" class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
         </div>
 
         <div class="pt-2">
           <label for="password" class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Crear Contraseña</label>
           <div class="relative">
-            <!-- 🚀 FIX: autocomplete="new-password" aplicado a la contraseña también -->
             <input type="password" id="password" name="password" bind:value={valPassword} autocomplete="new-password" required minlength="6" placeholder="••••••••" class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 pl-10 font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
             <Lock class="w-4 h-4 text-slate-400 absolute left-4 top-4" />
           </div>
