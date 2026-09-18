@@ -1,10 +1,28 @@
 <!-- src/routes/planes/+page.svelte -->
 <script>
-  import { Check, X, Zap, Crown, Building2, ArrowRight, Globe } from 'lucide-svelte';
+  import { Check, X, Zap, Crown, Building2, ArrowRight, Globe, Sparkles } from 'lucide-svelte';
 
   let facturacionAnual = $state(true);
 
+  // 🚀 El nuevo arreglo de planes, integrando el "Trial Elite" como la cuarta opción
   const planes = [
+    {
+      id: 'trial',
+      nombre: 'Trial Élite',
+      descripcion: 'Prueba todo el ecosistema Élite gratis. Cero riesgo.',
+      precioMensual: 0,
+      precioAnual: 0,
+      icono: Sparkles,
+      destacado: false,
+      badge: '14 Días Gratis',
+      features: [
+        { texto: 'CRM Avanzado con Semáforo', incluido: true },
+        { texto: 'Inventario de 5 propiedades', incluido: true },
+        { texto: '15 Créditos de IA', incluido: true },
+        { texto: '1 Evento Open House', incluido: true },
+        { texto: 'Sin tarjeta de crédito', incluido: true }
+      ]
+    },
     {
       id: 'basico',
       nombre: 'Básico',
@@ -12,18 +30,15 @@
       precioMensual: 499,
       precioAnual: 399,
       icono: Building2,
-      color: 'slate',
       destacado: false,
       features: [
         { texto: 'Catálogo en subdominio (.inmublia.com)', incluido: true },
         { texto: 'CRM Gestión de Interesados (Leads)', incluido: true },
         { texto: '15 Créditos de IA mensuales', incluido: true },
-        { texto: 'Inventario hasta 15 propiedades', incluido: true },
+        { texto: 'Inventario ilimitado', incluido: true },
         { texto: 'Plantillas Smart Brochure VIP', incluido: false },
         { texto: 'Módulo de Open House', incluido: false }
-      ],
-      linkId: 'price_1UFgBoJHda98KYP8zVxz1V2h', 
-      linkIdAnual: 'price_1UFgCSJHda98KYP8WAfuaRCU'
+      ]
     },
     {
       id: 'pro',
@@ -32,7 +47,6 @@
       precioMensual: 899,
       precioAnual: 749,
       icono: Zap,
-      color: 'indigo',
       destacado: true,
       badge: 'Más Popular',
       features: [
@@ -42,9 +56,7 @@
         { texto: 'Inventario ilimitado', incluido: true },
         { texto: 'Plantillas Smart Brochure VIP', incluido: true },
         { texto: 'Módulo de Open House', incluido: true }
-      ],
-      linkId: 'price_1UFgDVJHda98KYP8Hvvb7jIU', 
-      linkIdAnual: 'price_1UF3y9JHda98KYP83uVDd0rF'
+      ]
     },
     {
       id: 'elite',
@@ -53,7 +65,6 @@
       precioMensual: 1499,
       precioAnual: 1199,
       icono: Crown,
-      color: 'emerald',
       destacado: false,
       features: [
         { texto: 'Catálogo en subdominio (.inmublia.com)', incluido: true },
@@ -62,9 +73,7 @@
         { texto: 'Inventario ilimitado', incluido: true },
         { texto: 'Todas las plantillas VIP + Futuras', incluido: true },
         { texto: 'Soporte técnico prioritario (WhatsApp)', incluido: true }
-      ],
-      linkId: 'price_1UF3vVJHda98KYP8sEBcENHN', 
-      linkIdAnual: 'price_1UF3wrJHda98KYP82p3McSSj'
+      ]
     }
   ];
 </script>
@@ -76,8 +85,9 @@
 <div class="min-h-screen bg-slate-50 font-sans selection:bg-indigo-500 selection:text-white pb-24">
   <header class="w-full h-20 flex items-center justify-between px-6 lg:px-12 bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200/50">
     <a href="/" class="flex items-center gap-2">
-      <div class="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
-        <Building2 class="w-5 h-5 text-white" />
+      <!-- 🚀 FIX: Logo agregado en el header -->
+      <div class="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center shadow-sm">
+        <img src="/logo.png" alt="Inmublia" class="w-5 h-5 object-contain filter invert" />
       </div>
       <span class="font-black text-xl tracking-tight text-slate-900">Inmublia</span>
     </a>
@@ -91,7 +101,7 @@
       Invierte en tu <span class="text-indigo-600">Productividad</span>
     </h1>
     <p class="text-lg text-slate-600 max-w-2xl mx-auto font-medium mb-10">
-      Elige el plan que mejor se adapte a tu ritmo de ventas. Tu cuenta es personal e intransferible.
+      Prueba sin compromiso o elige el plan que mejor se adapte a tu ritmo de ventas. Tu cuenta es personal e intransferible.
     </p>
 
     <div class="flex items-center justify-center gap-4">
@@ -114,71 +124,85 @@
     </div>
   </main>
 
-  <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 items-start mb-16">
+  <!-- 🚀 FIX: Cambiado a lg:grid-cols-4 para acomodar la nueva tarjeta de Trial Elite -->
+  <div class="max-w-[90rem] mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start mb-16">
     {#each planes as plan}
-      <div class="relative bg-white rounded-3xl p-8 border {plan.destacado ? 'border-indigo-500 shadow-2xl shadow-indigo-500/10 scale-100 md:scale-105 z-10' : 'border-slate-200 shadow-xl shadow-slate-200/50'} flex flex-col h-full transition-transform duration-300">
+      <div class="relative bg-white rounded-3xl p-6 border {plan.destacado ? 'border-indigo-500 shadow-2xl shadow-indigo-500/10 scale-100 md:scale-105 z-10' : 'border-slate-200 shadow-xl shadow-slate-200/50'} flex flex-col h-full transition-transform duration-300">
         
-        {#if plan.destacado}
-          <div class="absolute -top-4 left-0 right-0 flex justify-center">
-            <span class="bg-indigo-500 text-white text-xs font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-md">
+        {#if plan.badge}
+          <!-- 🚀 FIX: Badge Verde para el Trial, Índigo para el Pro -->
+          <div class="absolute -top-3 left-0 right-0 flex justify-center">
+            <span class="{plan.id === 'trial' ? 'bg-emerald-500' : 'bg-indigo-500'} text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-md">
               {plan.badge}
             </span>
           </div>
         {/if}
 
-        <div class="flex items-center gap-4 mb-6">
-          <div class="w-12 h-12 rounded-2xl flex items-center justify-center {plan.destacado ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-600'}">
-            <plan.icono class="w-6 h-6" />
+        <div class="flex items-center gap-3 mb-6 mt-2">
+          <!-- 🚀 FIX: Ícono Verde para el Trial -->
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center {plan.destacado ? 'bg-indigo-50 text-indigo-600' : plan.id === 'trial' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-600'}">
+            <plan.icono class="w-5 h-5" />
           </div>
-          <div>
-            <h3 class="text-xl font-black text-slate-900">{plan.nombre}</h3>
-          </div>
+          <h3 class="text-lg font-black text-slate-900">{plan.nombre}</h3>
         </div>
 
-        <div class="mb-4">
-          <div class="flex items-baseline gap-1">
-            <span class="text-3xl font-black text-slate-900">$</span>
-            <span class="text-5xl font-black text-slate-900 tracking-tight">
-              {facturacionAnual ? plan.precioAnual : plan.precioMensual}
-            </span>
-            <span class="text-sm font-bold text-slate-400">MXN / mes</span>
-          </div>
-          {#if facturacionAnual}
-            <p class="text-xs font-bold text-emerald-600 mt-2 flex items-center gap-1">
-              <Check class="w-3 h-3" /> Facturado anualmente (${plan.precioAnual * 12})
-            </p>
+        <div class="mb-4 h-16">
+          {#if plan.id === 'trial'}
+            <!-- Render especial de precio para el Trial -->
+            <div class="flex items-baseline gap-1">
+              <span class="text-4xl font-black text-slate-900">Gratis</span>
+            </div>
+            <p class="text-[10px] font-bold text-emerald-600 mt-2">Prueba Élite x 14 días</p>
           {:else}
-            <p class="text-xs font-bold text-slate-400 mt-2">Facturado mensualmente</p>
+            <!-- Render normal para los de pago -->
+            <div class="flex items-baseline gap-1">
+              <span class="text-2xl font-black text-slate-900">$</span>
+              <span class="text-4xl font-black text-slate-900 tracking-tight">
+                {facturacionAnual ? plan.precioAnual : plan.precioMensual}
+              </span>
+              <span class="text-xs font-bold text-slate-400">/ mes</span>
+            </div>
+            {#if facturacionAnual}
+              <p class="text-[10px] font-bold text-emerald-600 mt-2 flex items-center gap-1">
+                <Check class="w-3 h-3" /> Facturado anualmente (${plan.precioAnual * 12})
+              </p>
+            {:else}
+              <p class="text-[10px] font-bold text-slate-400 mt-2">Facturado mensualmente</p>
+            {/if}
           {/if}
         </div>
 
-        <p class="text-sm font-medium text-slate-600 mb-8">{plan.descripcion}</p>
+        <!-- 🚀 FIX: Altura fija (h-10) en la descripción para alinear las tarjetas -->
+        <p class="text-xs font-medium text-slate-600 mb-6 h-10">{plan.descripcion}</p>
 
-        <ul class="space-y-4 mb-8 flex-1">
+        <ul class="space-y-3 mb-8 flex-1">
           {#each plan.features as feature}
-            <li class="flex items-start gap-3">
+            <li class="flex items-start gap-2">
               {#if feature.incluido}
-                <div class="mt-0.5 shrink-0 w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
-                  <Check class="w-3 h-3 stroke-[3]" />
+                <div class="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+                  <Check class="w-2.5 h-2.5 stroke-[3]" />
                 </div>
-                <span class="text-sm font-bold text-slate-700">{feature.texto}</span>
+                <span class="text-xs font-bold text-slate-700">{feature.texto}</span>
               {:else}
-                <div class="mt-0.5 shrink-0 w-5 h-5 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
-                  <X class="w-3 h-3 stroke-[3]" />
+                <div class="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+                  <X class="w-2.5 h-2.5 stroke-[3]" />
                 </div>
-                <span class="text-sm font-medium text-slate-400">{feature.texto}</span>
+                <span class="text-xs font-medium text-slate-400">{feature.texto}</span>
               {/if}
             </li>
           {/each}
         </ul>
 
-        <!-- 🚀 FIX: Modificación de botón Élite para que también redirija al checkout/registro -->
+        <!-- 🚀 FIX: Modificación de botón para dar énfasis verde al Trial -->
         <a 
           href="/registro?plan={plan.id}&ciclo={facturacionAnual ? 'anual' : 'mensual'}"
-          class="w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-200 {plan.destacado ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.4)]' : 'bg-slate-900 hover:bg-slate-800 text-white shadow-md'}"
+          class="w-full py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-200 
+          {plan.id === 'trial' ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-[0_4px_20px_rgba(16,185,129,0.3)] hover:shadow-[0_4px_25px_rgba(16,185,129,0.4)]' 
+          : plan.destacado ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.4)]' 
+          : 'bg-slate-900 hover:bg-slate-800 text-white shadow-md'}"
         >
-          Seleccionar Plan
-          <ArrowRight class="w-4 h-4" />
+          {plan.id === 'trial' ? 'Comenzar Trial' : 'Seleccionar Plan'}
+          <ArrowRight class="w-3.5 h-3.5" />
         </a>
       </div>
     {/each}
