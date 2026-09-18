@@ -4,7 +4,7 @@
 
   let facturacionAnual = $state(true);
 
-  // 🚀 El nuevo arreglo de planes, integrando el "Trial Elite" como la cuarta opción
+  // 🚀 Paleta actualizada: Trial usa "Sky" (Cyan del logo), Pro usa "Indigo" (Azul oscuro del logo)
   const planes = [
     {
       id: 'trial',
@@ -13,7 +13,7 @@
       precioMensual: 0,
       precioAnual: 0,
       icono: Sparkles,
-      destacado: false,
+      destacado: true, // 🚀 FIX: Destacado igual que el Pro para que resalten sus márgenes
       badge: '14 Días Gratis',
       features: [
         { texto: 'CRM Avanzado con Semáforo', incluido: true },
@@ -85,7 +85,7 @@
 <div class="min-h-screen bg-slate-50 font-sans selection:bg-indigo-500 selection:text-white pb-24">
   <header class="w-full h-20 flex items-center justify-between px-6 lg:px-12 bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200/50">
     <a href="/" class="flex items-center">
-      <!-- 🚀 FIX: Logo en tamaño amplio, respetando fondo original y eliminando caja oscura limitante -->
+      <!-- 🚀 FIX: Logo ajustado a tamaño óptimo, respetando su fondo natural y colores -->
       <img src="/logo.png" alt="Inmublia" class="h-10 md:h-12 w-auto object-contain drop-shadow-sm" />
     </a>
     <a href="/login" class="text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors">
@@ -116,25 +116,32 @@
       
       <div class="flex items-center gap-2">
         <span class="text-sm font-bold {facturacionAnual ? 'text-slate-900' : 'text-slate-400'} transition-colors">Anual</span>
-        <span class="bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">Ahorra 20%</span>
+        <span class="bg-sky-100 text-sky-700 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">Ahorra 20%</span>
       </div>
     </div>
   </main>
 
-  <div class="max-w-[90rem] mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start mb-16">
+  <div class="max-w-[90rem] mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start mb-16 pt-4">
     {#each planes as plan}
-      <div class="relative bg-white rounded-3xl p-6 border {plan.destacado ? 'border-indigo-500 shadow-2xl shadow-indigo-500/10 scale-100 md:scale-105 z-10' : 'border-slate-200 shadow-xl shadow-slate-200/50'} flex flex-col h-full transition-transform duration-300">
+      <!-- 🚀 FIX: Lógica de CSS para que el Trial use bordes SKY y el Pro use bordes INDIGO -->
+      <div class="relative bg-white rounded-3xl p-6 border flex flex-col h-full transition-all duration-300 
+        {plan.id === 'trial' ? 'border-sky-500 shadow-2xl shadow-sky-500/20 scale-100 lg:scale-105 z-20' 
+        : plan.id === 'pro' ? 'border-indigo-500 shadow-2xl shadow-indigo-500/20 scale-100 lg:scale-105 z-20' 
+        : 'border-slate-200 shadow-xl shadow-slate-200/50 scale-100 z-10'}">
         
         {#if plan.badge}
           <div class="absolute -top-3 left-0 right-0 flex justify-center">
-            <span class="{plan.id === 'trial' ? 'bg-emerald-500' : 'bg-indigo-500'} text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-md">
+            <span class="{plan.id === 'trial' ? 'bg-sky-500' : 'bg-indigo-500'} text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-md">
               {plan.badge}
             </span>
           </div>
         {/if}
 
         <div class="flex items-center gap-3 mb-6 mt-2">
-          <div class="w-10 h-10 rounded-xl flex items-center justify-center {plan.destacado ? 'bg-indigo-50 text-indigo-600' : plan.id === 'trial' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-600'}">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center 
+            {plan.id === 'trial' ? 'bg-sky-50 text-sky-600' 
+            : plan.id === 'pro' ? 'bg-indigo-50 text-indigo-600' 
+            : 'bg-slate-50 text-slate-600'}">
             <plan.icono class="w-5 h-5" />
           </div>
           <h3 class="text-lg font-black text-slate-900">{plan.nombre}</h3>
@@ -145,7 +152,7 @@
             <div class="flex items-baseline gap-1">
               <span class="text-4xl font-black text-slate-900">Gratis</span>
             </div>
-            <p class="text-[10px] font-bold text-emerald-600 mt-2">Prueba Élite x 14 días</p>
+            <p class="text-[10px] font-bold text-sky-600 mt-2">Prueba Élite x 14 días</p>
           {:else}
             <div class="flex items-baseline gap-1">
               <span class="text-2xl font-black text-slate-900">$</span>
@@ -155,7 +162,7 @@
               <span class="text-xs font-bold text-slate-400">/ mes</span>
             </div>
             {#if facturacionAnual}
-              <p class="text-[10px] font-bold text-emerald-600 mt-2 flex items-center gap-1">
+              <p class="text-[10px] font-bold text-indigo-600 mt-2 flex items-center gap-1">
                 <Check class="w-3 h-3" /> Facturado anualmente (${plan.precioAnual * 12})
               </p>
             {:else}
@@ -170,7 +177,10 @@
           {#each plan.features as feature}
             <li class="flex items-start gap-2">
               {#if feature.incluido}
-                <div class="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+                <div class="mt-0.5 shrink-0 w-4 h-4 rounded-full flex items-center justify-center
+                  {plan.id === 'trial' ? 'bg-sky-50 text-sky-500' 
+                  : plan.id === 'pro' ? 'bg-indigo-50 text-indigo-500' 
+                  : 'bg-slate-100 text-slate-500'}">
                   <Check class="w-2.5 h-2.5 stroke-[3]" />
                 </div>
                 <span class="text-xs font-bold text-slate-700">{feature.texto}</span>
@@ -187,8 +197,8 @@
         <a 
           href="/registro?plan={plan.id}&ciclo={facturacionAnual ? 'anual' : 'mensual'}"
           class="w-full py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-200 
-          {plan.id === 'trial' ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-[0_4px_20px_rgba(16,185,129,0.3)] hover:shadow-[0_4px_25px_rgba(16,185,129,0.4)]' 
-          : plan.destacado ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.4)]' 
+          {plan.id === 'trial' ? 'bg-sky-500 hover:bg-sky-600 text-white shadow-[0_4px_20px_rgba(14,165,233,0.3)] hover:shadow-[0_4px_25px_rgba(14,165,233,0.4)]' 
+          : plan.id === 'pro' ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.4)]' 
           : 'bg-slate-900 hover:bg-slate-800 text-white shadow-md'}"
         >
           {plan.id === 'trial' ? 'Comenzar Trial' : 'Seleccionar Plan'}
@@ -198,6 +208,7 @@
     {/each}
   </div>
 
+  <!-- BANNER DE ADD-ON: Dominio Personalizado -->
   <div class="max-w-4xl mx-auto px-6">
     <div class="bg-slate-900 rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl border border-slate-800">
       <div class="flex items-center gap-5">
