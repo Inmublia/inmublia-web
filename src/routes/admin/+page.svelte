@@ -30,7 +30,7 @@
   function getOpenHouseStatus(openHouse) {
     if (!openHouse || !openHouse.event_date || !openHouse.time_end) return 'none';
     const now = new Date();
-    // 🚀 FIX: Asegura el parseo correcto de la fecha y hora combinada
+    // 🚀 FIX: Asegura el parseo correcto de la fecha y hora combinada.
     const eventEndString = `${openHouse.event_date}T${openHouse.time_end}`;
     return now > new Date(eventEndString) ? 'archived' : 'active';
   }
