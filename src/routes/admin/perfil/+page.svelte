@@ -18,11 +18,21 @@
   let isElite = $derived(planActual === 'elite');
   let esPlanBasico = $derived(planActual === 'basico');
 
-  // 🔥 ARQUITECTURA ZERO-TRUST
+  // 🔥 ARQUITECTURA ZERO-TRUST & LIMITES DE TRIAL
   let estatusBD = $derived((broker.status_suscripcion || '').toLowerCase().trim());
   let esCancelado = $derived(['cancelada', 'canceled'].includes(estatusBD));
   let esMoroso = $derived(['past_due', 'unpaid', 'inactiva'].includes(estatusBD));
   let accesoBloqueado = $derived(esCancelado || esMoroso);
+  
+  // 🚀 FIX: Cálculo de días restantes de Trial en tiempo real
+  let esTrial = $derived(estatusBD === 'trial');
+  let trialRestante = $derived(() => {
+    if (!esTrial || !broker.trial_ends_at) return 0;
+    const endsAt = new Date(broker.trial_ends_at);
+    const diffMs = endsAt - new Date();
+    const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    return days < 0 ? 0 : days;
+  });
 
   // 🚀 FIX: Unificación de feedback para todos los formularios
   let savingProfile = $state(false);
@@ -44,12 +54,12 @@
   let savingWebhook = $state(false);
   let testingWebhook = $state(false);
 
-  // 🚀 FIX: Validadores de UI en tiempo real
+  // 🚀 FIX: Validadores de UI en tiempo real (Corregido a Mínimo 3 caracteres para hacer match con el Registro)
   let subdominioError = $derived(
     !broker.subdominio ? '' :
     /\s/.test(broker.subdominio) ? 'No se permiten espacios' :
     /[^a-z0-9-]/.test(broker.subdominio) ? 'Solo letras minúsculas, números y guiones' :
-    broker.subdominio.length < 4 ? 'Mínimo 4 caracteres' :
+    broker.subdominio.length < 3 ? 'Mínimo 3 caracteres' :
     broker.subdominio.startsWith('-') || broker.subdominio.endsWith('-') ? 'No puede iniciar ni terminar con guión' : ''
   );
 
@@ -148,6 +158,8 @@
             <AlertOctagon class="w-4 h-4 text-red-500" /> Estatus: <span class="text-red-400 uppercase">CANCELADA</span>
           {:else if esMoroso}
             <AlertOctagon class="w-4 h-4 text-amber-500" /> Estatus: <span class="text-amber-400 uppercase">PAGO PENDIENTE</span>
+          {:else if esTrial}
+            <ShieldCheck class="w-4 h-4 text-indigo-400" /> Nivel de acceso: <span class="uppercase text-indigo-300 font-bold">TRIAL ({trialRestante()} DÍAS)</span>
           {:else}
             <ShieldCheck class="w-4 h-4 text-emerald-500" /> Nivel de acceso: <span class="uppercase text-zinc-300">{broker.plan_suscripcion || 'Básico'}</span>
           {/if}
@@ -215,7 +227,7 @@
 
         {#if form?.error && form?.formId !== 'webhook'}
            <div class="mb-6 bg-red-100 text-red-800 font-bold p-6 rounded-xl border-2 border-red-300 text-sm whitespace-pre-wrap shadow-lg" role="alert">
-             ⚠️ DIAGNÓSTICO: {form.error}
+              ⚠️ DIAGNÓSTICO: {form.error}
            </div>
         {/if}
 
@@ -332,6 +344,7 @@
                       >
                       <div class="bg-slate-100 border-y border-r border-slate-200 rounded-r-xl px-4 py-3 text-sm font-medium text-slate-500 pointer-events-none">.inmublia.com</div>
                     </div>
+                    <!-- 🚀 FIX: Mensaje de error (ahora exige solo mínimo 3 caracteres) -->
                     {#if subdominioError}
                       <p class="text-[10px] text-red-500 font-bold mt-1.5">{subdominioError}</p>
                     {/if}
@@ -431,21 +444,33 @@
           </div>
 
           <div class="lg:col-span-4 space-y-6">
+            
+            <!-- 🚀 FIX: Tarjeta de Membresía Actualizada para soportar Modo Trial -->
             <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 relative overflow-hidden">
               <div class="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-full blur-3xl -mr-10 -mt-10"></div>
               <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10">Membresía Actual</h4>
               
               <div class="flex items-center gap-4 mb-6 relative z-10">
-                <div class="w-12 h-12 bg-slate-900 text-amber-400 rounded-xl flex items-center justify-center shadow-md shrink-0">
-                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
-                </div>
-                <div>
-                  <h3 class="text-lg font-black text-slate-900 uppercase">Inmublia {broker.plan_suscripcion || 'Básico'}</h3>
-                  <p class="text-[11px] font-bold text-emerald-600 tracking-wider mt-1">Membresía Activa</p>
-                </div>
+                {#if esTrial}
+                   <div class="w-12 h-12 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-md shrink-0">
+                     <ShieldCheck class="w-6 h-6" />
+                   </div>
+                   <div>
+                     <h3 class="text-lg font-black text-slate-900 uppercase">TRIAL ÉLITE</h3>
+                     <p class="text-[11px] font-bold text-indigo-600 tracking-wider mt-1">{trialRestante()} DÍAS RESTANTES</p>
+                   </div>
+                {:else}
+                   <div class="w-12 h-12 bg-slate-900 text-amber-400 rounded-xl flex items-center justify-center shadow-md shrink-0">
+                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                   </div>
+                   <div>
+                     <h3 class="text-lg font-black text-slate-900 uppercase">Inmublia {broker.plan_suscripcion || 'Básico'}</h3>
+                     <p class="text-[11px] font-bold text-emerald-600 tracking-wider mt-1">Membresía Activa</p>
+                   </div>
+                {/if}
               </div>
               
-              <a href="/api/stripe/portal" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-3 rounded-xl transition-colors shadow-sm active:scale-95 relative z-10">
+              <a href="/api/stripe/portal" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 {esTrial ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-yellow-400 hover:bg-yellow-500 text-slate-900'} font-bold py-3 rounded-xl transition-colors shadow-sm active:scale-95 relative z-10">
                 Gestionar Membresía
               </a>
             </div>
