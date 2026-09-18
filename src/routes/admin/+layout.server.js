@@ -22,7 +22,6 @@ export async function load({ locals, setHeaders, url, depends }) {
   }
 
   try {
-    // 🚀 FIX: Si estás impersonando, usamos el cliente Dios para saltar el RLS
     let db = locals.supabase;
     if (locals.isImpersonating) {
       db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
@@ -47,12 +46,72 @@ export async function load({ locals, setHeaders, url, depends }) {
       throw redirect(303, '/admin/perfil?alerta=pago_requerido');
     }
 
+    // 🚀 LÓGICA DE PAYWALLS (Medición de Consumo)
+    // Inicializamos contadores por defecto
+    let countPropiedades = 0;
+    let countOpenHouses = 0;
+    
+    // Solo contamos las propiedades Activas y Pre-Mercado (no las Vendidas/Bajas)
+    const { count: propsCount } = await db
+      .from('propiedades')
+      .select('id', { count: 'exact', head: true })
+      .eq('broker_id', broker.id)
+      .in('estatus', ['Activa', 'Pre-Mercado']);
+    
+    if (propsCount) countPropiedades = propsCount;
+
+    // Solo contamos Open Houses agendados en el futuro o en curso
+    const today = new Date().toISOString().split('T')[0];
+    const { count: ohCount } = await db
+      .from('open_houses')
+      .select('id', { count: 'exact', head: true })
+      .eq('broker_id', broker.id)
+      .gte('fecha', today);
+
+    if (ohCount) countOpenHouses = ohCount;
+
+    // 🚀 CÁLCULO DE LÍMITES SEGÚN PLAN
+    const esTrial = status === 'trial';
+    const plan = (broker.plan_suscripcion || 'basico').toLowerCase();
+    
+    // Limites de Inventario
+    const limitesInventario = {
+      basico: 15,
+      trial: 5,
+      pro: 999999, // Ilimitado
+      elite: 999999
+    };
+    
+    // Limites de Open House Activos
+    const limitesOpenHouse = {
+      basico: 0,
+      trial: 1,
+      pro: 999999,
+      elite: 999999
+    };
+
+    const limiteActualProps = esTrial ? limitesInventario['trial'] : (limitesInventario[plan] || 15);
+    const limiteActualOH = esTrial ? limitesOpenHouse['trial'] : (limitesOpenHouse[plan] || 0);
+
+    const hitPaywallPropiedades = countPropiedades >= limiteActualProps;
+    const hitPaywallOpenHouse = countOpenHouses >= limiteActualOH;
+    const hitPaywallIA = (broker.creditos_ia || 0) <= 0;
+
+    // Cálculo de Días Restantes de Trial
+    let trialRestante = null;
+    if (esTrial && broker.trial_ends_at) {
+      const endsAt = new Date(broker.trial_ends_at);
+      const diffMs = endsAt - new Date();
+      trialRestante = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (trialRestante < 0) trialRestante = 0; // Si es negativo, el Hook Server ya lo debió haber bloqueado, pero por seguridad
+    }
+
+    // Código original de notificaciones...
     const now = new Date();
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
     const endOfTodayISO = endOfToday.toISOString();
     
-    // TODAS estas consultas ahora usan 'db' (Que se salta el RLS si estás impersonando)
     const { data: recordatorios } = await db
       .from('lead_notas')
       .select('id, contenido, fecha_recordatorio, completado, leads(id, nombre)')
@@ -145,8 +204,19 @@ export async function load({ locals, setHeaders, url, depends }) {
       broker,
       alertasGlobales: alertasUnificadas,
       isImpersonating: locals.isImpersonating || false,
-      // 🚀 FIX DEFINITIVO: Obligamos a que el rol interno que llegue al menú sea SIEMPRE el tuyo (guardado en locals)
-      rolInterno: locals.rol_interno || 'broker'
+      rolInterno: locals.rol_interno || 'broker',
+      
+      // 🚀 EXPORTACIÓN DEL PAYWALL AL FRONTEND
+      limits: {
+        isTrial: esTrial,
+        trialDaysLeft: trialRestante,
+        plan: plan,
+        hitPropsPaywall: hitPaywallPropiedades,
+        hitOHPaywall: hitPaywallOpenHouse,
+        hitIAPaywall: hitPaywallIA,
+        currentProps: countPropiedades,
+        maxProps: limiteActualProps
+      }
     };
 
   } catch (err) {
