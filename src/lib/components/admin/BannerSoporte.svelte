@@ -1,25 +1,26 @@
 <script>
-  import { enhance } from '$app/forms';
   import { Eye, LogOut } from 'lucide-svelte';
 
   let { isImpersonating } = $props();
 </script>
 
 {#if isImpersonating}
-  <div class="w-full bg-slate-900 border-b border-slate-800 py-2.5 px-6 flex flex-col sm:flex-row items-center justify-between text-slate-300 text-xs font-medium z-50 relative shadow-md">
-    <div class="flex items-center gap-3 mb-2 sm:mb-0">
-      <div class="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 shrink-0">
-        <Eye class="w-3.5 h-3.5 text-indigo-400" />
+  <!-- Degradado rojo de alta visibilidad para estatus crítico / observación -->
+  <div class="w-full bg-gradient-to-r from-red-600 via-rose-600 to-red-700 border-b border-red-800 py-3 px-6 flex flex-col sm:flex-row items-center justify-between text-white text-xs font-medium z-50 relative shadow-lg">
+    <div class="flex items-center gap-3 mb-3 sm:mb-0">
+      <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center border border-white/30 shrink-0 shadow-inner">
+        <Eye class="w-4 h-4 text-white" />
       </div>
-      <p>
-        <strong class="text-indigo-300 font-bold mr-1 tracking-wide">MODO VISUALIZACIÓN.</strong> 
-        Estás navegando la cuenta del cliente como observador. Los cambios están bloqueados por seguridad.
+      <p class="leading-relaxed">
+        <strong class="font-black mr-1 tracking-wide uppercase">Modo Visualización:</strong> 
+        Navegando cuenta de cliente como observador. Cambios bloqueados por seguridad.
       </p>
     </div>
     
-    <form method="POST" action="/admin/salir-impersonacion" use:enhance>
-      <button type="submit" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors shadow-inner active:scale-95 font-bold shrink-0">
-        <LogOut class="w-3.5 h-3.5" />
+    <!-- Eliminado use:enhance para forzar navegación dura y evitar el Error 500 con el redirect 303 -->
+    <form method="POST" action="/admin/salir-impersonacion">
+      <button type="submit" class="flex items-center gap-2 bg-slate-900 hover:bg-slate-950 text-white px-5 py-2.5 rounded-xl transition-all shadow-md active:scale-95 font-bold shrink-0 border border-slate-800">
+        <LogOut class="w-4 h-4" />
         Terminar Sesión
       </button>
     </form>
