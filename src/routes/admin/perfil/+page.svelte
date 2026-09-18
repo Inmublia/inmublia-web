@@ -432,6 +432,7 @@
               <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10">Membresía Actual</h4>
               
               <div class="flex items-center gap-4 mb-6 relative z-10">
+                <!-- 🚀 FIX: if/else sintáctico corregido -->
                 {#if esTrial}
                    <div class="w-12 h-12 bg-white/10 text-white rounded-xl flex items-center justify-center shadow-md shrink-0 border border-white/20">
                      <ShieldCheck class="w-6 h-6" />
@@ -440,7 +441,7 @@
                      <h3 class="text-lg font-black text-white uppercase tracking-tight">TRIAL ÉLITE</h3>
                      <p class="text-[11px] font-bold text-amber-400 tracking-wider mt-1">{trialRestante()} DÍAS RESTANTES</p>
                    </div>
-                {#else}
+                {:else}
                    <div class="w-12 h-12 bg-white/10 text-white rounded-xl flex items-center justify-center shadow-md shrink-0 border border-white/20">
                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
                    </div>
