@@ -12,9 +12,15 @@ const STRIPE_PRICES = {
   elite:  { mensual: 'price_1UF3vVJHda98KYP8sEBcENHN', anual: 'price_1UF3wrJHda98KYP82p3McSSj' }
 };
 
-const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
+// 🚀 FIX: Asignador Dinámico de Créditos IA (Valores Ajustados)
+const CREDITOS_IA_POR_PLAN = {
+  trial: 15,
+  basico: 15,
+  pro: 125,
+  elite: 300
+};
 
-// 🚀 FIX: Inicializamos el cliente de Resend para el correo transaccional
+const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
 const resend = new Resend(privateEnv.RESEND_API_KEY);
 
 export const actions = {
@@ -56,6 +62,9 @@ export const actions = {
     if (isTrial) {
       trialEndsAt.setDate(trialEndsAt.getDate() + 14);
     }
+    
+    // Asignamos los créditos basados en el plan seleccionado
+    const creditosAsignados = CREDITOS_IA_POR_PLAN[planId] || 15;
 
     // 3. Crear Infraestructura Tenant
     const db = createClient(publicEnv.PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
@@ -67,7 +76,8 @@ export const actions = {
       subdominio: subdominio,
       plan_suscripcion: finalPlan,
       status_suscripcion: finalStatus,
-      trial_ends_at: isTrial ? trialEndsAt.toISOString() : null
+      trial_ends_at: isTrial ? trialEndsAt.toISOString() : null,
+      ia_creditos_disponibles: creditosAsignados // 🚀 FIX: Inyectando los créditos aquí
     }).select('id').single();
 
     if (dbError) {
@@ -78,13 +88,12 @@ export const actions = {
       return fail(500, { error: `Falla en BD: ${dbError.message}` });
     }
 
-    // 🚀 FIX: 4. El Correo de Onboarding (Fire and Forget)
-    // Usamos Promesa sin await para que el usuario no tenga que esperar a que el email se envíe antes de ser redirigido
+    // 4. El Correo de Onboarding (Fire and Forget)
     const planNameDisplay = isTrial ? 'Trial Élite (14 días)' : `Plan ${finalPlan.charAt(0).toUpperCase() + finalPlan.slice(1)}`;
     const loginUrl = `https://${subdominio}.inmublia.com/login`;
 
     resend.emails.send({
-      from: 'Inmublia <bienvenida@inmublia.com>', // Configura este correo verificado en tu panel de Resend
+      from: 'Inmublia <bienvenida@inmublia.com>', 
       to: email,
       subject: `¡Bienvenido a Inmublia, ${agencia}!`,
       html: `
