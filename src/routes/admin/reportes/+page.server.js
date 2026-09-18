@@ -7,13 +7,11 @@ import { env as publicEnv } from '$env/dynamic/public';
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
 
-  // 🚀 BYPASS RLS: Inyectamos Cliente Dios para el God Mode
   let db = locals.supabase;
   if (locals.isImpersonating) {
     db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
   }
 
-  // 1. Buscamos el ID correcto (El tuyo, o el del cliente si estás impersonando)
   let query = db.from('brokers').select('*');
   if (locals.isImpersonating && locals.tenantId) {
     query = query.eq('id', locals.tenantId);
@@ -25,16 +23,15 @@ export const load = async ({ locals }) => {
 
   if (brokerError || !broker) throw redirect(303, '/login');
 
-  // 2. Traemos todos los leads y la información de la propiedad (Usando 'db' sin Muro RLS)
   const { data: leads } = await db
     .from('leads')
     .select(`*, propiedades (id, titulo, precio, operacion, estatus)`)
     .eq('broker_id', broker.id);
 
-  // 3. Traemos el inventario general para cruzar datos (Usando 'db' sin Muro RLS)
+  // 🚀 FIX: Traemos el inventario para cruzar información de propiedades que se vendieron directamente (sin lead asociado en CRM)
   const { data: propiedades } = await db
     .from('propiedades')
-    .select('id, titulo, precio, operacion, estatus')
+    .select('id, titulo, precio, operacion, estatus, updated_at')
     .eq('broker_id', broker.id);
 
   return {
