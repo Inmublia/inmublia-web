@@ -4,7 +4,7 @@
   import { invalidateAll } from '$app/navigation';
   import { 
     ArrowLeft, Building2, CalendarClock, CalendarDays, Clock, Users, Gift, PenTool, 
-    Loader2, Rocket, Sparkles, Zap, MessageCircle, Copy, AlertOctagon, Check, CheckCircle2
+    Loader2, Rocket, Sparkles, Zap, MessageCircle, Copy, AlertOctagon, Check, CheckCircle2, Lock
   } from 'lucide-svelte';
 
   let { data } = $props();
@@ -16,6 +16,9 @@
   // --- VARIABLES DE IA ---
   let creditosIA = $state(data?.creditos_ia ?? 15);
   let planSuscripcion = $derived(data?.plan_suscripcion ?? 'basico'); 
+  
+  // 🚀 EXTRACCIÓN DE PAYWALLS DESDE EL LAYOUT (Sin romper lógica extra)
+  let hitOHPaywall = $derived(data?.limits?.hitOHPaywall || false);
   
   let generandoIA = $state(false);
   let iaEjecutada = $state(false);
@@ -193,24 +196,60 @@
         </div>
       </div>
 
-      <!-- 🚀 FIX: Bloquear submit durante generación de IA para evitar envíos parciales -->
-      <button type="submit" form="form-openhouse" disabled={isSubmitting || generandoIA} class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95 shrink-0">
-        {#if isSubmitting}
-          <Loader2 class="w-4 h-4 animate-spin text-zinc-950" /> Lanzando...
-        {:else}
-          <Rocket class="w-4 h-4 text-indigo-500" /> Lanzar Evento
-        {/if}
-      </button>
+      <!-- 🚀 FIX: Mutación del Botón Principal (Header) por Paywall -->
+      {#if hitOHPaywall}
+        <a href="/admin/perfil" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold transition-all bg-indigo-600 text-white hover:bg-indigo-700 h-11 px-6 gap-2 shadow-lg active:scale-95 shrink-0">
+          <Lock class="w-4 h-4" /> Actualizar Plan
+        </a>
+      {:else}
+        <button type="submit" form="form-openhouse" disabled={isSubmitting || generandoIA} class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95 shrink-0">
+          {#if isSubmitting}
+            <Loader2 class="w-4 h-4 animate-spin text-zinc-950" /> Lanzando...
+          {:else}
+            <Rocket class="w-4 h-4 text-indigo-500" /> Lanzar Evento
+          {/if}
+        </button>
+      {/if}
     </div>
   </header>
 
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 h-full">
       
-      <form id="form-openhouse" action="?/crear" method="POST" use:enhance={() => {
+      <!-- 🚀 FIX: AVISO DE PAYWALL EN PANTALLA -->
+      {#if hitOHPaywall}
+        <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-[fadeIn_0.4s_ease-out] shadow-sm">
+          <div class="flex gap-4">
+            <div class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+              <Lock class="w-6 h-6 text-indigo-600" />
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-indigo-900">Módulo Bloqueado</h3>
+              <p class="text-sm text-indigo-700 mt-1 font-medium">
+                {#if planSuscripcion === 'basico'}
+                  El plan Básico no incluye eventos Open House. Mejora a Profesional para desbloquearlo.
+                {:else}
+                  Has alcanzado el límite de 1 Open House simultáneo de tu plan de Prueba.
+                {/if}
+              </p>
+            </div>
+          </div>
+          <a href="/admin/perfil" class="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl transition-all shadow-md active:scale-95 text-sm">
+            Actualizar Plan
+          </a>
+        </div>
+      {/if}
+
+      <!-- 🚀 FIX: Formulario desactivado si hay paywall (opacity-50 pointer-events-none) -->
+      <form id="form-openhouse" action="?/crear" method="POST" use:enhance={({ cancel }) => {
+        if (hitOHPaywall) {
+          cancel();
+          window.location.href = '/admin/perfil?alerta=limite_alcanzado';
+          return;
+        }
         isSubmitting = true;
         return async ({ update }) => { isSubmitting = false; update(); };
-      }} class="space-y-8 pb-10">
+      }} class="space-y-8 pb-10 {hitOHPaywall ? 'opacity-50 pointer-events-none' : ''}">
         
         <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-start gap-4">
@@ -232,7 +271,6 @@
                   {#each propiedades as prop}
                     <option value={prop.id}>{prop.titulo} ({prop.operacion})</option>
                   {/each}
-                  <!-- 🚀 FIX: Eliminado el activo de prueba que enviaba "test" a producción -->
                   {#if propiedades.length === 0}
                     <option value="" disabled>Sin propiedades activas — agrega una propiedad primero</option>
                   {/if}
@@ -299,7 +337,6 @@
                     <Clock class="w-3.5 h-3.5" />
                   </div>
                 </div>
-                <!-- 🚀 FIX: Mensaje visual de error de validación de horas -->
                 {#if !horarioValido && valTimeEnd}
                   <p class="text-red-500 text-[10px] font-bold mt-1.5">El cierre debe ser posterior a la apertura.</p>
                 {/if}
@@ -339,7 +376,6 @@
                   <AlertOctagon class="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                   <div class="w-full">
                     <p class="text-sm font-black text-red-300 mb-1">Aviso:</p>
-                    <!-- 🚀 FIX: Mensaje formateado para lectura limpia por el broker -->
                     <p class="text-xs text-red-200">{iaErrorMsg}</p>
                   </div>
                 </div>
@@ -386,7 +422,6 @@
               {/if}
             </div>
 
-            <!-- 🚀 FIX: Id ancla agregado para el auto-scroll al generar IA -->
             <div id="seccion-resultado-ia">
               {#if iaEjecutada && textoGeneradoWhatsapp}
                 <div class="mt-6 animate-[fadeIn_0.4s_ease-out] relative z-10 w-full">
@@ -396,7 +431,6 @@
                         <MessageCircle class="w-4 h-4 text-emerald-400" /> Campaña WhatsApp
                       </h4>
                       {#if !generandoIA}
-                        <!-- 🚀 FIX: Botón con estado copiado (Check) o inicial (Copy) -->
                         <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600/50">
                           {#if copiadoWhatsapp}
                             <Check class="w-3.5 h-3.5 text-emerald-400"/> Copiado
@@ -428,7 +462,6 @@
               </div>
             </div>
             {#if iaEjecutada && !generandoIA}
-              <!-- 🚀 FIX: Ícono CheckCircle2 ahora se utiliza correctamente -->
               <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5 animate-[fadeIn_0.4s_ease-out] shrink-0">
                 <CheckCircle2 class="w-3.5 h-3.5" /> Autocompletado
               </span>
@@ -453,14 +486,20 @@
           </div>
         </div>
 
-        <!-- 🚀 FIX: Bloquear submit durante generación de IA (Versión Mobile) -->
-        <button type="submit" disabled={isSubmitting || generandoIA} class="sm:hidden w-full inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-white hover:bg-indigo-600 h-14 gap-2 shadow-lg active:scale-95 mt-4">
-          {#if isSubmitting}
-            <Loader2 class="w-5 h-5 animate-spin" /> Lanzando...
-          {:else}
-            <Rocket class="w-5 h-5" /> Lanzar Evento Oficial
-          {/if}
-        </button>
+        <!-- 🚀 FIX: Mutación del Botón de Guardado Inferior por Paywall -->
+        {#if hitOHPaywall}
+          <a href="/admin/perfil" class="sm:hidden w-full inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold transition-all bg-indigo-600 text-white hover:bg-indigo-700 h-14 gap-2 shadow-lg active:scale-95 mt-4">
+            <Lock class="w-5 h-5" /> Actualizar Plan
+          </a>
+        {:else}
+          <button type="submit" disabled={isSubmitting || generandoIA} class="sm:hidden w-full inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-white hover:bg-indigo-600 h-14 gap-2 shadow-lg active:scale-95 mt-4">
+            {#if isSubmitting}
+              <Loader2 class="w-5 h-5 animate-spin" /> Lanzando...
+            {:else}
+              <Rocket class="w-5 h-5" /> Lanzar Evento Oficial
+            {/if}
+          </button>
+        {/if}
 
       </form>
     </div>
