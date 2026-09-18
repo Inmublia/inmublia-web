@@ -1,3 +1,4 @@
+<!-- src/routes/planes/+page.svelte -->
 <script>
   import { Check, X, Zap, Crown, Building2, ArrowRight, Globe } from 'lucide-svelte';
 
@@ -21,7 +22,8 @@
         { texto: 'Plantillas Smart Brochure VIP', incluido: false },
         { texto: 'Módulo de Open House', incluido: false }
       ],
-      linkId: 'price_basico_test'
+      linkId: 'price_1UFgBoJHda98KYP8zVxz1V2h', 
+      linkIdAnual: 'price_1UFgCSJHda98KYP8WAfuaRCU'
     },
     {
       id: 'pro',
@@ -41,7 +43,8 @@
         { texto: 'Plantillas Smart Brochure VIP', incluido: true },
         { texto: 'Módulo de Open House', incluido: true }
       ],
-      linkId: 'price_pro_test'
+      linkId: 'price_1UFgDVJHda98KYP8Hvvb7jIU', 
+      linkIdAnual: 'price_1UF3y9JHda98KYP83uVDd0rF'
     },
     {
       id: 'elite',
@@ -60,7 +63,8 @@
         { texto: 'Todas las plantillas VIP + Futuras', incluido: true },
         { texto: 'Soporte técnico prioritario (WhatsApp)', incluido: true }
       ],
-      linkId: 'price_elite_test'
+      linkId: 'price_1UF3vVJHda98KYP8sEBcENHN', 
+      linkIdAnual: 'price_1UF3wrJHda98KYP82p3McSSj'
     }
   ];
 </script>
@@ -168,19 +172,14 @@
           {/each}
         </ul>
 
-        {#if plan.id === 'elite'}
-          <a href="/contacto" class="w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-200 bg-slate-900 hover:bg-slate-800 text-white shadow-md">
-            Contactar Ventas
-          </a>
-        {:else}
-          <a 
-            href="/registro?plan={plan.id}&ciclo={facturacionAnual ? 'anual' : 'mensual'}"
-            class="w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-200 {plan.destacado ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.4)]' : 'bg-slate-900 hover:bg-slate-800 text-white shadow-md'}"
-          >
-            Seleccionar Plan
-            <ArrowRight class="w-4 h-4" />
-          </a>
-        {/if}
+        <!-- 🚀 FIX: Modificación de botón Élite para que también redirija al checkout/registro -->
+        <a 
+          href="/registro?plan={plan.id}&ciclo={facturacionAnual ? 'anual' : 'mensual'}"
+          class="w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-200 {plan.destacado ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.4)]' : 'bg-slate-900 hover:bg-slate-800 text-white shadow-md'}"
+        >
+          Seleccionar Plan
+          <ArrowRight class="w-4 h-4" />
+        </a>
       </div>
     {/each}
   </div>
