@@ -43,14 +43,12 @@
     <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>
 
     <div class="flex flex-col items-center mb-10">
-      <!-- 🚀 FIX: Logo limpio sin caja negra ni bordes -->
       <div class="mb-8">
         <img src="/logo.png" alt="Inmublia" class="h-10 w-auto filter invert drop-shadow-md">
       </div>
       <h1 class="text-3xl font-black tracking-tighter leading-tight text-center text-white drop-shadow-sm">
         {vistaRecuperacion ? 'Recuperar Acceso' : 'Consola Operativa'}
       </h1>
-      <!-- 🚀 FIX: Subtítulo simplificado -->
       <p class="text-xs text-zinc-400 mt-3 text-center font-medium max-w-[280px] tracking-wide">
         {vistaRecuperacion ? 'Ingresa tu correo para recibir un enlace seguro de restablecimiento.' : 'Identifícate para acceder a tu entorno de trabajo seguro.'}
       </p>
@@ -122,7 +120,8 @@
             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
               <Mail class="w-4 h-4" />
             </div>
-            <input type="email" name="email" id="email" autocomplete="username email" placeholder="correo@agencia.com" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
+            <!-- 🚀 FIX: Warning A11y de Autocomplete inválido resuelto -->
+            <input type="email" name="email" id="email" autocomplete="email" placeholder="correo@agencia.com" required class="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-inner" />
           </div>
         </div>
 
@@ -208,7 +207,6 @@
     <div class="mt-10 pt-8 border-t border-white/5 text-center">
       <p class="text-xs text-zinc-500 font-medium">
         ¿Aún no tienes infraestructura propia? <br>
-        <!-- 🚀 FIX: Enlace ajustado a la landing pública PLG -->
         <a href="https://inmublia.com/planes" class="inline-flex items-center gap-1 font-bold text-white hover:text-indigo-400 transition-colors mt-2">
           Ver nuestros planes <ArrowRight class="w-3 h-3" />
         </a>
