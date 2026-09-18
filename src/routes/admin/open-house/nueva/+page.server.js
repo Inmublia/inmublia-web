@@ -36,7 +36,10 @@ export const actions = {
     const { data: broker } = await locals.supabase
       .from('brokers').select('id, ia_creditos_disponibles').eq('auth_user_id', user.id).single();
 
-    if (!broker || broker.ia_creditos_disponibles <= 0) return fail(400, { error: 'Has agotado tus créditos de IA.' });
+    // 🚀 FIX PAYWALL IA: Validación dura en servidor
+    if (!broker || broker.ia_creditos_disponibles <= 0) {
+      return fail(403, { error: 'Has agotado tus créditos de Inteligencia Artificial para tu plan actual.' });
+    }
 
     const formData = await request.formData();
     const propiedad_id = sanitizar(formData.get('propiedad_id'), 100);
@@ -160,8 +163,34 @@ Incentivo Especial: ${benefit || 'Recorrido exclusivo'}
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
-    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', user.id).single();
+    // 🚀 FIX PAYWALL OPEN HOUSE: Validación dura antes de guardar
+    const { data: broker } = await locals.supabase
+      .from('brokers')
+      .select('id, plan_suscripcion, status_suscripcion')
+      .eq('auth_user_id', user.id)
+      .single();
+
     if (!broker) return fail(401, { error: 'Broker no encontrado' });
+
+    const esTrial = broker.status_suscripcion === 'trial';
+    const planOriginal = (broker.plan_suscripcion || 'basico').toLowerCase();
+    
+    // Matriz de Límites
+    const limitesOpenHouse = { basico: 0, trial: 1, pro: 999999, elite: 999999 };
+    const limiteActualOH = esTrial ? limitesOpenHouse['trial'] : (limitesOpenHouse[planOriginal] || 0);
+
+    // Contamos cuántos OH tiene agendados a futuro o el día de hoy
+    const today = new Date().toISOString().split('T')[0];
+    const { count: ohCount } = await locals.supabase
+      .from('open_houses')
+      .select('id', { count: 'exact', head: true })
+      .eq('broker_id', broker.id)
+      .gte('event_date', today);
+
+    // Muro de Contención
+    if (ohCount >= limiteActualOH) {
+      return fail(403, { error: 'Límite de Open House alcanzado. Actualiza a un plan superior para publicar más eventos.' });
+    }
 
     const formData = await request.formData();
     const propiedad_id = formData.get('propiedad_id');
