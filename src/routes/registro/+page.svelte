@@ -1,75 +1,104 @@
 <!-- src/routes/registro/+page.svelte -->
 <script>
-  import { page } from '$app/stores';
-  import { ArrowRight, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-svelte';
+  // FIX: Importación moderna de Svelte 5 para reactividad de página
+  import { page } from '$app/state';
+  import { ArrowRight, CheckCircle2, ShieldCheck, Loader2, X } from 'lucide-svelte';
 
-  // Leemos el plan y ciclo desde la URL (viene de la página /planes)
-  let planId = $page.url.searchParams.get('plan') || 'pro';
-  let ciclo = $page.url.searchParams.get('ciclo') || 'anual';
+  // FIX: Reactividad completa. Si la URL cambia sin recargar, esto se actualiza.
+  let planId = $derived(page.url.searchParams.get('plan') || 'pro');
+  let ciclo = $derived(page.url.searchParams.get('ciclo') || 'anual');
   
+  // FIX: Precio derivado. Si cambia el ciclo, se actualiza la UI automáticamente.
+  let planSeleccionado = $derived({
+    basico: { nombre: 'Básico', precio: ciclo === 'anual' ? '$399' : '$499', creditos: 15 },
+    pro:    { nombre: 'Profesional', precio: ciclo === 'anual' ? '$749' : '$899', creditos: 125 },
+    elite:  { nombre: 'Élite', precio: ciclo === 'anual' ? '$1,199' : '$1,499', creditos: 500 }
+  }[planId] ?? { nombre: 'Profesional', precio: '$899', creditos: 125 });
+
   let loading = $state(false);
   let errorMsg = $state('');
 
-  // 🚀 IDs EXACTOS DE STRIPE (Sincronizados con tus precios reales)
-  const stripePrices = {
-    basico: {
-      mensual: 'price_1UFgBoJHda98KYP8zVxz1V2h', 
-      anual: 'price_1UFgCSJHda98KYP8WAfuaRCU'     
-    },
-    pro: {
-      mensual: 'price_1UFgDVJHda98KYP8Hvvb7jIU', 
-      anual: 'price_1UF3y9JHda98KYP83uVDd0rF'                
-    },
-    elite: {
-      mensual: 'price_1UF3vVJHda98KYP8sEBcENHN', 
-      anual: 'price_1UF3wrJHda98KYP82p3McSSj'              
-    }
-  };
-
-  const planInfo = {
-    basico: { nombre: 'Básico', precio: ciclo === 'anual' ? '$399' : '$499', creditos: 15 },
-    pro: { nombre: 'Profesional', precio: ciclo === 'anual' ? '$749' : '$899', creditos: 125 },
-    elite: { nombre: 'Élite', precio: ciclo === 'anual' ? '$1,199' : '$1,499', creditos: 500 }
-  };
-
-  let planSeleccionado = planInfo[planId] || planInfo.pro;
-
-  // Variables reactivas del formulario
+  // Variables de formulario
   let valEmail = $state('');
   let valAgencia = $state('');
-  let valSubdominio = $derived(valAgencia.toLowerCase().replace(/[^a-z0-9]/g, ''));
 
-  // Disparamos el Checkout de Stripe
+  // FIX: Sanitización estricta de subdominio (NFD, sin acentos, sin ñ, límite 40 chars)
+  let valSubdominio = $derived(() => {
+    const base = valAgencia
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .replace(/^[0-9]/, 'i$&')
+      .substring(0, 40);
+    return base || '';
+  });
+
+  // Validaciones en tiempo real
+  let emailValido = $derived(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valEmail));
+  let subdominioValido = $derived(valSubdominio().length >= 3 && valSubdominio().length <= 40);
+
+  // FIX: Verificación asíncrona de disponibilidad del subdominio (Debounce)
+  let verificandoSubdominio = $state(false);
+  let subdominioDisponible = $state(null);
+
+  $effect(() => {
+    const sub = valSubdominio();
+    if (sub.length < 3) { subdominioDisponible = null; return; }
+
+    verificandoSubdominio = true;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/check-subdominio?sub=${sub}`);
+        if (res.ok) {
+          const { disponible } = await res.json();
+          subdominioDisponible = disponible;
+        } else {
+          subdominioDisponible = null; // Falla silenciosa para no bloquear
+        }
+      } catch {
+        subdominioDisponible = null;
+      } finally {
+        verificandoSubdominio = false;
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  });
+
+  // Botón bloqueado hasta que todo esté perfecto
+  let botonHabilitado = $derived(
+    !loading &&
+    valAgencia.trim().length >= 3 &&
+    emailValido &&
+    subdominioValido &&
+    subdominioDisponible !== false
+  );
+
   async function irAlPago(event) {
     event.preventDefault();
     loading = true;
     errorMsg = '';
 
-    const priceToCharge = stripePrices[planId][ciclo];
-
-    if (!priceToCharge) {
-      errorMsg = 'Error de configuración: Plan no disponible.';
-      loading = false;
-      return;
-    }
-
     try {
+      // FIX CRÍTICO: Los IDs de Stripe ya no existen en el cliente.
+      // Enviamos un payload semántico y dejamos que el servidor resuelva el precio.
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          authUserId: 'TEMP_GUEST_' + Math.random().toString(36).substring(2, 10), // El webhook creará el usuario si ve TEMP_GUEST
+          plan: planId,
+          ciclo: ciclo,
           email: valEmail,
           nombreComercial: valAgencia,
-          subdominioDeseado: valSubdominio,
-          priceId: priceToCharge
+          subdominioDeseado: valSubdominio()
         })
       });
 
       const result = await response.json();
 
       if (response.ok && result.url) {
-        // Redirigir a Stripe Checkout
         window.location.href = result.url;
       } else {
         errorMsg = result.error || 'No se pudo generar la orden de pago.';
@@ -87,12 +116,11 @@
 </svelte:head>
 
 <div class="min-h-screen bg-white font-sans flex flex-col md:flex-row">
-  <!-- Columna Izquierda (Informativa y Persuasiva) -->
+  <!-- Columna Izquierda (Informativa) -->
   <div class="hidden md:flex flex-col justify-between w-1/3 bg-slate-900 text-white p-12 relative overflow-hidden">
     <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-indigo-500/20 to-transparent"></div>
     <div class="relative z-10">
       
-      <!-- 🚀 FIX LOGO: Tu logotipo oficial renderizado aquí -->
       <a href="/" class="flex items-center gap-3 mb-16">
         <img src="/logo.png" alt="Inmublia Logo" class="w-10 h-10 object-contain rounded-lg shadow-sm" />
         <span class="font-black text-2xl tracking-tight text-white">Inmublia</span>
@@ -121,11 +149,10 @@
     </div>
   </div>
 
-  <!-- Columna Derecha (Formulario de Checkout B2B) -->
+  <!-- Columna Derecha (Formulario) -->
   <div class="flex-1 flex flex-col justify-center px-6 py-12 md:px-24 bg-slate-50">
     <div class="max-w-md w-full mx-auto bg-white p-8 sm:p-10 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100">
       
-      <!-- 🚀 FIX LOGO MÓVIL: Mostramos el logo también en móvil porque la columna izquierda se oculta -->
       <div class="md:hidden flex items-center gap-2 mb-8 border-b border-slate-100 pb-6">
         <img src="/logo.png" alt="Inmublia Logo" class="w-8 h-8 object-contain rounded-md" />
         <span class="font-black text-xl tracking-tight text-slate-900">Inmublia</span>
@@ -149,12 +176,26 @@
 
         <div>
           <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Subdominio Asignado</label>
-          <div class="flex items-center w-full h-12 bg-slate-100 border border-slate-200 rounded-xl px-4 overflow-hidden">
+          <div class="flex items-center w-full h-12 bg-slate-100 border rounded-xl px-4 overflow-hidden transition-colors duration-300 {subdominioDisponible === false ? 'border-red-300 bg-red-50' : subdominioDisponible === true ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-200'}">
             <span class="text-slate-400 font-medium whitespace-nowrap">https://</span>
-            <span class="text-indigo-600 font-bold px-1 overflow-hidden text-ellipsis whitespace-nowrap">{valSubdominio || 'tuagencia'}</span>
+            <span class="text-indigo-600 font-bold px-1 overflow-hidden text-ellipsis whitespace-nowrap">{valSubdominio() || 'tuagencia'}</span>
             <span class="text-slate-400 font-medium whitespace-nowrap">.inmublia.com</span>
+            
+            <!-- Feedback Visual del Subdominio -->
+            {#if verificandoSubdominio}
+              <Loader2 class="w-4 h-4 animate-spin text-slate-400 ml-auto shrink-0"/>
+            {:else if subdominioDisponible === true}
+              <CheckCircle2 class="w-4 h-4 text-emerald-500 ml-auto shrink-0"/>
+            {:else if subdominioDisponible === false}
+              <X class="w-4 h-4 text-red-500 ml-auto shrink-0"/>
+            {/if}
           </div>
-          <p class="text-[10px] text-slate-400 mt-1.5 font-medium">Esta será la URL de tu catálogo público.</p>
+          
+          {#if subdominioDisponible === false}
+            <p class="text-[10px] text-red-500 font-bold mt-1.5">Este subdominio ya está registrado. Usa otro nombre.</p>
+          {:else}
+            <p class="text-[10px] text-slate-400 mt-1.5 font-medium">Esta será la URL de tu catálogo público.</p>
+          {/if}
         </div>
 
         <div class="pt-2">
@@ -163,9 +204,9 @@
           <p class="text-[10px] text-slate-400 mt-1.5 font-medium">A este correo enviaremos tu clave de acceso provisional tras el pago.</p>
         </div>
 
-        <button type="submit" disabled={loading || !valAgencia || !valEmail} class="w-full h-14 mt-6 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-[0_4px_20px_rgba(15,23,42,0.2)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95">
+        <button type="submit" disabled={!botonHabilitado} class="w-full h-14 mt-6 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-[0_4px_20px_rgba(15,23,42,0.2)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95">
           {#if loading}
-            <Loader2 class="w-5 h-5 animate-spin" /> Creando Sesión de Pago...
+            <Loader2 class="w-5 h-5 animate-spin" /> Creando Sesión...
           {:else}
             Continuar al Pago Seguro <ArrowRight class="w-5 h-5" />
           {/if}
