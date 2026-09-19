@@ -80,8 +80,8 @@ function getAccionPorEtapa(estado, diasSinActividad, scoreFinal) {
     if (scoreFinal >= 50) return 'Agendar visita HOY. Hay señales de intención real.';
     return 'Califica presupuesto y urgencia antes de invertir más tiempo.';
   }
-  if (diasSinActividad > 1) return '⚡ Contacta pronto. Leads frescos convierten 5x más.';
-  return 'Primer contacto: llama y califica necesidad antes de enviar propiedades.';
+  if (diasSinActividad > 1) return '⚡ Contacta pronto. Prospectos frescos convierten 5x más.';
+  return 'Primer contacto: llama y califica necesidad antes de enviar opciones.';
 }
 
 export function calcularScore(lead) {
@@ -111,7 +111,7 @@ export function calcularScore(lead) {
   
   const diasPasados = fechaRef ? Math.floor((Date.now() - new Date(fechaRef).getTime()) / (1000 * 60 * 60 * 24)) : 999;
   
-  let etiqueta = 'Muerto ❄️';
+  let etiqueta = 'Inactivo ❄️';
   let razon = 'Probabilidad de conversión muy baja por tiempo de inactividad.';
 
   if (isHot) {
@@ -122,7 +122,7 @@ export function calcularScore(lead) {
     razon = 'Hay interés pero falta definición. Necesita seguimiento activo.';
   } else if (score >= 25) {
     etiqueta = 'Frío';
-    razon = diasPasados > 7 ? `Sin actividad hace ${diasPasados} días. Riesgo de perderlo.` : 'Lead poco calificado aún. Nutrir antes de vender.';
+    razon = diasPasados > 7 ? `Sin actividad hace ${diasPasados} días. Riesgo de perderlo.` : 'Prospecto poco calificado aún. Nutrir antes de vender.';
   }
 
   return {
