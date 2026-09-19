@@ -7,7 +7,7 @@
   import { 
     Search, X, Phone, Mail, Home, Send, Trash2, Clock, UserCircle,
     GripVertical, MessageSquareQuote, BellRing, CalendarClock, CheckCircle2, MessageSquare,
-    ChevronLeft, ChevronRight, AlertTriangle, Plus, Users, Flame, Sparkles, Loader2
+    ChevronLeft, ChevronRight, AlertTriangle, Plus, Users, Flame, Sparkles, Loader2, ArrowRight
   } from 'lucide-svelte';
   
   import LeadScoreBadge from '$lib/components/LeadScoreBadge.svelte';
@@ -535,6 +535,7 @@
     <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm z-[105] transition-opacity" onclick={cerrarPanel} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') cerrarPanel(); }}></div>
   {/if}
 
+  <!-- 🚀 ÚNICO PANEL LATERAL ACTIVO (650px) -->
   <div class="absolute top-0 right-0 h-full w-full sm:w-[650px] bg-white/95 backdrop-blur-2xl shadow-[0_0_80px_rgba(0,0,0,0.15)] z-[110] transform transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] border-l border-white flex flex-col {isPanelOpen ? 'translate-x-0' : 'translate-x-full'}">
     {#if selectedLead}
       <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-transparent">
@@ -561,8 +562,8 @@
         </div>
         
         {#if selectedLead.telefono}
-          <div class="flex flex-col items-center sm:items-end gap-1.5 w-full sm:w-auto">
-             <div class="flex items-center justify-end gap-2 w-full sm:w-auto">
+          <div class="flex flex-col items-center sm:items-end gap-2 w-full sm:w-auto">
+             <div class="flex flex-col sm:flex-row items-center justify-end gap-2 w-full sm:w-auto">
                <form id="form-whatsapp-ia" method="POST" action="?/generarScriptWhatsapp" use:enhance={() => {
                   iaGenerandoWs = true;
                   iaWsError = '';
@@ -571,7 +572,7 @@
                       iaGenerandoWs = false;
                       if (result.type === 'success' && result.data?.whatsapp) {
                           iaWsGenerado = result.data.whatsapp;
-                          creditosIA = Math.max(0, creditosIA - 1); // Descuento visual inmediato
+                          creditosIA = Math.max(0, creditosIA - 1); 
                       } else if (result.type === 'failure') {
                           iaWsError = result.data?.error || 'No se pudo generar el script de IA.';
                       }
@@ -581,13 +582,14 @@
                  <input type="hidden" name="lead_id" value={selectedLead.id}>
                </form>
 
-               <button type="button" onclick={() => document.getElementById('form-whatsapp-ia')?.requestSubmit()} disabled={iaGenerandoWs || creditosIA <= 0} class="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2.5 rounded-xl transition-all shadow-sm border border-indigo-200 flex items-center justify-center gap-1.5 active:scale-95 h-full w-full sm:w-auto disabled:opacity-50">
+               <!-- 🚀 BOTÓN SUGERIR IA PREMIUM -->
+               <button type="button" onclick={() => document.getElementById('form-whatsapp-ia')?.requestSubmit()} disabled={iaGenerandoWs || creditosIA <= 0} class="text-[10px] font-black uppercase tracking-widest text-white bg-slate-900 hover:bg-slate-800 px-5 py-2.5 rounded-xl transition-all shadow-md border border-slate-700 flex items-center justify-center gap-2 active:scale-95 h-full w-full sm:w-auto disabled:opacity-50">
                  {#if iaGenerandoWs}
-                   <Loader2 class="w-4 h-4 animate-spin"/>
+                   <Loader2 class="w-4 h-4 animate-spin text-amber-400"/>
                  {:else}
-                   <Sparkles class="w-4 h-4"/>
+                   <Sparkles class="w-4 h-4 text-amber-400"/>
                  {/if}
-                 Sugerir
+                 Sugerir Script
                </button>
 
                <a href="https://wa.me/{selectedLead.telefono.replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="text-[10px] font-black uppercase tracking-widest text-white bg-[#25D366] hover:bg-[#128C7E] px-4 py-2.5 rounded-xl transition-all shadow-md shadow-[#25D366]/20 flex items-center justify-center gap-2 w-full sm:w-auto active:scale-95">
@@ -595,9 +597,13 @@
                WhatsApp
              </a>
           </div>
-          <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest text-center sm:text-right w-full sm:w-auto px-1">
-             {creditosIA} {creditosIA === 1 ? 'Crédito' : 'Créditos'} IA
-          </span>
+          <!-- 🚀 PASTILLA DE CRÉDITOS IA -->
+          <div class="flex items-center justify-center sm:justify-end w-full mt-2 sm:mt-0">
+            <span class="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg shadow-sm">
+               <Sparkles class="w-3 h-3 text-amber-500" />
+               {creditosIA} {creditosIA === 1 ? 'Crédito' : 'Créditos'} Disponibles
+            </span>
+          </div>
         </div>
         {/if}
       </div>
@@ -651,8 +657,10 @@
               <p class="text-[11px] text-slate-600 font-medium leading-relaxed">{selectedLead.scoreObj.razon}</p>
             </div>
             
-            <div class="bg-indigo-50 rounded-lg p-2.5 border border-indigo-100">
-              <p class="text-[11px] font-bold text-indigo-800 leading-tight">👉 {selectedLead.scoreObj.accion}</p>
+            <!-- 🚀 REEMPLAZO DEL ICONO DE LA MANO (👉) POR FLECHA PREMIUM -->
+            <div class="bg-indigo-50 rounded-lg p-3 border border-indigo-100 flex items-start gap-2 shadow-sm">
+              <ArrowRight class="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+              <p class="text-xs font-bold text-indigo-900 leading-snug">{selectedLead.scoreObj.accion}</p>
             </div>
           </div>
         </div>
@@ -764,6 +772,7 @@
     {/if}
   </div>
 
+  <!-- 🚀 MODALES -->
   {#if showModalCierre}
     <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-md overflow-hidden animate-[fadeIn_0.2s_ease-out]">
