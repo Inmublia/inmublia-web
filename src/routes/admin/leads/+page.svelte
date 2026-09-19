@@ -7,10 +7,10 @@
   import { 
     Search, X, Phone, Mail, Home, Send, Trash2, Clock, UserCircle,
     GripVertical, MessageSquareQuote, BellRing, CalendarClock, CheckCircle2, MessageSquare,
-    ChevronLeft, ChevronRight, AlertTriangle, Plus, Users
+    ChevronLeft, ChevronRight, AlertTriangle, Plus, Users, Flame, Sparkles
   } from 'lucide-svelte';
   
-  import LeadScoreBadge from '$lib/components/LeadScoreBadge.svelte'; // 🚀 Inyectamos el Componente
+  import LeadScoreBadge from '$lib/components/LeadScoreBadge.svelte';
 
   let { data } = $props();
   let broker = $derived(data.broker || {});
@@ -63,7 +63,6 @@
     { id: 'descartado', titulo: 'Perdidos', dot: 'bg-slate-400', bgCol: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-500' }
   ];
 
-  // 🚀 FIX: Ordenamiento inteligente en cliente por Score
   let leadsPorColumna = $derived(
     columnas.reduce((acc, col) => {
       acc[col.id] = leadsFiltrados
@@ -448,12 +447,18 @@
                       </div>
 
                       <div class="min-w-0 flex flex-col">
-                        <h3 class="text-xs font-bold text-slate-900 leading-tight truncate">{lead.nombre}</h3>
-                        <p class="text-[9px] font-bold {getUrgencyStyle(lead)} uppercase tracking-widest leading-none mt-0.5">{timeAgoLabel(lead)}</p>
+                        <h3 class="text-xs font-bold text-slate-900 leading-tight truncate flex items-center gap-1">
+                          {lead.nombre}
+                          {#if lead.scoreObj?.isHot && lead.estado !== 'cerrado' && lead.estado !== 'descartado'}
+                            <Flame class="w-3 h-3 text-amber-500 fill-amber-500/20 shrink-0 animate-pulse" />
+                          {/if}
+                        </h3>
+                        <p class="text-[9px] font-bold {getUrgencyStyle(lead)} uppercase tracking-widest leading-none mt-0.5 flex items-center gap-1">
+                          {timeAgoLabel(lead)}
+                        </p>
                       </div>
                     </div>
                     
-                    <!-- 🚀 FIX: Aquí anidamos nuestro Badge Tridimensional con los botones Hover -->
                     <div class="flex flex-col items-end gap-1.5 shrink-0">
                       {#if lead.scoreObj && lead.estado !== 'cerrado' && lead.estado !== 'descartado'}
                         <LeadScoreBadge scoreData={lead.scoreObj} />
@@ -543,6 +548,48 @@
         </div>
       </div>
 
+      <!-- 🚀 NUEVO: MÓDULO DE DIAGNÓSTICO DE IA EN EL PANEL -->
+      {#if selectedLead.scoreObj && selectedLead.estado !== 'cerrado' && selectedLead.estado !== 'descartado'}
+        <div class="px-8 py-6 border-b border-slate-100 bg-white shrink-0">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1.5">
+              <Sparkles class="w-3.5 h-3.5" /> Inteligencia del Lead
+            </h3>
+            <span class="text-xl font-black {selectedLead.scoreObj.isHot ? 'text-orange-500' : 'text-slate-700'}">
+              {selectedLead.scoreObj.score}<span class="text-sm text-slate-400">/100</span>
+            </span>
+          </div>
+
+          <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 mb-5">
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="text-sm font-black text-slate-900">{selectedLead.scoreObj.etiqueta}</span>
+            </div>
+            <p class="text-xs text-slate-600 font-medium leading-relaxed mb-4">{selectedLead.scoreObj.razon}</p>
+            
+            <div class="bg-indigo-50 rounded-xl p-3 border border-indigo-100 shadow-sm">
+              <p class="text-xs font-bold text-indigo-700 leading-snug">👉 {selectedLead.scoreObj.accion}</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3 text-center">
+            <div class="bg-white border border-slate-100 rounded-xl p-2.5 shadow-sm">
+              <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400">Base Etapa</p>
+              <p class="text-sm font-black text-slate-700 mt-1">{selectedLead.scoreObj.base}</p>
+            </div>
+            <div class="bg-white border border-slate-100 rounded-xl p-2.5 shadow-sm">
+              <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400">Señales</p>
+              <p class="text-sm font-black text-slate-700 mt-1">x{selectedLead.scoreObj.multiplicador.toFixed(1)}</p>
+            </div>
+            <div class="bg-white border border-slate-100 rounded-xl p-2.5 shadow-sm">
+              <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400">Time Decay</p>
+              <p class="text-sm font-black {selectedLead.scoreObj.decayFactor < 0.5 ? 'text-rose-500' : 'text-emerald-600'} mt-1">
+                x{selectedLead.scoreObj.decayFactor.toFixed(1)}
+              </p>
+            </div>
+          </div>
+        </div>
+      {/if}
+
       <div class="flex-1 overflow-y-auto p-8 bg-transparent flex flex-col gap-6 pb-6">
         <div>
           <div class="flex items-center justify-between mb-4">
@@ -576,7 +623,7 @@
                             </button>
                           {:else}
                             <span class="text-[9px] text-slate-400 flex items-center gap-1 font-bold">
-                              <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Guardando...
+                              <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg Guardando...
                             </span>
                           {/if}
                         {/if}
