@@ -117,7 +117,7 @@
     if (!dateString) return '';
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return '';
-    return new Intl.DateTimeFormat('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(date);
+    return new Intl.DateTimeFormat('es-MX', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }).format(date);
   }
 
   function getUrgencyStyle(lead) {
@@ -449,9 +449,6 @@
                       <div class="min-w-0 flex flex-col">
                         <h3 class="text-xs font-bold text-slate-900 leading-tight truncate flex items-center gap-1">
                           {lead.nombre}
-                          {#if lead.scoreObj?.isHot && lead.estado !== 'cerrado' && lead.estado !== 'descartado'}
-                            <Flame class="w-3 h-3 text-amber-500 fill-amber-500/20 shrink-0 animate-pulse" />
-                          {/if}
                         </h3>
                         <p class="text-[9px] font-bold {getUrgencyStyle(lead)} uppercase tracking-widest leading-none mt-0.5 flex items-center gap-1">
                           {timeAgoLabel(lead)}
@@ -468,11 +465,6 @@
                         <button onclick={(e) => { e.stopPropagation(); pedirEliminarLead(lead); }} class="p-1 text-slate-300 hover:text-rose-500 transition-colors" title="Eliminar">
                           <Trash2 class="w-3.5 h-3.5" />
                         </button>
-                        {#if lead.telefono}
-                          <a href="https://wa.me/{lead.telefono.replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" onclick={(e) => e.stopPropagation()} class="p-1 text-emerald-500 hover:text-emerald-600 transition-colors" title="WhatsApp">
-                            <MessageSquare class="w-3.5 h-3.5" />
-                          </a>
-                        {/if}
                       </div>
                     </div>
                   </div>
@@ -517,7 +509,8 @@
     <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm z-[105] transition-opacity" onclick={cerrarPanel} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') cerrarPanel(); }}></div>
   {/if}
 
-  <div class="absolute top-0 right-0 h-full w-full sm:w-[500px] bg-white/95 backdrop-blur-2xl shadow-[0_0_80px_rgba(0,0,0,0.15)] z-[110] transform transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] border-l border-white flex flex-col {isPanelOpen ? 'translate-x-0' : 'translate-x-full'}">
+  <!-- 🚀 PANEL LATERAL MÁS ANCHO (sm:w-[650px]) -->
+  <div class="absolute top-0 right-0 h-full w-full sm:w-[650px] bg-white/95 backdrop-blur-2xl shadow-[0_0_80px_rgba(0,0,0,0.15)] z-[110] transform transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] border-l border-white flex flex-col {isPanelOpen ? 'translate-x-0' : 'translate-x-full'}">
     {#if selectedLead}
       <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-transparent">
         <div class="flex items-center gap-4">
@@ -532,25 +525,28 @@
         <button aria-label="Cerrar panel" onclick={cerrarPanel} class="text-slate-400 hover:text-slate-900 bg-slate-50 p-2 rounded-full hover:bg-slate-100 transition-colors border border-slate-200 shadow-sm"><X class="w-4 h-4" /></button>
       </div>
 
-      <div class="px-8 py-5 border-b border-slate-100 shrink-0 bg-slate-50/50 flex flex-col gap-3 shadow-inner">
-        <div class="flex items-center justify-between">
+      <div class="px-8 py-5 border-b border-slate-100 shrink-0 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-inner">
+        <div class="flex flex-col gap-2">
           <div class="flex items-center gap-2 text-xs font-bold text-slate-700">
             <Phone class="w-3.5 h-3.5 text-slate-400" /> {selectedLead.telefono || 'No registrado'}
           </div>
-          {#if selectedLead.telefono}
-            <a href="https://wa.me/{selectedLead.telefono.replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="text-[9px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-100 hover:bg-emerald-200 px-2.5 py-1 rounded-md transition-colors flex items-center gap-1 border border-emerald-200">
-              <MessageSquare class="w-3 h-3" /> Enviar Info
-            </a>
-          {/if}
+          <div class="flex items-center gap-2 text-xs font-bold text-slate-700 truncate" title={selectedLead.correo}>
+            <Mail class="w-3.5 h-3.5 text-slate-400" /> {selectedLead.correo || 'No registrado'}
+          </div>
         </div>
-        <div class="flex items-center gap-2 text-xs font-bold text-slate-700 truncate" title={selectedLead.correo}>
-          <Mail class="w-3.5 h-3.5 text-slate-400" /> {selectedLead.correo || 'No registrado'}
-        </div>
+        
+        <!-- 🚀 BOTÓN PREMIUM DE WHATSAPP -->
+        {#if selectedLead.telefono}
+          <a href="https://wa.me/{selectedLead.telefono.replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="text-[10px] font-black uppercase tracking-widest text-white bg-[#25D366] hover:bg-[#128C7E] px-4 py-2.5 rounded-xl transition-all shadow-md shadow-[#25D366]/20 flex items-center justify-center gap-2 w-full sm:w-auto active:scale-95">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            WhatsApp
+          </a>
+        {/if}
       </div>
 
-      <!-- 🚀 DIAGNÓSTICO COMPACTO DE IA EN EL PANEL LATERAL -->
+      <!-- 🚀 DIAGNÓSTICO DE IA COMPACTO (Sin cuadros matemáticos) -->
       {#if selectedLead.scoreObj && selectedLead.estado !== 'cerrado' && selectedLead.estado !== 'descartado'}
-        <div class="px-8 py-4 border-b border-slate-100 bg-white shrink-0">
+        <div class="px-8 py-5 border-b border-slate-100 bg-white shrink-0">
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1.5">
               <Sparkles class="w-3.5 h-3.5" /> Insights sobre el prospecto
@@ -560,20 +556,20 @@
             </span>
           </div>
 
-          <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
+          <div class="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col gap-3">
             <div class="flex items-start gap-2">
               <span class="text-xs font-black text-slate-900 shrink-0">{selectedLead.scoreObj.etiqueta}:</span>
-              <p class="text-[11px] text-slate-600 font-medium leading-snug">{selectedLead.scoreObj.razon}</p>
+              <p class="text-[11px] text-slate-600 font-medium leading-relaxed">{selectedLead.scoreObj.razon}</p>
             </div>
             
-            <div class="bg-indigo-50 rounded-lg p-2.5 border border-indigo-100 mt-1">
-              <p class="text-[10px] font-bold text-indigo-800 leading-tight">👉 {selectedLead.scoreObj.accion}</p>
+            <div class="bg-indigo-50 rounded-lg p-2.5 border border-indigo-100">
+              <p class="text-[11px] font-bold text-indigo-800 leading-tight">👉 {selectedLead.scoreObj.accion}</p>
             </div>
           </div>
         </div>
       {/if}
 
-      <div class="flex-1 overflow-y-auto p-8 bg-transparent flex flex-col gap-6 pb-6">
+      <div class="flex-1 overflow-y-auto px-8 py-6 bg-transparent flex flex-col gap-5 pb-6">
         <div>
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Clock class="w-3 h-3" /> Bitácora de Relación</h3>
@@ -588,20 +584,24 @@
                   
                   {#if nota.tipo === 'recordatorio'}
                     <div class="absolute left-[-4.5px] top-3 w-2.5 h-2.5 rounded-full {nota.completado ? 'bg-slate-300' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-500 animate-pulse' : 'bg-amber-400')} ring-2 ring-white shadow-sm"></div>
-                    <div class="bg-white p-3 rounded-xl border {nota.completado ? 'border-slate-200 opacity-60' : (isOverdue(nota.fecha_recordatorio) ? 'border-rose-300 bg-rose-50/50 shadow-sm' : 'border-amber-200 bg-amber-50/50 shadow-sm')} transition-all">
-                      <div class="flex items-center gap-1.5 mb-2">
-                        <CalendarClock class="w-3.5 h-3.5 {nota.completado ? 'text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'text-rose-500' : 'text-amber-500')}" />
-                        <span class="text-[9px] font-black uppercase tracking-widest {nota.completado ? 'text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'text-rose-600' : 'text-amber-600')}">
-                          {nota.completado ? 'Completado' : 'Recordatorio'}
-                        </span>
+                    <!-- 🚀 RECORDATORIO COMPACTO -->
+                    <div class="bg-white p-3 rounded-xl border {nota.completado ? 'border-slate-200 opacity-60' : (isOverdue(nota.fecha_recordatorio) ? 'border-rose-300 bg-rose-50/50 shadow-sm' : 'border-amber-200 bg-amber-50/50 shadow-sm')} transition-all flex flex-col gap-2">
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-1.5">
+                          <CalendarClock class="w-3.5 h-3.5 {nota.completado ? 'text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'text-rose-500' : 'text-amber-500')}" />
+                          <span class="text-[9px] font-black uppercase tracking-widest {nota.completado ? 'text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'text-rose-600' : 'text-amber-600')}">
+                            {nota.completado ? 'Completado' : 'Recordatorio'}
+                          </span>
+                        </div>
+                        <span class="text-[9px] font-bold text-slate-500 text-right">{formatDateTime(nota.fecha_recordatorio)}</span>
                       </div>
-                      <p class="text-xs {nota.completado ? 'text-slate-500 line-through' : 'text-slate-800'} font-medium whitespace-pre-wrap leading-relaxed mb-3">{nota.contenido}</p>
-                      <div class="flex items-center justify-between pt-2.5 border-t {nota.completado ? 'border-slate-100' : (isOverdue(nota.fecha_recordatorio) ? 'border-rose-100' : 'border-amber-100')}">
-                        <span class="text-[9px] font-bold text-slate-500">{formatDateTime(nota.fecha_recordatorio)}</span>
-                        
-                        {#if !nota.completado}
+                      
+                      <p class="text-[11px] {nota.completado ? 'text-slate-500 line-through' : 'text-slate-800'} font-medium whitespace-pre-wrap leading-relaxed">{nota.contenido}</p>
+                      
+                      {#if !nota.completado}
+                        <div class="flex justify-end pt-1">
                           {#if !nota.id.startsWith('temp-')}
-                            <button onclick={() => completarRecordatorio(nota.id)} class="text-[9px] font-black uppercase tracking-widest flex items-center gap-1 px-2.5 py-1 rounded bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors shadow-sm text-slate-600">
+                            <button onclick={() => completarRecordatorio(nota.id)} class="text-[9px] font-black uppercase tracking-widest flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors shadow-sm text-slate-600 active:scale-95">
                               <CheckCircle2 class="w-3 h-3" /> Resolver
                             </button>
                           {:else}
@@ -609,9 +609,8 @@
                               <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Guardando...
                             </span>
                           {/if}
-                        {/if}
-
-                      </div>
+                        </div>
+                      {/if}
                     </div>
                   {:else}
                     <div class="absolute left-[-3px] top-3 w-1.5 h-1.5 rounded-full bg-indigo-500 ring-2 ring-white shadow-sm"></div>
@@ -648,23 +647,28 @@
             </button>
           </div>
 
+          <!-- 🚀 FIX: Date/Time Picker Modernizado -->
           {#if esRecordatorio}
-            <div class="animate-[fadeIn_0.2s_ease-out] bg-amber-50 p-3 rounded-lg border border-amber-200 mb-1 shadow-inner">
-              <label class="block text-[9px] font-black text-amber-800 uppercase tracking-widest mb-2">Fecha de Compromiso</label>
-              <div class="flex flex-col sm:flex-row gap-2">
-                <input type="date" bind:value={fechaRecordatorio} class="w-full sm:w-1/2 bg-white border border-amber-200 rounded-md px-2.5 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-colors shadow-sm">
-                <input type="time" bind:value={horaRecordatorio} class="w-full sm:w-1/2 bg-white border border-amber-200 rounded-md px-2.5 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-colors shadow-sm">
+            <div class="animate-[fadeIn_0.2s_ease-out] bg-amber-50 p-3.5 rounded-xl border border-amber-200 mb-1 shadow-inner">
+              <label class="block text-[9px] font-black text-amber-800 uppercase tracking-widest mb-2.5">Fecha de Compromiso</label>
+              <div class="flex flex-col sm:flex-row gap-3">
+                <div class="relative w-full sm:w-1/2">
+                  <input type="date" lang="es-MX" bind:value={fechaRecordatorio} class="w-full bg-white border border-amber-200 rounded-lg pl-3 pr-2 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none transition-all shadow-sm">
+                </div>
+                <div class="relative w-full sm:w-1/2">
+                  <input type="time" lang="es-MX" bind:value={horaRecordatorio} class="w-full bg-white border border-amber-200 rounded-lg pl-3 pr-2 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none transition-all shadow-sm">
+                </div>
               </div>
             </div>
           {/if}
           
           <div class="relative">
             <textarea name="contenido" bind:value={nuevaNotaTexto} onkeydown={handleKeyDown} placeholder={esRecordatorio ? "Describe la acción a realizar..." : "Escribe una minuta..."} class="w-full bg-white border border-slate-200 rounded-lg pl-3 pr-12 py-3 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 {esRecordatorio ? 'focus:ring-amber-500/20 focus:border-amber-500' : 'focus:ring-indigo-500/20 focus:border-indigo-500'} outline-none resize-none min-h-[80px] shadow-sm font-medium transition-colors" required></textarea>
-            <button type="submit" bind:this={submitBtn} disabled={guardandoNota || !nuevaNotaTexto.trim()} class="absolute bottom-3 right-3 {esRecordatorio ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-slate-900 hover:bg-indigo-600 text-white'} disabled:bg-slate-200 disabled:text-slate-400 p-2 rounded-md transition-colors flex items-center justify-center shadow-md active:scale-95 z-30">
+            <button type="submit" bind:this={submitBtn} disabled={guardandoNota || !nuevaNotaTexto.trim()} class="absolute bottom-3 right-3 {esRecordatorio ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-slate-900 hover:bg-indigo-600 text-white'} disabled:bg-slate-200 disabled:text-slate-400 p-2.5 rounded-lg transition-colors flex items-center justify-center shadow-md active:scale-95 z-30">
               {#if guardandoNota}
-                <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
               {:else}
-                <Send class="w-3.5 h-3.5" />
+                <Send class="w-4 h-4" />
               {/if}
             </button>
           </div>
@@ -673,40 +677,41 @@
     {/if}
   </div>
 
+  <!-- 🚀 MODAL DE CIERRE (FinTech Style) -->
   {#if showModalCierre}
     <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-md overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-        <div class="p-6 border-b border-slate-100 bg-emerald-50 text-center">
-          <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3 border-4 border-white shadow-sm">
-            <CheckCircle2 class="w-6 h-6 text-emerald-500" />
+        <div class="p-8 border-b border-slate-100 bg-emerald-50 text-center">
+          <div class="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-sm">
+            <CheckCircle2 class="w-7 h-7 text-emerald-500" />
           </div>
-          <h3 class="text-xl font-black text-emerald-950">¡Cierre Exitoso!</h3>
-          <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-600/70 mt-1">Fin del Pipeline</p>
+          <h3 class="text-2xl font-black text-emerald-950 tracking-tight">¡Cierre Exitoso!</h3>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-600/70 mt-1">Fin del Pipeline Operativo</p>
         </div>
         
-        <div class="p-6 space-y-5 bg-white">
-          <p class="text-xs font-medium text-slate-500 text-center">Registra los datos financieros finales de la transacción para nutrir tu Dashboard.</p>
+        <div class="p-8 space-y-6 bg-white">
+          <p class="text-xs font-medium text-slate-500 text-center leading-relaxed">Registra los datos financieros finales de la transacción para nutrir tu Dashboard de Inteligencia.</p>
           
-          <div>
-            <label class="block text-[9px] font-black text-slate-900 uppercase tracking-widest mb-1.5">Monto Final de Cierre</label>
-            <div class="relative">
-              <span class="absolute left-3 top-2.5 text-slate-400 font-bold text-sm">MX$</span>
-              <input type="number" bind:value={precioCierreFinal} class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-3 py-2.5 text-base font-black text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none shadow-inner transition-colors">
+          <div class="flex flex-col gap-2">
+            <label class="block text-[10px] font-black text-slate-700 uppercase tracking-widest">Monto Final de Cierre</label>
+            <div class="relative flex items-center">
+              <span class="absolute left-4 text-slate-400 font-black text-sm">MX$</span>
+              <input type="number" bind:value={precioCierreFinal} class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3.5 text-lg font-black text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none shadow-inner transition-colors">
             </div>
           </div>
           
-          <div>
-            <label class="block text-[9px] font-black text-slate-900 uppercase tracking-widest mb-1.5">Comisión Pactada (%)</label>
-            <div class="relative">
-              <input type="number" step="0.1" bind:value={comisionCobrada} class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-3 pr-10 py-2.5 text-base font-black text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none shadow-inner text-right transition-colors">
-              <span class="absolute right-4 top-2.5 text-slate-400 font-black text-sm">%</span>
+          <div class="flex flex-col gap-2">
+            <label class="block text-[10px] font-black text-slate-700 uppercase tracking-widest">Comisión Pactada (%)</label>
+            <div class="relative flex items-center">
+              <input type="number" step="0.1" bind:value={comisionCobrada} class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-10 py-3.5 text-lg font-black text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none shadow-inner text-right transition-colors">
+              <span class="absolute right-4 text-slate-400 font-black text-sm">%</span>
             </div>
           </div>
         </div>
         
-        <div class="p-5 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-2.5">
-          <button onclick={cancelarCierre} class="px-5 py-2.5 rounded-lg font-bold text-slate-500 hover:bg-slate-200 transition-colors text-[10px] uppercase tracking-widest">Descartar Info</button>
-          <button onclick={confirmarCierre} class="px-5 py-2.5 rounded-lg font-black uppercase tracking-widest bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 transition-all text-[10px] flex items-center justify-center gap-1.5 active:scale-95">
+        <div class="p-6 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-3">
+          <button onclick={cancelarCierre} class="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition-colors text-[10px] uppercase tracking-widest">Descartar Info</button>
+          <button onclick={confirmarCierre} class="px-6 py-3 rounded-xl font-black uppercase tracking-widest bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 transition-all text-[10px] flex items-center justify-center gap-1.5 active:scale-95">
             Confirmar Ingreso
           </button>
         </div>
