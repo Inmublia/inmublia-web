@@ -5,17 +5,18 @@ import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
 import { calcularScore } from '$lib/scoring.js';
 
-// 🚀 LOGÍSTICA DE IA
+// 🚀 FIX IA 1: CASCADA ACTUALIZADA CON MODELOS ESTABLES DE CLOUDFLARE
 const MODELS_CASCADE = [
-  '@cf/qwen/qwen3-30b-a3b-fp8',
-  '@cf/ibm/granite-4.0-h-micro',
-  '@cf/google/gemma-4-26b-a4b-it'
+  '@cf/meta/llama-3.1-8b-instruct', // Gold standard actual
+  '@cf/qwen/qwen1.5-14b-chat-awq',  // Excelente para español
+  '@cf/meta/llama-3-8b-instruct'    // Fallback de ultra baja latencia
 ];
 
 function getRpcRow(data) {
   return Array.isArray(data) ? data[0] : data;
 }
 
+// 🚀 FIX IA 2: PARSER TOLERANTE A FALLOS Y TEXTO CRUDO
 function parseAiResponse(result) {
   const raw = result?.response ?? result;
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
@@ -25,7 +26,10 @@ function parseAiResponse(result) {
   const firstBrace = cleanedStr.indexOf('{');
   const lastBrace = cleanedStr.lastIndexOf('}');
   
-  if (firstBrace === -1 || lastBrace === -1) throw new Error('No se detectó un objeto JSON en la respuesta.');
+  // 🛡️ BLINDAJE: Si el modelo no devolvió JSON y solo escupió el texto crudo, lo rescatamos
+  if (firstBrace === -1 || lastBrace === -1) {
+    return { whatsapp: cleanedStr.replace(/^["']|["']$/g, '').trim() };
+  }
   
   cleanedStr = cleanedStr.substring(firstBrace, lastBrace + 1);
   cleanedStr = cleanedStr.replace(/\n/g, '\\n').replace(/\r/g, '');
@@ -332,7 +336,6 @@ export const actions = {
             .map(n => `- ${n.tipo.toUpperCase()}: ${n.contenido}`)
             .join('\n');
 
-        // 🚀 PROMPT COLABORATIVO (Anti-vendedor agresivo)
         const systemPrompt = [
             'Eres un Asesor Inmobiliario Senior en México experto en atención al cliente.',
             'Redacta un mensaje de seguimiento (follow-up) para enviarlo por WhatsApp al prospecto.',
@@ -342,7 +345,7 @@ export const actions = {
             '3. MUY BREVE: Máximo 2 oraciones directas.',
             '4. Cierra SIEMPRE mostrando total disposición para ayudar, resolver dudas o acompañarlo en su proceso (ej. "Quedo a tu entera disposición para cualquier duda", "¿Te puedo ayudar con algo más en tu búsqueda?"). Mantén la puerta abierta al diálogo sin presionar.',
             '5. Usa máximo 1 emoji en todo el texto.',
-            '6. Responde EXCLUSIVAMENTE con un objeto JSON válido.',
+            '6. Responde EXCLUSIVAMENTE con un objeto JSON válido. Sin markdown.',
             'FORMATO REQUERIDO:',
             '{',
             '  "whatsapp": "Texto exacto listo para enviar al cliente."',
@@ -370,8 +373,11 @@ Genera el mensaje ideal para darle seguimiento y ofrecer ayuda.`;
                 });
 
                 const parsed = parseAiResponse(result);
-                if (!parsed || !parsed.whatsapp) throw new Error('Respuesta IA incompleta');
-                finalContent = parsed;
+                // 🚀 FIX IA 3: EXTRACCIÓN RESILIENTE Y CASE-INSENSITIVE
+                const textoWhatsapp = parsed.whatsapp || parsed.WhatsApp || parsed.Whatsapp || parsed.mensaje;
+                if (!textoWhatsapp) throw new Error('Respuesta IA incompleta');
+                
+                finalContent = { whatsapp: textoWhatsapp };
                 break;
             } catch (err) {
                 errorLog.push(`${modelId.split('/').pop()}: ${err.message}`);
@@ -392,9 +398,10 @@ Genera el mensaje ideal para darle seguimiento y ofrecer ayuda.`;
         if (!creditConfirmed) {
             await refundAiCredit(locals.supabase, user.id, requestId);
         }
+        // Registramos el error crudo en consola para ti (el developer)
         console.error('[WhatsApp IA Error]', errorLog.length ? errorLog : error.message);
         
-        // 🚀 SANITIZACIÓN DE ERRORES: Mensaje limpio para el usuario
+        // Le mandamos el error sanitizado y elegante al usuario final
         return fail(502, { error: 'El redactor de IA está temporalmente saturado. Por favor, inténtalo de nuevo en unos segundos.' });
     }
   }
