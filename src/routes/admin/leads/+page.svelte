@@ -7,7 +7,7 @@
   import { 
     Search, X, Phone, Mail, Home, Send, Trash2, Clock, UserCircle,
     GripVertical, MessageSquareQuote, BellRing, CalendarClock, CheckCircle2, MessageSquare,
-    ChevronLeft, ChevronRight, AlertTriangle, Plus, Users, Flame, Sparkles
+    ChevronLeft, ChevronRight, AlertTriangle, Plus, Users, Flame, Sparkles, Loader2
   } from 'lucide-svelte';
   
   import LeadScoreBadge from '$lib/components/LeadScoreBadge.svelte';
@@ -29,6 +29,11 @@
   let fechaRecordatorio = $state('');
   let horaRecordatorio = $state(''); 
   
+  // 🚀 ESTADOS IA WHATSAPP
+  let iaGenerandoWs = $state(false);
+  let iaWsGenerado = $state('');
+  let iaWsError = $state('');
+
   let searchQuery = $state('');
   let leadsFiltrados = $derived(
     leads.filter(l => 
@@ -257,7 +262,16 @@
 
   function cerrarPanel() {
     isPanelOpen = false;
-    setTimeout(() => { selectedLead = null; nuevaNotaTexto = ''; esRecordatorio = false; fechaRecordatorio = ''; horaRecordatorio = ''; }, 300);
+    setTimeout(() => { 
+      selectedLead = null; 
+      nuevaNotaTexto = ''; 
+      esRecordatorio = false; 
+      fechaRecordatorio = ''; 
+      horaRecordatorio = ''; 
+      iaGenerandoWs = false; 
+      iaWsGenerado = ''; 
+      iaWsError = '';
+    }, 300);
   }
 
   function manejadorNota({ formData, cancel }) {
@@ -370,23 +384,23 @@
           Pipeline
           {#if totalRecordatoriosPendientes > 0}
             <span class="bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md animate-pulse shadow-sm ring-1 ring-rose-500/50 flex items-center gap-1">
-              <BellRing class="w-3 h-3" /> {totalRecordatoriosPendientes} Pendientes
+              <BellRing class="w-3 h-3"/> {totalRecordatoriosPendientes} Pendientes
             </span>
           {/if}
         </h1>
         <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
-          <MessageSquareQuote class="w-4 h-4" /> Gestión de Prospectos CRM
+          <MessageSquareQuote class="w-4 h-4"/> Gestión de Prospectos CRM
         </p>
       </div>
 
       <div class="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
         <div class="relative w-full md:max-w-md hidden sm:block flex-1">
-          <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+          <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400"/>
           <input type="text" bind:value={searchQuery} placeholder="Buscar cliente..." class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all shadow-inner backdrop-blur-md">
         </div>
         
         <button onclick={() => showModalLeadManual = true} class="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-5 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95 shrink-0">
-          <Plus class="w-4 h-4" /> Nuevo Prospecto
+          <Plus class="w-4 h-4"/> Nuevo Prospecto
         </button>
       </div>
     </div>
@@ -395,11 +409,11 @@
   <div class="relative flex-1 flex overflow-hidden group z-20 -mt-16 w-full">
     
     <button onclick={() => scrollBoard(-1)} class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-indigo-50 border border-slate-200 shadow-xl w-10 h-10 rounded-full items-center justify-center text-slate-600 hover:text-indigo-600 transition-all backdrop-blur-sm cursor-pointer opacity-0 group-hover:opacity-100" aria-label="Desplazar Izquierda">
-      <ChevronLeft class="w-6 h-6" />
+      <ChevronLeft class="w-6 h-6"/>
     </button>
 
     <button onclick={() => scrollBoard(1)} class="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-indigo-50 border border-slate-200 shadow-xl w-10 h-10 rounded-full items-center justify-center text-slate-600 hover:text-indigo-600 transition-all backdrop-blur-sm cursor-pointer opacity-0 group-hover:opacity-100" aria-label="Desplazar Derecha">
-      <ChevronRight class="w-6 h-6" />
+      <ChevronRight class="w-6 h-6"/>
     </button>
 
     <div class="flex-1 overflow-x-auto overflow-y-hidden kanban-board px-4 sm:px-8 pb-6 transition-opacity {isPanelOpen ? 'pointer-events-none select-none opacity-50' : ''}" bind:this={boardContainer}>
@@ -458,12 +472,12 @@
                     
                     <div class="flex flex-col items-end gap-1.5 shrink-0">
                       {#if lead.scoreObj && lead.estado !== 'cerrado' && lead.estado !== 'descartado'}
-                        <LeadScoreBadge scoreData={lead.scoreObj} />
+                        <LeadScoreBadge scoreData="{lead.scoreObj}"/>
                       {/if}
                       
                       <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onclick={(e) => { e.stopPropagation(); pedirEliminarLead(lead); }} class="p-1 text-slate-300 hover:text-rose-500 transition-colors" title="Eliminar">
-                          <Trash2 class="w-3.5 h-3.5" />
+                          <Trash2 class="w-3.5 h-3.5"/>
                         </button>
                       </div>
                     </div>
@@ -474,7 +488,7 @@
                       {#if lead.propiedades?.imagen_url}
                         <img src={lead.propiedades.imagen_url} alt="Prop" class="w-full h-full object-cover grayscale opacity-80 mix-blend-multiply">
                       {:else}
-                        <div class="w-full h-full flex items-center justify-center text-slate-400"><Home class="w-3.5 h-3.5" /></div>
+                        <div class="w-full h-full flex items-center justify-center text-slate-400"><Home class="w-3.5 h-3.5"/></div>
                       {/if}
                     </div>
                     <div class="flex-1 min-w-0">
@@ -509,7 +523,6 @@
     <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm z-[105] transition-opacity" onclick={cerrarPanel} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') cerrarPanel(); }}></div>
   {/if}
 
-  <!-- 🚀 PANEL LATERAL MÁS ANCHO (sm:w-[650px]) -->
   <div class="absolute top-0 right-0 h-full w-full sm:w-[650px] bg-white/95 backdrop-blur-2xl shadow-[0_0_80px_rgba(0,0,0,0.15)] z-[110] transform transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] border-l border-white flex flex-col {isPanelOpen ? 'translate-x-0' : 'translate-x-full'}">
     {#if selectedLead}
       <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-transparent">
@@ -522,34 +535,95 @@
             <span class="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded border shadow-sm {getBadgeColor(selectedLead.estado)} inline-flex items-center gap-1.5"><div class="w-1 h-1 rounded-full bg-current opacity-60"></div> {selectedLead.estado}</span>
           </div>
         </div>
-        <button aria-label="Cerrar panel" onclick={cerrarPanel} class="text-slate-400 hover:text-slate-900 bg-slate-50 p-2 rounded-full hover:bg-slate-100 transition-colors border border-slate-200 shadow-sm"><X class="w-4 h-4" /></button>
+        <button aria-label="Cerrar panel" onclick={cerrarPanel} class="text-slate-400 hover:text-slate-900 bg-slate-50 p-2 rounded-full hover:bg-slate-100 transition-colors border border-slate-200 shadow-sm"><X class="w-4 h-4"/></button>
       </div>
 
       <div class="px-8 py-5 border-b border-slate-100 shrink-0 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-inner">
         <div class="flex flex-col gap-2">
           <div class="flex items-center gap-2 text-xs font-bold text-slate-700">
-            <Phone class="w-3.5 h-3.5 text-slate-400" /> {selectedLead.telefono || 'No registrado'}
+            <Phone class="w-3.5 h-3.5 text-slate-400"/> {selectedLead.telefono || 'No registrado'}
           </div>
           <div class="flex items-center gap-2 text-xs font-bold text-slate-700 truncate" title={selectedLead.correo}>
-            <Mail class="w-3.5 h-3.5 text-slate-400" /> {selectedLead.correo || 'No registrado'}
+            <Mail class="w-3.5 h-3.5 text-slate-400"/> {selectedLead.correo || 'No registrado'}
           </div>
         </div>
         
-        <!-- 🚀 BOTÓN PREMIUM DE WHATSAPP -->
         {#if selectedLead.telefono}
-          <a href="https://wa.me/{selectedLead.telefono.replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="text-[10px] font-black uppercase tracking-widest text-white bg-[#25D366] hover:bg-[#128C7E] px-4 py-2.5 rounded-xl transition-all shadow-md shadow-[#25D366]/20 flex items-center justify-center gap-2 w-full sm:w-auto active:scale-95">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-            WhatsApp
-          </a>
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+             <!-- 🚀 BOTÓN IA WHATSAPP -->
+             <form id="form-whatsapp-ia" method="POST" action="?/generarScriptWhatsapp" use:enhance={() => {
+                iaGenerandoWs = true;
+                iaWsError = '';
+                iaWsGenerado = '';
+                return async ({ result, update }) => {
+                    iaGenerandoWs = false;
+                    if (result.type === 'success' && result.data?.whatsapp) {
+                        iaWsGenerado = result.data.whatsapp;
+                    } else if (result.type === 'failure') {
+                        iaWsError = result.data?.error || 'No se pudo generar el script de IA.';
+                    }
+                    await update({ reset: false });
+                };
+             }} class="hidden">
+               <input type="hidden" name="lead_id" value={selectedLead.id}>
+             </form>
+
+             <button type="button" onclick={() => document.getElementById('form-whatsapp-ia')?.requestSubmit()} disabled={iaGenerandoWs} class="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2.5 rounded-xl transition-all shadow-sm border border-indigo-200 flex items-center justify-center gap-1.5 active:scale-95 h-full w-full sm:w-auto">
+               {#if iaGenerandoWs}
+                 <Loader2 class="w-4 h-4 animate-spin"/>
+               {:else}
+                 <Sparkles class="w-4 h-4"/>
+               {/if}
+               Sugerir
+             </button>
+
+             <!-- BOTÓN NATIVO WHATSAPP -->
+             <a href="[https://wa.me/](https://wa.me/){selectedLead.telefono.replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="text-[10px] font-black uppercase tracking-widest text-white bg-[#25D366] hover:bg-[#128C7E] px-4 py-2.5 rounded-xl transition-all shadow-md shadow-[#25D366]/20 flex items-center justify-center gap-2 w-full sm:w-auto active:scale-95">
+               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+               WhatsApp
+             </a>
+          </div>
         {/if}
       </div>
 
-      <!-- 🚀 DIAGNÓSTICO DE IA COMPACTO (Sin cuadros matemáticos) -->
+      <!-- 🚀 RESULTADO IA WHATSAPP -->
+      {#if iaWsGenerado || iaWsError || iaGenerandoWs}
+        <div class="px-8 pt-4 pb-5 bg-slate-50/50 border-b border-slate-100 shadow-inner animate-[fadeIn_0.3s_ease-out]">
+          {#if iaWsError}
+             <div class="bg-red-50 text-red-600 text-xs p-3 rounded-xl border border-red-200 font-medium flex items-start gap-2">
+               <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5"/>
+               {iaWsError}
+             </div>
+          {:else if iaWsGenerado}
+             <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-xl shadow-sm relative">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-1.5">
+                    <Sparkles class="w-3.5 h-3.5 text-indigo-600"/>
+                    <span class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Borrador IA Inteligente</span>
+                  </div>
+                  <button onclick={() => { iaWsGenerado = ''; }} class="text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors"><X class="w-4 h-4"/></button>
+                </div>
+                <textarea bind:value={iaWsGenerado} class="w-full bg-white border border-indigo-100 rounded-lg p-3 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none resize-y min-h-[60px] shadow-sm mb-3"></textarea>
+                <div class="flex justify-end gap-2">
+                  <a href="[https://wa.me/](https://wa.me/){selectedLead.telefono.replace(/\D/g, '')}?text={encodeURIComponent(iaWsGenerado)}" target="_blank" rel="noopener noreferrer" class="bg-[#25D366] text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg shadow-sm hover:bg-[#128C7E] flex items-center justify-center gap-1.5 transition-colors active:scale-95 w-full sm:w-auto">
+                    <Send class="w-3.5 h-3.5"/> Enviar por WhatsApp
+                  </a>
+                </div>
+             </div>
+          {:else if iaGenerandoWs}
+             <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl shadow-sm flex items-center gap-3">
+               <Loader2 class="w-5 h-5 text-indigo-600 animate-spin"/>
+               <span class="text-[11px] font-bold text-indigo-800">Analizando el historial y redactando mensaje ideal...</span>
+             </div>
+          {/if}
+        </div>
+      {/if}
+
       {#if selectedLead.scoreObj && selectedLead.estado !== 'cerrado' && selectedLead.estado !== 'descartado'}
         <div class="px-8 py-5 border-b border-slate-100 bg-white shrink-0">
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1.5">
-              <Sparkles class="w-3.5 h-3.5" /> Insights sobre el prospecto
+              <Sparkles class="w-3.5 h-3.5"/> Insights sobre el prospecto
             </h3>
             <span class="text-xl font-black {selectedLead.scoreObj.isHot ? 'text-orange-500' : 'text-slate-700'}">
               {selectedLead.scoreObj.score}<span class="text-xs text-slate-400">/100</span>
@@ -572,7 +646,7 @@
       <div class="flex-1 overflow-y-auto px-8 py-6 bg-transparent flex flex-col gap-5 pb-6">
         <div>
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Clock class="w-3 h-3" /> Bitácora de Relación</h3>
+            <h3 class="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Clock class="w-3 h-3"/> Bitácora de Relación</h3>
             <button onclick={() => pedirEliminarLead(selectedLead)} class="text-[9px] font-bold text-slate-400 hover:text-rose-500 uppercase flex items-center gap-1"><Trash2 class="w-3 h-3"/> Borrar Lead</button>
           </div>
           
@@ -584,11 +658,10 @@
                   
                   {#if nota.tipo === 'recordatorio'}
                     <div class="absolute left-[-4.5px] top-3 w-2.5 h-2.5 rounded-full {nota.completado ? 'bg-slate-300' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-500 animate-pulse' : 'bg-amber-400')} ring-2 ring-white shadow-sm"></div>
-                    <!-- 🚀 RECORDATORIO COMPACTO -->
                     <div class="bg-white p-3 rounded-xl border {nota.completado ? 'border-slate-200 opacity-60' : (isOverdue(nota.fecha_recordatorio) ? 'border-rose-300 bg-rose-50/50 shadow-sm' : 'border-amber-200 bg-amber-50/50 shadow-sm')} transition-all flex flex-col gap-2">
                       <div class="flex items-center justify-between">
                         <div class="flex items-center gap-1.5">
-                          <CalendarClock class="w-3.5 h-3.5 {nota.completado ? 'text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'text-rose-500' : 'text-amber-500')}" />
+                          <CalendarClock class="w-3.5 h-3.5 {nota.completado ? 'text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'text-rose-500' : 'text-amber-500')}"/>
                           <span class="text-[9px] font-black uppercase tracking-widest {nota.completado ? 'text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'text-rose-600' : 'text-amber-600')}">
                             {nota.completado ? 'Completado' : 'Recordatorio'}
                           </span>
@@ -602,7 +675,7 @@
                         <div class="flex justify-end pt-1">
                           {#if !nota.id.startsWith('temp-')}
                             <button onclick={() => completarRecordatorio(nota.id)} class="text-[9px] font-black uppercase tracking-widest flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors shadow-sm text-slate-600 active:scale-95">
-                              <CheckCircle2 class="w-3 h-3" /> Resolver
+                              <CheckCircle2 class="w-3 h-3"/> Resolver
                             </button>
                           {:else}
                             <span class="text-[9px] text-slate-400 flex items-center gap-1 font-bold">
@@ -617,8 +690,8 @@
                     <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                       <p class="text-xs text-slate-700 font-medium whitespace-pre-wrap leading-relaxed">{nota.contenido}</p>
                       <div class="flex justify-between items-center mt-2.5 pt-2.5 border-t border-slate-50">
-                        <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><MessageSquareQuote class="w-2.5 h-2.5" /> Minuta</span>
-                        <span class="text-[8px] font-bold text-slate-400 flex items-center gap-1"><Clock class="w-2.5 h-2.5" /> {formatDateTime(nota.creado_en)}</span>
+                        <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><MessageSquareQuote class="w-2.5 h-2.5"/> Minuta</span>
+                        <span class="text-[8px] font-bold text-slate-400 flex items-center gap-1"><Clock class="w-2.5 h-2.5"/> {formatDateTime(nota.creado_en)}</span>
                       </div>
                     </div>
                   {/if}
@@ -627,7 +700,7 @@
             </div>
           {:else}
             <div class="flex flex-col items-center justify-center text-center p-6 bg-slate-50 border border-dashed border-slate-200 rounded-xl opacity-80">
-              <MessageSquareQuote class="w-6 h-6 text-slate-300 mb-2" />
+              <MessageSquareQuote class="w-6 h-6 text-slate-300 mb-2"/>
               <p class="text-xs font-bold text-slate-500">Sin historial</p>
             </div>
           {/if}
@@ -640,14 +713,13 @@
           
           <div class="flex items-center gap-1.5 mb-1.5 p-1 bg-white border border-slate-200 rounded-lg inline-flex w-fit shadow-sm">
             <button type="button" onclick={() => esRecordatorio = false} class="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md transition-all flex items-center gap-1.5 {!esRecordatorio ? 'bg-slate-900 shadow text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'}">
-              <MessageSquare class="w-3 h-3" /> Nota
+              <MessageSquare class="w-3 h-3"/> Nota
             </button>
             <button type="button" onclick={() => esRecordatorio = true} class="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md transition-all flex items-center gap-1.5 {esRecordatorio ? 'bg-amber-500 shadow text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'}">
-              <CalendarClock class="w-3 h-3" /> Follow Up
+              <CalendarClock class="w-3 h-3"/> Follow Up
             </button>
           </div>
 
-          <!-- 🚀 FIX: Date/Time Picker Modernizado -->
           {#if esRecordatorio}
             <div class="animate-[fadeIn_0.2s_ease-out] bg-amber-50 p-3.5 rounded-xl border border-amber-200 mb-1 shadow-inner">
               <label class="block text-[9px] font-black text-amber-800 uppercase tracking-widest mb-2.5">Fecha de Compromiso</label>
@@ -668,7 +740,7 @@
               {#if guardandoNota}
                 <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
               {:else}
-                <Send class="w-4 h-4" />
+                <Send class="w-4 h-4"/>
               {/if}
             </button>
           </div>
@@ -677,13 +749,12 @@
     {/if}
   </div>
 
-  <!-- 🚀 MODAL DE CIERRE (FinTech Style) -->
   {#if showModalCierre}
     <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-md overflow-hidden animate-[fadeIn_0.2s_ease-out]">
         <div class="p-8 border-b border-slate-100 bg-emerald-50 text-center">
           <div class="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-sm">
-            <CheckCircle2 class="w-7 h-7 text-emerald-500" />
+            <CheckCircle2 class="w-7 h-7 text-emerald-500"/>
           </div>
           <h3 class="text-2xl font-black text-emerald-950 tracking-tight">¡Cierre Exitoso!</h3>
           <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-600/70 mt-1">Fin del Pipeline Operativo</p>
@@ -724,7 +795,7 @@
       <div class="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-sm overflow-hidden animate-[fadeIn_0.2s_ease-out]">
         <div class="p-6 border-b border-slate-100 bg-rose-50 text-center">
           <div class="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-3 border-4 border-white shadow-sm">
-            <AlertTriangle class="w-6 h-6 text-rose-500" />
+            <AlertTriangle class="w-6 h-6 text-rose-500"/>
           </div>
           <h3 class="text-xl font-black text-rose-950">¿Eliminar prospecto?</h3>
         </div>
@@ -738,7 +809,7 @@
         <div class="p-5 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-2.5">
           <button onclick={cancelarEliminar} class="px-5 py-2.5 rounded-lg font-bold text-slate-500 hover:bg-slate-200 transition-colors text-[10px] uppercase tracking-widest">Cancelar</button>
           <button onclick={confirmarEliminar} class="px-5 py-2.5 rounded-lg font-black uppercase tracking-widest bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/30 transition-all text-[10px] flex items-center justify-center gap-1.5 active:scale-95">
-            <Trash2 class="w-3.5 h-3.5" /> Eliminar
+            <Trash2 class="w-3.5 h-3.5"/> Eliminar
           </button>
         </div>
       </div>
@@ -751,14 +822,14 @@
         <div class="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center border border-indigo-200">
-              <Users class="w-5 h-5 text-indigo-600" />
+              <Users class="w-5 h-5 text-indigo-600"/>
             </div>
             <div>
               <h3 class="text-lg font-black text-slate-900">Nuevo Prospecto</h3>
               <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-0.5">Ingreso Manual</p>
             </div>
           </div>
-          <button onclick={() => showModalLeadManual = false} class="text-slate-400 hover:text-slate-900 p-2 rounded-full hover:bg-slate-200 transition-colors"><X class="w-5 h-5" /></button>
+          <button onclick={() => showModalLeadManual = false} class="text-slate-400 hover:text-slate-900 p-2 rounded-full hover:bg-slate-200 transition-colors"><X class="w-5 h-5"/></button>
         </div>
         
         <div class="overflow-y-auto p-6 bg-white">
@@ -772,14 +843,14 @@
               <div>
                 <label class="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1.5">Teléfono / WhatsApp</label>
                 <div class="relative">
-                  <Phone class="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <Phone class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"/>
                   <input type="tel" name="telefono" placeholder="Opcional" class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2.5 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-colors">
                 </div>
               </div>
               <div>
                 <label class="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1.5">Correo Electrónico</label>
                 <div class="relative">
-                  <Mail class="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <Mail class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"/>
                   <input type="email" name="correo" placeholder="Opcional" class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2.5 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-colors">
                 </div>
               </div>
