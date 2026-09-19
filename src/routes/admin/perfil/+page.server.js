@@ -30,8 +30,6 @@ export async function load({ locals }) {
   let webhookQuery = db.from('agency_webhooks').select('*');
   
   if (locals.isImpersonating && locals.tenantId) {
-    // Si estamos impersonando, el webhook guarda 'agency_id' pero en realidad es el 'auth_user_id'. 
-    // Necesitamos el 'auth_user_id' del cliente impersonado.
     webhookQuery = webhookQuery.eq('agency_id', broker.auth_user_id);
   } else {
     webhookQuery = webhookQuery.eq('agency_id', user.id);
@@ -170,9 +168,8 @@ export const actions = {
     return { formId: 'webhook', success: true };
   },
 
+  // 🚀 FIX: Server-Side Webhook Ping (Evita fallos de CORS al probar n8n, Make, Zapier)
   probarWebhook: async ({ request, locals }) => {
-    // Aquí NO bloqueamos la acción si estamos impersonando. 
-    // Un administrador debería poder lanzar un "Ping" de prueba al servidor del cliente para ayudarle a depurar.
     const user = locals.user;
     if (!user) return fail(401, { error: 'No autorizado' });
 
