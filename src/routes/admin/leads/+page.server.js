@@ -5,18 +5,17 @@ import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
 import { calcularScore } from '$lib/scoring.js';
 
-// 🚀 FIX IA 1: CASCADA ACTUALIZADA CON MODELOS ESTABLES DE CLOUDFLARE
+// 🚀 ARQUITECTURA DE IA 2026: Optimizada para micro-tareas y latencia ultra baja
 const MODELS_CASCADE = [
-  '@cf/meta/llama-3.1-8b-instruct', // Gold standard actual
-  '@cf/qwen/qwen1.5-14b-chat-awq',  // Excelente para español
-  '@cf/meta/llama-3-8b-instruct'    // Fallback de ultra baja latencia
+  '@cf/qwen/qwen3-30b-a3b-fp8',
+  '@cf/zai-org/glm-4.7-flash',
+  '@cf/ibm-granite/granite-4.0-h-micro'
 ];
 
 function getRpcRow(data) {
   return Array.isArray(data) ? data[0] : data;
 }
 
-// 🚀 FIX IA 2: PARSER TOLERANTE A FALLOS Y TEXTO CRUDO
 function parseAiResponse(result) {
   const raw = result?.response ?? result;
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
@@ -373,7 +372,6 @@ Genera el mensaje ideal para darle seguimiento y ofrecer ayuda.`;
                 });
 
                 const parsed = parseAiResponse(result);
-                // 🚀 FIX IA 3: EXTRACCIÓN RESILIENTE Y CASE-INSENSITIVE
                 const textoWhatsapp = parsed.whatsapp || parsed.WhatsApp || parsed.Whatsapp || parsed.mensaje;
                 if (!textoWhatsapp) throw new Error('Respuesta IA incompleta');
                 
@@ -398,10 +396,8 @@ Genera el mensaje ideal para darle seguimiento y ofrecer ayuda.`;
         if (!creditConfirmed) {
             await refundAiCredit(locals.supabase, user.id, requestId);
         }
-        // Registramos el error crudo en consola para ti (el developer)
         console.error('[WhatsApp IA Error]', errorLog.length ? errorLog : error.message);
         
-        // Le mandamos el error sanitizado y elegante al usuario final
         return fail(502, { error: 'El redactor de IA está temporalmente saturado. Por favor, inténtalo de nuevo en unos segundos.' });
     }
   }
