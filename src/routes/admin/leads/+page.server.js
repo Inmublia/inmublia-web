@@ -3,18 +3,16 @@ import { fail, redirect } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
-import { calcularScore } from '$lib/scoring.js'; // 🚀 Importamos el motor analítico
+import { calcularScore } from '$lib/scoring.js';
 
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
 
-  // 🚀 BYPASS RLS: Inyectamos Cliente Dios para el God Mode
   let db = locals.supabase;
   if (locals.isImpersonating) {
     db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
   }
 
-  // 1. Buscamos el ID correcto (El tuyo, o el del cliente si estás impersonando)
   let query = db.from('brokers').select('*');
   if (locals.isImpersonating && locals.tenantId) {
     query = query.eq('id', locals.tenantId);
@@ -29,7 +27,6 @@ export const load = async ({ locals }) => {
     return { broker: null, leads: [], propiedades: [] };
   }
 
-  // 🚀 Filtro de propiedades para el selector del modal
   const { data: propiedades } = await db
     .from('propiedades')
     .select('id, titulo')
@@ -37,7 +34,6 @@ export const load = async ({ locals }) => {
     .neq('estatus', 'Vendida')
     .order('creado_en', { ascending: false });
 
-  // 2. Traemos todos los prospectos
   const { data: leads, error: leadsError } = await db
     .from('leads')
     .select(`*, propiedades (*), lead_notas (*)`)
@@ -50,7 +46,6 @@ export const load = async ({ locals }) => {
 
   const now = new Date();
 
-  // PROCESAMIENTO Y SCORING DE CADA LEAD
   const leadsProcesados = (leads || []).map(lead => {
     const notas = lead.lead_notas || [];
     const notasOrdenadas = [...notas].sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime());
@@ -61,7 +56,6 @@ export const load = async ({ locals }) => {
       new Date(n.fecha_recordatorio) <= now
     );
 
-    // 🚀 Inyectamos el objeto tridimensional completo
     const scoreObj = calcularScore({ ...lead, lead_notas: notasOrdenadas });
 
     return { 
@@ -151,9 +145,18 @@ export const actions = {
         ultima_actividad: new Date().toISOString() 
     };
     
+    // 🚀 NUEVA LÓGICA: Procesar el Cierre y Actualizar Inventario
     if (estado === 'cerrado') {
         actualizaciones.precio_cierre = precioCierre ? parseFloat(precioCierre) : null;
         actualizaciones.comision_cierre = comisionCierre ? parseFloat(comisionCierre) : null;
+
+        // Buscamos si el lead tenía una propiedad asociada
+        const { data: leadData } = await locals.supabase.from('leads').select('propiedad_id').eq('id', id).single();
+        
+        if (leadData && leadData.propiedad_id) {
+            // TUBERÍA: Marcamos la propiedad como Vendida automáticamente
+            await locals.supabase.from('propiedades').update({ estatus: 'Vendida' }).eq('id', leadData.propiedad_id);
+        }
     }
 
     const { error } = await locals.supabase.from('leads').update(actualizaciones).eq('id', id).eq('broker_id', broker.id);
