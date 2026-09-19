@@ -7,13 +7,11 @@ import { env as publicEnv } from '$env/dynamic/public';
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
 
-  // 🚀 BYPASS RLS: Inyectamos Cliente Dios para el God Mode
   let db = locals.supabase;
   if (locals.isImpersonating) {
     db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
   }
 
-  // 1. Buscamos el ID correcto (El tuyo, o el del cliente si estás impersonando)
   let query = db.from('brokers').select('*');
   if (locals.isImpersonating && locals.tenantId) {
     query = query.eq('id', locals.tenantId);
@@ -25,10 +23,17 @@ export const load = async ({ locals }) => {
 
   if (brokerError || !broker) {
     console.error('🔥 Error al consultar perfil de broker:', brokerError?.message);
-    return { broker: null, leads: [] };
+    return { broker: null, leads: [], propiedades: [] };
   }
 
-  // 2. Traemos todos los prospectos SIN MURO RLS (Usando 'db')
+  // 🚀 FIX: Cargamos las propiedades del broker para el selector de Leads Manuales
+  const { data: propiedades } = await db
+    .from('propiedades')
+    .select('id, titulo')
+    .eq('broker_id', broker.id)
+    .eq('activa', true) // Solo propiedades disponibles
+    .order('creado_en', { ascending: false });
+
   const { data: leads, error: leadsError } = await db
     .from('leads')
     .select(`*, propiedades (*), lead_notas (*)`)
@@ -60,13 +65,68 @@ export const load = async ({ locals }) => {
 
   return {
     broker,
-    leads: leadsProcesados
+    leads: leadsProcesados,
+    propiedades: propiedades || [] // Inyectado para el modal
   };
 };
 
 export const actions = {
+  // 🚀 FIX: Nueva acción para Leads Manuales
+  crearLeadManual: async ({ request, locals }) => {
+    if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización.' });
+    if (!locals.user) return fail(401, { error: 'No autorizado' });
+
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
+    if (!broker) return fail(403, { error: 'Perfil no encontrado' });
+
+    const formData = await request.formData();
+    const nombre = formData.get('nombre')?.toString().trim();
+    const telefono = formData.get('telefono')?.toString().trim();
+    const correo = formData.get('correo')?.toString().trim();
+    const origen = formData.get('origen')?.toString().trim() || 'Manual';
+    const propiedadId = formData.get('propiedad_id')?.toString();
+    const notaInicial = formData.get('nota_inicial')?.toString().trim();
+
+    if (!nombre) return fail(400, { error: 'El nombre es obligatorio.' });
+
+    const nuevoLead = {
+      broker_id: broker.id,
+      nombre,
+      telefono: telefono || null,
+      correo: correo || null,
+      origen,
+      estado: 'nuevo',
+      propiedad_id: propiedadId && propiedadId !== 'ninguna' ? propiedadId : null,
+      ultima_actividad: new Date().toISOString()
+    };
+
+    // 1. Insertamos el Lead
+    const { data: leadCreado, error: insertError } = await locals.supabase
+      .from('leads')
+      .insert(nuevoLead)
+      .select('id')
+      .single();
+
+    if (insertError) {
+      console.error('🔥 Error insertando lead manual:', insertError);
+      return fail(500, { error: `Error DB al crear prospecto: ${insertError.message}` });
+    }
+
+    // 2. Si el broker dejó una nota inicial de contexto, la agregamos
+    if (notaInicial && leadCreado) {
+      await locals.supabase.from('lead_notas').insert({
+        lead_id: leadCreado.id,
+        broker_id: locals.user.id,
+        contenido: notaInicial,
+        tipo: 'nota',
+        completado: false
+      });
+    }
+
+    return { success: true };
+  },
+
   actualizar: async ({ request, locals }) => {
-    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización: No puedes alterar los prospectos del cliente.' });
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
@@ -99,7 +159,6 @@ export const actions = {
   },
 
   eliminar: async ({ request, locals }) => {
-    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
@@ -115,7 +174,6 @@ export const actions = {
   },
 
   guardarNota: async ({ request, locals }) => {
-    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización: No puedes agregar notas al cliente.' });
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
@@ -168,7 +226,6 @@ export const actions = {
   },
 
   completarRecordatorio: async ({ request, locals }) => {
-    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
     if (!locals.user) return fail(401, { error: 'No autorizado' });
     const formData = await request.formData();
