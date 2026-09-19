@@ -5,7 +5,7 @@ import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
 import { calcularScore } from '$lib/scoring.js';
 
-// 🚀 LOGÍSTICA DE IA (Módulos de seguridad y parseo)
+// 🚀 LOGÍSTICA DE IA
 const MODELS_CASCADE = [
   '@cf/qwen/qwen3-30b-a3b-fp8',
   '@cf/ibm/granite-4.0-h-micro',
@@ -200,6 +200,7 @@ export const actions = {
         actualizaciones.comision_cierre = comisionCierre ? parseFloat(comisionCierre) : null;
 
         const { data: leadData } = await locals.supabase.from('leads').select('propiedad_id').eq('id', id).single();
+        
         if (leadData && leadData.propiedad_id) {
             await locals.supabase.from('propiedades').update({ estatus: 'Vendida' }).eq('id', leadData.propiedad_id);
         }
@@ -291,7 +292,6 @@ export const actions = {
     return { success: true };
   },
 
-  // 🚀 FASE 5: GENERADOR DE SCRIPTS DE WHATSAPP CON IA
   generarScriptWhatsapp: async ({ request, locals, platform }) => {
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
     const user = locals.user;
@@ -326,23 +326,23 @@ export const actions = {
     let errorLog = [];
 
     try {
-        // Extraemos las últimas 5 notas para darle contexto al LLM
         const notasRecientes = (lead.lead_notas || [])
             .sort((a,b) => new Date(a.creado_en).getTime() - new Date(b.creado_en).getTime())
             .slice(-5)
             .map(n => `- ${n.tipo.toUpperCase()}: ${n.contenido}`)
             .join('\n');
 
+        // 🚀 PROMPT COLABORATIVO (Anti-vendedor agresivo)
         const systemPrompt = [
-            'Eres un Asesor Inmobiliario Senior en México experto en cierres y seguimiento de clientes.',
+            'Eres un Asesor Inmobiliario Senior en México experto en atención al cliente.',
             'Redacta un mensaje de seguimiento (follow-up) para enviarlo por WhatsApp al prospecto.',
             'REGLAS ESTRICTAS:',
-            '1. Tono cálido, profesional y al grano. Cero agresividad comercial.',
+            '1. Tono sumamente cálido, servicial y profesional. Cero agresividad comercial.',
             '2. Lee el historial de interacciones y adáptate. Si ya hay historial, no lo saludes como si no se conocieran.',
-            '3. MUY BREVE: Máximo 2 oraciones directas. La gente ignora textos largos en WhatsApp.',
-            '4. Cierra SIEMPRE con una pregunta abierta para forzar la respuesta (ej. ¿Qué te pareció la opción?, ¿Pudiste revisarlo?).',
+            '3. MUY BREVE: Máximo 2 oraciones directas.',
+            '4. Cierra SIEMPRE mostrando total disposición para ayudar, resolver dudas o acompañarlo en su proceso (ej. "Quedo a tu entera disposición para cualquier duda", "¿Te puedo ayudar con algo más en tu búsqueda?"). Mantén la puerta abierta al diálogo sin presionar.',
             '5. Usa máximo 1 emoji en todo el texto.',
-            '6. Responde EXCLUSIVAMENTE con un objeto JSON válido. Sin markdown (nada de ```json).',
+            '6. Responde EXCLUSIVAMENTE con un objeto JSON válido.',
             'FORMATO REQUERIDO:',
             '{',
             '  "whatsapp": "Texto exacto listo para enviar al cliente."',
@@ -356,7 +356,7 @@ export const actions = {
 - Últimas interacciones:
 ${notasRecientes || 'Lead completamente nuevo, sin interacciones previas.'}
 
-Genera el mensaje ideal para reactivarlo o avanzar al siguiente paso.`;
+Genera el mensaje ideal para darle seguimiento y ofrecer ayuda.`;
 
         for (const modelId of MODELS_CASCADE) {
             try {
@@ -392,8 +392,10 @@ Genera el mensaje ideal para reactivarlo o avanzar al siguiente paso.`;
         if (!creditConfirmed) {
             await refundAiCredit(locals.supabase, user.id, requestId);
         }
-        console.error('[WhatsApp IA Error]', error);
-        return fail(502, { error: `Fallo en IA: ${error.message}` });
+        console.error('[WhatsApp IA Error]', errorLog.length ? errorLog : error.message);
+        
+        // 🚀 SANITIZACIÓN DE ERRORES: Mensaje limpio para el usuario
+        return fail(502, { error: 'El redactor de IA está temporalmente saturado. Por favor, inténtalo de nuevo en unos segundos.' });
     }
   }
 };
