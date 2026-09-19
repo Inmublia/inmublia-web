@@ -548,43 +548,26 @@
         </div>
       </div>
 
-      <!-- 🚀 DIAGNÓSTICO DE IA EN EL PANEL LATERAL -->
+      <!-- 🚀 DIAGNÓSTICO COMPACTO DE IA EN EL PANEL LATERAL -->
       {#if selectedLead.scoreObj && selectedLead.estado !== 'cerrado' && selectedLead.estado !== 'descartado'}
-        <div class="px-8 py-6 border-b border-slate-100 bg-white shrink-0">
-          <div class="flex items-center justify-between mb-4">
+        <div class="px-8 py-4 border-b border-slate-100 bg-white shrink-0">
+          <div class="flex items-center justify-between mb-3">
             <h3 class="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1.5">
-              <Sparkles class="w-3.5 h-3.5" /> Inteligencia del Lead
+              <Sparkles class="w-3.5 h-3.5" /> Insights sobre el prospecto
             </h3>
             <span class="text-xl font-black {selectedLead.scoreObj.isHot ? 'text-orange-500' : 'text-slate-700'}">
-              {selectedLead.scoreObj.score}<span class="text-sm text-slate-400">/100</span>
+              {selectedLead.scoreObj.score}<span class="text-xs text-slate-400">/100</span>
             </span>
           </div>
 
-          <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 mb-5">
-            <div class="flex items-center gap-2 mb-1.5">
-              <span class="text-sm font-black text-slate-900">{selectedLead.scoreObj.etiqueta}</span>
+          <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
+            <div class="flex items-start gap-2">
+              <span class="text-xs font-black text-slate-900 shrink-0">{selectedLead.scoreObj.etiqueta}:</span>
+              <p class="text-[11px] text-slate-600 font-medium leading-snug">{selectedLead.scoreObj.razon}</p>
             </div>
-            <p class="text-xs text-slate-600 font-medium leading-relaxed mb-4">{selectedLead.scoreObj.razon}</p>
             
-            <div class="bg-indigo-50 rounded-xl p-3 border border-indigo-100 shadow-sm">
-              <p class="text-xs font-bold text-indigo-700 leading-snug">👉 {selectedLead.scoreObj.accion}</p>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-3 gap-3 text-center">
-            <div class="bg-white border border-slate-100 rounded-xl p-2.5 shadow-sm">
-              <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400">Base Etapa</p>
-              <p class="text-sm font-black text-slate-700 mt-1">{selectedLead.scoreObj.base}</p>
-            </div>
-            <div class="bg-white border border-slate-100 rounded-xl p-2.5 shadow-sm">
-              <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400">Señales</p>
-              <p class="text-sm font-black text-slate-700 mt-1">x{selectedLead.scoreObj.multiplicador.toFixed(1)}</p>
-            </div>
-            <div class="bg-white border border-slate-100 rounded-xl p-2.5 shadow-sm">
-              <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400">Time Decay</p>
-              <p class="text-sm font-black {selectedLead.scoreObj.decayFactor < 0.5 ? 'text-rose-500' : 'text-emerald-600'} mt-1">
-                x{selectedLead.scoreObj.decayFactor.toFixed(1)}
-              </p>
+            <div class="bg-indigo-50 rounded-lg p-2.5 border border-indigo-100 mt-1">
+              <p class="text-[10px] font-bold text-indigo-800 leading-tight">👉 {selectedLead.scoreObj.accion}</p>
             </div>
           </div>
         </div>
