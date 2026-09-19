@@ -2,11 +2,13 @@
 <script>
   import { goto } from '$app/navigation';
   import { 
-    Search, Users, Activity, CheckCircle2, ShieldAlert, ArrowRight, Building2, Terminal, Sparkles 
+    Search, Users, Activity, CheckCircle2, ShieldAlert, ArrowRight, Building2, Terminal, Sparkles,
+    DollarSign, TrendingUp, UserPlus, AlertOctagon
   } from 'lucide-svelte';
 
   let { data } = $props();
   let agencias = $derived(data.agencias || []);
+  let metrics = $derived(data.metrics || {}); // 🚀 FASE 2: Recibimos KPIs
   
   let searchQuery = $state(data.query || '');
   let isSearching = $state(false);
@@ -20,6 +22,8 @@
       isSearching = false;
     }, 400); 
   }
+
+  const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 </script>
 
 <div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
@@ -50,8 +54,72 @@
   </header>
 
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
-    <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 h-full">
+    <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 h-full flex flex-col gap-6">
       
+      <!-- 🚀 FASE 2: GRID DE MÉTRICAS Y KPIs -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- MRR -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:border-slate-300 transition-all">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">MRR Estimado</p>
+            <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+              <DollarSign class="w-4 h-4" />
+            </div>
+          </div>
+          <p class="text-3xl font-black text-slate-900 tracking-tight truncate">{formatter.format(metrics.mrr || 0)}</p>
+          <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2">Ingreso Mensual Recurrente</p>
+        </div>
+
+        <!-- Suscripciones Activas -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:border-slate-300 transition-all">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Suscripciones Activas</p>
+            <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+              <Users class="w-4 h-4" />
+            </div>
+          </div>
+          <div class="flex items-end gap-2">
+            <p class="text-3xl font-black text-slate-900 tracking-tight">{metrics.activasCount || 0}</p>
+          </div>
+          <div class="flex items-center gap-1.5 mt-2">
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">Bás: {metrics.basicoCount || 0}</span>
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200">Pro: {metrics.proCount || 0}</span>
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-200">Eli: {metrics.eliteCount || 0}</span>
+          </div>
+        </div>
+
+        <!-- Adquisición -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:border-slate-300 transition-all">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Adquisición (Mes)</p>
+            <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+              <UserPlus class="w-4 h-4" />
+            </div>
+          </div>
+          <p class="text-3xl font-black text-slate-900 tracking-tight">{metrics.nuevosMes || 0}</p>
+          <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2 flex items-center gap-1">
+            <TrendingUp class="w-3 h-3 text-blue-500" /> Nuevas cuentas este mes
+          </p>
+        </div>
+
+        <!-- Churn Rate -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:border-slate-300 transition-all">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Churn Rate</p>
+            <div class="w-8 h-8 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
+              <Activity class="w-4 h-4" />
+            </div>
+          </div>
+          <p class="text-3xl font-black text-slate-900 tracking-tight">{metrics.churnRate || 0}%</p>
+          <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2 flex items-center gap-1">
+            <AlertOctagon class="w-3 h-3 text-rose-500" /> {metrics.churnCount || 0} cuentas perdidas
+          </p>
+        </div>
+
+      </div>
+
+      <!-- TABLA DE CONTROL -->
       <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[600px]">
         
         <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center gap-4 justify-between">
