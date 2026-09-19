@@ -5,6 +5,56 @@ import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
 import { calcularScore } from '$lib/scoring.js';
 
+// 🚀 LOGÍSTICA DE IA (Módulos de seguridad y parseo)
+const MODELS_CASCADE = [
+  '@cf/qwen/qwen3-30b-a3b-fp8',
+  '@cf/ibm/granite-4.0-h-micro',
+  '@cf/google/gemma-4-26b-a4b-it'
+];
+
+function getRpcRow(data) {
+  return Array.isArray(data) ? data[0] : data;
+}
+
+function parseAiResponse(result) {
+  const raw = result?.response ?? result;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (typeof raw !== 'string') throw new Error('La IA no devolvió formato de texto.');
+
+  let cleanedStr = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+  const firstBrace = cleanedStr.indexOf('{');
+  const lastBrace = cleanedStr.lastIndexOf('}');
+  
+  if (firstBrace === -1 || lastBrace === -1) throw new Error('No se detectó un objeto JSON en la respuesta.');
+  
+  cleanedStr = cleanedStr.substring(firstBrace, lastBrace + 1);
+  cleanedStr = cleanedStr.replace(/\n/g, '\\n').replace(/\r/g, '');
+  
+  try {
+    return JSON.parse(cleanedStr);
+  } catch (err) {
+    throw new Error('JSON malformado devuelto por la IA.');
+  }
+}
+
+async function reserveAiCredit(supabase, userId, requestId) {
+  const { data, error } = await supabase.rpc('reservar_credito_ia', { p_user_id: userId, p_request_id: requestId });
+  const reservation = getRpcRow(data);
+  if (error || !reservation?.reserved) return null;
+  return reservation;
+}
+
+async function confirmAiCredit(supabase, userId, requestId) {
+  const { data, error } = await supabase.rpc('confirmar_consumo_credito_ia', { p_user_id: userId, p_request_id: requestId });
+  const confirmation = getRpcRow(data);
+  return !error && confirmation?.confirmed === true;
+}
+
+async function refundAiCredit(supabase, userId, requestId) {
+  const { error } = await supabase.rpc('reembolsar_credito_ia', { p_user_id: userId, p_request_id: requestId });
+  if (error) console.error('[Refund Error]', { requestId, message: error.message });
+}
+
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
 
@@ -145,16 +195,12 @@ export const actions = {
         ultima_actividad: new Date().toISOString() 
     };
     
-    // 🚀 NUEVA LÓGICA: Procesar el Cierre y Actualizar Inventario
     if (estado === 'cerrado') {
         actualizaciones.precio_cierre = precioCierre ? parseFloat(precioCierre) : null;
         actualizaciones.comision_cierre = comisionCierre ? parseFloat(comisionCierre) : null;
 
-        // Buscamos si el lead tenía una propiedad asociada
         const { data: leadData } = await locals.supabase.from('leads').select('propiedad_id').eq('id', id).single();
-        
         if (leadData && leadData.propiedad_id) {
-            // TUBERÍA: Marcamos la propiedad como Vendida automáticamente
             await locals.supabase.from('propiedades').update({ estatus: 'Vendida' }).eq('id', leadData.propiedad_id);
         }
     }
@@ -243,5 +289,111 @@ export const actions = {
     const { error } = await locals.supabase.from('lead_notas').update({ completado: true }).eq('id', notaId).eq('broker_id', locals.user.id);
     if (error) return fail(500, { error: `Fallo BD: ${error.message}` });
     return { success: true };
+  },
+
+  // 🚀 FASE 5: GENERADOR DE SCRIPTS DE WHATSAPP CON IA
+  generarScriptWhatsapp: async ({ request, locals, platform }) => {
+    if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
+    const user = locals.user;
+    if (!user) return fail(401, { error: 'No autorizado' });
+    if (!platform?.env?.AI) return fail(503, { error: 'Motor de IA offline.' });
+
+    const formData = await request.formData();
+    const leadId = formData.get('lead_id');
+
+    const { data: broker } = await locals.supabase.from('brokers').select('id, ia_creditos_disponibles').eq('auth_user_id', user.id).single();
+    if (!broker) return fail(403, { error: 'Perfil no encontrado' });
+    
+    if ((broker.ia_creditos_disponibles || 0) <= 0) {
+        return fail(403, { error: 'Has alcanzado el límite de créditos IA de tu plan actual.' });
+    }
+
+    const { data: lead } = await locals.supabase
+        .from('leads')
+        .select(`*, propiedades(titulo), lead_notas(contenido, tipo, creado_en)`)
+        .eq('id', leadId)
+        .eq('broker_id', broker.id)
+        .single();
+
+    if (!lead) return fail(404, { error: 'Prospecto no encontrado.' });
+
+    const requestId = crypto.randomUUID();
+    const reservation = await reserveAiCredit(locals.supabase, user.id, requestId);
+    if (!reservation) return fail(403, { error: 'No tienes créditos de IA o existe un error transaccional.' });
+
+    let creditConfirmed = false;
+    let finalContent = null;
+    let errorLog = [];
+
+    try {
+        // Extraemos las últimas 5 notas para darle contexto al LLM
+        const notasRecientes = (lead.lead_notas || [])
+            .sort((a,b) => new Date(a.creado_en).getTime() - new Date(b.creado_en).getTime())
+            .slice(-5)
+            .map(n => `- ${n.tipo.toUpperCase()}: ${n.contenido}`)
+            .join('\n');
+
+        const systemPrompt = [
+            'Eres un Asesor Inmobiliario Senior en México experto en cierres y seguimiento de clientes.',
+            'Redacta un mensaje de seguimiento (follow-up) para enviarlo por WhatsApp al prospecto.',
+            'REGLAS ESTRICTAS:',
+            '1. Tono cálido, profesional y al grano. Cero agresividad comercial.',
+            '2. Lee el historial de interacciones y adáptate. Si ya hay historial, no lo saludes como si no se conocieran.',
+            '3. MUY BREVE: Máximo 2 oraciones directas. La gente ignora textos largos en WhatsApp.',
+            '4. Cierra SIEMPRE con una pregunta abierta para forzar la respuesta (ej. ¿Qué te pareció la opción?, ¿Pudiste revisarlo?).',
+            '5. Usa máximo 1 emoji en todo el texto.',
+            '6. Responde EXCLUSIVAMENTE con un objeto JSON válido. Sin markdown (nada de ```json).',
+            'FORMATO REQUERIDO:',
+            '{',
+            '  "whatsapp": "Texto exacto listo para enviar al cliente."',
+            '}'
+        ].join(' ');
+
+        const userPrompt = `DATOS DEL PROSPECTO:
+- Nombre: ${lead.nombre}
+- Etapa en el Embudo: ${lead.estado.toUpperCase()}
+- Propiedad de Interés: ${lead.propiedades ? lead.propiedades.titulo : 'Búsqueda General'}
+- Últimas interacciones:
+${notasRecientes || 'Lead completamente nuevo, sin interacciones previas.'}
+
+Genera el mensaje ideal para reactivarlo o avanzar al siguiente paso.`;
+
+        for (const modelId of MODELS_CASCADE) {
+            try {
+                const result = await platform.env.AI.run(modelId, {
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    max_tokens: 300,
+                    temperature: 0.7 
+                });
+
+                const parsed = parseAiResponse(result);
+                if (!parsed || !parsed.whatsapp) throw new Error('Respuesta IA incompleta');
+                finalContent = parsed;
+                break;
+            } catch (err) {
+                errorLog.push(`${modelId.split('/').pop()}: ${err.message}`);
+                finalContent = null;
+            }
+        }
+
+        if (!finalContent) throw new Error(`Cascada agotada. Errores: ${errorLog.join(' | ')}`);
+
+        const confirmed = await confirmAiCredit(locals.supabase, user.id, requestId);
+        if (!confirmed) throw new Error('Fallo al confirmar consumo de crédito IA.');
+        
+        creditConfirmed = true;
+
+        return { success: true, whatsapp: finalContent.whatsapp };
+
+    } catch (error) {
+        if (!creditConfirmed) {
+            await refundAiCredit(locals.supabase, user.id, requestId);
+        }
+        console.error('[WhatsApp IA Error]', error);
+        return fail(502, { error: `Fallo en IA: ${error.message}` });
+    }
   }
 };
