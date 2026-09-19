@@ -18,8 +18,8 @@ export async function POST({ request }) {
   let event;
 
   try {
-    // 2. Verificación criptográfica
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    // 2. Verificación criptográfica ASÍNCRONA (Obligatorio para Cloudflare)
+    event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
   } catch (err) {
     console.error(`[Stripe Error] Firma inválida:`, err.message);
     return json({ error: err.message }, { status: 400 });
@@ -142,7 +142,6 @@ export async function POST({ request }) {
   } catch (err) {
     console.error(`[CRÍTICO] Webhook DB Error:`, err.message);
     
-    // Log a base de datos de manera silenciosa
     try {
       await supabase.from('webhook_errors_log').insert({
         stripe_event_id: event?.id || 'sin_id',
