@@ -10,9 +10,11 @@
     ChevronLeft, ChevronRight, AlertTriangle, Plus, Users
   } from 'lucide-svelte';
   
+  import LeadScoreBadge from '$lib/components/LeadScoreBadge.svelte'; // 🚀 Inyectamos el Componente
+
   let { data } = $props();
   let broker = $derived(data.broker || {});
-  let propiedadesOptions = $derived(data.propiedades || []); // Para el selector
+  let propiedadesOptions = $derived(data.propiedades || []); 
   
   let leads = $state(data.leads || []);
   let draggedLeadId = $state(null);
@@ -43,7 +45,6 @@
   let showModalEliminar = $state(false);
   let leadPorEliminar = $state(null);
 
-  // 🚀 FIX: Variables para el Modal de Lead Manual
   let showModalLeadManual = $state(false);
   let guardandoLeadManual = $state(false);
 
@@ -62,9 +63,12 @@
     { id: 'descartado', titulo: 'Perdidos', dot: 'bg-slate-400', bgCol: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-500' }
   ];
 
+  // 🚀 FIX: Ordenamiento inteligente en cliente por Score
   let leadsPorColumna = $derived(
     columnas.reduce((acc, col) => {
-      acc[col.id] = leadsFiltrados.filter(l => l.estado === col.id);
+      acc[col.id] = leadsFiltrados
+        .filter(l => l.estado === col.id)
+        .sort((a, b) => (b.scoreObj?.score || 0) - (a.scoreObj?.score || 0));
       return acc;
     }, {})
   );
@@ -308,7 +312,6 @@
     };
   }
 
-  // 🚀 FIX: Action handler para Lead Manual
   function manejadorLeadManual({ cancel }) {
     guardandoLeadManual = true;
     return async ({ result, update }) => {
@@ -383,7 +386,6 @@
           <input type="text" bind:value={searchQuery} placeholder="Buscar cliente..." class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all shadow-inner backdrop-blur-md">
         </div>
         
-        <!-- 🚀 FIX: Botón de Nuevo Prospecto -->
         <button onclick={() => showModalLeadManual = true} class="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-5 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95 shrink-0">
           <Plus class="w-4 h-4" /> Nuevo Prospecto
         </button>
@@ -420,7 +422,7 @@
               </span>
             </div>
 
-            <div class="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-2.5 pb-8">
+            <div class="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-2.5 pb-8 pt-1">
               {#each leadsPorColumna[columna.id] || [] as lead (lead.id)}
                 
                 <div 
@@ -431,17 +433,17 @@
                   tabindex="0"
                   onclick={() => abrirPanel(lead)}
                   onkeydown={(e) => { if (e.key === 'Enter') abrirPanel(lead); }}
-                  class="bg-white p-3 rounded-lg border {lead.has_pending_reminder ? 'border-rose-300 ring-1 ring-rose-500' : 'border-slate-200'} cursor-grab shadow-sm hover:shadow hover:-translate-y-px hover:border-indigo-300 transition-all duration-200 group relative flex flex-col gap-2.5"
+                  class="bg-white p-3 rounded-lg border {lead.scoreObj?.isHot && lead.estado !== 'cerrado' && lead.estado !== 'descartado' ? 'border-orange-400 ring-2 ring-orange-500/10 shadow-md shadow-orange-500/10' : lead.has_pending_reminder ? 'border-rose-300 ring-1 ring-rose-500' : 'border-slate-200'} cursor-grab hover:-translate-y-px hover:border-indigo-300 transition-all duration-200 group relative flex flex-col gap-2.5"
                 >
                   <div class="flex items-start justify-between gap-2">
-                    <div class="flex items-center gap-2 min-w-0">
+                    <div class="flex items-center gap-2 min-w-0 pr-1">
                       
                       <div class="relative shrink-0">
                         <div class="w-6 h-6 rounded-full border border-slate-200 bg-slate-800 text-white flex items-center justify-center text-[8px] font-black uppercase shadow-inner">
                           {getInitials(lead.nombre)}
                         </div>
                         {#if lead.has_pending_reminder}
-                          <div class="absolute -top-0.5 -right-0.5 bg-rose-500 rounded-full w-2 h-2 border border-white"></div>
+                          <div class="absolute -top-0.5 -right-0.5 bg-rose-500 rounded-full w-2 h-2 border border-white shadow-sm"></div>
                         {/if}
                       </div>
 
@@ -451,15 +453,22 @@
                       </div>
                     </div>
                     
-                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button onclick={(e) => { e.stopPropagation(); pedirEliminarLead(lead); }} class="p-1 text-slate-300 hover:text-rose-500 transition-colors" title="Eliminar">
-                        <Trash2 class="w-3.5 h-3.5" />
-                      </button>
-                      {#if lead.telefono}
-                        <a href="https://wa.me/{lead.telefono.replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" onclick={(e) => e.stopPropagation()} class="p-1 text-emerald-500 hover:text-emerald-600 transition-colors" title="WhatsApp">
-                          <MessageSquare class="w-3.5 h-3.5" />
-                        </a>
+                    <!-- 🚀 FIX: Aquí anidamos nuestro Badge Tridimensional con los botones Hover -->
+                    <div class="flex flex-col items-end gap-1.5 shrink-0">
+                      {#if lead.scoreObj && lead.estado !== 'cerrado' && lead.estado !== 'descartado'}
+                        <LeadScoreBadge scoreData={lead.scoreObj} />
                       {/if}
+                      
+                      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick={(e) => { e.stopPropagation(); pedirEliminarLead(lead); }} class="p-1 text-slate-300 hover:text-rose-500 transition-colors" title="Eliminar">
+                          <Trash2 class="w-3.5 h-3.5" />
+                        </button>
+                        {#if lead.telefono}
+                          <a href="https://wa.me/{lead.telefono.replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" onclick={(e) => e.stopPropagation()} class="p-1 text-emerald-500 hover:text-emerald-600 transition-colors" title="WhatsApp">
+                            <MessageSquare class="w-3.5 h-3.5" />
+                          </a>
+                        {/if}
+                      </div>
                     </div>
                   </div>
 
@@ -596,7 +605,6 @@
         </div>
       </div>
 
-      <!-- 🚀 FIX: pb-20 y xl:pb-28 empuja el contenido hacia arriba para que no estorbe el Widget global de Help -->
       <div class="p-5 bg-slate-50 border-t border-slate-200 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-20 pb-24 xl:pb-28">
         <form method="POST" action="?/guardarNota" use:enhance={manejadorNota} class="flex flex-col gap-2.5">
           <input type="hidden" name="lead_id" value={selectedLead.id} />
@@ -702,7 +710,6 @@
     </div>
   {/if}
 
-  <!-- 🚀 FIX: Modal de Ingreso de Lead Manual -->
   {#if showModalLeadManual}
     <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4" onclick={() => showModalLeadManual = false}>
       <div class="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-lg overflow-hidden animate-[fadeIn_0.2s_ease-out] flex flex-col max-h-[90vh]" onclick={e => e.stopPropagation()}>
