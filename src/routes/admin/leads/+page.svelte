@@ -7,11 +7,12 @@
   import { 
     Search, X, Phone, Mail, Home, Send, Trash2, Clock, UserCircle,
     GripVertical, MessageSquareQuote, BellRing, CalendarClock, CheckCircle2, MessageSquare,
-    ChevronLeft, ChevronRight, AlertTriangle
+    ChevronLeft, ChevronRight, AlertTriangle, Plus, Users
   } from 'lucide-svelte';
   
   let { data } = $props();
   let broker = $derived(data.broker || {});
+  let propiedadesOptions = $derived(data.propiedades || []); // Para el selector
   
   let leads = $state(data.leads || []);
   let draggedLeadId = $state(null);
@@ -39,9 +40,12 @@
   let precioCierreFinal = $state('');
   let comisionCobrada = $state('');
 
-  // Nuevo Modal de Eliminación (Sustituye al confirm nativo bloqueante)
   let showModalEliminar = $state(false);
   let leadPorEliminar = $state(null);
+
+  // 🚀 FIX: Variables para el Modal de Lead Manual
+  let showModalLeadManual = $state(false);
+  let guardandoLeadManual = $state(false);
 
   let boardContainer = $state(null);
 
@@ -58,7 +62,6 @@
     { id: 'descartado', titulo: 'Perdidos', dot: 'bg-slate-400', bgCol: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-500' }
   ];
 
-  // 🚀 FIX CRÍTICO: Agrupación en O(n) para evitar filtros repetidos en el HTML
   let leadsPorColumna = $derived(
     columnas.reduce((acc, col) => {
       acc[col.id] = leadsFiltrados.filter(l => l.estado === col.id);
@@ -74,7 +77,6 @@
     }
   });
 
-  // 🚀 FIX: Previene un loop de dependencias cíclicas en Svelte 5
   $effect(() => { 
     const nuevosLeads = data.leads;
     untrack(() => {
@@ -115,7 +117,6 @@
     return new Intl.DateTimeFormat('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(date);
   }
 
-  // 🚀 FIX: Lógica de Urgencia corregida y basada en la última actividad real
   function getUrgencyStyle(lead) {
     const fechaRef = lead.ultima_actividad || lead.actualizado_en || lead.creado_en;
     if (!fechaRef) return 'text-slate-400';
@@ -143,7 +144,6 @@
     return date <= new Date();
   }
 
-  // 🚀 FIX: Extrae las iniciales seguras (Cero dependencias de APIs)
   function getInitials(nombre) {
     return (nombre || '?').replace(/[^\p{L}\s]/gu, '').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
   }
@@ -157,11 +157,10 @@
   function terminar(event) { event.target.classList.remove('opacity-30', 'scale-[0.98]'); }
   function permitirSoltar(event) { event.preventDefault(); }
 
-  // 🚀 FIX CRÍTICO: Limpieza incondicional del Drag & Drop
   async function soltar(event, nuevaColumnaId) {
     event.preventDefault();
     const idParaProcesar = draggedLeadId;
-    draggedLeadId = null; // Se limpia SIEMPRE, sin importar el destino
+    draggedLeadId = null;
 
     if (!idParaProcesar) return;
 
@@ -180,13 +179,11 @@
 
   function cancelarCierre() { showModalCierre = false; leadPorCerrar = null; }
 
-  // 🚀 FIX: Manejo robusto de errores y persistencia local en Cierres
   async function confirmarCierre() {
     const leadId = leadPorCerrar.id;
     const precioCopy = precioCierreFinal;
     const comisionCopy = comisionCobrada;
     
-    // UI Update (Optimistic)
     leads = leads.map(l => l.id === leadId ? { ...l, estado: 'cerrado' } : l);
     cancelarCierre();
 
@@ -201,13 +198,11 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       invalidateAll();
     } catch (err) { 
-      // Revertimos en caso de fallo de red
       leads = leads.map(l => l.id === leadId ? { ...l, estado: 'negociacion' } : l);
       alert('No se pudo registrar el cierre. Verifica tu conexión.'); 
     }
   }
 
-  // 🚀 FIX CRÍTICO: Reversión en caso de error HTTP
   async function actualizarEstadoLocalYBD(leadId, nuevoEstado) {
     const estadoAnterior = leads.find(l => l.id === leadId)?.estado;
     leads = leads.map(l => l.id === leadId ? { ...l, estado: nuevoEstado } : l);
@@ -281,12 +276,10 @@
     const nowISO = new Date().toISOString();
     const nuevaNotaObj = { id: 'temp-' + Date.now(), contenido: notaTemp, tipo: esRecordatorio ? 'recordatorio' : 'nota', fecha_recordatorio: fechaFinalFormateada, completado: false, creado_en: nowISO };
     
-    // UI Update Panel
     selectedLead.lead_notas = [nuevaNotaObj, ...selectedLead.lead_notas];
     selectedLead.actualizado_en = nowISO; 
     if (selectedLead.estado === 'nuevo') selectedLead.estado = 'contactado';
 
-    // 🚀 FIX CRÍTICO: Sincronización completa con el array reactivo general
     leads = leads.map(l => {
       if (l.id === selectedLead.id) {
         return {
@@ -315,7 +308,21 @@
     };
   }
 
-  // 🚀 FIX: Modales de Eliminación no bloqueantes
+  // 🚀 FIX: Action handler para Lead Manual
+  function manejadorLeadManual({ cancel }) {
+    guardandoLeadManual = true;
+    return async ({ result, update }) => {
+      guardandoLeadManual = false;
+      if (result.type === 'success') {
+        showModalLeadManual = false;
+        await update();
+        await invalidateAll();
+      } else {
+        alert(result.data?.error || 'No se pudo guardar el prospecto.');
+      }
+    };
+  }
+
   function pedirEliminarLead(lead) {
     leadPorEliminar = lead;
     showModalEliminar = true;
@@ -352,7 +359,6 @@
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F8FAFC] font-sans text-slate-900">
   
-  <!-- 🚀 FIX: Cabecera unificada. Sin restricciones de ancho (w-full) y con paddings nativos para que alcance toda la pantalla -->
   <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-4 sm:px-8 relative overflow-hidden shrink-0">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
@@ -371,14 +377,20 @@
         </p>
       </div>
 
-      <div class="relative w-full md:max-w-md hidden sm:block">
-        <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-        <input type="text" bind:value={searchQuery} placeholder="Buscar cliente..." class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all shadow-inner backdrop-blur-md">
+      <div class="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+        <div class="relative w-full md:max-w-md hidden sm:block flex-1">
+          <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+          <input type="text" bind:value={searchQuery} placeholder="Buscar cliente..." class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all shadow-inner backdrop-blur-md">
+        </div>
+        
+        <!-- 🚀 FIX: Botón de Nuevo Prospecto -->
+        <button onclick={() => showModalLeadManual = true} class="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-5 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95 shrink-0">
+          <Plus class="w-4 h-4" /> Nuevo Prospecto
+        </button>
       </div>
     </div>
   </header>
 
-  <!-- 🚀 FIX: TABLERO KANBAN PANORÁMICO (Aprovecha 100% de pantalla, cero scrollbars verticales indeseadas) -->
   <div class="relative flex-1 flex overflow-hidden group z-20 -mt-16 w-full">
     
     <button onclick={() => scrollBoard(-1)} class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-indigo-50 border border-slate-200 shadow-xl w-10 h-10 rounded-full items-center justify-center text-slate-600 hover:text-indigo-600 transition-all backdrop-blur-sm cursor-pointer opacity-0 group-hover:opacity-100" aria-label="Desplazar Izquierda">
@@ -389,12 +401,10 @@
       <ChevronRight class="w-6 h-6" />
     </button>
 
-    <!-- 🚀 FIX: `overflow-y-hidden` mata la barra lateral gruesa. Paddings estrictos en X -->
     <div class="flex-1 overflow-x-auto overflow-y-hidden kanban-board px-4 sm:px-8 pb-6 transition-opacity {isPanelOpen ? 'pointer-events-none select-none opacity-50' : ''}" bind:this={boardContainer}>
       <div class="flex gap-4 items-start h-full min-w-max xl:min-w-full">
         
         {#each columnas as columna}
-          <!-- 🚀 FIX: flex-1 permite que se estiren matemáticamente según la pantalla disponible, evitando scrolls -->
           <div 
             class="flex-1 min-w-[240px] xl:min-w-[200px] shrink-0 {columna.bgCol} border {columna.border} rounded-xl p-3 flex flex-col h-[calc(100vh-180px)] shadow-[0_2px_10px_rgba(0,0,0,0.02)] bg-white/60 backdrop-blur-sm"
             ondragover={permitirSoltar}
@@ -426,7 +436,6 @@
                   <div class="flex items-start justify-between gap-2">
                     <div class="flex items-center gap-2 min-w-0">
                       
-                      <!-- 🚀 FIX: Avatares Inteligentes Nativos CSS -->
                       <div class="relative shrink-0">
                         <div class="w-6 h-6 rounded-full border border-slate-200 bg-slate-800 text-white flex items-center justify-center text-[8px] font-black uppercase shadow-inner">
                           {getInitials(lead.nombre)}
@@ -498,7 +507,6 @@
     {#if selectedLead}
       <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-transparent">
         <div class="flex items-center gap-4">
-          <!-- 🚀 FIX: Avatar Nativo en Panel -->
           <div class="w-12 h-12 rounded-full border-2 border-white shadow-sm bg-slate-800 text-white flex items-center justify-center text-sm font-black uppercase">
             {getInitials(selectedLead.nombre)}
           </div>
@@ -526,7 +534,7 @@
         </div>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-8 bg-transparent flex flex-col gap-6">
+      <div class="flex-1 overflow-y-auto p-8 bg-transparent flex flex-col gap-6 pb-6">
         <div>
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Clock class="w-3 h-3" /> Bitácora de Relación</h3>
@@ -552,7 +560,6 @@
                       <div class="flex items-center justify-between pt-2.5 border-t {nota.completado ? 'border-slate-100' : (isOverdue(nota.fecha_recordatorio) ? 'border-rose-100' : 'border-amber-100')}">
                         <span class="text-[9px] font-bold text-slate-500">{formatDateTime(nota.fecha_recordatorio)}</span>
                         
-                        <!-- 🚀 FIX: Protege notas en estado Optimistic UI -->
                         {#if !nota.completado}
                           {#if !nota.id.startsWith('temp-')}
                             <button onclick={() => completarRecordatorio(nota.id)} class="text-[9px] font-black uppercase tracking-widest flex items-center gap-1 px-2.5 py-1 rounded bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors shadow-sm text-slate-600">
@@ -589,7 +596,8 @@
         </div>
       </div>
 
-      <div class="p-5 bg-slate-50 border-t border-slate-200 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-20">
+      <!-- 🚀 FIX: pb-20 y xl:pb-28 empuja el contenido hacia arriba para que no estorbe el Widget global de Help -->
+      <div class="p-5 bg-slate-50 border-t border-slate-200 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-20 pb-24 xl:pb-28">
         <form method="POST" action="?/guardarNota" use:enhance={manejadorNota} class="flex flex-col gap-2.5">
           <input type="hidden" name="lead_id" value={selectedLead.id} />
           
@@ -614,7 +622,7 @@
           
           <div class="relative">
             <textarea name="contenido" bind:value={nuevaNotaTexto} onkeydown={handleKeyDown} placeholder={esRecordatorio ? "Describe la acción a realizar..." : "Escribe una minuta..."} class="w-full bg-white border border-slate-200 rounded-lg pl-3 pr-12 py-3 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 {esRecordatorio ? 'focus:ring-amber-500/20 focus:border-amber-500' : 'focus:ring-indigo-500/20 focus:border-indigo-500'} outline-none resize-none min-h-[80px] shadow-sm font-medium transition-colors" required></textarea>
-            <button type="submit" bind:this={submitBtn} disabled={guardandoNota || !nuevaNotaTexto.trim()} class="absolute bottom-3 right-3 {esRecordatorio ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-slate-900 hover:bg-indigo-600 text-white'} disabled:bg-slate-200 disabled:text-slate-400 p-2 rounded-md transition-colors flex items-center justify-center shadow-md active:scale-95">
+            <button type="submit" bind:this={submitBtn} disabled={guardandoNota || !nuevaNotaTexto.trim()} class="absolute bottom-3 right-3 {esRecordatorio ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-slate-900 hover:bg-indigo-600 text-white'} disabled:bg-slate-200 disabled:text-slate-400 p-2 rounded-md transition-colors flex items-center justify-center shadow-md active:scale-95 z-30">
               {#if guardandoNota}
                 <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
               {:else}
@@ -668,7 +676,6 @@
     </div>
   {/if}
 
-  <!-- 🚀 FIX: Nuevo Modal de Eliminación Seguro -->
   {#if showModalEliminar}
     <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-sm overflow-hidden animate-[fadeIn_0.2s_ease-out]">
@@ -695,10 +702,93 @@
     </div>
   {/if}
 
+  <!-- 🚀 FIX: Modal de Ingreso de Lead Manual -->
+  {#if showModalLeadManual}
+    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4" onclick={() => showModalLeadManual = false}>
+      <div class="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-lg overflow-hidden animate-[fadeIn_0.2s_ease-out] flex flex-col max-h-[90vh]" onclick={e => e.stopPropagation()}>
+        <div class="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center border border-indigo-200">
+              <Users class="w-5 h-5 text-indigo-600" />
+            </div>
+            <div>
+              <h3 class="text-lg font-black text-slate-900">Nuevo Prospecto</h3>
+              <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-0.5">Ingreso Manual</p>
+            </div>
+          </div>
+          <button onclick={() => showModalLeadManual = false} class="text-slate-400 hover:text-slate-900 p-2 rounded-full hover:bg-slate-200 transition-colors"><X class="w-5 h-5" /></button>
+        </div>
+        
+        <div class="overflow-y-auto p-6 bg-white">
+          <form id="form-lead-manual" method="POST" action="?/crearLeadManual" use:enhance={manejadorLeadManual} class="space-y-4">
+            <div>
+              <label class="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1.5">Nombre Completo <span class="text-rose-500">*</span></label>
+              <input type="text" name="nombre" required placeholder="Ej. Juan Pérez" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-colors">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1.5">Teléfono / WhatsApp</label>
+                <div class="relative">
+                  <Phone class="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input type="tel" name="telefono" placeholder="Opcional" class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2.5 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-colors">
+                </div>
+              </div>
+              <div>
+                <label class="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1.5">Correo Electrónico</label>
+                <div class="relative">
+                  <Mail class="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input type="email" name="correo" placeholder="Opcional" class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2.5 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-colors">
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1.5">Canal de Origen</label>
+              <select name="origen" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-colors">
+                <option value="WhatsApp">Llegó por WhatsApp</option>
+                <option value="Llamada">Llamada Telefónica</option>
+                <option value="Recomendación">Recomendación</option>
+                <option value="Redes Sociales">Redes Sociales (FB, IG)</option>
+                <option value="Guardia / Rótulo">Vio rótulo en la calle</option>
+                <option value="Manual" selected>Otro / Manual</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1.5">¿Le interesa una propiedad específica?</label>
+              <select name="propiedad_id" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-colors">
+                <option value="ninguna">Búsqueda General (No asignada)</option>
+                {#each propiedadesOptions as prop}
+                  <option value={prop.id}>{prop.titulo}</option>
+                {/each}
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-black text-slate-700 uppercase tracking-widest mb-1.5">Nota Inicial (Opcional)</label>
+              <textarea name="nota_inicial" placeholder="Contexto: ¿Qué está buscando? Presupuesto, zonas..." class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-colors min-h-[80px] resize-none"></textarea>
+            </div>
+          </form>
+        </div>
+        
+        <div class="p-5 bg-slate-50 border-t border-slate-100 flex justify-end gap-2.5 shrink-0">
+          <button type="button" onclick={() => showModalLeadManual = false} class="px-5 py-2.5 rounded-lg font-bold text-slate-500 hover:bg-slate-200 transition-colors text-[10px] uppercase tracking-widest">Cancelar</button>
+          <button type="submit" form="form-lead-manual" disabled={guardandoLeadManual} class="px-5 py-2.5 rounded-lg font-black uppercase tracking-widest bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/30 transition-all text-[10px] flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50 min-w-[120px]">
+            {#if guardandoLeadManual}
+              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            {:else}
+              Guardar Prospecto
+            {/if}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
 </main>
 
 <style>
-  /* 🚀 FIX CRÍTICO: Eliminamos la regla de Height para que JAMÁS afecte al scroll vertical. Anulamos el block gris */
   .kanban-board::-webkit-scrollbar { 
     height: 8px; 
     width: 0px; 
