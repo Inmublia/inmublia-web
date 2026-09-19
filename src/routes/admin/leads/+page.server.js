@@ -3,6 +3,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
+import { calcularScore } from '$lib/scoring.js'; // 🚀 Importamos el motor analítico
 
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
@@ -28,7 +29,7 @@ export const load = async ({ locals }) => {
     return { broker: null, leads: [], propiedades: [] };
   }
 
-  // 🚀 FIX: Filtro corregido. Usamos la columna 'estatus' en lugar de 'activa'
+  // 🚀 Filtro de propiedades para el selector del modal
   const { data: propiedades } = await db
     .from('propiedades')
     .select('id, titulo')
@@ -36,7 +37,7 @@ export const load = async ({ locals }) => {
     .neq('estatus', 'Vendida')
     .order('creado_en', { ascending: false });
 
-  // 2. Traemos todos los prospectos SIN MURO RLS (Usando 'db')
+  // 2. Traemos todos los prospectos
   const { data: leads, error: leadsError } = await db
     .from('leads')
     .select(`*, propiedades (*), lead_notas (*)`)
@@ -49,6 +50,7 @@ export const load = async ({ locals }) => {
 
   const now = new Date();
 
+  // PROCESAMIENTO Y SCORING DE CADA LEAD
   const leadsProcesados = (leads || []).map(lead => {
     const notas = lead.lead_notas || [];
     const notasOrdenadas = [...notas].sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime());
@@ -59,10 +61,14 @@ export const load = async ({ locals }) => {
       new Date(n.fecha_recordatorio) <= now
     );
 
+    // 🚀 Inyectamos el objeto tridimensional completo
+    const scoreObj = calcularScore({ ...lead, lead_notas: notasOrdenadas });
+
     return { 
       ...lead, 
       lead_notas: notasOrdenadas,
-      has_pending_reminder: pendingReminders.length > 0 
+      has_pending_reminder: pendingReminders.length > 0,
+      scoreObj: scoreObj
     };
   });
 
@@ -102,7 +108,6 @@ export const actions = {
       ultima_actividad: new Date().toISOString()
     };
 
-    // 1. Insertamos el Lead
     const { data: leadCreado, error: insertError } = await locals.supabase
       .from('leads')
       .insert(nuevoLead)
@@ -114,7 +119,6 @@ export const actions = {
       return fail(500, { error: `Error DB al crear prospecto: ${insertError.message}` });
     }
 
-    // 2. Si el broker dejó una nota inicial de contexto, la agregamos
     if (notaInicial && leadCreado) {
       await locals.supabase.from('lead_notas').insert({
         lead_id: leadCreado.id,
@@ -129,7 +133,6 @@ export const actions = {
   },
 
   actualizar: async ({ request, locals }) => {
-    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización: No puedes alterar los prospectos del cliente.' });
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
@@ -162,7 +165,6 @@ export const actions = {
   },
 
   eliminar: async ({ request, locals }) => {
-    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
@@ -178,7 +180,6 @@ export const actions = {
   },
 
   guardarNota: async ({ request, locals }) => {
-    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización: No puedes agregar notas al cliente.' });
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
@@ -231,7 +232,6 @@ export const actions = {
   },
 
   completarRecordatorio: async ({ request, locals }) => {
-    // 🚀 BLOQUEO DE SEGURIDAD MODO LECTURA
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
     if (!locals.user) return fail(401, { error: 'No autorizado' });
     const formData = await request.formData();
