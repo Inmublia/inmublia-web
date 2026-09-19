@@ -2,6 +2,7 @@
 <script>
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
+  import { beforeNavigate } from '$app/navigation'; // 🚀 FIX: reset states en navegación
   import imageCompression from 'browser-image-compression';
   import { Settings, ShieldCheck, Loader2, Calculator, Percent, AlertOctagon, Save } from 'lucide-svelte'; 
   import { onDestroy } from 'svelte';
@@ -17,6 +18,8 @@
   let currentWebhook = $derived(data.webhook || {});
 
   let planActual = $derived((broker.plan_suscripcion || 'basico').toLowerCase().trim());
+  
+  // 🚀 FIX: Reactividad forzada en los condicionales de planes
   let isPro = $derived(['pro', 'profesional', 'elite'].includes(planActual));
   let isElite = $derived(planActual === 'elite');
   let esPlanBasico = $derived(planActual === 'basico');
@@ -37,7 +40,7 @@
 
   let savingProfile = $state(false);
   let showSuccess = $state(false);
-  let successMessage = $state('');
+  let successMessage = $state('Cambios guardados correctamente.'); // 🚀 FIX: Mensaje por defecto
   let previewUrl = $state(null);
 
   let submitBtnPerfil = $state(null);
@@ -52,17 +55,15 @@
   let savingWebhook = $state(false);
   let testingWebhook = $state(false);
 
-  let subdominioError = $derived(
-    !broker.subdominio ? '' :
-    /\s/.test(broker.subdominio) ? 'No se permiten espacios' :
-    /[^a-z0-9-]/.test(broker.subdominio) ? 'Solo letras minúsculas, números y guiones' :
-    broker.subdominio.length < 3 ? 'Mínimo 3 caracteres' :
-    broker.subdominio.startsWith('-') || broker.subdominio.endsWith('-') ? 'No puede iniciar ni terminar con guión' : ''
-  );
-
-  let whatsappValido = $derived(
-    !broker.whatsapp || /^52\d{10}$/.test((broker.whatsapp || '').replace(/\D/g, ''))
-  );
+  // 🚀 FIX: Validación de WhatsApp controlando estados vacíos y feedback exacto
+  let whatsappEstado = $derived(() => {
+    if (!broker.whatsapp?.trim()) return 'vacio'; // Neutral
+    const limpio = broker.whatsapp.replace(/\D/g, '');
+    if (/^52\d{10}$/.test(limpio)) return 'valido';
+    if (limpio.length < 12) return 'incompleto';
+    return 'invalido';
+  });
+  let whatsappValido = $derived(whatsappEstado() === 'vacio' || whatsappEstado() === 'valido');
 
   const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
   const MAX_MB = 5;
@@ -87,10 +88,60 @@
     previewUrl = URL.createObjectURL(file);
   }
 
+  // 🚀 FIX: Fuga de memoria AbortController Subdominio
+  let subdominioDisponible = $state(null);
+  let verificandoSubdominio = $state(false);
+  let subdominioError = $derived(
+    !broker.subdominio ? '' :
+    /\s/.test(broker.subdominio) ? 'No se permiten espacios' :
+    /[^a-z0-9-]/.test(broker.subdominio) ? 'Solo letras minúsculas, números y guiones' :
+    broker.subdominio.length < 3 ? 'Mínimo 3 caracteres' :
+    broker.subdominio.startsWith('-') || broker.subdominio.endsWith('-') ? 'No puede iniciar ni terminar con guión' : 
+    (subdominioDisponible === false) ? 'Subdominio ocupado' : ''
+  );
+
+  $effect(() => {
+    const sub = broker.subdominio;
+    // Reset cuando se escribe
+    if (!sub || sub.length < 3 || subdominioError !== 'Subdominio ocupado' && subdominioError !== '') {
+      subdominioDisponible = null;
+      return;
+    }
+
+    // Abort controller previene que peticiones lentas pisen el estado si el user cambia de pestaña
+    const controller = new AbortController();
+    verificandoSubdominio = true;
+    
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/check-subdominio?sub=${encodeURIComponent(sub)}`, { signal: controller.signal });
+        if (!res.ok) throw new Error('Network error');
+        const { disponible } = await res.json();
+        subdominioDisponible = disponible;
+      } catch (e) {
+        if (e.name !== 'AbortError') subdominioDisponible = null;
+      } finally {
+        if (!controller.signal.aborted) verificandoSubdominio = false;
+      }
+    }, 600);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+      verificandoSubdominio = false;
+    };
+  });
+
   onDestroy(() => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   });
 
+  beforeNavigate(() => {
+     // Reset states on exit
+     savingProfile = false;
+  });
+
+  // 🚀 FIX: Ping al servidor centralizado, saltando restricciones CORS en el browser del cliente
   async function probarWebhook() {
     if (!webhookUrl) return alert('Ingresa una URL primero.');
     testingWebhook = true;
@@ -116,8 +167,9 @@
       }
     } catch (e) {
       alert('Error de conexión interna al intentar procesar la prueba.');
+    } finally {
+      testingWebhook = false;
     }
-    testingWebhook = false;
   }
 </script>
 
@@ -290,11 +342,19 @@
                     <input type="text" name="nombre_comercial" bind:value={broker.nombre_comercial} required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none">
                   </div>
                   
+                  <!-- 🚀 FIX: Input WhatsApp con feedback visual correcto -->
                   <div>
                     <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">WhatsApp de Contacto</span>
-                    <input type="tel" name="whatsapp" bind:value={broker.whatsapp} required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none {!whatsappValido && broker.whatsapp ? 'border-amber-300 bg-amber-50' : ''}" placeholder="Ej. 523312345678">
-                    {#if !whatsappValido && broker.whatsapp}
-                      <p class="text-[10px] text-amber-600 font-bold mt-1.5">Recuerda incluir el código de país (Ej. 52 para México) sin el signo +</p>
+                    <input type="tel" name="whatsapp" bind:value={broker.whatsapp} required 
+                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-colors
+                                  {whatsappEstado() === 'invalido' ? 'border-amber-300 bg-amber-50' : 
+                                   whatsappEstado() === 'valido' ? 'border-emerald-300' : ''}" 
+                           placeholder="Ej. 523312345678">
+                    
+                    {#if whatsappEstado() === 'invalido'}
+                      <p class="text-[10px] text-amber-600 font-bold mt-1.5">Recuerda incluir el código de país (Ej. 52 para México) sin el signo + ni espacios.</p>
+                    {:else if whatsappEstado() === 'incompleto'}
+                      <p class="text-[10px] text-slate-400 font-medium mt-1.5">Continúa escribiendo... 12 dígitos requeridos.</p>
                     {/if}
                   </div>
 
@@ -325,8 +385,12 @@
                       >
                       <div class="bg-slate-100 border-y border-r border-slate-200 rounded-r-xl px-4 py-3 text-sm font-medium text-slate-500 pointer-events-none">.inmublia.com</div>
                     </div>
-                    {#if subdominioError}
+                    {#if verificandoSubdominio}
+                      <p class="text-[10px] text-slate-400 font-bold mt-1.5 animate-pulse">Verificando disponibilidad...</p>
+                    {:else if subdominioError}
                       <p class="text-[10px] text-red-500 font-bold mt-1.5">{subdominioError}</p>
+                    {:else if subdominioDisponible && broker.subdominio && broker.subdominio.length >= 3}
+                      <p class="text-[10px] text-emerald-500 font-bold mt-1.5 flex items-center gap-1"><ShieldCheck class="w-3 h-3" /> Subdominio disponible</p>
                     {/if}
                   </div>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -425,14 +489,12 @@
 
           <div class="lg:col-span-4 space-y-6">
             
-            <!-- 🚀 FIX: Tarjeta de Membresía Actualizada con colores Dark (igual que el módulo de Webhook) -->
             <div class="bg-[#111827] text-white p-8 rounded-3xl shadow-xl relative overflow-hidden flex flex-col">
               <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white opacity-5 blur-2xl pointer-events-none"></div>
               
               <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10">Membresía Actual</h4>
               
               <div class="flex items-center gap-4 mb-6 relative z-10">
-                <!-- 🚀 FIX: if/else sintáctico corregido -->
                 {#if esTrial}
                    <div class="w-12 h-12 bg-white/10 text-white rounded-xl flex items-center justify-center shadow-md shrink-0 border border-white/20">
                      <ShieldCheck class="w-6 h-6" />
@@ -457,6 +519,7 @@
               </a>
             </div>
 
+            <!-- 🚀 FIX: Formulario de Webhook con use:enhance -->
             <form method="POST" action="?/guardarWebhook" use:enhance={() => { 
               savingWebhook = true; 
               return async ({ update, result }) => { 
@@ -466,6 +529,8 @@
                   successMessage = 'El Webhook ha sido guardado y ya está activo.';
                   showSuccess = true;
                   setTimeout(() => showSuccess = false, 3500);
+                } else if (result.type === 'failure') {
+                  alert(result.data?.error || "Error al guardar webhook");
                 }
                 
                 await update({ reset: false }); 
