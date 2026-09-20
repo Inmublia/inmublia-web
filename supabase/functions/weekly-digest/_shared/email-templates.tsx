@@ -24,8 +24,10 @@ function WeeklyDigestEmail({ broker, metricas, briefing, semanaInicio }: WeeklyD
   const semanaLabel = formatearSemana(semanaInicio)
   const nombre = broker.nombre_comercial?.split(' ')[0] ?? 'Ejecutivo'
   const plan = broker.plan_suscripcion?.toUpperCase() ?? 'PRO'
-  // Si no hay avatar en la BD, usamos un placeholder elegante con iniciales o logo por defecto.
-  const avatarUrl = broker.avatar_url || 'https://app.inmublia.com/assets/default-avatar.png'
+  
+  // Lógica a prueba de balas para el Avatar
+  const avatarUrl = (broker.avatar_url && broker.avatar_url.startsWith('http')) ? broker.avatar_url : null;
+  const iniciales = (broker.nombre_comercial || 'Ejecutivo').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
   
   const t = {
     bg: '#000000', 
@@ -51,24 +53,26 @@ function WeeklyDigestEmail({ broker, metricas, briefing, semanaInicio }: WeeklyD
         
         <Container style={{ maxWidth: '680px', margin: '0 auto', backgroundColor: t.surface, border: `1px solid ${t.border}`, borderRadius: '12px', overflow: 'hidden' }}>
           
-          {/* Header Centrado con Logo y Plan */}
-          <Section style={{ padding: '32px 40px', borderBottom: `1px solid ${t.border}`, textAlign: 'center' }}>
-            <Text style={{ color: t.textMuted, fontSize: '10px', margin: '0 0 16px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '2px' }}>
-              PLAN {plan}
-            </Text>
-            <Img 
-              src="https://app.inmublia.com/logo.png" 
-              width="140" 
-              height="auto" 
-              alt="Inmublia" 
-              style={{ display: 'block', margin: '0 auto', outline: 'none', border: 'none' }}
-            />
+          {/* Header Corregido: Marca izquierda, Plan derecha */}
+          <Section style={{ padding: '32px 40px', borderBottom: `1px solid ${t.border}` }}>
+            <Row>
+              <Column align="left">
+                <Text style={{ margin: 0, fontSize: '28px', fontWeight: '900', color: t.textMain, letterSpacing: '-1px' }}>
+                  INMUBLIA.
+                </Text>
+              </Column>
+              <Column align="right">
+                <Text style={{ color: t.textMuted, fontSize: '11px', margin: '0', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px' }}>
+                  PLAN <span style={{ color: t.brand }}>{plan}</span>
+                </Text>
+              </Column>
+            </Row>
           </Section>
 
           {/* Intro con Avatar del Broker */}
           <Section style={{ padding: '40px 40px 20px' }}>
             <Row>
-              <Column>
+              <Column align="left">
                 <Text style={{ color: t.textMuted, fontSize: '12px', margin: '0 0 12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>
                   Semana del {semanaLabel}
                 </Text>
@@ -76,14 +80,20 @@ function WeeklyDigestEmail({ broker, metricas, briefing, semanaInicio }: WeeklyD
                   Hola, {nombre}.
                 </Text>
               </Column>
-              <Column align="right" style={{ width: '60px' }}>
-                <Img 
-                  src={avatarUrl} 
-                  width="56" 
-                  height="56" 
-                  alt={nombre}
-                  style={{ borderRadius: '50%', border: `1px solid ${t.border}`, objectFit: 'cover', display: 'block' }}
-                />
+              <Column align="right" style={{ width: '56px' }}>
+                {avatarUrl ? (
+                  <Img 
+                    src={avatarUrl} 
+                    width="56" 
+                    height="56" 
+                    alt={nombre}
+                    style={{ borderRadius: '50%', border: `1px solid ${t.border}`, objectFit: 'cover', display: 'block' }}
+                  />
+                ) : (
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: t.card, border: `1px solid ${t.border}`, display: 'inline-block', textAlign: 'center', lineHeight: '56px', color: t.textMain, fontSize: '16px', fontWeight: '700' }}>
+                    {iniciales}
+                  </div>
+                )}
               </Column>
             </Row>
             
