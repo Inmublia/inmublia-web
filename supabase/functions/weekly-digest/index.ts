@@ -8,13 +8,13 @@ const resend = new Resend(Deno.env.get('RESEND_API_KEY')!)
 function getLunesPasado() {
   const hoy = new Date();
   const diaSemana = hoy.getDay() || 7; 
-  hoy.setDate(hoy.getDate() - diaSemana - 6);
+  // CORRECCIÓN: Retrocede exactamente al lunes de esta semana, a prueba de domingos
+  hoy.setDate(hoy.getDate() - diaSemana + 1);
   return hoy.toISOString().split('T')[0];
 }
 
 Deno.serve(async (req) => {
   try {
-    // SEGURIDAD ENTERPRISE: Sanitizamos las entradas con .trim() para evitar bloqueos por espacios invisibles o saltos de línea del dashboard.
     const cronHeader = req.headers.get('X-Cron-Secret')?.trim()
     const expectedSecret = Deno.env.get('CRON_SECRET')?.trim()
 
