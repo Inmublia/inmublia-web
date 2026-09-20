@@ -14,12 +14,12 @@ function getLunesPasado() {
 
 Deno.serve(async (req) => {
   try {
-    // SEGURIDAD ENTERPRISE: Usamos un header custom para evitar que el API Gateway (Kong) mutile la cabecera Authorization.
-    const cronHeader = req.headers.get('X-Cron-Secret')
-    const expectedSecret = Deno.env.get('CRON_SECRET')
+    // SEGURIDAD ENTERPRISE: Sanitizamos las entradas con .trim() para evitar bloqueos por espacios invisibles o saltos de línea del dashboard.
+    const cronHeader = req.headers.get('X-Cron-Secret')?.trim()
+    const expectedSecret = Deno.env.get('CRON_SECRET')?.trim()
 
-    if (!cronHeader || cronHeader !== expectedSecret) {
-      console.warn(`[SECURITY] Bloqueado. Recibido: ${cronHeader ? 'Token incorrecto' : 'Vacio'}`)
+    if (!cronHeader || !expectedSecret || cronHeader !== expectedSecret) {
+      console.warn(`[SECURITY] Bloqueado. Token incorrecto. Largo SQL: ${cronHeader?.length || 0} vs Largo Bóveda: ${expectedSecret?.length || 0}`)
       return new Response('Unauthorized', { status: 401 })
     }
 
