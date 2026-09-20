@@ -5,8 +5,7 @@ function formatearSemana(semanaInicio: string) {
 }
 
 export async function obtenerMetricasSemana(supabase: any, brokerId: string, semanaInicio: string) {
-  // SEGURIDAD ENTERPRISE: Anclamos las fechas a T00:00:00.000Z para que las consultas SQL 
-  // de PostgREST no sufran desfases de zona horaria según dónde esté ejecutándose el servidor Deno.
+  // SEGURIDAD ENTERPRISE: Anclamos las fechas a T00:00:00.000Z para alinear los SQL al milisegundo.
   const inicio = new Date(`${semanaInicio}T00:00:00.000Z`)
   
   const fin = new Date(inicio)
@@ -21,17 +20,22 @@ export async function obtenerMetricasSemana(supabase: any, brokerId: string, sem
     { data: leadsActivos },
     { data: propiedades },
     { data: notasRecordatorios },
+    { data: leadsCerradosEstaSemana }, // NUEVA CONSULTA
   ] = await Promise.all([
     supabase.from('leads').select('id, nombre, estado, origen, score_ia, score_etiqueta').eq('broker_id', brokerId).gte('creado_en', inicio.toISOString()).lt('creado_en', fin.toISOString()),
     supabase.from('leads').select('id').eq('broker_id', brokerId).gte('creado_en', inicioAnterior.toISOString()).lt('creado_en', inicio.toISOString()),
     supabase.from('leads').select('id, nombre, estado, score_ia, score_etiqueta, score_accion').eq('broker_id', brokerId).gte('score_ia', 75).not('estado', 'in', '("cerrado","descartado")'),
     supabase.from('propiedades').select('id', { count: 'exact' }).eq('broker_id', brokerId).eq('estatus', 'Activa'),
     supabase.from('lead_notas').select('id, contenido, fecha_recordatorio').eq('broker_id', brokerId).eq('tipo', 'recordatorio').eq('completado', false).lte('fecha_recordatorio', fin.toISOString()),
+    // DEUDA TÉCNICA RESUELTA: Consultamos cierres reales basados en su actualización de estado, sin importar cuándo nacieron.
+    supabase.from('leads').select('id').eq('broker_id', brokerId).eq('estado', 'cerrado').gte('actualizado_en', inicio.toISOString()).lt('actualizado_en', fin.toISOString()),
   ])
 
   const leadsNuevos = leadsEstaSemana?.length ?? 0
   const leadsNuevosAntes = leadsSemanaAnterior?.length ?? 0
-  const cerradosEstaSemana = leadsEstaSemana?.filter((l: any) => l.estado?.toLowerCase() === 'cerrado') ?? []
+  
+  // Asignamos directamente el contador de la nueva consulta limpia
+  const cerradosEstaSemana = leadsCerradosEstaSemana?.length ?? 0
   
   const delta = leadsNuevosAntes > 0 ? Math.round(((leadsNuevos - leadsNuevosAntes) / leadsNuevosAntes) * 100) : leadsNuevos > 0 ? 100 : 0
   
@@ -50,7 +54,7 @@ export async function obtenerMetricasSemana(supabase: any, brokerId: string, sem
     leadsNuevosAntes,
     delta,
     deltaPositivo: delta >= 0,
-    cerradosEstaSemana: cerradosEstaSemana.length,
+    cerradosEstaSemana,
     leadsCalientes,
     totalPropiedades: propiedades?.length ?? 0,
     recordatoriosPendientes: notasRecordatorios?.length ?? 0,
