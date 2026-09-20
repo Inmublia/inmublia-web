@@ -3,12 +3,6 @@ import { Resend } from 'https://esm.sh/resend@4'
 import { obtenerMetricasSemana, generarBriefingIA, generarAsunto, hayContenidoRelevante } from './_shared/metricas.ts'
 import { renderWeeklyDigest } from './_shared/email-templates.tsx'
 
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-)
-
 const resend = new Resend(Deno.env.get('RESEND_API_KEY')!)
 
 function getLunesPasado() {
@@ -20,21 +14,37 @@ function getLunesPasado() {
 
 Deno.serve(async (req) => {
   try {
+    // 1. SEGURIDAD ENTERPRISE: Solo permitimos la entrada si traen el secreto específico del Cron.
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader?.includes(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)) {
-      return new Response('No autorizado', { status: 401 })
+    const expectedSecret = Deno.env.get('CRON_SECRET')
+
+    if (!authHeader || authHeader !== `Bearer ${expectedSecret}`) {
+      console.warn('[SECURITY] Intento de acceso bloqueado. CRON_SECRET inválido.')
+      return new Response('Unauthorized', { status: 401 })
     }
+
+    // 2. CLIENTE PRIVILEGIADO: Inicializamos Supabase leyendo la llave maestra desde la bóveda encriptada (Secrets), nunca desde internet.
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      {
+        auth: { autoRefreshToken: false, persistSession: false }
+      }
+    )
 
     const semanaInicio = getLunesPasado()
 
-    const { data: brokers, error: brokersError } = await supabase
+    const { data: brokers, error: brokersError } = await supabaseAdmin
       .from('brokers')
       .select('id, nombre_comercial, email, plan_suscripcion, ia_creditos_disponibles, email_unsubscribe_token, email_digest_hora')
       .eq('status_suscripcion', 'activa')
       .eq('email_digest_activo', true)
       .not('email', 'is', null)
 
-    if (brokersError) throw new Error(`Error obteniendo brokers: ${brokersError.message}`)
+    if (brokersError) {
+      console.error('Error obteniendo brokers:', brokersError.message)
+      return new Response('Error de BD', { status: 500 })
+    }
     
     console.log(`[weekly-digest] Procesando ${brokers?.length ?? 0} brokers`)
 
@@ -45,7 +55,7 @@ Deno.serve(async (req) => {
       const lote = brokers!.slice(i, i + BATCH_SIZE)
       
       await Promise.allSettled(lote.map(broker =>
-        procesarBroker(broker, semanaInicio, resultados)
+        procesarBroker(supabaseAdmin, broker, semanaInicio, resultados)
       ))
 
       if (i + BATCH_SIZE < brokers!.length) {
@@ -64,9 +74,9 @@ Deno.serve(async (req) => {
   }
 })
 
-async function procesarBroker(broker: any, semanaInicio: string, resultados: any): Promise<void> {
+async function procesarBroker(supabaseAdmin: any, broker: any, semanaInicio: string, resultados: any): Promise<void> {
   try {
-    const { data: yaEnviado } = await supabase
+    const { data: yaEnviado } = await supabaseAdmin
       .from('email_digest_log')
       .select('id')
       .eq('broker_id', broker.id)
@@ -79,14 +89,14 @@ async function procesarBroker(broker: any, semanaInicio: string, resultados: any
       return
     }
 
-    const metricas = await obtenerMetricasSemana(supabase, broker.id, semanaInicio)
+    const metricas = await obtenerMetricasSemana(supabaseAdmin, broker.id, semanaInicio)
 
     if (!hayContenidoRelevante(metricas)) {
       resultados.omitidos++
       return
     }
 
-    const briefing = await generarBriefingIA(supabase, broker, metricas)
+    const briefing = await generarBriefingIA(supabaseAdmin, broker, metricas)
 
     const { html, text } = await renderWeeklyDigest({
       broker,
@@ -118,7 +128,7 @@ async function procesarBroker(broker: any, semanaInicio: string, resultados: any
 
     if (resendError) throw new Error(`Resend: ${resendError.message}`)
 
-    await supabase.from('email_digest_log').insert({
+    await supabaseAdmin.from('email_digest_log').insert({
       broker_id: broker.id,
       semana_inicio: semanaInicio,
       estado: 'enviado',
@@ -130,7 +140,7 @@ async function procesarBroker(broker: any, semanaInicio: string, resultados: any
     resultados.enviados++
   } catch (err) {
     console.error(`[weekly-digest] Error en broker ${broker.id}:`, err.message)
-    await supabase.from('email_digest_log').insert({
+    await supabaseAdmin.from('email_digest_log').insert({
       broker_id: broker.id,
       semana_inicio: semanaInicio,
       estado: 'error',
