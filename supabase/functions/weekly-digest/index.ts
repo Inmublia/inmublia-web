@@ -14,7 +14,7 @@ function getLunesPasado() {
 
 Deno.serve(async (req) => {
   try {
-    // 1. SEGURIDAD ENTERPRISE: Solo permitimos la entrada si traen el secreto específico del Cron.
+    // 1. SEGURIDAD ENTERPRISE: Solo permitimos la entrada si traen el codigo secreto específico del Cron.
     const authHeader = req.headers.get('Authorization')
     const expectedSecret = Deno.env.get('CRON_SECRET')
 
