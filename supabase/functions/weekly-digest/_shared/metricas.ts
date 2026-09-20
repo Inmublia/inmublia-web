@@ -1,11 +1,9 @@
 function formatearSemana(semanaInicio: string) {
-  // Forzamos un punto medio UTC para evitar que el formateador atrase un día por zona horaria
   const fecha = new Date(`${semanaInicio}T12:00:00Z`);
   return fecha.toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
 }
 
 export async function obtenerMetricasSemana(supabase: any, brokerId: string, semanaInicio: string) {
-  // SEGURIDAD ENTERPRISE: Anclamos las fechas a T00:00:00.000Z para alinear los SQL al milisegundo.
   const inicio = new Date(`${semanaInicio}T00:00:00.000Z`)
   
   const fin = new Date(inicio)
@@ -20,21 +18,18 @@ export async function obtenerMetricasSemana(supabase: any, brokerId: string, sem
     { data: leadsActivos },
     { data: propiedades },
     { data: notasRecordatorios },
-    { data: leadsCerradosEstaSemana }, // NUEVA CONSULTA
+    { data: leadsCerradosEstaSemana }, 
   ] = await Promise.all([
     supabase.from('leads').select('id, nombre, estado, origen, score_ia, score_etiqueta').eq('broker_id', brokerId).gte('creado_en', inicio.toISOString()).lt('creado_en', fin.toISOString()),
     supabase.from('leads').select('id').eq('broker_id', brokerId).gte('creado_en', inicioAnterior.toISOString()).lt('creado_en', inicio.toISOString()),
     supabase.from('leads').select('id, nombre, estado, score_ia, score_etiqueta, score_accion').eq('broker_id', brokerId).gte('score_ia', 75).not('estado', 'in', '("cerrado","descartado")'),
     supabase.from('propiedades').select('id', { count: 'exact' }).eq('broker_id', brokerId).eq('estatus', 'Activa'),
     supabase.from('lead_notas').select('id, contenido, fecha_recordatorio').eq('broker_id', brokerId).eq('tipo', 'recordatorio').eq('completado', false).lte('fecha_recordatorio', fin.toISOString()),
-    // DEUDA TÉCNICA RESUELTA: Consultamos cierres reales basados en su actualización de estado, sin importar cuándo nacieron.
     supabase.from('leads').select('id').eq('broker_id', brokerId).eq('estado', 'cerrado').gte('actualizado_en', inicio.toISOString()).lt('actualizado_en', fin.toISOString()),
   ])
 
   const leadsNuevos = leadsEstaSemana?.length ?? 0
   const leadsNuevosAntes = leadsSemanaAnterior?.length ?? 0
-  
-  // Asignamos directamente el contador de la nueva consulta limpia
   const cerradosEstaSemana = leadsCerradosEstaSemana?.length ?? 0
   
   const delta = leadsNuevosAntes > 0 ? Math.round(((leadsNuevos - leadsNuevosAntes) / leadsNuevosAntes) * 100) : leadsNuevos > 0 ? 100 : 0
@@ -77,12 +72,13 @@ export function generarAsunto(broker: any, metricas: any): string {
 }
 
 export async function generarBriefingIA(supabase: any, broker: any, metricas: any): Promise<string | null> {
-  const cacheKey = `briefing-email:${broker.id}:${metricas.semana}`
+  // CAMBIO CRÍTICO: Nueva llave 'v2' para ignorar el caché negativo anterior y forzar una nueva lectura.
+  const cacheKey = `briefing-email-v2:${broker.id}:${metricas.semana}`
   const cached = await supabase.from('ai_cache').select('contenido').eq('cache_key', cacheKey).single()
   
   if (cached.data?.contenido) return cached.data.contenido
 
-  if (metricas.leadsCalientes.length === 0 && metricas.cerradosEstaSemana === 0) return null
+  if (metricas.leadsCalientes.length === 0 && metricas.cerradosEstaSemana === 0 && metricas.leadsNuevos === 0) return null
 
   try {
     const response = await fetch(
@@ -119,21 +115,20 @@ export async function generarBriefingIA(supabase: any, broker: any, metricas: an
 function buildBriefingPrompt(broker: any, metricas: any): string {
   const lineasCalientes = metricas.leadsCalientes.map((l: any) => `  • ${l.nombre}: ${l.score_accion}`).join('\n')
   
-  return `Eres el asistente ejecutivo de ${broker.nombre_comercial}, asesor inmobiliario en México.
-Escribe el párrafo de apertura de su resumen semanal por email. Máximo 2 oraciones.
+  return `Eres el coach de ventas y analista ejecutivo de ${broker.nombre_comercial}, un asesor inmobiliario top en México.
+Escribe el párrafo de apertura de su reporte semanal. Máximo 2 oraciones.
 
-Datos de la semana:
-- Leads nuevos: ${metricas.leadsNuevos} (${metricas.delta > 0 ? '+' : ''}${metricas.delta}% vs semana anterior)
-- Operaciones cerradas: ${metricas.cerradosEstaSemana}
-- Leads calientes que necesitan atención:
-${lineasCalientes || '  Ninguno'}
-- Recordatorios pendientes: ${metricas.recordatoriosPendientes}
+Datos:
+- Leads nuevos: ${metricas.leadsNuevos} (${metricas.delta > 0 ? '+' : ''}${metricas.delta}% vs sem. ant.)
+- Cierres: ${metricas.cerradosEstaSemana}
+- Oportunidades: ${lineasCalientes || 'Ninguno crítico'}
+- Tareas: ${metricas.recordatoriosPendientes}
 
-Reglas:
-- Tono: profesional, directo y ejecutivo.
-- ESTRICTAMENTE PROHIBIDO inventar datos, prometer "plusvalía garantizada", "rendimientos" o usar superlativos exagerados ("el mejor").
-- Primera oración: el dato más importante de la semana (logro o urgencia).
-- Segunda oración: la acción más crítica sugerida para hoy lunes.
-- Sin saludos, sin despedidas, sin emojis, en español mexicano.
-- Retorna SOLO el párrafo, sin comillas ni formato Markdown.`
+REGLAS ESTRICTAS DE TONO:
+- Tono: Ejecutivo, motivador, enfocado a resultados y proactivo.
+- PROHIBIDO ABSOLUTAMENTE: Ser negativo, regañar, o usar palabras como "descenso", "caída", "crisis", "problema". 
+- Si los números son bajos o cero, enfócalo positivamente como el momento ideal para: prospectar agresivamente, reconectar con cartera antigua, y afinar estrategias. Todo es una "oportunidad".
+- Primera oración: El logro principal o la oportunidad más valiosa.
+- Segunda oración: Acción directa y motivadora sugerida.
+- Sin saludos, sin emojis. Retorna SOLO el texto.`
 }
