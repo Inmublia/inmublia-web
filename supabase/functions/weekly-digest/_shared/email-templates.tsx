@@ -1,5 +1,5 @@
 import React from 'npm:react'
-import { Html, Head, Body, Container, Section, Row, Column, Text, Link, Button, Hr, Preview, Img } from 'npm:@react-email/components'
+import { Html, Head, Body, Container, Section, Row, Column, Text, Link, Button, Preview, Img } from 'npm:@react-email/components'
 import { render } from 'npm:@react-email/render'
 
 interface WeeklyDigestProps {
@@ -24,187 +24,139 @@ function WeeklyDigestEmail({ broker, metricas, briefing, semanaInicio }: WeeklyD
   const semanaLabel = formatearSemana(semanaInicio)
   const nombre = broker.nombre_comercial?.split(' ')[0] ?? 'Ejecutivo'
   
-  // Paleta Enterprise (Tailwind Base)
-  const theme = {
-    bg: '#F8FAFC',          // slate-50
-    surface: '#FFFFFF',     // white
-    border: '#E2E8F0',      // slate-200
-    borderLight: '#F1F5F9', // slate-100
-    primary: '#0F172A',     // slate-900 (Textos principales)
-    secondary: '#475569',   // slate-600 (Textos secundarios)
-    accent: '#0F2444',      // Inmublia Navy Brand
-    brandBlue: '#2563EB',   // blue-600 (CTAs y links)
-    success: '#059669',     // emerald-600
-    successBg: '#ECFDF5',   // emerald-50
-    warning: '#D97706',     // amber-600
-    warningBg: '#FFFBEB'    // amber-50
+  // Paleta Enterprise Clean (Stripe/Linear vibes)
+  const t = {
+    black: '#09090B',
+    white: '#FFFFFF',
+    brand: '#2563EB',
+    textMain: '#18181B',
+    textMuted: '#71717A',
+    bg: '#FAFAFA',
+    border: '#E4E4E7',
+    success: '#10B981',
+    alert: '#F59E0B'
   }
 
   return (
     <Html lang="es" dir="ltr">
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="color-scheme" content="light" />
       </Head>
-      <Preview>
-        {metricas.leadsCalientes?.length > 0
-          ? `Reporte Ejecutivo: ${metricas.leadsCalientes[0].nombre} requiere atención prioritaria hoy.`
-          : `Reporte Ejecutivo de Pipeline - Semana del ${semanaLabel}`}
-      </Preview>
-      <Body style={{ margin: '0', padding: '0', backgroundColor: theme.bg, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif' }}>
-        <Container style={{ maxWidth: '600px', margin: '40px auto', backgroundColor: theme.surface, borderRadius: '8px', overflow: 'hidden', border: `1px solid ${theme.border}`, boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)' }}>
+      <Preview>Reporte Ejecutivo Inmublia - Semana del {semanaLabel}</Preview>
+      <Body style={{ margin: '0', padding: '40px 0', backgroundColor: t.bg, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif' }}>
+        <Container style={{ maxWidth: '640px', margin: '0 auto', backgroundColor: t.white, border: `1px solid ${t.border}`, borderRadius: '12px', overflow: 'hidden' }}>
           
-          {/* Header Corporativo */}
-          <Section style={{ padding: '32px 32px 24px', borderBottom: `1px solid ${theme.borderLight}` }}>
+          {/* Header Black */}
+          <Section style={{ backgroundColor: t.black, padding: '40px' }}>
             <Row>
               <Column>
-                {/* INSERTA AQUÍ LA URL REAL DE TU LOGO */}
                 <Img 
-                  src="https://app.inmublia.com/assets/logo-dark.png" 
-                  width="110" 
+                  src="https://app.inmublia.com/logo.png" 
+                  width="130" 
                   height="auto" 
                   alt="Inmublia" 
                   style={{ display: 'block', outline: 'none', border: 'none', textDecoration: 'none' }}
                 />
               </Column>
               <Column align="right">
-                <Text style={{ color: theme.secondary, fontSize: '12px', margin: '0', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Reporte Confidencial
-                </Text>
-                <Text style={{ color: theme.primary, fontSize: '13px', margin: '4px 0 0', fontWeight: '600' }}>
-                  {semanaLabel}
+                <Text style={{ color: t.white, opacity: 0.6, fontSize: '12px', margin: '0', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  {broker.plan_suscripcion?.toUpperCase() ?? 'PRO'}
                 </Text>
               </Column>
             </Row>
           </Section>
-          
-          {/* Executive Summary (IA) */}
-          <Section style={{ padding: '32px 32px 0' }}>
-            <Text style={{ fontSize: '20px', fontWeight: '700', color: theme.primary, margin: '0 0 24px', letterSpacing: '-0.02em' }}>
-              Estimado {nombre},
+
+          {/* Intro & AI Briefing */}
+          <Section style={{ padding: '40px 40px 20px' }}>
+            <Text style={{ color: t.textMuted, fontSize: '13px', margin: '0 0 8px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              Semana del {semanaLabel}
+            </Text>
+            <Text style={{ fontSize: '24px', fontWeight: '600', color: t.textMain, margin: '0 0 30px', letterSpacing: '-0.5px' }}>
+              Hola, {nombre}.
             </Text>
             
             {briefing && (
-              <div style={{ backgroundColor: theme.bg, borderLeft: `3px solid ${theme.brandBlue}`, padding: '20px', marginBottom: '32px' }}>
-                <Text style={{ fontSize: '11px', fontWeight: '700', color: theme.secondary, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Análisis de Inteligencia de Negocios
+              <div style={{ paddingLeft: '20px', borderLeft: `2px solid ${t.brand}`, marginBottom: '40px' }}>
+                <Text style={{ fontSize: '11px', fontWeight: '700', color: t.brand, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  Análisis Estratégico AI
                 </Text>
-                <Text style={{ fontSize: '15px', lineHeight: '1.6', color: theme.primary, margin: '0' }}>
+                <Text style={{ fontSize: '16px', lineHeight: '1.6', color: t.textMain, margin: '0', fontWeight: '400' }}>
                   {briefing}
                 </Text>
               </div>
             )}
           </Section>
 
-          {/* Core Metrics Grid */}
-          <Section style={{ padding: '0 32px 32px' }}>
-            <Text style={{ fontSize: '14px', fontWeight: '600', color: theme.primary, margin: '0 0 16px' }}>
-              Rendimiento del Pipeline
-            </Text>
+          {/* Clean KPIs */}
+          <Section style={{ padding: '0 40px 40px' }}>
             <Row>
-              {/* Nuevos Leads */}
-              <Column style={{ width: '33.33%', paddingRight: '8px' }}>
-                <div style={{ border: `1px solid ${theme.border}`, borderRadius: '6px', padding: '16px', height: '100%' }}>
-                  <Text style={{ fontSize: '12px', color: theme.secondary, margin: '0 0 8px', fontWeight: '500' }}>Volumen de Leads</Text>
-                  <Text style={{ fontSize: '28px', fontWeight: '700', color: theme.primary, margin: '0 0 8px', letterSpacing: '-0.02em' }}>{metricas.leadsNuevos}</Text>
-                  <Text style={{ fontSize: '12px', color: metricas.deltaPositivo ? theme.success : theme.secondary, margin: '0', fontWeight: '500' }}>
-                    {metricas.deltaPositivo && metricas.delta > 0 ? `+${metricas.delta}% vs ant.` : metricas.delta < 0 ? `${metricas.delta}% vs ant.` : 'Sin variación'}
-                  </Text>
-                </div>
+              <Column style={{ width: '33.3%' }}>
+                <Text style={{ fontSize: '13px', color: t.textMuted, margin: '0 0 8px', fontWeight: '500' }}>Nuevos Leads</Text>
+                <Text style={{ fontSize: '40px', fontWeight: '300', color: t.textMain, margin: '0 0 4px', letterSpacing: '-1px' }}>{metricas.leadsNuevos}</Text>
+                <Text style={{ fontSize: '12px', color: metricas.delta >= 0 ? t.success : t.textMuted, margin: '0', fontWeight: '500' }}>
+                  {metricas.delta > 0 ? `+${metricas.delta}%` : metricas.delta < 0 ? `${metricas.delta}%` : '-'} vs ant.
+                </Text>
               </Column>
-              
-              {/* Cierres */}
-              <Column style={{ width: '33.33%', paddingRight: '4px', paddingLeft: '4px' }}>
-                <div style={{ backgroundColor: metricas.cerradosEstaSemana > 0 ? theme.successBg : theme.surface, border: `1px solid ${metricas.cerradosEstaSemana > 0 ? '#A7F3D0' : theme.border}`, borderRadius: '6px', padding: '16px', height: '100%' }}>
-                  <Text style={{ fontSize: '12px', color: theme.secondary, margin: '0 0 8px', fontWeight: '500' }}>Operaciones Cerradas</Text>
-                  <Text style={{ fontSize: '28px', fontWeight: '700', color: metricas.cerradosEstaSemana > 0 ? theme.success : theme.primary, margin: '0 0 8px', letterSpacing: '-0.02em' }}>{metricas.cerradosEstaSemana}</Text>
-                  <Text style={{ fontSize: '12px', color: metricas.cerradosEstaSemana > 0 ? theme.success : theme.secondary, margin: '0', fontWeight: '500' }}>
-                    {metricas.cerradosEstaSemana > 0 ? 'Objetivo alcanzado' : 'Pendiente'}
-                  </Text>
-                </div>
+              <Column style={{ width: '33.3%' }}>
+                <Text style={{ fontSize: '13px', color: t.textMuted, margin: '0 0 8px', fontWeight: '500' }}>Cierres</Text>
+                <Text style={{ fontSize: '40px', fontWeight: '300', color: metricas.cerradosEstaSemana > 0 ? t.success : t.textMain, margin: '0 0 4px', letterSpacing: '-1px' }}>{metricas.cerradosEstaSemana}</Text>
+                <Text style={{ fontSize: '12px', color: metricas.cerradosEstaSemana > 0 ? t.success : t.textMuted, margin: '0', fontWeight: '500' }}>
+                  Esta semana
+                </Text>
               </Column>
-              
-              {/* Propiedades */}
-              <Column style={{ width: '33.33%', paddingLeft: '8px' }}>
-                <div style={{ border: `1px solid ${theme.border}`, borderRadius: '6px', padding: '16px', height: '100%' }}>
-                  <Text style={{ fontSize: '12px', color: theme.secondary, margin: '0 0 8px', fontWeight: '500' }}>Cartera Activa</Text>
-                  <Text style={{ fontSize: '28px', fontWeight: '700', color: theme.primary, margin: '0 0 8px', letterSpacing: '-0.02em' }}>{metricas.totalPropiedades}</Text>
-                  <Text style={{ fontSize: '12px', color: theme.secondary, margin: '0', fontWeight: '500' }}>
-                    Propiedades
-                  </Text>
-                </div>
+              <Column style={{ width: '33.3%' }}>
+                <Text style={{ fontSize: '13px', color: t.textMuted, margin: '0 0 8px', fontWeight: '500' }}>Cartera</Text>
+                <Text style={{ fontSize: '40px', fontWeight: '300', color: t.textMain, margin: '0 0 4px', letterSpacing: '-1px' }}>{metricas.totalPropiedades}</Text>
+                <Text style={{ fontSize: '12px', color: t.textMuted, margin: '0', fontWeight: '500' }}>Activas</Text>
               </Column>
             </Row>
           </Section>
 
-          {/* Origen de Leads */}
-          {metricas.topFuentes && metricas.topFuentes.length > 0 && (
-            <Section style={{ padding: '0 32px 32px' }}>
-              <Text style={{ fontSize: '14px', fontWeight: '600', color: theme.primary, margin: '0 0 16px' }}>
-                Distribución de Adquisición
-              </Text>
-              <div style={{ border: `1px solid ${theme.border}`, borderRadius: '6px' }}>
-                {metricas.topFuentes.slice(0, 3).map((fuente: any, i: number) => (
-                  <Row key={i} style={{ borderBottom: i === metricas.topFuentes.slice(0, 3).length - 1 ? 'none' : `1px solid ${theme.borderLight}`, padding: '12px 16px' }}>
-                    <Column><Text style={{ margin: 0, fontSize: '13px', color: theme.secondary }}>{fuente.fuente}</Text></Column>
-                    <Column align="right"><Text style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: theme.primary }}>{fuente.count}</Text></Column>
-                  </Row>
-                ))}
-              </div>
-            </Section>
-          )}
-
           {/* Oportunidades Prioritarias */}
           {metricas.leadsCalientes && metricas.leadsCalientes.length > 0 && (
-            <Section style={{ padding: '0 32px 32px' }}>
-              <Hr style={{ borderColor: theme.border, margin: '0 0 32px' }} />
-              <Text style={{ fontSize: '14px', fontWeight: '600', color: theme.primary, margin: '0 0 16px' }}>
-                Oportunidades de Alta Prioridad
+            <Section style={{ padding: '0 40px 40px' }}>
+              <Text style={{ fontSize: '12px', fontWeight: '600', color: t.textMuted, margin: '0 0 20px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                Oportunidades Críticas
               </Text>
               {metricas.leadsCalientes.map((lead: any, i: number) => (
-                <div key={i} style={{ backgroundColor: theme.warningBg, border: `1px solid #FDE68A`, borderRadius: '6px', padding: '16px', marginBottom: '8px' }}>
-                  <Row>
-                    <Column>
-                      <Text style={{ fontSize: '14px', fontWeight: '600', color: theme.primary, margin: '0 0 4px' }}>{lead.nombre}</Text>
-                      <Text style={{ fontSize: '13px', color: theme.warning, margin: '0', fontWeight: '500' }}>
-                        Acción sugerida: {lead.score_accion}
-                      </Text>
-                    </Column>
-                    <Column align="right" style={{ minWidth: '80px', verticalAlign: 'top' }}>
-                      <Text style={{ fontSize: '18px', fontWeight: '700', color: theme.warning, margin: '0', textAlign: 'right' }}>{lead.score_ia}</Text>
-                      <Text style={{ fontSize: '10px', color: theme.warning, margin: '0', fontWeight: '600', textAlign: 'right', textTransform: 'uppercase' }}>Score</Text>
-                    </Column>
-                  </Row>
-                </div>
+                <Row key={i} style={{ padding: '16px 0', borderTop: `1px solid ${t.border}` }}>
+                  <Column>
+                    <Text style={{ fontSize: '15px', fontWeight: '500', color: t.textMain, margin: '0 0 4px' }}>{lead.nombre}</Text>
+                    <Text style={{ fontSize: '13px', color: t.textMuted, margin: '0' }}>{lead.score_accion}</Text>
+                  </Column>
+                  <Column align="right">
+                    <Text style={{ fontSize: '18px', fontWeight: '500', color: t.alert, margin: '0' }}>{lead.score_ia}</Text>
+                    <Text style={{ fontSize: '10px', color: t.textMuted, margin: '0', fontWeight: '600', textTransform: 'uppercase' }}>Score</Text>
+                  </Column>
+                </Row>
               ))}
             </Section>
           )}
 
-          {/* Acciones y CRM */}
-          <Section style={{ padding: '0 32px 32px' }}>
+          {/* Acciones */}
+          <Section style={{ padding: '0 40px 40px' }}>
+            <Button href="https://app.inmublia.com/admin" style={{ backgroundColor: t.black, color: t.white, padding: '16px 0', borderRadius: '8px', fontSize: '15px', fontWeight: '500', textDecoration: 'none', display: 'block', textAlign: 'center', width: '100%' }}>
+              Ingresar al Dashboard
+            </Button>
             {metricas.recordatoriosPendientes > 0 && (
-              <Text style={{ fontSize: '13px', color: theme.secondary, margin: '0 0 20px', fontWeight: '500' }}>
-                Requiere atención: Tiene {metricas.recordatoriosPendientes} tareas programadas para esta semana.
+              <Text style={{ fontSize: '13px', color: t.textMuted, margin: '16px 0 0', textAlign: 'center' }}>
+                Tienes {metricas.recordatoriosPendientes} tareas programadas pendientes.
               </Text>
             )}
-            <Button href="https://app.inmublia.com/admin" style={{ backgroundColor: theme.brandBlue, color: theme.surface, padding: '12px 24px', borderRadius: '6px', fontSize: '14px', fontWeight: '500', textDecoration: 'none', display: 'block', textAlign: 'center', width: '100%' }}>
-              Acceder al Dashboard Inmublia
-            </Button>
           </Section>
 
-          {/* Footer Legal */}
-          <Section style={{ backgroundColor: theme.bg, padding: '24px 32px', textAlign: 'center', borderTop: `1px solid ${theme.border}` }}>
-            <Text style={{ fontSize: '12px', color: theme.secondary, margin: '0 0 8px', fontWeight: '500' }}>
-              Inmublia Software de Gestión Inmobiliaria
+          {/* Footer minimalista */}
+          <Section style={{ padding: '30px 40px', backgroundColor: t.bg, borderTop: `1px solid ${t.border}`, textAlign: 'center' }}>
+            <Text style={{ fontSize: '12px', color: t.textMuted, margin: '0 0 8px' }}>
+              Inmublia Software — Inteligencia Inmobiliaria
             </Text>
-            <Text style={{ fontSize: '11px', color: theme.secondary, margin: '0' }}>
-              Este es un reporte automatizado generado para {broker.nombre_comercial}.{' '}
-              <Link href={`https://app.inmublia.com/unsubscribe?token=${broker.email_unsubscribe_token}`} style={{ color: theme.brandBlue, textDecoration: 'none' }}>
-                Preferencias de notificación
+            <Text style={{ fontSize: '11px', color: t.textMuted, margin: '0' }}>
+              <Link href={`https://app.inmublia.com/unsubscribe?token=${broker.email_unsubscribe_token}`} style={{ color: t.textMuted, textDecoration: 'underline' }}>
+                Ajustar preferencias de correo
               </Link>
             </Text>
           </Section>
-          
+
         </Container>
       </Body>
     </Html>
@@ -212,7 +164,7 @@ function WeeklyDigestEmail({ broker, metricas, briefing, semanaInicio }: WeeklyD
 }
 
 function generarTextoPlano(props: WeeklyDigestProps): string {
-  const { broker, metricas, semanaInicio } = props
+  const { metricas, semanaInicio } = props
   const calientes = (metricas.leadsCalientes || []).map((l: any) => `- ${l.nombre} (Score IA: ${l.score_ia})`).join('\n')
   
   return `
@@ -223,12 +175,9 @@ Nuevos Leads: ${metricas.leadsNuevos}
 Cierres: ${metricas.cerradosEstaSemana}
 Propiedades Activas: ${metricas.totalPropiedades}
 
-OPORTUNIDADES DE ALTA PRIORIDAD:
-${calientes.length > 0 ? calientes : 'Sin leads críticos reportados.'}
+Oportunidades críticas:
+${calientes.length > 0 ? calientes : 'Al día.'}
 
-Tareas Pendientes: ${metricas.recordatoriosPendientes}
-
-Acceder al sistema: 
-https://app.inmublia.com/admin
+Ingresa al dashboard: https://app.inmublia.com/admin
   `.trim()
 }
