@@ -14,16 +14,15 @@ function getLunesPasado() {
 
 Deno.serve(async (req) => {
   try {
-    // 1. SEGURIDAD ENTERPRISE: Solo permitimos la entrada si traen el codigo secreto específico del Cron.
-    const authHeader = req.headers.get('Authorization')
+    // SEGURIDAD ENTERPRISE: Usamos un header custom para evitar que el API Gateway (Kong) mutile la cabecera Authorization.
+    const cronHeader = req.headers.get('X-Cron-Secret')
     const expectedSecret = Deno.env.get('CRON_SECRET')
 
-    if (!authHeader || authHeader !== `Bearer ${expectedSecret}`) {
-      console.warn('[SECURITY] Intento de acceso bloqueado. CRON_SECRET inválido.')
+    if (!cronHeader || cronHeader !== expectedSecret) {
+      console.warn(`[SECURITY] Bloqueado. Recibido: ${cronHeader ? 'Token incorrecto' : 'Vacio'}`)
       return new Response('Unauthorized', { status: 401 })
     }
 
-    // 2. CLIENTE PRIVILEGIADO: Inicializamos Supabase leyendo la llave maestra desde la bóveda encriptada (Secrets), nunca desde internet.
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
