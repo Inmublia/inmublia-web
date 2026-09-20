@@ -1,12 +1,19 @@
 function formatearSemana(semanaInicio: string) {
-  return new Date(semanaInicio).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
+  // Forzamos un punto medio UTC para evitar que el formateador atrase un día por zona horaria
+  const fecha = new Date(`${semanaInicio}T12:00:00Z`);
+  return fecha.toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
 }
 
 export async function obtenerMetricasSemana(supabase: any, brokerId: string, semanaInicio: string) {
-  const semanaFin = new Date(semanaInicio)
-  semanaFin.setDate(semanaFin.getDate() + 7)
-  const semanaInicioAnterior = new Date(semanaInicio)
-  semanaInicioAnterior.setDate(semanaInicioAnterior.getDate() - 7)
+  // SEGURIDAD ENTERPRISE: Anclamos las fechas a T00:00:00.000Z para que las consultas SQL 
+  // de PostgREST no sufran desfases de zona horaria según dónde esté ejecutándose el servidor Deno.
+  const inicio = new Date(`${semanaInicio}T00:00:00.000Z`)
+  
+  const fin = new Date(inicio)
+  fin.setDate(fin.getDate() + 7)
+  
+  const inicioAnterior = new Date(inicio)
+  inicioAnterior.setDate(inicioAnterior.getDate() - 7)
 
   const [
     { data: leadsEstaSemana },
@@ -15,11 +22,11 @@ export async function obtenerMetricasSemana(supabase: any, brokerId: string, sem
     { data: propiedades },
     { data: notasRecordatorios },
   ] = await Promise.all([
-    supabase.from('leads').select('id, nombre, estado, origen, score_ia, score_etiqueta').eq('broker_id', brokerId).gte('creado_en', semanaInicio).lt('creado_en', semanaFin.toISOString()),
-    supabase.from('leads').select('id').eq('broker_id', brokerId).gte('creado_en', semanaInicioAnterior.toISOString()).lt('creado_en', semanaInicio),
+    supabase.from('leads').select('id, nombre, estado, origen, score_ia, score_etiqueta').eq('broker_id', brokerId).gte('creado_en', inicio.toISOString()).lt('creado_en', fin.toISOString()),
+    supabase.from('leads').select('id').eq('broker_id', brokerId).gte('creado_en', inicioAnterior.toISOString()).lt('creado_en', inicio.toISOString()),
     supabase.from('leads').select('id, nombre, estado, score_ia, score_etiqueta, score_accion').eq('broker_id', brokerId).gte('score_ia', 75).not('estado', 'in', '("cerrado","descartado")'),
     supabase.from('propiedades').select('id', { count: 'exact' }).eq('broker_id', brokerId).eq('estatus', 'Activa'),
-    supabase.from('lead_notas').select('id, contenido, fecha_recordatorio').eq('broker_id', brokerId).eq('tipo', 'recordatorio').eq('completado', false).lte('fecha_recordatorio', semanaFin.toISOString()),
+    supabase.from('lead_notas').select('id, contenido, fecha_recordatorio').eq('broker_id', brokerId).eq('tipo', 'recordatorio').eq('completado', false).lte('fecha_recordatorio', fin.toISOString()),
   ])
 
   const leadsNuevos = leadsEstaSemana?.length ?? 0
@@ -108,7 +115,6 @@ export async function generarBriefingIA(supabase: any, broker: any, metricas: an
 function buildBriefingPrompt(broker: any, metricas: any): string {
   const lineasCalientes = metricas.leadsCalientes.map((l: any) => `  • ${l.nombre}: ${l.score_accion}`).join('\n')
   
-  // 🚀 MEJORA QUIRÚRGICA: Reglas estrictas Anti-Alucinación (NOM-247)
   return `Eres el asistente ejecutivo de ${broker.nombre_comercial}, asesor inmobiliario en México.
 Escribe el párrafo de apertura de su resumen semanal por email. Máximo 2 oraciones.
 
