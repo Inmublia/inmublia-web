@@ -1,5 +1,5 @@
 import React from 'npm:react'
-import { Html, Head, Body, Container, Section, Row, Column, Text, Link, Button, Preview } from 'npm:@react-email/components'
+import { Html, Head, Body, Container, Section, Row, Column, Text, Link, Button, Preview, Img } from 'npm:@react-email/components'
 import { render } from 'npm:@react-email/render'
 
 interface WeeklyDigestProps {
@@ -23,19 +23,21 @@ export async function renderWeeklyDigest(props: WeeklyDigestProps) {
 function WeeklyDigestEmail({ broker, metricas, briefing, semanaInicio }: WeeklyDigestProps) {
   const semanaLabel = formatearSemana(semanaInicio)
   const nombre = broker.nombre_comercial?.split(' ')[0] ?? 'Ejecutivo'
+  const plan = broker.plan_suscripcion?.toUpperCase() ?? 'PRO'
+  // Si no hay avatar en la BD, usamos un placeholder elegante con iniciales o logo por defecto.
+  const avatarUrl = broker.avatar_url || 'https://app.inmublia.com/assets/default-avatar.png'
   
-  // Paleta Premium Dark Mode (OLED Black base)
   const t = {
-    bg: '#000000', // Negro puro para el fondo exterior
-    surface: '#0A0A0A', // Negro OLED para el contenedor principal
-    card: '#121214', // Fondo para dar peso a las métricas
-    border: '#27272A', // zinc-800
-    brand: '#3B82F6', // blue-500
+    bg: '#000000', 
+    surface: '#0A0A0A', 
+    card: '#121214', 
+    border: '#27272A', 
+    brand: '#3B82F6', 
     brandSubtle: 'rgba(59, 130, 246, 0.1)',
-    textMain: '#FFFFFF', // Blanco
-    textMuted: '#A1A1AA', // zinc-400
-    success: '#10B981', // emerald-500
-    alert: '#F59E0B' // amber-500
+    textMain: '#FFFFFF', 
+    textMuted: '#A1A1AA', 
+    success: '#10B981', 
+    alert: '#F59E0B' 
   }
 
   return (
@@ -47,36 +49,46 @@ function WeeklyDigestEmail({ broker, metricas, briefing, semanaInicio }: WeeklyD
       <Preview>Reporte Ejecutivo Inmublia - Semana del {semanaLabel}</Preview>
       <Body style={{ margin: '0', padding: '40px 16px', backgroundColor: t.bg, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif' }}>
         
-        {/* Contenedor expandido a 680px para aprovechar los espacios laterales */}
         <Container style={{ maxWidth: '680px', margin: '0 auto', backgroundColor: t.surface, border: `1px solid ${t.border}`, borderRadius: '12px', overflow: 'hidden' }}>
           
-          {/* Header Dark Premium con Logotipo Tipográfico */}
-          <Section style={{ padding: '32px 40px', borderBottom: `1px solid ${t.border}` }}>
-            <Row>
-              <Column>
-                <Text style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: t.textMain, letterSpacing: '-1px' }}>
-                  INMUBLIA<span style={{ color: t.brand }}>.</span>
-                </Text>
-              </Column>
-              <Column align="right">
-                <Text style={{ color: t.textMuted, fontSize: '11px', margin: '0', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1.5px' }}>
-                  {broker.plan_suscripcion?.toUpperCase() ?? 'PRO'}
-                </Text>
-              </Column>
-            </Row>
+          {/* Header Centrado con Logo y Plan */}
+          <Section style={{ padding: '32px 40px', borderBottom: `1px solid ${t.border}`, textAlign: 'center' }}>
+            <Text style={{ color: t.textMuted, fontSize: '10px', margin: '0 0 16px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '2px' }}>
+              PLAN {plan}
+            </Text>
+            <Img 
+              src="https://app.inmublia.com/logo.png" 
+              width="140" 
+              height="auto" 
+              alt="Inmublia" 
+              style={{ display: 'block', margin: '0 auto', outline: 'none', border: 'none' }}
+            />
           </Section>
 
-          {/* Intro & AI Briefing */}
+          {/* Intro con Avatar del Broker */}
           <Section style={{ padding: '40px 40px 20px' }}>
-            <Text style={{ color: t.textMuted, fontSize: '12px', margin: '0 0 12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              Semana del {semanaLabel}
-            </Text>
-            <Text style={{ fontSize: '32px', fontWeight: '600', color: t.textMain, margin: '0 0 32px', letterSpacing: '-1px' }}>
-              Hola, {nombre}.
-            </Text>
+            <Row>
+              <Column>
+                <Text style={{ color: t.textMuted, fontSize: '12px', margin: '0 0 12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  Semana del {semanaLabel}
+                </Text>
+                <Text style={{ fontSize: '32px', fontWeight: '600', color: t.textMain, margin: '0', letterSpacing: '-1px' }}>
+                  Hola, {nombre}.
+                </Text>
+              </Column>
+              <Column align="right" style={{ width: '60px' }}>
+                <Img 
+                  src={avatarUrl} 
+                  width="56" 
+                  height="56" 
+                  alt={nombre}
+                  style={{ borderRadius: '50%', border: `1px solid ${t.border}`, objectFit: 'cover', display: 'block' }}
+                />
+              </Column>
+            </Row>
             
             {briefing && (
-              <div style={{ padding: '24px', backgroundColor: t.brandSubtle, borderLeft: `3px solid ${t.brand}`, borderRadius: '0 8px 8px 0', marginBottom: '40px' }}>
+              <div style={{ marginTop: '32px', padding: '24px', backgroundColor: t.brandSubtle, borderLeft: `3px solid ${t.brand}`, borderRadius: '0 8px 8px 0', marginBottom: '20px' }}>
                 <Text style={{ fontSize: '11px', fontWeight: '700', color: t.brand, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '1px' }}>
                   ✨ Análisis Estratégico AI
                 </Text>
@@ -87,7 +99,7 @@ function WeeklyDigestEmail({ broker, metricas, briefing, semanaInicio }: WeeklyD
             )}
           </Section>
 
-          {/* Clean KPIs en Tarjetas Oscuras */}
+          {/* Clean KPIs */}
           <Section style={{ padding: '0 40px 40px' }}>
             <Row>
               <Column style={{ width: '33.3%', paddingRight: '8px' }}>
