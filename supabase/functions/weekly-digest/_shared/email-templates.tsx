@@ -1,6 +1,6 @@
 import React from 'npm:react'
 import { Html, Head, Body, Container, Section, Row, Column, Text, Link, Button, Hr, Preview } from 'npm:@react-email/components'
-import { renderAsync } from 'npm:@react-email/render'
+import { render } from 'npm:@react-email/render'
 
 interface WeeklyDigestProps {
   broker: any; metricas: any; briefing: string | null; semanaInicio: string;
@@ -10,8 +10,8 @@ function formatearSemana(semanaInicio: string) {
   return new Date(semanaInicio).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
 }
 
-export async function renderWeeklyDigest(props: WeeklyDigestProps) {
-  const html = await renderAsync(<WeeklyDigestEmail {...props} />)
+export function renderWeeklyDigest(props: WeeklyDigestProps) {
+  const html = render(<WeeklyDigestEmail {...props} />)
   const text = generarTextoPlano(props)
   return { html, text }
 }
