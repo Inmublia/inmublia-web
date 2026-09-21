@@ -1,14 +1,14 @@
 // src/routes/admin/leads/+page.server.js
 import { fail, redirect } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
-import { env } from '$env/dynamic/private';
-import { env as publicEnv } from '$env/dynamic/public';
+import { env as privateEnv } from '$env/dynamic/private';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public'; // 🚀 Arquitectura inyectada segura
 import { calcularScore } from '$lib/scoring.js';
 
 // 🚀 ARQUITECTURA DE IA 2026: Optimizada para micro-tareas y latencia ultra baja
 const MODELS_CASCADE = [
+  '@cf/meta/llama-3.2-3b-instruct',
   '@cf/qwen/qwen3-30b-a3b-fp8',
-  '@cf/zai-org/glm-4.7-flash',
   '@cf/ibm-granite/granite-4.0-h-micro'
 ];
 
@@ -63,7 +63,7 @@ export const load = async ({ locals }) => {
 
   let db = locals.supabase;
   if (locals.isImpersonating) {
-    db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    db = createClient(PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
   }
 
   let query = db.from('brokers').select('*');
