@@ -1,11 +1,10 @@
+// src/lib/supabase.js
 import { createClient } from '@supabase/supabase-js';
-import { env } from '$env/dynamic/public';
+import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
-// 🚀 EL SEÑUELO: Durante el "npm run build" las variables dinámicas son undefined.
-// Si le damos un string falso, Vite pasa de largo sin crashear (adiós Error: supabaseUrl is required).
-// En Producción (tiempo de ejecución), Cloudflare inyectará tus llaves reales y se conectará.
-const supabaseUrl = env.PUBLIC_SUPABASE_URL || 'https://build-placeholder.supabase.co';
-const supabaseKey = env.PUBLIC_SUPABASE_ANON_KEY || 'build-placeholder-key';
+// Si Cloudflare no inyecta las variables, explotará en build time. Es lo correcto.
+if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_ANON_KEY) {
+  throw new Error('Error crítico: Variables de Supabase ausentes en el entorno estático');
+}
 
-// Retornamos el cliente completo para que SvelteKit no renderice tu pantalla negra de error
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
