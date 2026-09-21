@@ -1,9 +1,8 @@
-// src/routes/[slug]/+page.server.js
 import { supabase } from '$lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { error, fail } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { env as publicEnv } from '$env/dynamic/public'; // 🚀 AÑADIDO: Para la URL de Supabase
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { env as privateEnv } from '$env/dynamic/private'; // Secretos dinámicos
 
 export async function load({ params, url }) {
   const { slug } = params;
@@ -63,13 +62,11 @@ export async function load({ params, url }) {
     throw error(404, { message: 'La propiedad que buscas no está disponible o ha sido removida.' });
   }
 
-  // 🚀 REGLA DE 3 DÍAS: Si está vendida, calculamos el tiempo
   if (propiedad.estatus === 'Vendida' && propiedad.fecha_vendida) {
     const fechaVendida = new Date(propiedad.fecha_vendida);
     const now = new Date();
     const diasTranscurridos = (now - fechaVendida) / (1000 * 60 * 60 * 24);
     
-    // Si ya pasaron las 72 horas, matamos el enlace
     if (diasTranscurridos > 3) {
       throw error(404, { message: 'Esta propiedad ha sido vendida y ya no se encuentra en el catálogo.' });
     }
@@ -85,9 +82,6 @@ export async function load({ params, url }) {
     throw error(404, { message: 'La agencia encargada de esta propiedad no se encuentra activa.' });
   }
 
-  // ==========================================
-  // ESCUDO 2: "El Castigo Público"
-  // ==========================================
   const status = (broker.status_suscripcion || '').toLowerCase().trim();
   const estatusBloqueados = ['cancelada', 'canceled', 'inactiva', 'past_due', 'unpaid'];
 
@@ -124,14 +118,12 @@ export const actions = {
       creado_en: new Date().toISOString()
     };
 
-    if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+    if (!privateEnv.SUPABASE_SERVICE_ROLE_KEY) {
       console.error('Falta SUPABASE_SERVICE_ROLE_KEY en Cloudflare.');
       return fail(500, { error: 'Error de configuración del servidor.' });
     }
 
-    // 🚀 FIX: Obtenemos la URL de las variables públicas de SvelteKit directamente.
-    // Esto jamás será undefined en build si tienes PUBLIC_SUPABASE_URL configurado en Cloudflare Pages
-    const supabaseAdmin = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
 
     const { data: nuevoLead, error: insertError } = await supabaseAdmin
       .from('leads')
@@ -164,7 +156,7 @@ export const actions = {
 };
 
 async function despacharWebhookN8n(supabaseAdmin, auth_user_id, lead) {
-  if (!env.N8N_MASTER_WEBHOOK) {
+  if (!privateEnv.N8N_MASTER_WEBHOOK) {
     console.error("Variable N8N_MASTER_WEBHOOK vacía o no existe en Cloudflare.");
     return;
   }
@@ -199,7 +191,7 @@ async function despacharWebhookN8n(supabaseAdmin, auth_user_id, lead) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000); 
 
-    const res = await fetch(env.N8N_MASTER_WEBHOOK, {
+    const res = await fetch(privateEnv.N8N_MASTER_WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(n8nPayload),
