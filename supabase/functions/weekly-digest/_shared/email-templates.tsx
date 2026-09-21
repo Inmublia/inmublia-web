@@ -25,8 +25,11 @@ function WeeklyDigestEmail({ broker, metricas, briefing, semanaInicio }: WeeklyD
   const nombre = broker.nombre_comercial?.split(' ')[0] ?? 'Ejecutivo'
   const plan = broker.plan_suscripcion?.toUpperCase() ?? 'PRO'
   
-  // Lógica a prueba de balas para el Avatar
-  const avatarUrl = (broker.avatar_url && broker.avatar_url.startsWith('http')) ? broker.avatar_url : null;
+  // AVATAR BLINDADO: Verifica que sea un string y que empiece con http. 
+  // Si tu campo en la BD se llama diferente a 'avatar_url', cambialo aquí.
+  const avatarUrl = (typeof broker.avatar_url === 'string' && broker.avatar_url.startsWith('http')) 
+    ? broker.avatar_url 
+    : null;
   const iniciales = (broker.nombre_comercial || 'Ejecutivo').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
   
   const t = {
@@ -53,15 +56,24 @@ function WeeklyDigestEmail({ broker, metricas, briefing, semanaInicio }: WeeklyD
         
         <Container style={{ maxWidth: '680px', margin: '0 auto', backgroundColor: t.surface, border: `1px solid ${t.border}`, borderRadius: '12px', overflow: 'hidden' }}>
           
-          {/* Header Corregido: Marca izquierda, Plan derecha */}
-          <Section style={{ padding: '32px 40px', borderBottom: `1px solid ${t.border}` }}>
+          {/* Header Arquitectónico: Logo Izq, Marca Centro, Plan Der */}
+          <Section style={{ padding: '24px 40px', borderBottom: `1px solid ${t.border}` }}>
             <Row>
-              <Column align="left">
-                <Text style={{ margin: 0, fontSize: '28px', fontWeight: '900', color: t.textMain, letterSpacing: '-1px' }}>
+              <Column align="left" style={{ width: '33.33%' }}>
+                <Img 
+                  src="https://app.inmublia.com/logo.png" 
+                  width="32" 
+                  height="auto" 
+                  alt="Logo" 
+                  style={{ display: 'block', outline: 'none', border: 'none' }}
+                />
+              </Column>
+              <Column align="center" style={{ width: '33.33%' }}>
+                <Text style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: t.textMain, letterSpacing: '-1px' }}>
                   INMUBLIA.
                 </Text>
               </Column>
-              <Column align="right">
+              <Column align="right" style={{ width: '33.33%' }}>
                 <Text style={{ color: t.textMuted, fontSize: '11px', margin: '0', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px' }}>
                   PLAN <span style={{ color: t.brand }}>{plan}</span>
                 </Text>
@@ -69,7 +81,7 @@ function WeeklyDigestEmail({ broker, metricas, briefing, semanaInicio }: WeeklyD
             </Row>
           </Section>
 
-          {/* Intro con Avatar del Broker */}
+          {/* Intro con Avatar Blindado */}
           <Section style={{ padding: '40px 40px 20px' }}>
             <Row>
               <Column align="left">
@@ -90,7 +102,7 @@ function WeeklyDigestEmail({ broker, metricas, briefing, semanaInicio }: WeeklyD
                     style={{ borderRadius: '50%', border: `1px solid ${t.border}`, objectFit: 'cover', display: 'block' }}
                   />
                 ) : (
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: t.card, border: `1px solid ${t.border}`, display: 'inline-block', textAlign: 'center', lineHeight: '56px', color: t.textMain, fontSize: '16px', fontWeight: '700' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: t.card, border: `1px solid ${t.border}`, display: 'inline-block', textAlign: 'center', lineHeight: '56px', color: t.textMuted, fontSize: '18px', fontWeight: '700', letterSpacing: '1px' }}>
                     {iniciales}
                   </div>
                 )}
