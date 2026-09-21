@@ -1,15 +1,9 @@
-// src/lib/server/audit.js
 import { createClient } from '@supabase/supabase-js';
-import { env } from '$env/dynamic/private';
-import { env as publicEnv } from '$env/dynamic/public';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 
 export function logAuditEvent(event, params) {
-  // 🛡️ INSTANCIACIÓN AISLADA (RUNTIME)
-  // Vite y Cloudflare ignorarán esto durante el build. Solo se ejecutará con tráfico real.
-  const supabaseAdmin = createClient(
-    publicEnv.PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   const { agencyId, actorId, actionType, resourceId = null, status = 'success', metadata = {} } = params;
 
@@ -24,18 +18,12 @@ export function logAuditEvent(event, params) {
     action_type: actionType,
     resource_id: resourceId,
     status,
-    metadata: {
-      ...metadata,
-      network: { ip, userAgent }
-    }
+    metadata: { ...metadata, network: { ip, userAgent } }
   };
 
-  const insertPromise = supabaseAdmin
-    .from('audit_logs')
-    .insert(logPayload)
-    .then(({ error }) => {
-      if (error) console.error('[FATAL] Fallo al escribir Audit Log:', error);
-    });
+  const insertPromise = supabaseAdmin.from('audit_logs').insert(logPayload).then(({ error }) => {
+    if (error) console.error('[FATAL] Fallo al escribir Audit Log:', error);
+  });
 
   if (event.platform?.context?.waitUntil) {
     event.platform.context.waitUntil(insertPromise);
