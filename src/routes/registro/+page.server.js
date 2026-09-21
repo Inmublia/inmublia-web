@@ -1,10 +1,9 @@
-// src/routes/registro/+page.server.js
 import { fail, redirect } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { Resend } from 'resend';
-import { env as publicEnv } from '$env/dynamic/public';
-import { env as privateEnv } from '$env/dynamic/private';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { env as privateEnv } from '$env/dynamic/private'; // Secretos dinámicos
 
 const STRIPE_PRICES = {
   basico: { mensual: 'price_1UFgBoJHda98KYP8zVxz1V2h', anual: 'price_1UFgCSJHda98KYP8WAfuaRCU' },
@@ -12,15 +11,12 @@ const STRIPE_PRICES = {
   elite:  { mensual: 'price_1UF3vVJHda98KYP8sEBcENHN', anual: 'price_1UF3wrJHda98KYP82p3McSSj' }
 };
 
-// 🚀 FIX: Asignador Dinámico de Créditos IA (Valores Ajustados)
 const CREDITOS_IA_POR_PLAN = {
   trial: 15,
   basico: 15,
   pro: 125,
   elite: 300
 };
-
-// 🛡️ REMOVIDA INSTANCIACIÓN GLOBAL AQUÍ PARA EVITAR BUILD CRASH EN CLOUDFLARE
 
 export const actions = {
   default: async ({ request, locals }) => {
@@ -37,7 +33,6 @@ export const actions = {
       return fail(400, { error: 'Por favor completa todos los campos.' });
     }
 
-    // 1. Crear identidad en Supabase Auth
     const { data: authData, error: authError } = await locals.supabase.auth.signUp({
       email,
       password,
@@ -52,7 +47,6 @@ export const actions = {
       return fail(500, { error: 'No pudimos crear tu cuenta. Verifica tus datos e intenta nuevamente.' });
     }
 
-    // 2. Definir banderas operativas
     const isTrial = planId === 'trial';
     const finalPlan = isTrial ? 'elite' : planId;
     const finalStatus = isTrial ? 'trial' : 'inactiva'; 
@@ -62,12 +56,9 @@ export const actions = {
       trialEndsAt.setDate(trialEndsAt.getDate() + 14);
     }
     
-    // Asignamos los créditos basados en el plan seleccionado
     const creditosAsignados = CREDITOS_IA_POR_PLAN[planId] || 15;
 
-    // 3. Crear Infraestructura Tenant
-    // Se mantiene la creación al vuelo con publicEnv y privateEnv (Seguro)
-    const db = createClient(publicEnv.PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
+    const db = createClient(PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
 
     const { data: newBroker, error: dbError } = await db.from('brokers').insert({
       auth_user_id: authData.user.id,
@@ -88,16 +79,12 @@ export const actions = {
       return fail(500, { error: `Falla en BD: ${dbError.message}` });
     }
 
-    // 🛡️ INSTANCIACIÓN EN TIEMPO DE EJECUCIÓN (RUNTIME)
-    // Instanciamos los SDKs aquí adentro, donde las variables privadas sí existen en el Edge.
     const resend = new Resend(privateEnv.RESEND_API_KEY);
     const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
 
-    // 4. El Correo de Onboarding (Fire and Forget)
     const planNameDisplay = isTrial ? 'Trial Élite (14 días)' : `Plan ${finalPlan.charAt(0).toUpperCase() + finalPlan.slice(1)}`;
     const loginUrl = `https://${subdominio}.inmublia.com/login`;
 
-    // 🚀 UX/UI FIX: Obra de arte en HTML para el correo de bienvenida. Diseño oscuro, elegante y psicológicamente potente.
     resend.emails.send({
       from: 'Inmublia <bienvenida@inmublia.com>', 
       to: email,
@@ -115,17 +102,14 @@ export const actions = {
               <td align="center">
                 <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #09090b;">
                   
-                  <!-- Logo Inmublia en caja blanca (igual que el login) -->
                   <tr>
                     <td align="center" style="padding-bottom: 40px;">
                       <div style="background-color: #ffffff; padding: 16px 32px; border-radius: 16px; display: inline-block; border: 1px solid rgba(255,255,255,0.1);">
-                        <!-- Es crucial usar una URL absoluta para los correos -->
                         <img src="https://inmublia.com/logo.png" alt="Inmublia" style="height: 36px; display: block; border: 0;">
                       </div>
                     </td>
                   </tr>
                   
-                  <!-- Título de Impacto -->
                   <tr>
                     <td align="center" style="padding-bottom: 24px;">
                       <h1 style="color: #ffffff; font-size: 32px; font-weight: 800; margin: 0; letter-spacing: -0.02em; line-height: 1.2;">
@@ -135,7 +119,6 @@ export const actions = {
                     </td>
                   </tr>
 
-                  <!-- Cuerpo del Mensaje -->
                   <tr>
                     <td style="color: #a1a1aa; font-size: 16px; line-height: 1.6; padding-bottom: 40px; text-align: center;">
                       Hola, <strong style="color: #ffffff;">${agencia}</strong>.<br><br>
@@ -143,7 +126,6 @@ export const actions = {
                     </td>
                   </tr>
 
-                  <!-- Tarjeta de Credenciales Oscura -->
                   <tr>
                     <td style="background-color: #111827; border: 1px solid #27272a; border-radius: 24px; padding: 32px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);">
                       <p style="margin: 0 0 24px 0; font-size: 11px; color: #818cf8; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; text-align: center;">Tus Credenciales Seguras</p>
@@ -171,7 +153,6 @@ export const actions = {
                     </td>
                   </tr>
 
-                  <!-- Botón Call to Action -->
                   <tr>
                     <td align="center" style="padding: 48px 0;">
                       <a href="${loginUrl}" style="background-color: #4f46e5; color: #ffffff; font-weight: 700; font-size: 16px; text-decoration: none; padding: 18px 40px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 20px rgba(79, 70, 229, 0.4);">
@@ -180,7 +161,6 @@ export const actions = {
                     </td>
                   </tr>
 
-                  <!-- Footer -->
                   <tr>
                     <td align="center" style="padding-top: 32px; border-top: 1px solid #27272a;">
                       <p style="color: #52525b; font-size: 12px; line-height: 1.6; font-weight: 500; margin: 0;">
@@ -198,7 +178,6 @@ export const actions = {
       `
     }).catch(e => console.error("Error enviando email de bienvenida:", e));
 
-    // 5. DIRECCIONAMIENTO DUAL
     if (isTrial) {
       throw redirect(303, `https://${subdominio}.inmublia.com/admin`);
     } else {
