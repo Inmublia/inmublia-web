@@ -3,12 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
 
-const supabaseAdmin = createClient(
-  publicEnv.PUBLIC_SUPABASE_URL,
-  env.SUPABASE_SERVICE_ROLE_KEY
-);
-
 export function logAuditEvent(event, params) {
+  // 🛡️ INSTANCIACIÓN AISLADA (RUNTIME)
+  // Vite y Cloudflare ignorarán esto durante el build. Solo se ejecutará con tráfico real.
+  const supabaseAdmin = createClient(
+    publicEnv.PUBLIC_SUPABASE_URL,
+    env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
   const { agencyId, actorId, actionType, resourceId = null, status = 'success', metadata = {} } = params;
 
   const ip = event.request.headers.get('cf-connecting-ip') || 'desconocida';
