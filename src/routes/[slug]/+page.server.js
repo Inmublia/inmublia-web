@@ -3,6 +3,7 @@ import { supabase } from '$lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { error, fail } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public'; // 🚀 AÑADIDO: Para la URL de Supabase
 
 export async function load({ params, url }) {
   const { slug } = params;
@@ -128,7 +129,9 @@ export const actions = {
       return fail(500, { error: 'Error de configuración del servidor.' });
     }
 
-    const supabaseAdmin = createClient(supabase.supabaseUrl, env.SUPABASE_SERVICE_ROLE_KEY);
+    // 🚀 FIX: Obtenemos la URL de las variables públicas de SvelteKit directamente.
+    // Esto jamás será undefined en build si tienes PUBLIC_SUPABASE_URL configurado en Cloudflare Pages
+    const supabaseAdmin = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
     const { data: nuevoLead, error: insertError } = await supabaseAdmin
       .from('leads')
