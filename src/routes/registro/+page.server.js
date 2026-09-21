@@ -20,8 +20,7 @@ const CREDITOS_IA_POR_PLAN = {
   elite: 300
 };
 
-const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
-const resend = new Resend(privateEnv.RESEND_API_KEY);
+// 🛡️ REMOVIDA INSTANCIACIÓN GLOBAL AQUÍ PARA EVITAR BUILD CRASH EN CLOUDFLARE
 
 export const actions = {
   default: async ({ request, locals }) => {
@@ -67,6 +66,7 @@ export const actions = {
     const creditosAsignados = CREDITOS_IA_POR_PLAN[planId] || 15;
 
     // 3. Crear Infraestructura Tenant
+    // Se mantiene la creación al vuelo con publicEnv y privateEnv (Seguro)
     const db = createClient(publicEnv.PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
 
     const { data: newBroker, error: dbError } = await db.from('brokers').insert({
@@ -77,7 +77,7 @@ export const actions = {
       plan_suscripcion: finalPlan,
       status_suscripcion: finalStatus,
       trial_ends_at: isTrial ? trialEndsAt.toISOString() : null,
-      ia_creditos_disponibles: creditosAsignados // 🚀 FIX: Inyectando los créditos aquí
+      ia_creditos_disponibles: creditosAsignados
     }).select('id').single();
 
     if (dbError) {
@@ -87,6 +87,11 @@ export const actions = {
       }
       return fail(500, { error: `Falla en BD: ${dbError.message}` });
     }
+
+    // 🛡️ INSTANCIACIÓN EN TIEMPO DE EJECUCIÓN (RUNTIME)
+    // Instanciamos los SDKs aquí adentro, donde las variables privadas sí existen en el Edge.
+    const resend = new Resend(privateEnv.RESEND_API_KEY);
+    const stripe = new Stripe(privateEnv.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
 
     // 4. El Correo de Onboarding (Fire and Forget)
     const planNameDisplay = isTrial ? 'Trial Élite (14 días)' : `Plan ${finalPlan.charAt(0).toUpperCase() + finalPlan.slice(1)}`;
