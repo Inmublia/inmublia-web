@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
-import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
+import { env as privateEnv } from '$env/dynamic/private'; // Secretos dinámicos
 
 export function logAuditEvent(event, params) {
-  const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
 
   const { agencyId, actorId, actionType, resourceId = null, status = 'success', metadata = {} } = params;
 
