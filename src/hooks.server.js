@@ -1,17 +1,15 @@
 // src/hooks.server.js
 import { createServerClient } from '@supabase/ssr';
 import { redirect, error } from '@sveltejs/kit';
-import { env as publicEnv } from '$env/dynamic/public';
-import { env as privateEnv } from '$env/dynamic/private';
+import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { env as privateEnv } from '$env/dynamic/private'; // 🚀 Los secretos vuelven a ser dinámicos
 
 export async function handle({ event, resolve }) {
-  const supabaseUrl = publicEnv.PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = publicEnv.PUBLIC_SUPABASE_ANON_KEY;
-  const supabaseServiceKey = privateEnv.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_ANON_KEY) {
     return new Response('Error crítico: Variables de Supabase ausentes', { status: 500 });
   }
+
+  const supabaseServiceKey = privateEnv.SUPABASE_SERVICE_ROLE_KEY;
 
   const host = event.request.headers.get('x-forwarded-host') || event.url.hostname;
   const pathname = event.url.pathname;
@@ -23,7 +21,6 @@ export async function handle({ event, resolve }) {
   const isRootOrAdmin = host === 'inmublia.com' || host === 'www.inmublia.com' || host.startsWith('admin.');
   const isLocal = host === 'localhost' || host === '127.0.0.1' || host.includes('.pages.dev');
   
-  // 1. RESOLUCIÓN DE MULTI-TENANT PÚBLICO
   let currentSubdomain = null;
   if (!isRootOrAdmin && !isLocal) {
     currentSubdomain = host.split('.')[0];
@@ -35,10 +32,10 @@ export async function handle({ event, resolve }) {
 
     if (!brokerId) {
       try {
-        const res = await event.fetch(`${supabaseUrl}/rest/v1/brokers?subdominio=eq.${currentSubdomain}&select=id`, {
+        const res = await event.fetch(`${PUBLIC_SUPABASE_URL}/rest/v1/brokers?subdominio=eq.${currentSubdomain}&select=id`, {
           headers: { 
-            'apikey': supabaseServiceKey || supabaseAnonKey, 
-            'Authorization': `Bearer ${supabaseServiceKey || supabaseAnonKey}` 
+            'apikey': supabaseServiceKey || PUBLIC_SUPABASE_ANON_KEY, 
+            'Authorization': `Bearer ${supabaseServiceKey || PUBLIC_SUPABASE_ANON_KEY}` 
           }
         });
         if (res.ok) {
@@ -61,10 +58,9 @@ export async function handle({ event, resolve }) {
     event.locals.tenantId = brokerId;
   }
 
-  // 2. MOTOR DE COOKIES
   const cookieDomain = (isLocal) ? undefined : 'inmublia.com';
 
-  event.locals.supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+  event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
     global: { fetch: event.fetch },
     cookies: {
       getAll() { return event.cookies.getAll(); },
@@ -98,13 +94,10 @@ export async function handle({ event, resolve }) {
     }
   };
 
-  // 3. SEGURIDAD PRIVADA Y PROTECCIÓN DE RUTAS
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/bienvenida')) {
     const { user } = await event.locals.safeGetSession();
     
-    if (!user) {
-      throw redirect(303, `/login?motivo=inactividad`);
-    }
+    if (!user) throw redirect(303, `/login?motivo=inactividad`);
 
     const { data: userBroker } = await event.locals.supabase
       .from('brokers')
@@ -118,16 +111,11 @@ export async function handle({ event, resolve }) {
       
       const status = (userBroker.status_suscripcion || '').toLowerCase().trim();
       const isLogout = pathname.includes('/logout');
-      
-      // 🚀 FIX TRIAL: Reconocer 'trial' y 'active' como estados saludables
       const isTrial = status === 'trial';
       const isActive = status === 'active' || status === 'activa';
-      
-      // Estados problemáticos
       const isCanceled = ['cancelada', 'canceled'].includes(status);
       const isPastDue = ['past_due', 'unpaid', 'inactiva'].includes(status);
 
-      // Si no es un Logout, y la cuenta NO está sana (ni Trial ni Activa)
       if (!isLogout && !isTrial && !isActive) {
         const isPlanesPage = pathname.startsWith('/admin/planes');
         const isPerfilPage = pathname.startsWith('/admin/perfil');
@@ -141,34 +129,25 @@ export async function handle({ event, resolve }) {
           if (event.request.method === 'POST') throw error(403, 'Actualiza tu método de pago.');
           throw redirect(303, '/admin/perfil');
         }
-
-        if (event.request.method === 'POST' && !isPlanesPage) {
-          throw error(403, 'Acción denegada por suspensión de cuenta.');
-        }
+        if (event.request.method === 'POST' && !isPlanesPage) throw error(403, 'Acción denegada por suspensión de cuenta.');
       }
 
-      // 🚀 BARRERA RBAC: Proteger el Centro de Operaciones
       const rolesAutorizados = ['soporte', 'operaciones', 'ingenieria', 'superadmin'];
       const isInterno = userBroker.rol_interno && rolesAutorizados.includes(userBroker.rol_interno);
 
-      if (pathname.startsWith('/admin/operaciones')) {
-        if (!isInterno) {
-          throw error(403, 'Acceso Restringido. Área exclusiva de personal autorizado.');
-        }
+      if (pathname.startsWith('/admin/operaciones') && !isInterno) {
+        throw error(403, 'Acceso Restringido.');
       }
 
-      // 🚀 MOTOR DE IMPERSONACIÓN (GOD MODE DE SOLO LECTURA)
       const shadowBrokerId = event.cookies.get('inmublia_shadow_tenant');
-
       if (shadowBrokerId && isInterno) {
         event.locals.tenantId = shadowBrokerId;
         event.locals.isImpersonating = true;
-
         const method = event.request.method;
         const isExitRoute = pathname.includes('/salir-impersonacion');
         
         if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method) && !isExitRoute && !isLogout) {
-          throw error(403, 'Modo Visualización Activo (Solo Lectura): No tienes permitido alterar la información de este cliente.');
+          throw error(403, 'Modo Visualización Activo (Solo Lectura)');
         }
       } else {
         event.locals.isImpersonating = false;
@@ -185,7 +164,6 @@ export async function handle({ event, resolve }) {
     } else {
       throw redirect(303, `https://inmublia.com/admin/bienvenida`); 
     }
-
     event.locals.user = user;
   }
 
