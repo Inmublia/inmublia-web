@@ -4,10 +4,13 @@
   import { enhance } from '$app/forms';
   import { page } from '$app/state'; 
   import { untrack } from 'svelte';
+  
+  // 🚀 FIX CRÍTICO: ArrowLeft y Building2 agregados a las importaciones
   import { 
     Search, X, Phone, Mail, Home, Send, Trash2, Clock, UserCircle,
     GripVertical, MessageSquareQuote, BellRing, CalendarClock, CheckCircle2, MessageSquare,
-    ChevronLeft, ChevronRight, AlertTriangle, Plus, Users, Flame, Sparkles, Loader2, ArrowRight
+    ChevronLeft, ChevronRight, AlertTriangle, Plus, Users, Flame, Sparkles, Loader2, ArrowRight,
+    ArrowLeft, Building2
   } from 'lucide-svelte';
   
   import LeadScoreBadge from '$lib/components/LeadScoreBadge.svelte';
@@ -29,12 +32,10 @@
   let fechaRecordatorio = $state('');
   let horaRecordatorio = $state(''); 
   
-  // 🚀 ESTADOS IA WHATSAPP
   let iaGenerandoWs = $state(false);
   let iaWsGenerado = $state('');
   let iaWsError = $state('');
   
-  // 🚀 CONTROL LOCAL DE CRÉDITOS IA
   let creditosIA = $state(0);
 
   let searchQuery = $state('');
@@ -95,7 +96,6 @@
     });
   });
 
-  // 🚀 Sincronizar créditos desde la BD al cargar
   $effect(() => {
     if (data.broker) {
       untrack(() => {
@@ -502,11 +502,11 @@
                   </div>
 
                   <div class="bg-slate-50 border border-slate-100 p-1.5 rounded-md flex items-center gap-2">
-                    <div class="w-7 h-7 rounded bg-slate-200 shrink-0 overflow-hidden border border-slate-300/50">
+                    <div class="w-7 h-7 rounded bg-slate-200 shrink-0 overflow-hidden border border-slate-300/50 relative">
                       {#if lead.propiedades?.imagen_url}
                         <img src={lead.propiedades.imagen_url} alt="Prop" class="w-full h-full object-cover grayscale opacity-80 mix-blend-multiply">
                       {:else}
-                        <div class="w-full h-full flex items-center justify-center text-slate-400"><Home class="w-3.5 h-3.5"/></div>
+                        <div class="absolute inset-0 flex items-center justify-center text-slate-400 bg-slate-200"><Home class="w-3.5 h-3.5"/></div>
                       {/if}
                     </div>
                     <div class="flex-1 min-w-0">
@@ -543,7 +543,7 @@
         
         <div class="max-w-[1400px] mx-auto w-full h-full flex flex-col gap-6 overflow-hidden">
             
-            <!-- HEADER FLOTANTE (Glassmorphism) -->
+            <!-- HEADER FLOTANTE -->
             <div class="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-3xl p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-2xl shrink-0 gap-4">
                 <div class="flex items-center gap-4 w-full sm:w-auto">
                     <button aria-label="Volver" onclick={cerrarPanel} class="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors border border-slate-700 shrink-0">
@@ -555,7 +555,6 @@
                     <div class="min-w-0 flex-1">
                         <h2 class="text-lg font-black text-white flex items-center gap-3 truncate">
                             {selectedLead.nombre}
-                            <!-- Selector de Estado Funcional -->
                             <select 
                                 class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-slate-800 text-slate-200 border border-slate-700 cursor-pointer outline-none hover:bg-slate-700 transition-all appearance-none"
                                 onchange={(e) => {
@@ -588,7 +587,7 @@
                     <div class="px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400 text-[10px] font-black tracking-widest uppercase flex items-center gap-2 whitespace-nowrap">
                         <Sparkles class="w-4 h-4" /> {creditosIA} Créditos
                     </div>
-                    <a href="https://wa.me/{selectedLead.telefono?.replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-600/20">
+                    <a href="https://wa.me/{String(selectedLead.telefono || '').replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-600/20">
                         <Send class="w-4 h-4"/> WhatsApp
                     </a>
                 </div>
@@ -597,7 +596,7 @@
             <!-- GRID MODULAR -->
             <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden">
                 
-                <!-- COLUMNA IZQUIERDA: Métricas y Propiedad (md:col-span-5) -->
+                <!-- COLUMNA IZQUIERDA: Métricas y Propiedad -->
                 <div class="md:col-span-5 flex flex-col gap-6 overflow-y-auto hide-scrollbar">
                     
                     <div class="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 flex flex-col">
@@ -609,7 +608,6 @@
                                 <div class="text-lg text-slate-500 font-black mb-1.5">/100</div>
                             </div>
                             
-                            <!-- 🚀 HIGHLIGHT SOBRE EL PROSPECTO -->
                             <div class="p-4 bg-slate-950/50 rounded-2xl border border-slate-800 mb-6">
                                 <span class="text-[9px] font-black {selectedLead.scoreObj.isHot ? 'text-orange-400' : 'text-indigo-400'} uppercase tracking-widest block mb-2">{selectedLead.scoreObj.etiqueta}</span>
                                 <p class="text-xs text-slate-300 font-medium leading-relaxed mb-3">{selectedLead.scoreObj.razon}</p>
@@ -622,7 +620,6 @@
                             <div class="text-6xl font-black text-slate-600 leading-none mb-6">--<span class="text-lg text-slate-700">/100</span></div>
                         {/if}
 
-                        <!-- 🚀 PROPIEDAD ANCLADA CON IMAGEN (Debajo del termostato) -->
                         <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 border-t border-slate-800 pt-6">Propiedad Anclada</span>
                         {#if selectedLead.propiedades}
                             <div class="rounded-2xl overflow-hidden border border-slate-800 relative aspect-video group">
@@ -646,10 +643,9 @@
                     </div>
                 </div>
 
-                <!-- COLUMNA DERECHA: IA y Bitácora (md:col-span-7) -->
+                <!-- COLUMNA DERECHA: IA y Bitácora -->
                 <div class="md:col-span-7 flex flex-col gap-6 overflow-hidden">
                     
-                    <!-- Sugerencia IA -->
                     <div class="bg-indigo-950/30 border border-indigo-500/30 rounded-3xl p-6 shadow-lg shrink-0 flex flex-col">
                         <div class="flex items-center justify-between mb-4">
                             <span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
@@ -689,14 +685,14 @@
 
                         <textarea 
                             bind:value={iaWsGenerado}
-                            placeholder="Presiona 'Autocompletar' y el Copiloto redactará el seguimiento perfecto basado en la bitácora..."
+                            placeholder="Presiona 'Autocompletar' y el Copiloto redactará el seguimiento perfecto..."
                             class="w-full bg-slate-900/50 border border-indigo-500/20 rounded-xl p-4 text-sm font-medium text-slate-200 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all resize-none min-h-[80px] outline-none placeholder:text-slate-600"
                         ></textarea>
                         
                         {#if iaWsGenerado}
                             <div class="flex justify-end gap-2 mt-3 animate-[fadeIn_0.2s_ease-out]">
                                 <button onclick={() => iaWsGenerado = ''} class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors">Descartar</button>
-                                <a href="https://wa.me/{selectedLead.telefono?.replace(/\D/g, '') || ''}?text={encodeURIComponent(iaWsGenerado)}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5">
+                                <a href="https://wa.me/{String(selectedLead.telefono || '').replace(/\D/g, '')}?text={encodeURIComponent(iaWsGenerado)}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5">
                                     <Send class="w-3.5 h-3.5"/> Enviar WhatsApp
                                 </a>
                             </div>
@@ -706,7 +702,6 @@
                     <!-- Bitácora -->
                     <div class="flex-1 bg-slate-900/60 border border-slate-800 rounded-3xl flex flex-col overflow-hidden">
                         
-                        <!-- Formulario de Notas Fijo arriba -->
                         <div class="p-5 border-b border-slate-800 bg-slate-900/80 shrink-0">
                             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Registro Operativo</span>
                             <form method="POST" action="?/guardarNota" use:enhance={manejadorNota} class="flex flex-col gap-3">
@@ -741,7 +736,6 @@
                             </form>
                         </div>
 
-                        <!-- Lista de Timeline -->
                         <div class="flex-1 overflow-y-auto p-6 hide-scrollbar">
                             {#if selectedLead.lead_notas && selectedLead.lead_notas.length > 0}
                                 <div class="space-y-6 relative before:absolute before:inset-0 before:ml-[17px] before:h-full before:w-px before:bg-slate-800">
