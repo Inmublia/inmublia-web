@@ -59,71 +59,89 @@ async function refundAiCredit(supabase, userId, requestId) {
 }
 
 export const load = async ({ locals }) => {
-  if (!locals.user) throw redirect(303, '/login');
+  // 🚀 AUDITORÍA: Uso de "motivos" genéricos para no filtrar estado de sesión
+  if (!locals.user) throw redirect(303, '/login?m=1');
 
   let db = locals.supabase;
   if (locals.isImpersonating) {
     db = createClient(PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
   }
 
-  let query = db.from('brokers').select('*');
-  if (locals.isImpersonating && locals.tenantId) {
-    query = query.eq('id', locals.tenantId);
-  } else {
-    query = query.eq('auth_user_id', locals.user.id);
-  }
+  // 🚀 AUDITORÍA: Prevención de Timeouts (5 segundos máximo)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-  const { data: broker, error: brokerError } = await query.single();
-
-  if (brokerError || !broker) {
-    console.error('🔥 Error al consultar perfil de broker:', brokerError?.message);
-    return { broker: null, leads: [], propiedades: [] };
-  }
-
-  const { data: propiedades } = await db
-    .from('propiedades')
-    .select('id, titulo')
-    .eq('broker_id', broker.id)
-    .neq('estatus', 'Vendida')
-    .order('creado_en', { ascending: false });
-
-  const { data: leads, error: leadsError } = await db
-    .from('leads')
-    .select(`*, propiedades (*), lead_notas (*)`)
-    .eq('broker_id', broker.id)
-    .order('creado_en', { ascending: false });
-
-  if (leadsError) {
-    console.error('🔥 Error al cargar leads:', leadsError.message);
-  }
-
-  const now = new Date();
-
-  const leadsProcesados = (leads || []).map(lead => {
-    const notas = lead.lead_notas || [];
-    const notasOrdenadas = [...notas].sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime());
+  try {
+    // 🚀 AUDITORÍA: Eliminado el select('*') para no filtrar datos sensibles como tokens de Stripe o Meta
+    let query = db.from('brokers').select('id, nombre_comercial, ia_creditos_disponibles, status_suscripcion, comision_default, avatar_url, whatsapp, email');
     
-    const pendingReminders = notasOrdenadas.filter(n => 
-      n.tipo === 'recordatorio' && 
-      n.completado === false && 
-      new Date(n.fecha_recordatorio) <= now
-    );
+    if (locals.isImpersonating && locals.tenantId) {
+      query = query.eq('id', locals.tenantId);
+    } else {
+      query = query.eq('auth_user_id', locals.user.id);
+    }
 
-    const scoreObj = calcularScore({ ...lead, lead_notas: notasOrdenadas });
+    const { data: broker, error: brokerError } = await query.abortSignal(controller.signal).single();
+    clearTimeout(timeoutId);
 
-    return { 
-      ...lead, 
-      lead_notas: notasOrdenadas,
-      has_pending_reminder: pendingReminders.length > 0,
-      scoreObj: scoreObj
+    if (brokerError || !broker) {
+      console.error('🔥 Error al consultar perfil de broker:', brokerError?.message);
+      return { broker: null, leads: [], propiedades: [], errorConexion: true };
+    }
+
+    // 🚀 AUDITORÍA: Verificación de estado de suscripción para lanzar el banner en el frontend
+    const statusAdvertencia = broker.status_suscripcion?.toLowerCase() === 'past_due';
+
+    const { data: propiedades } = await db
+      .from('propiedades')
+      .select('id, titulo')
+      .eq('broker_id', broker.id)
+      .neq('estatus', 'Vendida')
+      .order('creado_en', { ascending: false });
+
+    const { data: leads, error: leadsError } = await db
+      .from('leads')
+      .select(`*, propiedades (*), lead_notas (*)`)
+      .eq('broker_id', broker.id)
+      .order('creado_en', { ascending: false });
+
+    if (leadsError) {
+      console.error('🔥 Error al cargar leads:', leadsError.message);
+    }
+
+    const now = new Date();
+
+    const leadsProcesados = (leads || []).map(lead => {
+      const notas = lead.lead_notas || [];
+      const notasOrdenadas = [...notas].sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime());
+      
+      const pendingReminders = notasOrdenadas.filter(n => 
+        n.tipo === 'recordatorio' && 
+        n.completado === false && 
+        new Date(n.fecha_recordatorio) <= now
+      );
+
+      const scoreObj = calcularScore({ ...lead, lead_notas: notasOrdenadas });
+
+      return { 
+        ...lead, 
+        lead_notas: notasOrdenadas,
+        has_pending_reminder: pendingReminders.length > 0,
+        scoreObj: scoreObj
+      };
+    });
+
+    return {
+      broker,
+      leads: leadsProcesados,
+      propiedades: propiedades || [],
+      advertenciaPago: statusAdvertencia
     };
-  });
-
-  return {
-    broker,
-    leads: leadsProcesados,
-    propiedades: propiedades || []
-  };
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e.name === 'AbortError') return { broker: null, leads: [], propiedades: [], errorConexion: true };
+    throw e;
+  }
 };
 
 export const actions = {
@@ -335,7 +353,7 @@ export const actions = {
             .map(n => `- ${n.tipo.toUpperCase()}: ${n.contenido}`)
             .join('\n');
 
-       const systemPrompt = [
+        const systemPrompt = [
             'Eres un Asesor Inmobiliario Senior en México experto en cierre de ventas.',
             'Redacta un mensaje de seguimiento (follow-up) para enviarlo por WhatsApp a un prospecto.',
             'REGLAS ESTRICTAS:',
