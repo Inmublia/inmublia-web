@@ -335,30 +335,31 @@ export const actions = {
             .map(n => `- ${n.tipo.toUpperCase()}: ${n.contenido}`)
             .join('\n');
 
-        const systemPrompt = [
-            'Eres un Asesor Inmobiliario Senior en México experto en atención al cliente.',
-            'Redacta un mensaje de seguimiento (follow-up) para enviarlo por WhatsApp al prospecto.',
+       const systemPrompt = [
+            'Eres un Asesor Inmobiliario Senior en México experto en cierre de ventas.',
+            'Redacta un mensaje de seguimiento (follow-up) para enviarlo por WhatsApp a un prospecto.',
             'REGLAS ESTRICTAS:',
-            '1. Tono sumamente cálido, servicial y profesional. Cero agresividad comercial.',
-            '2. Lee el historial de interacciones y adáptate. Si ya hay historial, no lo saludes como si no se conocieran.',
-            '3. MUY BREVE: Máximo 2 oraciones directas.',
-            '4. Cierra SIEMPRE mostrando total disposición para ayudar, resolver dudas o acompañarlo en su proceso (ej. "Quedo a tu entera disposición para cualquier duda", "¿Te puedo ayudar con algo más en tu búsqueda?"). Mantén la puerta abierta al diálogo sin presionar.',
-            '5. Usa máximo 1 emoji en todo el texto.',
-            '6. Responde EXCLUSIVAMENTE con un objeto JSON válido. Sin markdown.',
+            '1. El prospecto es un comprador o arrendatario potencial. NUNCA asumas que ya es el dueño ni te refieras al inmueble como "tu casa". Refiérete a él como "la propiedad", "la casa en [Zona]" o "el inmueble que te interesó".',
+            '2. Tono cálido, servicial y profesional. Cero agresividad comercial.',
+            '3. Lee el historial de interacciones. Si hay notas previas, continúa la conversación con contexto; no te presentes como si fuera el primer contacto.',
+            '4. MUY BREVE: Máximo 2 oraciones directas.',
+            '5. Cierra SIEMPRE mostrando disposición para avanzar en su etapa actual (ej. agendar visita, revisar documentos, resolver dudas de la negociación).',
+            '6. Usa máximo 1 emoji en todo el texto.',
+            '7. Responde EXCLUSIVAMENTE con un objeto JSON válido. Sin texto adicional ni markdown.',
             'FORMATO REQUERIDO:',
             '{',
             '  "whatsapp": "Texto exacto listo para enviar al cliente."',
             '}'
         ].join(' ');
 
-        const userPrompt = `DATOS DEL PROSPECTO:
+        const userPrompt = `CONTEXTO DEL PROSPECTO:
 - Nombre: ${lead.nombre}
-- Etapa en el Embudo: ${lead.estado.toUpperCase()}
-- Propiedad de Interés: ${lead.propiedades ? lead.propiedades.titulo : 'Búsqueda General'}
-- Últimas interacciones:
-${notasRecientes || 'Lead completamente nuevo, sin interacciones previas.'}
+- Etapa del proceso: ${lead.estado.toUpperCase()}
+- Inmueble que desea adquirir/rentar: ${lead.propiedades ? lead.propiedades.titulo : 'Búsqueda General'}
+- Historial reciente de notas:
+${notasRecientes || 'Prospecto sin contacto previo documentado. Seguimiento inicial.'}
 
-Genera el mensaje ideal para darle seguimiento y ofrecer ayuda.`;
+Genera el mensaje ideal para darle seguimiento.`;
 
         for (const modelId of MODELS_CASCADE) {
             try {
