@@ -199,6 +199,20 @@
     }
   }
 
+  // 🚀 FIX: Función independiente para cambiar etapa desde el selector del panel sin fallar
+  function cambiarEstadoDesdePanel(nuevoEstado) {
+    if (!selectedLead || nuevoEstado === selectedLead.estado) return;
+
+    if (nuevoEstado === 'cerrado') {
+      leadPorCerrar = leads.find(l => l.id === selectedLead.id);
+      precioCierreFinal = selectedLead.propiedades?.precio || '';
+      comisionCobrada = selectedLead.propiedades?.comision || broker.comision_default || 5;
+      showModalCierre = true;
+    } else {
+      actualizarEstadoLocalYBD(selectedLead.id, nuevoEstado);
+    }
+  }
+
   function cancelarCierre() { showModalCierre = false; leadPorCerrar = null; }
 
   async function confirmarCierre() {
@@ -207,6 +221,7 @@
     const comisionCopy = comisionCobrada;
     
     leads = leads.map(l => l.id === leadId ? { ...l, estado: 'cerrado' } : l);
+    if (selectedLead && selectedLead.id === leadId) selectedLead.estado = 'cerrado';
     cancelarCierre();
 
     try {
@@ -221,6 +236,7 @@
       invalidateAll();
     } catch (err) { 
       leads = leads.map(l => l.id === leadId ? { ...l, estado: 'negociacion' } : l);
+      if (selectedLead && selectedLead.id === leadId) selectedLead.estado = 'negociacion';
       alert('No se pudo registrar el cierre. Verifica tu conexión.'); 
     }
   }
@@ -228,6 +244,7 @@
   async function actualizarEstadoLocalYBD(leadId, nuevoEstado) {
     const estadoAnterior = leads.find(l => l.id === leadId)?.estado;
     leads = leads.map(l => l.id === leadId ? { ...l, estado: nuevoEstado } : l);
+    if (selectedLead && selectedLead.id === leadId) selectedLead.estado = nuevoEstado;
     
     const formData = new FormData();
     formData.append('id', leadId);
@@ -245,6 +262,7 @@
       invalidateAll();
     } catch (err) { 
       leads = leads.map(l => l.id === leadId ? { ...l, estado: estadoAnterior } : l);
+      if (selectedLead && selectedLead.id === leadId) selectedLead.estado = estadoAnterior;
       alert(`No se pudo mover la tarjeta: ${err.message}`); 
     }
   }
@@ -255,7 +273,11 @@
       const notaIndex = leads[leadIndex].lead_notas.findIndex(n => n.id === notaId);
       if (notaIndex !== -1) {
         leads[leadIndex].lead_notas[notaIndex].completado = true;
-        selectedLead.lead_notas[notaIndex].completado = true;
+        
+        // 🚀 FIX: Actualizar también la vista local del Lead para reactividad inmediata
+        const panelNotaIndex = selectedLead.lead_notas.findIndex(n => n.id === notaId);
+        if (panelNotaIndex !== -1) selectedLead.lead_notas[panelNotaIndex].completado = true;
+
         const tienePendientes = leads[leadIndex].lead_notas.some(n => n.tipo === 'recordatorio' && !n.completado && new Date(n.fecha_recordatorio) <= new Date());
         leads[leadIndex].has_pending_reminder = tienePendientes;
       }
@@ -269,8 +291,7 @@
   }
 
   function abrirPanel(lead) {
-    selectedLead = { ...lead };
-    if (!selectedLead.lead_notas) selectedLead.lead_notas = [];
+    selectedLead = { ...lead, lead_notas: [...(lead.lead_notas || [])] };
     isPanelOpen = true;
   }
 
@@ -498,11 +519,11 @@
                   </div>
 
                   <div class="bg-slate-50 border border-slate-100 p-1.5 rounded-md flex items-center gap-2">
-                    <div class="w-7 h-7 rounded bg-slate-200 shrink-0 overflow-hidden border border-slate-300/50">
+                    <div class="w-7 h-7 rounded bg-slate-200 shrink-0 overflow-hidden border border-slate-300/50 relative">
                       {#if lead.propiedades?.imagen_url}
                         <img src={lead.propiedades.imagen_url} alt="Prop" class="w-full h-full object-cover grayscale opacity-80 mix-blend-multiply">
                       {:else}
-                        <div class="w-full h-full flex items-center justify-center text-slate-400"><Home class="w-3.5 h-3.5"/></div>
+                        <div class="absolute inset-0 flex items-center justify-center text-slate-400 bg-slate-200"><Home class="w-3.5 h-3.5"/></div>
                       {/if}
                     </div>
                     <div class="flex-1 min-w-0">
@@ -537,7 +558,7 @@
   {#if selectedLead}
     <div class="fixed inset-0 z-[110] bg-slate-50 flex flex-col animate-[fadeIn_0.2s_ease-out]">
       
-      <!-- 🚀 HEADER: Navegación y Status Global -->
+      <!-- HEADER: Navegación y Status Global -->
       <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0 shadow-sm z-10">
         <div class="flex items-center gap-6">
           <button aria-label="Volver" onclick={cerrarPanel} class="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-slate-900">
@@ -551,13 +572,10 @@
             <div>
               <h1 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
                 {selectedLead.nombre}
-                <!-- Selector rápido de etapa para no volver al kanban -->
+                <!-- 🚀 FIX: Dropdown de etapa completamente funcional -->
                 <select 
                   class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest {getBadgeColor(selectedLead.estado)} border cursor-pointer outline-none hover:brightness-95 transition-all appearance-none"
-                  onchange={(e) => { 
-                    if (e.target.value === 'cerrado') soltar({preventDefault:()=>{}}, 'cerrado');
-                    else actualizarEstadoLocalYBD(selectedLead.id, e.target.value); 
-                  }}
+                  onchange={(e) => cambiarEstadoDesdePanel(e.target.value)}
                 >
                   {#each columnas as col}
                     <option value={col.id} selected={selectedLead.estado === col.id}>{col.titulo}</option>
@@ -584,7 +602,7 @@
         </div>
       </header>
 
-      <!-- 🚀 MAIN WORKSPACE: Split View -->
+      <!-- MAIN WORKSPACE: Split View -->
       <div class="flex-1 overflow-hidden flex flex-col md:flex-row">
         
         <!-- COLUMNA IZQUIERDA: Contexto e Inteligencia (40%) -->
@@ -620,7 +638,11 @@
             {#if selectedLead.propiedades}
               <div class="group relative rounded-xl overflow-hidden border border-slate-200 shadow-sm hover:border-indigo-300 transition-colors cursor-pointer">
                 <div class="aspect-[21/9] bg-slate-100 relative">
-                  <img src={selectedLead.propiedades.imagen_url || '/placeholder.jpg'} alt="Propiedad" class="w-full h-full object-cover">
+                  {#if selectedLead.propiedades.imagen_url}
+                    <img src={selectedLead.propiedades.imagen_url} alt="Propiedad" class="w-full h-full object-cover">
+                  {:else}
+                    <div class="absolute inset-0 flex items-center justify-center text-slate-300"><Building2 class="w-8 h-8"/></div>
+                  {/if}
                   <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 to-transparent"></div>
                   <div class="absolute bottom-3 left-3 right-3 text-white">
                     <p class="text-sm font-bold truncate">{selectedLead.propiedades.titulo}</p>
@@ -642,7 +664,7 @@
             {/if}
           </div>
 
-          <!-- Siguientes Pasos (Recordatorios Pendientes) -->
+          <!-- 🚀 FIX: Agenda Activa REAL (Mapeada de la DB) -->
           <div class="p-6 flex-1 bg-transparent">
             <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
               <CalendarClock class="w-3.5 h-3.5" /> Agenda Activa
@@ -662,7 +684,10 @@
                 </div>
               {/each}
               {#if (selectedLead.lead_notas || []).filter(n => n.tipo === 'recordatorio' && !n.completado).length === 0}
-                <p class="text-xs font-medium text-slate-400 italic text-center py-4">No hay tareas pendientes.</p>
+                <div class="p-4 rounded-xl border border-dashed border-slate-200 bg-white text-center">
+                  <CheckCircle2 class="w-6 h-6 text-emerald-400 mx-auto mb-2" />
+                  <p class="text-xs text-slate-500 font-medium">Al día. No hay tareas pendientes.</p>
+                </div>
               {/if}
             </div>
           </div>
@@ -782,7 +807,6 @@
                   {#each selectedLead.lead_notas as nota}
                     <div class="relative flex items-start gap-6">
                       
-                      <!-- Icono Timeline -->
                       <div class="absolute left-0 w-[34px] h-[34px] rounded-full border-[3px] border-slate-50 flex items-center justify-center z-10 shadow-sm {nota.tipo === 'recordatorio' ? (nota.completado ? 'bg-slate-200' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-100 ring-1 ring-rose-400' : 'bg-amber-100')) : 'bg-white border-slate-200'}">
                         {#if nota.tipo === 'recordatorio'}
                           <CalendarClock class="w-3.5 h-3.5 {nota.completado ? 'text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'text-rose-600' : 'text-amber-600')}"/>
@@ -791,7 +815,6 @@
                         {/if}
                       </div>
                       
-                      <!-- Contenido de Tarjeta -->
                       <div class="ml-14 bg-white border border-slate-200 rounded-xl p-4 shadow-sm w-full transition-shadow hover:shadow-md">
                         <div class="flex justify-between items-center mb-2">
                           <span class="text-[10px] font-black uppercase tracking-widest {nota.tipo === 'recordatorio' ? (nota.completado ? 'text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'text-rose-600' : 'text-amber-600')) : 'text-slate-500'}">
@@ -829,7 +852,7 @@
     </div>
   {/if}
 
-  <!-- 🚀 MODALES RESTANTES -->
+  <!-- MODALES RESTANTES -->
   {#if showModalCierre}
     <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-md overflow-hidden animate-[fadeIn_0.2s_ease-out]">
