@@ -21,7 +21,6 @@
   let leads = $state(data.leads || []);
   let draggedLeadId = $state(null);
   
-  // 🚀 FIX: Estado explícito para el hover infalible
   let hoveredLeadId = $state(null);
 
   let selectedLead = $state(null);
@@ -492,7 +491,6 @@
             <div class="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-2 pb-8 pt-1">
               {#each leadsPorColumna[columna.id] || [] as lead (lead.id)}
                 
-                <!-- TARJETA CON EVENTOS DE MOUSE INYECTADOS PARA EL HOVER INFALIBLE -->
                 <div 
                   draggable="true"
                   ondragstart={(e) => arrancar(e, lead.id)}
@@ -560,7 +558,7 @@
                     </div>
                   </div>
 
-                  <!-- 🚀 FIX: ACCIONES RÁPIDAS (Renderizado condicional estricto usando estado de Svelte) -->
+                  <!-- ACCIONES RÁPIDAS EN HOVER -->
                   {#if hoveredLeadId === lead.id}
                     <div class="absolute -top-3 -right-2 flex items-center gap-1 bg-white p-1.5 rounded-xl shadow-lg border border-slate-200 z-30 animate-[fadeIn_0.1s_ease-out]">
                       {#if lead.telefono}
@@ -593,9 +591,9 @@
     </div>
   </div>
 
-  <!-- 🚀 FIX: THE CANVAS MODULAR A PANTALLA COMPLETA OSCURA (Eliminado el viejo panel lateral para siempre) -->
+  <!-- 🚀 FIX: THE CANVAS MODULAR INTEGRADO AL LAYOUT (absolute inset-0 en lugar de fixed) -->
   {#if isPanelOpen && selectedLead}
-    <div class="fixed inset-0 z-[120] bg-slate-950 flex flex-col p-4 sm:p-6 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+    <div class="absolute inset-0 z-[120] bg-slate-950 flex flex-col p-4 sm:p-6 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
         
         <div class="max-w-[1400px] mx-auto w-full h-full flex flex-col gap-6 overflow-hidden">
             
@@ -737,7 +735,7 @@
 
                         <textarea 
                             bind:value={iaWsGenerado}
-                            placeholder="Presiona 'Autocompletar' y el Copiloto redactará el seguimiento perfecto basado en la bitácora..."
+                            placeholder="Presiona 'Autocompletar' y el Copiloto redactará el seguimiento perfecto..."
                             class="w-full bg-slate-900/50 border border-indigo-500/20 rounded-xl p-4 text-sm font-medium text-slate-200 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all resize-none min-h-[80px] outline-none placeholder:text-slate-600"
                         ></textarea>
                         
@@ -839,7 +837,7 @@
     </div>
   {/if}
 
-  <!-- MODALES RESTANTES -->
+  <!-- MODALES -->
   {#if showModalCierre}
     <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-md overflow-hidden animate-[fadeIn_0.2s_ease-out]">
