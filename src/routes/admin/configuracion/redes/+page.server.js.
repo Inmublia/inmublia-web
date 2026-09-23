@@ -1,0 +1,39 @@
+import { redirect } from '@sveltejs/kit';
+import { env as privateEnv } from '$env/dynamic/private';
+import { PUBLIC_BASE_URL } from '$env/static/public'; // ej. https://inmublia.com
+
+export const load = async ({ locals }) => {
+  if (!locals.user) throw redirect(303, '/login');
+
+  const { data: broker } = await locals.supabase
+    .from('brokers')
+    .select('id')
+    .eq('auth_user_id', locals.user.id)
+    .single();
+
+  if (!broker) return { conexiones: [] };
+
+  const { data: conexiones } = await locals.supabase
+    .from('broker_social_connections')
+    .select('platform, username, status, token_expires_at')
+    .eq('broker_id', broker.id);
+
+  return { conexiones: conexiones || [] };
+};
+
+export const actions = {
+  conectarInstagram: async () => {
+    // IMPORTANTE: Meta Client ID debe estar en tu .env
+    const clientId = privateEnv.META_CLIENT_ID; 
+    
+    // Este endpoint lo crearemos en el siguiente paso
+    const redirectUri = `${PUBLIC_BASE_URL}/api/auth/instagram/callback`;
+    
+    // Los permisos exactos del "Instagram API with Instagram Login"
+    const scopes = 'instagram_business_basic,instagram_business_content_publish';
+
+    const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=code`;
+
+    throw redirect(302, authUrl);
+  }
+};
