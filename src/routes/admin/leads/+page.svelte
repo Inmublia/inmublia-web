@@ -21,10 +21,8 @@
   let leads = $state(data.leads || []);
   let draggedLeadId = $state(null);
   
-  // 🚀 MEJORA 1: Estado estricto para hover por tarjeta
   let hoveredLeadId = $state(null);
 
-  // 🚀 MEJORA 4: Fuente única de la verdad mediante $derived
   let selectedLeadId = $state(null);
   let isPanelOpen = $state(false);
   let selectedLead = $derived(leads.find(l => l.id === selectedLeadId) || null);
@@ -97,7 +95,6 @@
     }, {})
   );
 
-  // 🚀 MEJORA 6: Helper centralizado para mutaciones de API
   async function postAction(action, formData) {
     const res = await fetch(`?/${action}`, {
       method: 'POST',
@@ -111,6 +108,17 @@
     }
     return result;
   }
+
+  // 🚀 FIX: Agrega/Quita una clase al body global para que el Layout sepa cuando ocultar las notificaciones
+  $effect(() => {
+    if (typeof document !== 'undefined') {
+      if (isPanelOpen) {
+        document.body.classList.add('canvas-open');
+      } else {
+        document.body.classList.remove('canvas-open');
+      }
+    }
+  });
 
   $effect(() => {
     if (totalRecordatoriosPendientes > 0) {
@@ -135,7 +143,6 @@
     }
   });
 
-  // 🚀 MEJORA 2: Control determinista de parámetro de URL sin timers
   let handledOpenId = null;
   $effect(() => {
     const leadIdToOpen = page.url.searchParams.get('open');
@@ -201,7 +208,6 @@
     return (nombre || '?').replace(/[^\p{L}\s]/gu, '').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
   }
 
-  // 🚀 MEJORA 1: Reset de hover en drag start
   function arrancar(event, id) {
     hoveredLeadId = null;
     draggedLeadId = id;
@@ -279,7 +285,6 @@
     }
   }
 
-  // 🚀 MEJORA 3: Inmutabilidad estricta para reactividad en Svelte 5
   async function completarRecordatorio(notaId) {
     const now = new Date();
     leads = leads.map(l => {
@@ -352,7 +357,6 @@
       creado_en: nowISO 
     };
     
-    // 🚀 MEJORA 4: Solo actualizamos leads; selectedLead se sincroniza solo
     leads = leads.map(l => {
       if (l.id === selectedLeadId) {
         return {
@@ -436,8 +440,7 @@
   }
 </script>
 
-<!-- CONTENEDOR PRINCIPAL CONFINADO AL LAYOUT -->
-<main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F8FAFC] font-sans text-slate-900">
+<main class="flex-1 flex flex-col h-screen overflow-hidden relative {isPanelOpen ? 'bg-slate-950' : 'bg-[#F8FAFC]'} transition-colors duration-300 font-sans text-slate-900">
   
   {#if data.advertenciaPago}
     <div class="w-full bg-amber-500 text-amber-950 px-4 py-2 text-center text-[10px] font-black uppercase tracking-widest flex justify-center items-center gap-2 z-50">
@@ -481,7 +484,7 @@
     </div>
   </header>
 
-  <!-- CONTENEDOR INTEGRADO: Respeta el Sidebar y la Cintilla -->
+  <!-- CONTENEDOR INTEGRADO: Kanban y Canvas Modular -->
   <div class="relative flex-1 flex overflow-hidden z-20 -mt-16 w-full">
     
     <button onclick={() => scrollBoard(-1)} class="{isPanelOpen ? 'hidden' : 'hidden sm:flex'} absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-indigo-50 border border-slate-200 shadow-xl w-10 h-10 rounded-full items-center justify-center text-slate-600 hover:text-indigo-600 transition-all backdrop-blur-sm cursor-pointer" aria-label="Desplazar tablero a la izquierda">
@@ -492,7 +495,7 @@
       <ChevronRight class="w-6 h-6"/>
     </button>
 
-    <!-- KANBAN BOARD (Se oculta al abrir el detalle de un lead) -->
+    <!-- KANBAN BOARD -->
     <div class="flex-1 overflow-x-auto overflow-y-hidden kanban-board px-4 sm:px-8 pb-6 {isPanelOpen ? 'hidden' : 'block'}" bind:this={boardContainer}>
       <div class="flex gap-4 items-start h-full min-w-max xl:min-w-full">
         
@@ -525,14 +528,13 @@
             <div class="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-3 pb-8 pt-1">
               {#each leadsPorColumna[columna.id] || [] as lead (lead.id)}
                 
-                <!-- 🚀 MEJORA 7: aria-label descriptivo en tarjetas de lead -->
                 <div 
                   draggable="true"
                   ondragstart={(e) => arrancar(e, lead.id)}
                   ondragend={terminar}
                   role="button"
                   tabindex="0"
-                  aria-label={`Ver expediente y detalles de ${lead.nombre}`}
+                  aria-label={`Ver expediente de ${lead.nombre}`}
                   onclick={() => abrirPanel(lead)}
                   onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') abrirPanel(lead); }}
                   onmouseenter={() => hoveredLeadId = lead.id}
@@ -581,7 +583,7 @@
                   <div class="bg-slate-50 border border-slate-100 p-2 rounded-lg flex items-center gap-2.5">
                     <div class="w-9 h-9 rounded-md bg-slate-200 shrink-0 overflow-hidden border border-slate-200">
                       {#if lead.propiedades?.imagen_url}
-                        <img src={lead.propiedades.imagen_url} alt="Propiedad" class="w-full h-full object-cover">
+                        <img src={lead.propiedades.imagen_url} alt="Prop" class="w-full h-full object-cover">
                       {:else}
                         <div class="w-full h-full flex items-center justify-center text-slate-400"><Home class="w-4 h-4"/></div>
                       {/if}
@@ -594,7 +596,6 @@
                     </div>
                   </div>
 
-                  <!-- 🚀 MEJORA 1: ACCIONES RÁPIDAS EN HOVER CONTROLADAS POR SVELTE -->
                   {#if hoveredLeadId === lead.id}
                     <div class="absolute -top-3 -right-2 flex items-center gap-1.5 bg-white p-1.5 rounded-xl shadow-lg border border-slate-200 z-30 animate-[fadeIn_0.1s_ease-out]">
                       {#if lead.telefono}
@@ -626,14 +627,14 @@
       </div>
     </div>
 
-    <!-- 🚀 CANVAS MODULAR CONFINADO (Integrado perfectamente al layout) -->
+    <!-- 🚀 CANVAS MODULAR CONFINADO (Sin marcos blancos, llenando toda el área restante) -->
     {#if isPanelOpen && selectedLead}
-      <div class="flex-1 w-full px-4 sm:px-8 pb-6 animate-[fadeIn_0.2s_ease-out] overflow-hidden">
+      <div class="flex-1 w-full bg-slate-950 animate-[fadeIn_0.2s_ease-out] z-30 flex flex-col">
           
-          <div class="w-full h-full bg-slate-950 rounded-3xl shadow-2xl flex flex-col p-4 sm:p-6 overflow-hidden border border-slate-800">
+          <div class="w-full max-w-[1400px] mx-auto h-full flex flex-col gap-5 overflow-hidden p-4 sm:p-6 pb-8">
               
               <!-- HEADER DE EXPEDIENTE -->
-              <div class="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-lg shrink-0 gap-4 mb-5">
+              <div class="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-lg shrink-0 gap-4 mt-2">
                   <div class="flex items-center gap-4 w-full sm:w-auto">
                       <button aria-label="Volver al pipeline" onclick={cerrarPanel} class="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors border border-slate-700 shrink-0">
                           <ArrowLeft class="w-5 h-5" />
@@ -684,7 +685,7 @@
               </div>
 
               <!-- SPLIT VIEW INTERNO -->
-              <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden">
+              <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-5 overflow-hidden">
                   
                   <!-- COLUMNA IZQUIERDA: TERMOSTATO + PROPIEDAD -->
                   <div class="md:col-span-5 flex flex-col gap-5 overflow-y-auto hide-scrollbar">
@@ -692,12 +693,12 @@
                           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Termostato del Lead</span>
                           
                           {#if selectedLead.scoreObj && selectedLead.estado !== 'cerrado' && selectedLead.estado !== 'descartado'}
-                              <div class="flex items-end gap-3 mb-5">
+                              <div class="flex items-end gap-3 mb-4">
                                   <div class="text-5xl font-black {selectedLead.scoreObj.isHot ? 'text-orange-400' : 'text-indigo-400'} leading-none">{selectedLead.scoreObj.score}</div>
                                   <div class="text-base text-slate-500 font-black mb-1">/100</div>
                               </div>
                               
-                              <div class="p-3.5 bg-slate-950/50 rounded-xl border border-slate-800 mb-5">
+                              <div class="p-3.5 bg-slate-950/50 rounded-xl border border-slate-800 mb-4">
                                   <span class="text-[9px] font-black {selectedLead.scoreObj.isHot ? 'text-orange-400' : 'text-indigo-400'} uppercase tracking-widest block mb-1.5">{selectedLead.scoreObj.etiqueta}</span>
                                   <p class="text-xs text-slate-300 font-medium leading-relaxed mb-2.5">{selectedLead.scoreObj.razon}</p>
                                   <div class="flex items-start gap-2 bg-indigo-500/10 p-2.5 rounded-lg border border-indigo-500/20">
@@ -706,10 +707,10 @@
                                   </div>
                               </div>
                           {:else}
-                              <div class="text-5xl font-black text-slate-600 leading-none mb-5">--<span class="text-base text-slate-700">/100</span></div>
+                              <div class="text-5xl font-black text-slate-600 leading-none mb-4">--<span class="text-base text-slate-700">/100</span></div>
                           {/if}
 
-                          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2.5 border-t border-slate-800 pt-5">Propiedad Anclada</span>
+                          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2.5 border-t border-slate-800 pt-4">Propiedad Anclada</span>
                           {#if selectedLead.propiedades}
                               <div class="rounded-xl overflow-hidden border border-slate-800 relative aspect-video group">
                                   {#if selectedLead.propiedades.imagen_url}
@@ -735,7 +736,6 @@
                   <!-- COLUMNA DERECHA: COPILOTO IA + REGISTRO -->
                   <div class="md:col-span-7 flex flex-col gap-5 overflow-hidden">
                       
-                      <!-- 🚀 MEJORA 5: Sincronización concurrente de créditos con invalidateAll() -->
                       <div class="bg-indigo-950/30 border border-indigo-500/30 rounded-2xl p-5 shadow-lg shrink-0 flex flex-col">
                           <div class="flex items-center justify-between mb-3">
                               <span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
@@ -827,7 +827,6 @@
                               </form>
                           </div>
 
-                          <!-- TIMELINE -->
                           <div class="flex-1 overflow-y-auto p-5 hide-scrollbar">
                               {#if selectedLead.lead_notas && selectedLead.lead_notas.length > 0}
                                   <div class="space-y-5 relative before:absolute before:inset-0 before:ml-[15px] before:h-full before:w-px before:bg-slate-800">
@@ -881,7 +880,7 @@
     {/if}
   </div>
 
-  <!-- MODALES DE NEGOCIO (Preservados intactos) -->
+  <!-- MODALES DE NEGOCIO -->
   {#if showModalCierre}
     <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[130] flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-md overflow-hidden animate-[fadeIn_0.2s_ease-out]">
@@ -1049,7 +1048,7 @@
   .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
 </style>
