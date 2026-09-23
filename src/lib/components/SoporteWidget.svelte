@@ -57,7 +57,8 @@
   }
 </script>
 
-<div class="fixed bottom-6 right-6 z-[9999] flex flex-col items-end">
+<!-- 🚀 FIX: La clase global oculta este componente si el Canvas está abierto -->
+<div class="fixed bottom-6 right-6 z-[9999] flex flex-col items-end global-floating-widget">
   {#if isOpen}
     <div class="bg-white border border-slate-200 rounded-2xl shadow-2xl w-[350px] sm:w-[400px] h-[500px] flex flex-col mb-4 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
       
@@ -133,3 +134,10 @@
     {/if}
   </button>
 </div>
+
+<style>
+  /* 🚀 LÓGICA DE OCULTAMIENTO GLOBAL (Duplicado por si este componente carga independiente) */
+  :global(.canvas-open .global-floating-widget) {
+    display: none !important;
+  }
+</style>
