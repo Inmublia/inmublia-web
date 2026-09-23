@@ -66,7 +66,6 @@
     leads.filter(l => l.has_pending_reminder).length
   );
 
-  // 🚀 TEMA CLARO 2026: Kanban brillante
   const columnas = [
     { id: 'nuevo', titulo: 'Nuevos Inicios', dot: 'bg-indigo-500', bgCol: 'bg-white/40', border: 'border-indigo-100', text: 'text-indigo-700' },
     { id: 'contactado', titulo: 'En Conversación', dot: 'bg-sky-500', bgCol: 'bg-white/40', border: 'border-sky-100', text: 'text-sky-700' },
@@ -435,7 +434,6 @@
   }
 </script>
 
-<!-- 🚀 TEMA CLARO UNIFICADO: Fondo Slate 50 para toda la vista -->
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F8FAFC] font-sans text-slate-900">
   
   {#if data.advertenciaPago}
@@ -473,14 +471,13 @@
           <input type="text" bind:value={searchQuery} placeholder="Buscar cliente..." class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all shadow-inner backdrop-blur-md">
         </div>
         
-        <button onclick={() => showModalLeadManual = true} class="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors bg-white text-zinc-950 hover:bg-slate-200 h-11 px-5 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95 shrink-0">
+        <button onclick={() => showModalLeadManual = true} class="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-5 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95 shrink-0">
           <Plus class="w-4 h-4"/> Nuevo Prospecto
         </button>
       </div>
     </div>
   </header>
 
-  <!-- CONTENEDOR INTEGRADO -->
   <div class="relative flex-1 flex overflow-hidden z-20 -mt-16 w-full">
     
     <button onclick={() => scrollBoard(-1)} class="{isPanelOpen ? 'hidden' : 'hidden sm:flex'} absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-indigo-50 border border-slate-200 shadow-xl w-10 h-10 rounded-full items-center justify-center text-slate-600 hover:text-indigo-600 transition-all backdrop-blur-sm cursor-pointer" aria-label="Desplazar tablero a la izquierda">
@@ -491,7 +488,7 @@
       <ChevronRight class="w-6 h-6"/>
     </button>
 
-    <!-- KANBAN BOARD (Tema Claro) -->
+    <!-- KANBAN BOARD -->
     <div class="flex-1 overflow-x-auto overflow-y-hidden kanban-board px-4 sm:px-8 pb-6 {isPanelOpen ? 'hidden' : 'block'}" bind:this={boardContainer}>
       <div class="flex gap-4 items-start h-full min-w-max xl:min-w-full">
         
@@ -501,7 +498,6 @@
             ondragover={permitirSoltar}
             ondrop={(e) => soltar(e, columna.id)}
           >
-            <!-- Cabecera de columna adaptada al fondo claro -->
             <div class="sticky top-0 z-20 px-3 py-2.5 -mx-2.5 -mt-2.5 mb-2 bg-white/95 backdrop-blur-md rounded-t-xl border-b border-slate-200/60 shadow-[0_2px_10px_rgba(0,0,0,0.03)]">
               <div class="flex items-center justify-between mb-1.5">
                 <h2 class="text-[10px] font-black uppercase tracking-widest {columna.text} flex items-center gap-1.5 drop-shadow-sm">
@@ -525,7 +521,6 @@
             <div class="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-3 pb-8 pt-1">
               {#each leadsPorColumna[columna.id] || [] as lead (lead.id)}
                 
-                <!-- Tarjetas Light UI -->
                 <div 
                   draggable="true"
                   ondragstart={(e) => arrancar(e, lead.id)}
@@ -542,7 +537,6 @@
                   
                   <div class="flex items-start justify-between gap-2">
                     <div class="flex items-center gap-2 min-w-0">
-                      
                       <div class="relative shrink-0">
                         <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 text-white flex items-center justify-center text-[10px] font-black uppercase shadow-inner">
                           {getInitials(lead.nombre)}
@@ -594,7 +588,6 @@
                     </div>
                   </div>
 
-                  <!-- ACCIONES RÁPIDAS EN HOVER (Tema claro) -->
                   {#if hoveredLeadId === lead.id}
                     <div class="absolute -top-3 -right-2 flex items-center gap-1.5 bg-white p-1.5 rounded-xl shadow-lg border border-slate-200 z-30 animate-[fadeIn_0.1s_ease-out]">
                       {#if lead.telefono}
@@ -626,13 +619,13 @@
       </div>
     </div>
 
-    <!-- 🚀 TEMA CLARO: CANVAS MODULAR CONFINADO (Integrado perfectamente al layout claro) -->
+    <!-- CANVAS MODULAR (Vista Detalle del Lead) -->
     {#if isPanelOpen && selectedLead}
       <div class="flex-1 w-full px-4 sm:px-8 pb-6 animate-[fadeIn_0.2s_ease-out] overflow-hidden">
           
           <div class="w-full h-full bg-white rounded-3xl shadow-2xl flex flex-col p-4 sm:p-6 overflow-hidden border border-slate-200">
               
-              <!-- HEADER DE EXPEDIENTE (Light UI) -->
+              <!-- HEADER DE EXPEDIENTE -->
               <div class="bg-slate-50 border border-slate-100 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-sm shrink-0 gap-4 mb-5">
                   <div class="flex items-center gap-4 w-full sm:w-auto">
                       <button aria-label="Volver al pipeline" onclick={cerrarPanel} class="p-2 text-slate-400 hover:text-slate-900 bg-white hover:bg-slate-100 rounded-xl transition-colors border border-slate-200 shrink-0 shadow-sm">
@@ -678,38 +671,64 @@
                           <Sparkles class="w-4 h-4" /> {creditosIA} Créditos
                       </div>
                       <a href="https://wa.me/{String(selectedLead.telefono || '').replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap shadow-md shadow-[#25D366]/20">
-                          <Send class="w-4 h-4"/> WhatsApp
+                          <!-- 🚀 WHATSAPP SVG -->
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                          WhatsApp
                       </a>
                   </div>
               </div>
 
-              <!-- SPLIT VIEW INTERNO (Light UI) -->
+              <!-- SPLIT VIEW INTERNO -->
               <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden">
                   
                   <!-- COLUMNA IZQUIERDA: TERMOSTATO + PROPIEDAD -->
-                  <div class="md:col-span-5 flex flex-col gap-5 overflow-y-auto hide-scrollbar">
-                      <div class="bg-slate-50 border border-slate-100 rounded-2xl p-5 flex flex-col">
-                          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Termostato del Lead</span>
+                  <!-- 🚀 SOLUCIÓN ANTI-CORTE: pb-4 y tarjetas separadas -->
+                  <div class="md:col-span-5 flex flex-col gap-5 overflow-y-auto hide-scrollbar pb-4">
+                      
+                      <!-- 🚀 GAUGE RADIAL Y CONTEXTO -->
+                      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm shrink-0">
+                          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">Termostato del Lead</span>
                           
                           {#if selectedLead.scoreObj && selectedLead.estado !== 'cerrado' && selectedLead.estado !== 'descartado'}
-                              <div class="flex items-end gap-3 mb-5">
-                                  <div class="text-5xl font-black {selectedLead.scoreObj.isHot ? 'text-orange-500' : 'text-indigo-600'} leading-none">{selectedLead.scoreObj.score}</div>
-                                  <div class="text-base text-slate-400 font-black mb-1">/100</div>
-                              </div>
-                              
-                              <div class="p-3.5 bg-white rounded-xl border border-slate-100 shadow-sm mb-5">
-                                  <span class="text-[9px] font-black {selectedLead.scoreObj.isHot ? 'text-orange-500' : 'text-indigo-600'} uppercase tracking-widest block mb-1.5">{selectedLead.scoreObj.etiqueta}</span>
-                                  <p class="text-xs text-slate-600 font-medium leading-relaxed mb-2.5">{selectedLead.scoreObj.razon}</p>
-                                  <div class="flex items-start gap-2 bg-indigo-50 p-2.5 rounded-lg border border-indigo-100">
-                                      <ArrowRight class="w-4 h-4 text-indigo-500 shrink-0 mt-0.5"/>
-                                      <p class="text-[11px] text-indigo-800 font-bold leading-snug">{selectedLead.scoreObj.accion}</p>
+                              <div class="flex items-center gap-5 mb-5">
+                                  <div class="relative w-20 h-20 shrink-0">
+                                      <svg class="w-full h-full" viewBox="0 0 100 100" style="transform: rotate(135deg);">
+                                          <!-- Fondo gris -->
+                                          <circle cx="50" cy="50" r="40" stroke="currentColor" stroke-width="8" fill="transparent" class="text-slate-100" stroke-dasharray="188.5 251.2" stroke-linecap="round" />
+                                          <!-- Progreso degradado -->
+                                          <circle cx="50" cy="50" r="40" stroke="url(#score-gradient)" stroke-width="8" fill="transparent" stroke-dasharray="188.5 251.2" stroke-dashoffset={188.5 - (188.5 * selectedLead.scoreObj.score / 100)} stroke-linecap="round" class="transition-all duration-1000 ease-out" />
+                                          <defs>
+                                              <linearGradient id="score-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                  <stop offset="0%" stop-color="#818cf8" />
+                                                  <stop offset="100%" stop-color="#a78bfa" />
+                                              </linearGradient>
+                                          </defs>
+                                      </svg>
+                                      <div class="absolute inset-0 flex flex-col items-center justify-center pt-1.5">
+                                          <span class="text-2xl font-black text-slate-800 leading-none">{selectedLead.scoreObj.score}</span>
+                                      </div>
+                                  </div>
+                                  
+                                  <div class="flex-1">
+                                      <span class="text-[10px] font-black {selectedLead.scoreObj.isHot ? 'text-orange-500' : 'text-indigo-600'} uppercase tracking-widest block mb-1">{selectedLead.scoreObj.etiqueta}</span>
+                                      <p class="text-[11px] text-slate-600 font-medium leading-relaxed">{selectedLead.scoreObj.razon}</p>
                                   </div>
                               </div>
+                              
+                              <div class="flex items-start gap-2 bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                                  <ArrowRight class="w-4 h-4 text-indigo-500 shrink-0 mt-0.5"/>
+                                  <p class="text-[11px] text-indigo-800 font-bold leading-snug">{selectedLead.scoreObj.accion}</p>
+                              </div>
                           {:else}
-                              <div class="text-5xl font-black text-slate-300 leading-none mb-5">--<span class="text-base text-slate-400">/100</span></div>
+                              <div class="flex items-center gap-5 mb-5">
+                                  <div class="text-5xl font-black text-slate-300 leading-none">--<span class="text-base text-slate-400">/100</span></div>
+                              </div>
                           {/if}
+                      </div>
 
-                          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2.5 border-t border-slate-200 pt-5">Propiedad Anclada</span>
+                      <!-- 🚀 TARJETA PROPIEDAD SEPARADA PARA EVITAR RECORTE -->
+                      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm shrink-0 flex flex-col">
+                          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Propiedad Anclada</span>
                           {#if selectedLead.propiedades}
                               <div class="rounded-xl overflow-hidden border border-slate-200 shadow-sm relative aspect-video group">
                                   {#if selectedLead.propiedades.imagen_url}
@@ -737,8 +756,9 @@
                       
                       <div class="bg-indigo-50/40 border border-indigo-100 rounded-2xl p-5 shadow-sm shrink-0 flex flex-col">
                           <div class="flex items-center justify-between mb-3">
+                              <!-- 🚀 UNIFICACIÓN IA: Varita mágica (Sparkles) en todos lados -->
                               <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
-                                  ⚡ Sugerencia Inmublia AI
+                                  <Sparkles class="w-3.5 h-3.5 text-indigo-500" /> Sugerencia Inmublia AI
                               </span>
                               
                               <form id="form-whatsapp-ia" method="POST" action="?/generarScriptWhatsapp" use:enhance={() => {
@@ -783,7 +803,9 @@
                               <div class="flex justify-end gap-2 mt-3 animate-[fadeIn_0.2s_ease-out]">
                                   <button onclick={() => iaWsGenerado = ''} class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm">Descartar</button>
                                   <a href="https://wa.me/{String(selectedLead.telefono || '').replace(/\D/g, '')}?text={encodeURIComponent(iaWsGenerado)}" target="_blank" rel="noopener noreferrer" class="px-3.5 py-1.5 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 shadow-md shadow-[#25D366]/20">
-                                      <Send class="w-3.5 h-3.5"/> Enviar WhatsApp
+                                      <!-- 🚀 WHATSAPP SVG OFICIAL -->
+                                      <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                      Enviar WhatsApp
                                   </a>
                               </div>
                           {/if}
@@ -826,22 +848,20 @@
                               </form>
                           </div>
 
-                          <!-- TIMELINE -->
+                          <!-- 🚀 TIMELINE CONTINUO CON NODOS SEMÁNTICOS -->
                           <div class="flex-1 overflow-y-auto p-5 hide-scrollbar bg-slate-50/50">
                               {#if selectedLead.lead_notas && selectedLead.lead_notas.length > 0}
-                                  <div class="space-y-5 relative before:absolute before:inset-0 before:ml-[15px] before:h-full before:w-px before:bg-slate-200">
+                                  <div class="space-y-0 relative before:absolute before:inset-0 before:ml-[11px] before:h-full before:w-[2px] before:bg-slate-200">
                                       {#each selectedLead.lead_notas as nota}
-                                          <div class="relative flex items-start gap-4">
+                                          <div class="relative flex items-start gap-4 pb-6 last:pb-0">
                                               
-                                              <div class="absolute left-0 w-[30px] h-[30px] rounded-full border-[2.5px] border-slate-50/80 flex items-center justify-center z-10 shadow-sm {nota.tipo === 'recordatorio' ? (nota.completado ? 'bg-slate-200 border-slate-100' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-100 border-rose-200' : 'bg-amber-100 border-amber-200')) : 'bg-white border-slate-200'}">
-                                                  {#if nota.tipo === 'recordatorio'}
-                                                      <CalendarClock class="w-3.5 h-3.5 {nota.completado ? 'text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'text-rose-500' : 'text-amber-500')}"/>
-                                                  {:else}
-                                                      <MessageSquareQuote class="w-3.5 h-3.5 text-slate-400"/>
-                                                  {/if}
+                                              <!-- Punto de Color Semántico en la Línea -->
+                                              <div class="absolute left-0 w-[24px] flex justify-center mt-3 z-10">
+                                                  <div class="w-3 h-3 rounded-full ring-4 ring-[#F8FAFC] {nota.tipo === 'recordatorio' ? (nota.completado ? 'bg-emerald-500' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-500' : 'bg-amber-400')) : 'bg-slate-400'}"></div>
                                               </div>
                                               
-                                              <div class="ml-11 bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm w-full transition-colors hover:border-indigo-300">
+                                              <!-- Tarjeta de Contenido -->
+                                              <div class="ml-10 bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm w-full transition-colors hover:border-indigo-300 relative">
                                                   <div class="flex justify-between items-center mb-2">
                                                       <span class="text-[9px] font-black uppercase tracking-widest {nota.tipo === 'recordatorio' ? (nota.completado ? 'text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'text-rose-600' : 'text-amber-600')) : 'text-slate-400'}">
                                                           {nota.tipo === 'recordatorio' ? (nota.completado ? 'Tarea Completada' : 'Recordatorio Programado') : 'Nota Interna'}
@@ -866,8 +886,8 @@
                               {:else}
                                   <div class="flex flex-col items-center justify-center h-full text-center opacity-70">
                                       <Clock class="w-9 h-9 text-slate-300 mb-2"/>
-                                      <p class="text-xs font-bold text-slate-500">Aún no hay actividad.</p>
-                                      <p class="text-[10px] text-slate-400 mt-0.5">Registra la primera interacción en el formulario superior.</p>
+                                      <p class="text-xs font-bold text-slate-400">Aún no hay actividad.</p>
+                                      <p class="text-[10px] text-slate-500 mt-0.5">Registra la primera interacción en el formulario superior.</p>
                                   </div>
                               {/if}
                           </div>
@@ -880,7 +900,7 @@
     {/if}
   </div>
 
-  <!-- MODALES DE NEGOCIO (Preservados intactos) -->
+  <!-- MODALES DE NEGOCIO -->
   {#if showModalCierre}
     <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[130] flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-md overflow-hidden animate-[fadeIn_0.2s_ease-out]">
