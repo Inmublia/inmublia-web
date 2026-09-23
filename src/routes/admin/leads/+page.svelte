@@ -478,6 +478,7 @@
     </div>
   </header>
 
+  <!-- CONTENEDOR INTEGRADO -->
   <div class="relative flex-1 flex overflow-hidden z-20 -mt-16 w-full">
     
     <button onclick={() => scrollBoard(-1)} class="{isPanelOpen ? 'hidden' : 'hidden sm:flex'} absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-indigo-50 border border-slate-200 shadow-xl w-10 h-10 rounded-full items-center justify-center text-slate-600 hover:text-indigo-600 transition-all backdrop-blur-sm cursor-pointer" aria-label="Desplazar tablero a la izquierda">
@@ -488,7 +489,7 @@
       <ChevronRight class="w-6 h-6"/>
     </button>
 
-    <!-- KANBAN BOARD -->
+    <!-- KANBAN BOARD (Tema Claro) -->
     <div class="flex-1 overflow-x-auto overflow-y-hidden kanban-board px-4 sm:px-8 pb-6 {isPanelOpen ? 'hidden' : 'block'}" bind:this={boardContainer}>
       <div class="flex gap-4 items-start h-full min-w-max xl:min-w-full">
         
@@ -498,6 +499,7 @@
             ondragover={permitirSoltar}
             ondrop={(e) => soltar(e, columna.id)}
           >
+            <!-- Cabecera de columna -->
             <div class="sticky top-0 z-20 px-3 py-2.5 -mx-2.5 -mt-2.5 mb-2 bg-white/95 backdrop-blur-md rounded-t-xl border-b border-slate-200/60 shadow-[0_2px_10px_rgba(0,0,0,0.03)]">
               <div class="flex items-center justify-between mb-1.5">
                 <h2 class="text-[10px] font-black uppercase tracking-widest {columna.text} flex items-center gap-1.5 drop-shadow-sm">
@@ -537,6 +539,7 @@
                   
                   <div class="flex items-start justify-between gap-2">
                     <div class="flex items-center gap-2 min-w-0">
+                      
                       <div class="relative shrink-0">
                         <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 text-white flex items-center justify-center text-[10px] font-black uppercase shadow-inner">
                           {getInitials(lead.nombre)}
@@ -619,7 +622,7 @@
       </div>
     </div>
 
-    <!-- CANVAS MODULAR (Vista Detalle del Lead) -->
+    <!-- CANVAS MODULAR (Vista Detalle del Lead Light UI) -->
     {#if isPanelOpen && selectedLead}
       <div class="flex-1 w-full px-4 sm:px-8 pb-6 animate-[fadeIn_0.2s_ease-out] overflow-hidden">
           
@@ -671,7 +674,6 @@
                           <Sparkles class="w-4 h-4" /> {creditosIA} Créditos
                       </div>
                       <a href="https://wa.me/{String(selectedLead.telefono || '').replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap shadow-md shadow-[#25D366]/20">
-                          <!-- 🚀 WHATSAPP SVG -->
                           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                           WhatsApp
                       </a>
@@ -681,21 +683,19 @@
               <!-- SPLIT VIEW INTERNO -->
               <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden">
                   
-                  <!-- COLUMNA IZQUIERDA: TERMOSTATO + PROPIEDAD -->
-                  <!-- 🚀 SOLUCIÓN ANTI-CORTE: pb-4 y tarjetas separadas -->
+                  <!-- COLUMNA IZQUIERDA -->
                   <div class="md:col-span-5 flex flex-col gap-5 overflow-y-auto hide-scrollbar pb-4">
                       
-                      <!-- 🚀 GAUGE RADIAL Y CONTEXTO -->
+                      <!-- GAUGE RADIAL -->
                       <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm shrink-0">
                           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">Termostato del Lead</span>
                           
                           {#if selectedLead.scoreObj && selectedLead.estado !== 'cerrado' && selectedLead.estado !== 'descartado'}
                               <div class="flex items-center gap-5 mb-5">
+                                  <!-- SVG Radial Gauge -->
                                   <div class="relative w-20 h-20 shrink-0">
                                       <svg class="w-full h-full" viewBox="0 0 100 100" style="transform: rotate(135deg);">
-                                          <!-- Fondo gris -->
                                           <circle cx="50" cy="50" r="40" stroke="currentColor" stroke-width="8" fill="transparent" class="text-slate-100" stroke-dasharray="188.5 251.2" stroke-linecap="round" />
-                                          <!-- Progreso degradado -->
                                           <circle cx="50" cy="50" r="40" stroke="url(#score-gradient)" stroke-width="8" fill="transparent" stroke-dasharray="188.5 251.2" stroke-dashoffset={188.5 - (188.5 * selectedLead.scoreObj.score / 100)} stroke-linecap="round" class="transition-all duration-1000 ease-out" />
                                           <defs>
                                               <linearGradient id="score-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -726,7 +726,7 @@
                           {/if}
                       </div>
 
-                      <!-- 🚀 TARJETA PROPIEDAD SEPARADA PARA EVITAR RECORTE -->
+                      <!-- TARJETA PROPIEDAD -->
                       <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm shrink-0 flex flex-col">
                           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Propiedad Anclada</span>
                           {#if selectedLead.propiedades}
@@ -751,12 +751,12 @@
                       </div>
                   </div>
 
-                  <!-- COLUMNA DERECHA: COPILOTO IA + REGISTRO -->
+                  <!-- COLUMNA DERECHA -->
                   <div class="md:col-span-7 flex flex-col gap-5 overflow-hidden">
                       
+                      <!-- SUGERENCIA IA -->
                       <div class="bg-indigo-50/40 border border-indigo-100 rounded-2xl p-5 shadow-sm shrink-0 flex flex-col">
                           <div class="flex items-center justify-between mb-3">
-                              <!-- 🚀 UNIFICACIÓN IA: Varita mágica (Sparkles) en todos lados -->
                               <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
                                   <Sparkles class="w-3.5 h-3.5 text-indigo-500" /> Sugerencia Inmublia AI
                               </span>
@@ -803,15 +803,13 @@
                               <div class="flex justify-end gap-2 mt-3 animate-[fadeIn_0.2s_ease-out]">
                                   <button onclick={() => iaWsGenerado = ''} class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm">Descartar</button>
                                   <a href="https://wa.me/{String(selectedLead.telefono || '').replace(/\D/g, '')}?text={encodeURIComponent(iaWsGenerado)}" target="_blank" rel="noopener noreferrer" class="px-3.5 py-1.5 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 shadow-md shadow-[#25D366]/20">
-                                      <!-- 🚀 WHATSAPP SVG OFICIAL -->
                                       <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                                      Enviar WhatsApp
+                                  Enviar WhatsApp
                                   </a>
                               </div>
                           {/if}
                       </div>
 
-                      <!-- REGISTRO OPERATIVO Y BITÁCORA -->
                       <div class="flex-1 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col overflow-hidden">
                           
                           <div class="p-4 border-b border-slate-100 bg-white shrink-0">
@@ -836,7 +834,7 @@
                                   {/if}
 
                                   <div class="relative flex items-end gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all shadow-inner">
-                                      <textarea name="contenido" bind:value={nuevaNotaTexto} onkeydown={handleKeyDown} placeholder={esRecordatorio ? "Describe la acción o fecha a agendar..." : "Registra una llamada o minuta rápida..."} class="flex-1 bg-transparent border-none outline-none text-sm text-slate-800 placeholder-slate-400 resize-none min-h-[38px] px-2 py-1 font-medium" required></textarea>
+                                      <textarea name="contenido" bind:value={nuevaNotaTexto} onkeydown={handleKeyDown} placeholder={esRecordatorio ? "Describe la acción o fecha a agendar..." : "Registra una llamada o minuta rápida..."} class="flex-1 bg-transparent border-none outline-none text-sm text-slate-800 placeholder-slate-400 resize-none min-h-[38px] px-2 py-1 font-medium leading-snug" required></textarea>
                                       <button type="submit" bind:this={submitBtn} disabled={guardandoNota || !nuevaNotaTexto.trim()} class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg {esRecordatorio ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-slate-900 hover:bg-indigo-600 text-white'} transition-colors disabled:opacity-50 disabled:bg-slate-200 disabled:text-slate-400 shadow-sm" aria-label="Guardar nota o recordatorio">
                                           {#if guardandoNota}
                                               <Loader2 class="w-4 h-4 animate-spin"/>
@@ -848,36 +846,43 @@
                               </form>
                           </div>
 
-                          <!-- 🚀 TIMELINE CONTINUO CON NODOS SEMÁNTICOS -->
+                          <!-- 🚀 FIX: TIMELINE COMPACTO (1 SOLA LÍNEA) -->
                           <div class="flex-1 overflow-y-auto p-5 hide-scrollbar bg-slate-50/50">
                               {#if selectedLead.lead_notas && selectedLead.lead_notas.length > 0}
                                   <div class="space-y-0 relative before:absolute before:inset-0 before:ml-[11px] before:h-full before:w-[2px] before:bg-slate-200">
                                       {#each selectedLead.lead_notas as nota}
-                                          <div class="relative flex items-start gap-4 pb-6 last:pb-0">
+                                          <div class="relative flex items-center gap-3 pb-3 last:pb-0">
                                               
-                                              <!-- Punto de Color Semántico en la Línea -->
-                                              <div class="absolute left-0 w-[24px] flex justify-center mt-3 z-10">
-                                                  <div class="w-3 h-3 rounded-full ring-4 ring-[#F8FAFC] {nota.tipo === 'recordatorio' ? (nota.completado ? 'bg-emerald-500' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-500' : 'bg-amber-400')) : 'bg-slate-400'}"></div>
+                                              <!-- Punto semántico central -->
+                                              <div class="absolute left-0 w-[24px] flex justify-center z-10">
+                                                  <div class="w-2.5 h-2.5 rounded-full ring-4 ring-[#F8FAFC] {nota.tipo === 'recordatorio' ? (nota.completado ? 'bg-emerald-500' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-500' : 'bg-amber-400')) : 'bg-slate-400'}"></div>
                                               </div>
                                               
-                                              <!-- Tarjeta de Contenido -->
-                                              <div class="ml-10 bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm w-full transition-colors hover:border-indigo-300 relative">
-                                                  <div class="flex justify-between items-center mb-2">
-                                                      <span class="text-[9px] font-black uppercase tracking-widest {nota.tipo === 'recordatorio' ? (nota.completado ? 'text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'text-rose-600' : 'text-amber-600')) : 'text-slate-400'}">
-                                                          {nota.tipo === 'recordatorio' ? (nota.completado ? 'Tarea Completada' : 'Recordatorio Programado') : 'Nota Interna'}
-                                                      </span>
-                                                      <span class="text-[9px] font-bold text-slate-400">
-                                                          {nota.tipo === 'recordatorio' && !nota.completado ? formatDateTime(nota.fecha_recordatorio) : formatDateTime(nota.creado_en)}
-                                                      </span>
-                                                  </div>
-                                                  <p class="text-sm {nota.completado ? 'text-slate-400 line-through' : 'text-slate-700'} font-medium whitespace-pre-wrap leading-relaxed">{nota.contenido}</p>
+                                              <!-- Fila de Datos Ultra-Compacta -->
+                                              <div class="ml-8 bg-white border border-slate-200 rounded-lg py-1.5 px-2.5 shadow-sm w-full transition-colors hover:border-indigo-300 flex items-center gap-3">
+                                                  
+                                                  <span class="shrink-0 text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded {nota.tipo === 'recordatorio' ? (nota.completado ? 'bg-slate-100 text-slate-400' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600')) : 'bg-slate-100 text-slate-500'}">
+                                                      {nota.tipo === 'recordatorio' ? (nota.completado ? 'TC' : 'RP') : 'NI'}
+                                                  </span>
+                                                  
+                                                  <p class="flex-1 text-xs {nota.completado ? 'text-slate-400 line-through' : 'text-slate-700'} font-medium truncate" title={nota.contenido}>
+                                                      {nota.contenido}
+                                                  </p>
+                                                  
+                                                  <span class="shrink-0 text-[9px] font-bold text-slate-400">
+                                                      {nota.tipo === 'recordatorio' && !nota.completado ? formatDateTime(nota.fecha_recordatorio) : formatDateTime(nota.creado_en)}
+                                                  </span>
                                                   
                                                   {#if nota.tipo === 'recordatorio' && !nota.completado && !nota.id.startsWith('temp-')}
-                                                      <div class="flex justify-end pt-2.5 mt-2.5 border-t border-slate-50">
-                                                          <button onclick={() => completarRecordatorio(nota.id)} class="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors active:scale-95 text-slate-500 shadow-sm">
-                                                              <CheckCircle2 class="w-3 h-3"/> Marcar como Resuelto
-                                                          </button>
-                                                      </div>
+                                                      <button onclick={() => completarRecordatorio(nota.id)} class="shrink-0 text-[9px] font-black uppercase flex items-center gap-1 px-2 py-1 rounded bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors active:scale-95 text-slate-500 shadow-sm" title="Marcar como Resuelto">
+                                                          <CheckCircle2 class="w-3 h-3"/> Resuelto
+                                                      </button>
+                                                  {/if}
+
+                                                  {#if nota.id.startsWith('temp-')}
+                                                      <span class="shrink-0 text-[9px] text-slate-400 flex items-center gap-1 font-bold">
+                                                          <Loader2 class="w-3 h-3 animate-spin"/>
+                                                      </span>
                                                   {/if}
                                               </div>
                                           </div>
