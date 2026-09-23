@@ -3,14 +3,10 @@
   import { Bell, CalendarClock, ChevronRight, CheckCircle2, AlertTriangle, Clock } from 'lucide-svelte';
   import { slide } from 'svelte/transition';
 
-  // 1. LEEMOS LOS DATOS BLINDADOS DEL SERVIDOR
   let pendingAlerts = $derived(page.data.alertasGlobales || []);
   let unreadCount = $derived(pendingAlerts.length);
   
-  // 2. TU LÓGICA VISUAL ORIGINAL
   let isOpen = $state(false);
-
-  // 3. RELOJ REACTIVO: Actualiza la hora local cada 30 segundos
   let currentTime = $state(new Date());
 
   $effect(() => {
@@ -20,7 +16,6 @@
     return () => clearInterval(timer);
   });
 
-  // 4. FUNCIÓN EVALUADORA: Compara la fecha de la alerta contra el reloj local
   function isPast(dateString) {
     if (!dateString) return true;
     const alertDate = new Date(dateString);
@@ -40,7 +35,8 @@
 
 <svelte:window onclick={handleClickOutside} />
 
-<div class="relative notification-widget font-sans z-[100]">
+<!-- 🚀 FIX: La clase global oculta este componente si el Canvas está abierto -->
+<div class="relative notification-widget font-sans z-[100] global-floating-widget">
   
   {#if isOpen}
     <div 
@@ -135,3 +131,10 @@
     {/if}
   </button>
 </div>
+
+<style>
+  /* 🚀 LÓGICA DE OCULTAMIENTO GLOBAL */
+  :global(.canvas-open .global-floating-widget) {
+    display: none !important;
+  }
+</style>
