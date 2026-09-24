@@ -2,14 +2,14 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 import { env as privateEnv } from '$env/dynamic/private';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public'; // 🚀 Arquitectura inyectada segura
+import { PUBLIC_SUPABASE_URL } from '$env/static/public'; 
 import { calcularScore } from '$lib/scoring.js';
 import { reserveAiCredit, confirmAiCredit, refundAiCredit } from '$lib/server/ai-credits.js';
 
-// 🚀 ARQUITECTURA DE IA 2026: Optimizada para micro-tareas y latencia ultra baja
+// 🚀 MEJORA 1: CASCADA INVERTIDA (Calidad y parámetros grandes primero, rápidos de fallback)
 const MODELS_CASCADE = [
-  '@cf/meta/llama-3.2-3b-instruct',
   '@cf/qwen/qwen3-30b-a3b-fp8',
+  '@cf/meta/llama-3.2-3b-instruct',
   '@cf/ibm-granite/granite-4.0-h-micro'
 ];
 
@@ -22,7 +22,6 @@ function parseAiResponse(result) {
   const firstBrace = cleanedStr.indexOf('{');
   const lastBrace = cleanedStr.lastIndexOf('}');
   
-  // 🛡️ BLINDAJE: Si el modelo no devolvió JSON y solo escupió el texto crudo, lo rescatamos
   if (firstBrace === -1 || lastBrace === -1) {
     return { whatsapp: cleanedStr.replace(/^["']|["']$/g, '').trim() };
   }
@@ -38,7 +37,6 @@ function parseAiResponse(result) {
 }
 
 export const load = async ({ locals }) => {
-  // 🚀 AUDITORÍA: Uso de "motivos" genéricos para no filtrar estado de sesión
   if (!locals.user) throw redirect(303, '/login?m=1');
 
   let db = locals.supabase;
@@ -46,12 +44,10 @@ export const load = async ({ locals }) => {
     db = createClient(PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
   }
 
-  // 🚀 AUDITORÍA: Prevención de Timeouts (5 segundos máximo)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
 
   try {
-    // 🚀 AUDITORÍA: Eliminado el select('*') para no filtrar datos sensibles como tokens de Stripe o Meta
     let query = db.from('brokers').select('id, nombre_comercial, ia_creditos_disponibles, status_suscripcion, comision_default, avatar_url, whatsapp, email');
     
     if (locals.isImpersonating && locals.tenantId) {
@@ -68,7 +64,6 @@ export const load = async ({ locals }) => {
       return { broker: null, leads: [], propiedades: [], errorConexion: true };
     }
 
-    // 🚀 AUDITORÍA: Verificación de estado de suscripción para lanzar el banner en el frontend
     const statusAdvertencia = broker.status_suscripcion?.toLowerCase() === 'past_due';
 
     const { data: propiedades } = await db
@@ -306,7 +301,7 @@ export const actions = {
 
     const { data: lead } = await locals.supabase
         .from('leads')
-        .select(`*, propiedades(titulo), lead_notas(contenido, tipo, creado_en)`)
+        .select(`*, propiedades(titulo), lead_notas(contenido, tipo, creado_en, completado, fecha_recordatorio)`)
         .eq('id', leadId)
         .eq('broker_id', broker.id)
         .single();
@@ -314,8 +309,6 @@ export const actions = {
     if (!lead) return fail(404, { error: 'Prospecto no encontrado.' });
 
     const requestId = crypto.randomUUID();
-
-    // 🛡️ C1: La RPC atómica valida saldo y previene race conditions
     const reservation = await reserveAiCredit(locals.supabase, user.id, requestId);
     if (!reservation) return fail(403, { error: 'No tienes créditos de IA o existe un error transaccional.' });
 
@@ -324,28 +317,43 @@ export const actions = {
     let errorLog = [];
 
     try {
+        // 🚀 MEJORA 2: FORMATO DE NOTAS ENRIQUECIDO (Metadatos temporales y estados explícitos)
         const notasRecientes = (lead.lead_notas || [])
             .sort((a,b) => new Date(a.creado_en).getTime() - new Date(b.creado_en).getTime())
             .slice(-5)
-            .map(n => `- ${n.tipo.toUpperCase()}: ${n.contenido}`)
+            .map(n => {
+              const fecha = new Date(n.creado_en).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+              const estado = n.completado ? '[COMPLETADO]' : '[PENDIENTE]';
+              const fechaRec = n.fecha_recordatorio
+                ? ` → Programado para: ${new Date(n.fecha_recordatorio).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}`
+                : '';
+              return `- ${fecha} | ${n.tipo.toUpperCase()} ${estado}: ${n.contenido}${fechaRec}`;
+            })
             .join('\n');
 
+        // 🚀 MEJORA 3: SYSTEM PROMPT BLINDADO ANTI-ALUCINACIONES GRAMATICALES
         const systemPrompt = [
             'Eres un Asesor Inmobiliario Senior en México experto en cierre de ventas.',
-            'Redacta un mensaje de seguimiento (follow-up) para enviarlo por WhatsApp a un prospecto.',
-            'REGLAS ESTRICTAS:',
-            '1. El prospecto es un comprador o arrendatario potencial. NUNCA asumas que ya es el dueño ni te refieras al inmueble como "tu casa". Refiérete a él como "la propiedad", "la casa en [Zona]" o "el inmueble que te interesó".',
-            '2. Tono cálido, servicial y profesional. Cero agresividad comercial.',
-            '3. Lee el historial de interacciones. Si hay notas previas, continúa la conversación con contexto; no te presentes como si fuera el primer contacto.',
-            '4. MUY BREVE: Máximo 2 oraciones directas.',
-            '5. Cierra SIEMPRE mostrando disposición para avanzar en su etapa actual (ej. agendar visita, revisar documentos, resolver dudas de la negociación).',
-            '6. Usa máximo 1 emoji en todo el texto.',
-            '7. Responde EXCLUSIVAMENTE con un objeto JSON válido. Sin texto adicional ni markdown.',
-            'FORMATO REQUERIDO:',
-            '{',
-            '  "whatsapp": "Texto exacto listo para enviar al cliente."',
-            '}'
-        ].join(' ');
+            'Redacta un mensaje de seguimiento para WhatsApp.',
+            '',
+            'REGLAS GRAMATICALES (NO NEGOCIABLES):',
+            '1. Usa SIEMPRE tuteo (tú). NUNCA uses usted ni sus conjugaciones (está → estás, tiene → tienes).',
+            '2. Cuando el broker llamará al cliente: "te llamaré" o "te marco". NUNCA "me llamaré" ni "me marco".',
+            '3. Usa primera persona para el broker (yo) y segunda persona para el cliente (tú). Sin mezclas.',
+            '',
+            'REGLAS DE CONTENIDO:',
+            '4. Lee el historial. Las notas marcadas [COMPLETADO] ya ocurrieron — no las trates como pendientes.',
+            '5. Basa el mensaje SOLO en datos del historial. Si no está en las notas, no lo inventes.',
+            '6. No uses frases como "como prometimos" o "como acordamos" si no hay evidencia explícita en las notas.',
+            '7. El prospecto busca comprar/rentar. Nunca digas "tu casa" — di "la propiedad" o "la casa en [Zona]".',
+            '8. Tono: cálido y profesional. Sin agresividad comercial.',
+            '9. Máximo 2 oraciones. Si produces 3 o más, el mensaje es inválido.',
+            '10. Máximo 1 emoji en todo el texto.',
+            '',
+            'FORMATO DE RESPUESTA:',
+            'Responde ÚNICAMENTE con JSON válido, sin markdown ni texto adicional:',
+            '{ "whatsapp": "Texto exacto listo para enviar." }'
+        ].join('\n');
 
         const userPrompt = `CONTEXTO DEL PROSPECTO:
 - Nombre: ${lead.nombre}
@@ -364,7 +372,7 @@ Genera el mensaje ideal para darle seguimiento.`;
                         { role: 'user', content: userPrompt }
                     ],
                     max_tokens: 300,
-                    temperature: 0.7 
+                    temperature: 0.35 // 🚀 MEJORA 4: TEMPERATURA ATERRIZADA
                 });
 
                 const parsed = parseAiResponse(result);
@@ -372,6 +380,15 @@ Genera el mensaje ideal para darle seguimiento.`;
                 if (!textoWhatsapp) throw new Error('Respuesta IA incompleta');
                 
                 finalContent = { whatsapp: textoWhatsapp };
+
+                // 🚀 BONUS: SAFETY NET POST-GENERACIÓN
+                const erroresGramaticales = ['me llamaré', 'me marco', 'cómo está', 'le agradezco'];
+                const textoLower = finalContent.whatsapp.toLowerCase();
+                const tieneError = erroresGramaticales.some(e => textoLower.includes(e));
+                if (tieneError) {
+                  throw new Error('Respuesta con error gramatical reflexivo detectado (Safety Net).');
+                }
+
                 break;
             } catch (err) {
                 errorLog.push(`${modelId.split('/').pop()}: ${err.message}`);
