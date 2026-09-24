@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { env as privateEnv } from '$env/dynamic/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public'; // 🚀 Arquitectura inyectada segura
 import { calcularScore } from '$lib/scoring.js';
+import { reserveAiCredit, confirmAiCredit, refundAiCredit } from '$lib/server/ai-credits.js';
 
 // 🚀 ARQUITECTURA DE IA 2026: Optimizada para micro-tareas y latencia ultra baja
 const MODELS_CASCADE = [
@@ -11,10 +12,6 @@ const MODELS_CASCADE = [
   '@cf/qwen/qwen3-30b-a3b-fp8',
   '@cf/ibm-granite/granite-4.0-h-micro'
 ];
-
-function getRpcRow(data) {
-  return Array.isArray(data) ? data[0] : data;
-}
 
 function parseAiResponse(result) {
   const raw = result?.response ?? result;
@@ -38,24 +35,6 @@ function parseAiResponse(result) {
   } catch (err) {
     throw new Error('JSON malformado devuelto por la IA.');
   }
-}
-
-async function reserveAiCredit(supabase, userId, requestId) {
-  const { data, error } = await supabase.rpc('reservar_credito_ia', { p_user_id: userId, p_request_id: requestId });
-  const reservation = getRpcRow(data);
-  if (error || !reservation?.reserved) return null;
-  return reservation;
-}
-
-async function confirmAiCredit(supabase, userId, requestId) {
-  const { data, error } = await supabase.rpc('confirmar_consumo_credito_ia', { p_user_id: userId, p_request_id: requestId });
-  const confirmation = getRpcRow(data);
-  return !error && confirmation?.confirmed === true;
-}
-
-async function refundAiCredit(supabase, userId, requestId) {
-  const { error } = await supabase.rpc('reembolsar_credito_ia', { p_user_id: userId, p_request_id: requestId });
-  if (error) console.error('[Refund Error]', { requestId, message: error.message });
 }
 
 export const load = async ({ locals }) => {
@@ -322,12 +301,8 @@ export const actions = {
     const formData = await request.formData();
     const leadId = formData.get('lead_id');
 
-    const { data: broker } = await locals.supabase.from('brokers').select('id, ia_creditos_disponibles').eq('auth_user_id', user.id).single();
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', user.id).single();
     if (!broker) return fail(403, { error: 'Perfil no encontrado' });
-    
-    if ((broker.ia_creditos_disponibles || 0) <= 0) {
-        return fail(403, { error: 'Has alcanzado el límite de créditos IA de tu plan actual.' });
-    }
 
     const { data: lead } = await locals.supabase
         .from('leads')
@@ -339,6 +314,8 @@ export const actions = {
     if (!lead) return fail(404, { error: 'Prospecto no encontrado.' });
 
     const requestId = crypto.randomUUID();
+
+    // 🛡️ C1: La RPC atómica valida saldo y previene race conditions
     const reservation = await reserveAiCredit(locals.supabase, user.id, requestId);
     if (!reservation) return fail(403, { error: 'No tienes créditos de IA o existe un error transaccional.' });
 
