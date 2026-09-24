@@ -12,10 +12,10 @@ export const load = async ({ locals }) => {
 
   if (!broker) throw redirect(303, '/login');
 
-  // 2. Extraer propiedades activas (Asumiendo que tienes un campo 'imagenes' tipo JSONB/Array)
+  // 2. Extraer propiedades activas con el campo correcto de la BD (galeria_urls)
   const { data: propiedades } = await locals.supabase
     .from('propiedades')
-    .select('id, titulo, precio, recamaras, banos, descripcion, imagenes')
+    .select('id, titulo, precio, recamaras, banos, descripcion, galeria_urls')
     .eq('broker_id', broker.id)
     .neq('estatus', 'Vendida')
     .order('creado_en', { ascending: false });
