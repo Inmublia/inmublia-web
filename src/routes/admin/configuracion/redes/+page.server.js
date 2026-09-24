@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { env as privateEnv } from '$env/dynamic/private';
+import crypto from 'crypto'; // 🛡️ Requerido para generar el candado CSRF
 
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
@@ -21,7 +22,7 @@ export const load = async ({ locals }) => {
 };
 
 export const actions = {
-  conectarInstagram: async ({ url, locals }) => {
+  conectarInstagram: async ({ url, cookies }) => { // 🛡️ Cambiamos locals por cookies
     // IMPORTANTE: Asegúrate de que en tu archivo .env la variable META_CLIENT_ID 
     // sea exactamente 1089663933438622 (El ID de la app de Instagram)
     const clientId = privateEnv.META_CLIENT_ID; 
@@ -32,17 +33,15 @@ export const actions = {
     // 2. Extraer el subdominio actual (ej. "enrique-alzaga")
     const subdominio = url.hostname.split('.')[0];
 
-    // 3. Obtener el ID del broker
-    const { data: broker } = await locals.supabase
-      .from('brokers')
-      .select('id')
-      .eq('auth_user_id', locals.user.id)
-      .single();
+    // 3. 🛡️ SEGURIDAD (CSRF): Generar Nonce y guardarlo de forma segura en cookies del servidor
+    const nonce = crypto.randomBytes(16).toString('hex');
+    cookies.set('oauth_nonce', nonce, { path: '/', httpOnly: true, secure: true, maxAge: 600 });
 
-    // 4. Empaquetar estado para la redirección dinámica
+    // 4. 🛡️ SEGURIDAD (Account Takeover): Empaquetamos solo subdominio y nonce. 
+    // JAMÁS enviamos el brokerId al cliente.
     const statePayload = JSON.stringify({ 
       sub: subdominio, 
-      brokerId: broker.id 
+      nonce: nonce 
     });
     const state = btoa(statePayload); 
 
