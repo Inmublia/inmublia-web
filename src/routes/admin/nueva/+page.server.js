@@ -1,5 +1,6 @@
 // src/routes/admin/nueva/+page.server.js
 import { redirect, fail } from '@sveltejs/kit';
+import { reserveAiCredit, confirmAiCredit, refundAiCredit } from '$lib/server/ai-credits.js';
 
 const PLAN_RANK = {
   basico: 0,
@@ -54,10 +55,6 @@ function getPlan(value) {
   // El trial tiene permisos equivalentes a elite en plantillas
   if (plan === 'trial') return 'elite';
   return Object.hasOwn(PLAN_RANK, plan) ? plan : 'basico';
-}
-
-function getRpcRow(data) {
-  return Array.isArray(data) ? data[0] : data;
 }
 
 function normalizePlainText(value, maxLength = 100) {
@@ -237,42 +234,6 @@ function validateAiContent(payload) {
   return { titulo, descripcion, whatsapp };
 }
 
-async function reserveAiCredit(supabase, userId, requestId) {
-  const { data, error } = await supabase.rpc('reservar_credito_ia', {
-    p_user_id: userId,
-    p_request_id: requestId
-  });
-
-  const reservation = getRpcRow(data);
-
-  if (error || !reservation?.reserved) {
-    return null;
-  }
-
-  return reservation;
-}
-
-async function confirmAiCredit(supabase, userId, requestId) {
-  const { data, error } = await supabase.rpc('confirmar_consumo_credito_ia', {
-    p_user_id: userId,
-    p_request_id: requestId
-  });
-
-  const confirmation = getRpcRow(data);
-  return !error && confirmation?.confirmed === true;
-}
-
-async function refundAiCredit(supabase, userId, requestId) {
-  const { error } = await supabase.rpc('reembolsar_credito_ia', {
-    p_user_id: userId,
-    p_request_id: requestId
-  });
-
-  if (error) {
-    console.error('[AI Credit Refund Error]', { requestId, message: error.message });
-  }
-}
-
 export const load = async ({ locals }) => {
   const user = locals.user;
 
@@ -380,24 +341,9 @@ export const actions = {
       return fail(400, { error: 'Tono de redacción no válido.' });
     }
 
-    const { data: broker, error: brokerError } = await locals.supabase
-      .from('brokers')
-      .select('plan_suscripcion, ia_creditos_disponibles, status_suscripcion')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (brokerError || !broker) {
-      return fail(403, { error: 'No fue posible validar el perfil de agencia.' });
-    }
-
-    // 🚀 FIX PAYWALL IA: Validación del Servidor
-    // Si la DB reporta 0, no permitimos ejecutar la llamada a Cloudflare
-    if ((broker.ia_creditos_disponibles || 0) <= 0) {
-       return fail(403, { error: 'Has alcanzado el límite de créditos de Inteligencia Artificial para tu plan actual. Actualiza tu plan para continuar operando el motor.' });
-    }
-
     const requestId = crypto.randomUUID();
 
+    // 🛡️ C1: Confiamos el bloqueo atómico exclusivamente a la RPC sin SELECT previo
     const reservation = await reserveAiCredit(locals.supabase, user.id, requestId);
 
     if (!reservation) {
@@ -434,7 +380,7 @@ export const actions = {
         '{',
         '  "titulo": "Título descriptivo atractivo de máximo 10 palabras. NO uses comillas dobles internas.",',
         '  "descripcion": "3 párrafos fluidos y descriptivos. IMPORTANTE: Para separar los párrafos, usa estrictamente la etiqueta HTML <br><br> (NO uses caracteres de escape como \\n). Enfócate en la funcionalidad real de los espacios dados.",',
-        '  "whatsapp": "Mensaje ultracorto (máximo 2 oraciones) para WhatsApp. Casual y directo. Cierra con una pregunta para agendar visita. Máximo 1 emoji."' ,
+        '  "whatsapp": "Mensaje ultracorto (máximo 2 oraciones) para WhatsApp. Casual y directo. Cierra con una pregunta para agendar visita. Máximo 1 emoji."',
         '}'
       ].join(' ');
 
@@ -482,9 +428,16 @@ export const actions = {
 
       creditConfirmed = true;
 
+      // 🛡️ C2: Consulta del saldo real tras la confirmación atómica
+      const { data: brokerActualizado } = await locals.supabase
+        .from('brokers')
+        .select('ia_creditos_disponibles')
+        .eq('auth_user_id', user.id)
+        .single();
+
       return {
         ...finalContent,
-        creditos_ia_restantes: Math.max(0, Number(reservation.remaining) || 0)
+        creditos_ia_restantes: Math.max(0, Number(brokerActualizado?.ia_creditos_disponibles) || 0)
       };
     } catch (error) {
       if (!creditConfirmed) {
