@@ -17,6 +17,16 @@
   let mensajeExito = $state('');
   let errorMsg = $state('');
 
+  // 🛡️ UX Fix (Bug 8): Resetear formulario al cambiar de propiedad para evitar cruces
+  $effect(() => {
+    if (propiedadSeleccionadaId) {
+      imagenSeleccionada = '';
+      captionFinal = '';
+      errorMsg = '';
+      mensajeExito = '';
+    }
+  });
+
   async function generarTextoIA() {
     if (!propiedadActiva) return;
     errorMsg = '';
@@ -36,7 +46,11 @@
       if (!res.ok) throw new Error(dataRes.error || 'Error al generar texto');
       
       captionFinal = dataRes.caption;
-      tokensDisponibles--; // Descontamos visualmente
+      
+      // 🛡️ FIX (Bug 4): Sincronizar el saldo descontado real desde el servidor, no de forma visual
+      if (dataRes.tokens_restantes !== undefined) {
+        tokensDisponibles = dataRes.tokens_restantes; 
+      }
     } catch (err) {
       errorMsg = err.message;
     } finally {
@@ -55,6 +69,7 @@
     mensajeExito = '';
 
     try {
+      // 🛡️ FIX (Bug 1): Se asegura que el endpoint no busque la carpeta /auth/
       const res = await fetch('/api/instagram/publicar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -135,13 +150,14 @@
           <div class="mb-8">
             <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">2. Selecciona la Imagen a Publicar</label>
             
-            {#if !propiedadActiva.imagenes || propiedadActiva.imagenes.length === 0}
+            <!-- 🛡️ FIX (Bug 3): Utilizando galeria_urls en lugar de imagenes -->
+            {#if !propiedadActiva.galeria_urls || propiedadActiva.galeria_urls.length === 0}
               <div class="text-sm text-slate-500 bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center gap-2">
                 <ImageIcon class="w-4 h-4" /> Esta propiedad no tiene imágenes cargadas.
               </div>
             {:else}
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {#each propiedadActiva.imagenes as img}
+                {#each propiedadActiva.galeria_urls as img}
                   <button 
                     class="relative aspect-square rounded-xl overflow-hidden border-2 transition-all {imagenSeleccionada === img ? 'border-blue-500 ring-2 ring-blue-500/30' : 'border-transparent hover:border-slate-700'}"
                     onclick={() => imagenSeleccionada = img}
