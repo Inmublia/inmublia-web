@@ -1,28 +1,61 @@
 import { redirect } from '@sveltejs/kit';
 import { env as privateEnv } from '$env/dynamic/private';
+import crypto from 'crypto';
 
-export async function GET({ url, locals }) {
+// 🛡️ SEGURIDAD: Encriptación Simétrica para tokens en reposo
+function encryptToken(text) {
+  if (!privateEnv.ENCRYPTION_KEY) return text;
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(privateEnv.ENCRYPTION_KEY, 'hex'), iv);
+  let encrypted = cipher.update(text);
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+export async function GET({ url, locals, cookies }) {
   const code = url.searchParams.get('code');
   const stateParam = url.searchParams.get('state');
   const error = url.searchParams.get('error');
 
+  // 🛡️ FIX: Parsear el state de forma segura fuera del try/catch para evitar doble excepción
+  let parsedState = {};
+  if (stateParam) {
+    try { parsedState = JSON.parse(atob(stateParam)); } catch (e) {}
+  }
+  
+  const fallbackSubdomain = parsedState.sub || 'app';
+
   // Si el broker canceló o Meta rechazó
   if (error || !code || !stateParam) {
-    throw redirect(303, 'https://inmublia.com/admin/configuracion/redes?error=access_denied'); 
+    throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=access_denied`); 
   }
 
+  // 🛡️ SEGURIDAD: Validación CSRF usando la cookie
+  const savedNonce = cookies.get('oauth_nonce');
+  if (!savedNonce || savedNonce !== parsedState.nonce) {
+    throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=csrf_failed`);
+  }
+  cookies.delete('oauth_nonce', { path: '/' });
+
   try {
-    // 1. Leer el pasaporte oculto (subdominio e ID)
-    const state = JSON.parse(atob(stateParam));
-    const brokerSubdomain = state.sub;
-    const brokerId = state.brokerId;
-    
+    if (!locals.user) throw new Error("Sesión no autorizada");
+
+    // 🛡️ SEGURIDAD: El ID se obtiene del lado del servidor, JAMÁS del payload del cliente (Evita Account Takeover)
+    const { data: broker, error: brokerError } = await locals.supabase
+      .from('brokers')
+      .select('id')
+      .eq('auth_user_id', locals.user.id)
+      .single();
+      
+    if (brokerError || !broker) throw new Error("Perfil de broker no encontrado");
+    const brokerId = broker.id;
+
     const redirectUri = 'https://inmublia.com/api/auth/instagram/callback';
 
-    // 2. Canjear el código por un token inicial (La API nativa de IG exige POST con FormData)
+    // 1. Canjear el código por un token inicial (La API nativa de IG exige POST con FormData)
     const tokenFormData = new FormData();
     tokenFormData.append('client_id', privateEnv.META_CLIENT_ID);
-    tokenFormData.append('client_secret', privateEnv.META_CLIENT_SECRET); // Asegura que este sea el Secret de IG
+    tokenFormData.append('client_secret', privateEnv.META_CLIENT_SECRET);
     tokenFormData.append('grant_type', 'authorization_code');
     tokenFormData.append('redirect_uri', redirectUri);
     tokenFormData.append('code', code);
@@ -37,21 +70,41 @@ export async function GET({ url, locals }) {
 
     const shortLivedToken = tokenData.access_token;
 
-    // 3. BLINDAJE: Canjear por Token de Larga Duración (60 días) vía Graph API de Instagram
-    const longTokenUrl = `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${privateEnv.META_CLIENT_SECRET}&access_token=${shortLivedToken}`;
+    // 2. 🛡️ SEGURIDAD: Obtener Token Largo evitando pasar el secret por la URL (Evita leaks en logs)
+    const longTokenUrl = 'https://graph.instagram.com/access_token';
+    const longTokenParams = new URLSearchParams();
+    longTokenParams.append('grant_type', 'ig_exchange_token');
+    longTokenParams.append('client_secret', privateEnv.META_CLIENT_SECRET);
+    longTokenParams.append('access_token', shortLivedToken);
+
+    let longTokenRes = await fetch(longTokenUrl, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, 
+      body: longTokenParams.toString() 
+    });
+    let longTokenData = await longTokenRes.json();
     
-    const longTokenRes = await fetch(longTokenUrl);
-    const longTokenData = await longTokenRes.json();
+    // Fallback: Meta a veces rechaza POST para este endpoint específico. 
+    if (!longTokenRes.ok && longTokenData.error?.type === 'OAuthException') {
+      longTokenRes = await fetch(`${longTokenUrl}?${longTokenParams.toString()}`);
+      longTokenData = await longTokenRes.json();
+    }
+
     if (!longTokenRes.ok) throw new Error(longTokenData.error?.message || 'Fallo al obtener token largo');
 
     const longLivedToken = longTokenData.access_token;
-    
     const expiresInSeconds = longTokenData.expires_in || 5184000; 
     const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 
-    // 4. Obtener el ID y Nombre (Username) de la cuenta de Instagram
-    const igUserRes = await fetch(`https://graph.instagram.com/me?fields=id,username&access_token=${longLivedToken}`);
+    // 3. Obtener el ID y Nombre (Username) de la cuenta de Instagram
+    const igUserRes = await fetch(`https://graph.instagram.com/v21.0/me?fields=id,username&access_token=${longLivedToken}`);
     const igUserData = await igUserRes.json();
+    
+    // 🛡️ FIX: Verificar errores antes de usar el ID de usuario
+    if (!igUserRes.ok || igUserData.error) throw new Error("Fallo al obtener perfil de IG");
+
+    // 4. 🛡️ SEGURIDAD: Encriptar el token antes de guardarlo en Supabase
+    const encryptedToken = encryptToken(longLivedToken);
 
     // 5. Guardar en Supabase
     const { error: dbError } = await locals.supabase
@@ -61,7 +114,7 @@ export async function GET({ url, locals }) {
         platform: 'instagram',
         platform_user_id: igUserData.id,
         username: igUserData.username, 
-        access_token: longLivedToken,
+        access_token: encryptedToken,
         token_expires_at: expiresAt,
         status: 'active',
         updated_at: new Date().toISOString()
@@ -70,13 +123,10 @@ export async function GET({ url, locals }) {
     if (dbError) throw dbError;
 
     // 6. Redirigir de regreso al subdominio del broker
-    throw redirect(303, `https://${brokerSubdomain}.inmublia.com/admin/configuracion/redes?success=true`);
+    throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?success=true`);
 
   } catch (err) {
     console.error('Error crítico en OAuth Callback IG Nativo:', err);
-    
-    // Si algo falla, devolvemos a su subdominio original para mostrar el error ahí
-    const fallbackSubdomain = stateParam ? JSON.parse(atob(stateParam)).sub : 'app';
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=auth_failed`);
   }
 }
