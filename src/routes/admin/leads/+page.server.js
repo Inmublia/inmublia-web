@@ -6,34 +6,37 @@ import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { calcularScore } from '$lib/scoring.js';
 import { reserveAiCredit, confirmAiCredit, refundAiCredit } from '$lib/server/ai-credits.js';
 
-// 🚀 MEJORA 1: CASCADA INVERTIDA (Calidad y parámetros grandes primero, rápidos de fallback)
 const MODELS_CASCADE = [
   '@cf/qwen/qwen3-30b-a3b-fp8',
   '@cf/meta/llama-3.2-3b-instruct',
   '@cf/ibm-granite/granite-4.0-h-micro'
 ];
 
+// 🚀 MEJORA CRÍTICA: PARSEADOR "TEXT-FIRST" Y ANTI-THINKING
 function parseAiResponse(result) {
-  const raw = result?.response ?? result;
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
-  if (typeof raw !== 'string') throw new Error('La IA no devolvió formato de texto.');
+  const raw = (result?.response ?? result ?? '').toString();
+  
+  // 1. Eliminar bloques de razonamiento internos <think>...</think> emitidos por Qwen3
+  const sinThinking = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
-  let cleanedStr = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
-  const firstBrace = cleanedStr.indexOf('{');
-  const lastBrace = cleanedStr.lastIndexOf('}');
-  
-  if (firstBrace === -1 || lastBrace === -1) {
-    return { whatsapp: cleanedStr.replace(/^["']|["']$/g, '').trim() };
+  // 2. Extraer el texto de un JSON truncado o malformado por fallback
+  const jsonMatch = sinThinking.match(/"whatsapp"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  if (jsonMatch?.[1]) {
+    return { whatsapp: jsonMatch[1].replace(/\\n/g, '\n').trim() };
   }
-  
-  cleanedStr = cleanedStr.substring(firstBrace, lastBrace + 1);
-  cleanedStr = cleanedStr.replace(/\n/g, '\\n').replace(/\r/g, '');
-  
-  try {
-    return JSON.parse(cleanedStr);
-  } catch (err) {
-    throw new Error('JSON malformado devuelto por la IA.');
+
+  // 3. Paradigma Texto Plano Puro: limpieza de preámbulos, comillas y marcadores
+  const limpio = sinThinking
+    .replace(/^(aquí está|aquí tienes|claro|este es el mensaje|mensaje:|here'?s?)[^:]*:\s*/i, '') // Adiós "Aquí tienes el mensaje:"
+    .replace(/^```[\w]*\n?/, '').replace(/```$/, '')  // Adiós a los bloques de código ```
+    .replace(/^["']|["']$/g, '')                       // Adiós a las comillas que envuelven todo el texto
+    .trim();
+
+  if (!limpio || limpio.length < 8) {
+    throw new Error('Respuesta de la IA vacía o demasiado corta tras la limpieza.');
   }
+
+  return { whatsapp: limpio };
 }
 
 export const load = async ({ locals }) => {
@@ -317,7 +320,6 @@ export const actions = {
     let errorLog = [];
 
     try {
-        // 🚀 MEJORA 2: FORMATO DE NOTAS ENRIQUECIDO (Metadatos temporales y estados explícitos)
         const notasRecientes = (lead.lead_notas || [])
             .sort((a,b) => new Date(a.creado_en).getTime() - new Date(b.creado_en).getTime())
             .slice(-5)
@@ -331,72 +333,83 @@ export const actions = {
             })
             .join('\n');
 
-        // 🚀 MEJORA 3: SYSTEM PROMPT BLINDADO ANTI-ALUCINACIONES GRAMATICALES
+        // 🚀 MEJORA CRÍTICA: SYSTEM PROMPT "TEXT-FIRST" Y GRAMATICALMENTE BLINDADO
         const systemPrompt = [
             'Eres un Asesor Inmobiliario Senior en México experto en cierre de ventas.',
-            'Redacta un mensaje de seguimiento para WhatsApp.',
+            'Redacta un mensaje de seguimiento para enviarlo por WhatsApp.',
             '',
             'REGLAS GRAMATICALES (NO NEGOCIABLES):',
-            '1. Usa SIEMPRE tuteo (tú). NUNCA uses usted ni sus conjugaciones (está → estás, tiene → tienes).',
-            '2. Cuando el broker llamará al cliente: "te llamaré" o "te marco". NUNCA "me llamaré" ni "me marco".',
-            '3. Usa primera persona para el broker (yo) y segunda persona para el cliente (tú). Sin mezclas.',
+            '1. Usa SIEMPRE tuteo (tú). NUNCA uses usted ni sus conjugaciones (está → estás, tiene → tienes, diga → dime).',
+            '2. NUNCA uses "me llamaré" ni "me marco". Si el broker promete llamar, debe usar "te llamaré", "te marco" o "te regreso la llamada".',
+            '3. Usa primera persona singular para el broker (yo) y segunda persona para el cliente (tú). Sin mezclas de tono.',
             '',
             'REGLAS DE CONTENIDO:',
-            '4. Lee el historial. Las notas marcadas [COMPLETADO] ya ocurrieron — no las trates como pendientes.',
-            '5. Basa el mensaje SOLO en datos del historial. Si no está en las notas, no lo inventes.',
-            '6. No uses frases como "como prometimos" o "como acordamos" si no hay evidencia explícita en las notas.',
-            '7. El prospecto busca comprar/rentar. Nunca digas "tu casa" — di "la propiedad" o "la casa en [Zona]".',
-            '8. Tono: cálido y profesional. Sin agresividad comercial.',
-            '9. Máximo 2 oraciones. Si produces 3 o más, el mensaje es inválido.',
-            '10. Máximo 1 emoji en todo el texto.',
+            '4. Basa el mensaje SOLO en datos del historial de notas. Si las notas indican que la persona no contestó, tu mensaje debe reflejar que estás intentando contactarlo de nuevo. Las notas marcadas como [COMPLETADO] son eventos que ya sucedieron.',
+            '5. No uses frases como "como prometimos" o "como acordamos" si no hay evidencia explícita de un acuerdo en las notas.',
+            '6. El prospecto busca comprar/rentar. Nunca digas "tu casa" — di "la propiedad" o "la casa en [Zona]".',
+            '7. Tono: cálido y profesional. Cero agresividad comercial.',
+            '8. Máximo 2 oraciones. Sé sumamente breve y directo.',
+            '9. Máximo 1 emoji.',
             '',
             'FORMATO DE RESPUESTA:',
-            'Responde ÚNICAMENTE con JSON válido, sin markdown ni texto adicional:',
-            '{ "whatsapp": "Texto exacto listo para enviar." }'
+            'Escribe ÚNICAMENTE el texto del mensaje listo para WhatsApp.',
+            'Sin comillas. Sin JSON. Sin preámbulos. Sin explicaciones. Solo el mensaje puro.'
         ].join('\n');
 
         const userPrompt = `CONTEXTO DEL PROSPECTO:
 - Nombre: ${lead.nombre}
 - Etapa del proceso: ${lead.estado.toUpperCase()}
-- Inmueble que desea adquirir/rentar: ${lead.propiedades ? lead.propiedades.titulo : 'Búsqueda General'}
-- Historial reciente de notas:
+- Inmueble de interés: ${lead.propiedades ? lead.propiedades.titulo : 'Búsqueda General'}
+- Historial reciente de notas y acciones (LÉELAS CON ATENCIÓN ANTES DE REDACTAR):
 ${notasRecientes || 'Prospecto sin contacto previo documentado. Seguimiento inicial.'}
 
-Genera el mensaje ideal para darle seguimiento.`;
+Redacta el mensaje:`
 
         for (const modelId of MODELS_CASCADE) {
             try {
+                // 🚀 AUMENTO DE TOKENS: Espacio suficiente para que Qwen3 "piense" sin ahogarse
                 const result = await platform.env.AI.run(modelId, {
                     messages: [
                         { role: 'system', content: systemPrompt },
                         { role: 'user', content: userPrompt }
                     ],
-                    max_tokens: 300,
-                    temperature: 0.35 // 🚀 MEJORA 4: TEMPERATURA ATERRIZADA
+                    max_tokens: 600, 
+                    temperature: 0.35 
                 });
 
                 const parsed = parseAiResponse(result);
-                const textoWhatsapp = parsed.whatsapp || parsed.WhatsApp || parsed.Whatsapp || parsed.mensaje;
-                if (!textoWhatsapp) throw new Error('Respuesta IA incompleta');
+                const textoWhatsapp = parsed.whatsapp;
                 
-                finalContent = { whatsapp: textoWhatsapp };
-
-                // 🚀 BONUS: SAFETY NET POST-GENERACIÓN
-                const erroresGramaticales = ['me llamaré', 'me marco', 'cómo está', 'le agradezco'];
-                const textoLower = finalContent.whatsapp.toLowerCase();
+                if (!textoWhatsapp) throw new Error('Respuesta IA incompleta post-parser.');
+                
+                // 🚀 GUARDIA GRAMATICAL Y DE TAMAÑO
+                const textoLower = textoWhatsapp.toLowerCase();
+                const erroresGramaticales = ['me llamaré', 'me marco a', 'cómo está', '¿cómo está', 'le agradezco', 'agradecerle'];
                 const tieneError = erroresGramaticales.some(e => textoLower.includes(e));
+                
                 if (tieneError) {
-                  throw new Error('Respuesta con error gramatical reflexivo detectado (Safety Net).');
+                  throw new Error(`Guardia: El modelo generó un error reflexivo o de formalidad prohibido.`);
                 }
 
-                break;
+                if (textoWhatsapp.length < 15 || textoWhatsapp.length > 400) {
+                  throw new Error(`Guardia: Respuesta fuera de los límites aceptables de longitud (${textoWhatsapp.length} caracteres).`);
+                }
+
+                finalContent = { whatsapp: textoWhatsapp };
+                break; // El bloque fue exitoso, salimos de la cascada
             } catch (err) {
                 errorLog.push(`${modelId.split('/').pop()}: ${err.message}`);
                 finalContent = null;
             }
         }
 
-        if (!finalContent) throw new Error(`Cascada agotada. Errores: ${errorLog.join(' | ')}`);
+        if (!finalContent) {
+            // 🚀 EXCEPCIÓN GRANULAR
+            const mensajeError = errorLog.length === MODELS_CASCADE.length 
+              ? 'No se pudo generar un texto con la calidad requerida. Intenta escribirlo manualmente.'
+              : 'El generador de Inteligencia Artificial tardó demasiado.';
+            throw new Error(mensajeError);
+        }
 
         const confirmed = await confirmAiCredit(locals.supabase, user.id, requestId);
         if (!confirmed) throw new Error('Fallo al confirmar consumo de crédito IA.');
@@ -411,7 +424,8 @@ Genera el mensaje ideal para darle seguimiento.`;
         }
         console.error('[WhatsApp IA Error]', errorLog.length ? errorLog : error.message);
         
-        return fail(502, { error: 'El redactor de IA está temporalmente saturado. Por favor, inténtalo de nuevo en unos segundos.' });
+        // Retornamos el error limpio al frontend en lugar del texto rojo genérico
+        return fail(502, { error: error.message });
     }
   }
 };
