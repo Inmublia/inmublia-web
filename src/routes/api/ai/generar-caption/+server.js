@@ -1,56 +1,143 @@
 import { json } from '@sveltejs/kit';
 
+// 🚀 ARQUITECTURA DE IA 2026: Cascada inyectada desde tu lógica de leads
+const MODELS_CASCADE = [
+  '@cf/meta/llama-3.2-3b-instruct',
+  '@cf/qwen/qwen3-30b-a3b-fp8',
+  '@cf/ibm-granite/granite-4.0-h-micro'
+];
+
+function getRpcRow(data) {
+  return Array.isArray(data) ? data[0] : data;
+}
+
+function parseAiResponse(result) {
+  const raw = result?.response ?? result;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (typeof raw !== 'string') throw new Error('La IA no devolvió formato de texto.');
+
+  let cleanedStr = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+  const firstBrace = cleanedStr.indexOf('{');
+  const lastBrace = cleanedStr.lastIndexOf('}');
+  
+  if (firstBrace === -1 || lastBrace === -1) {
+    return { caption: cleanedStr.replace(/^["']|["']$/g, '').trim() };
+  }
+  
+  cleanedStr = cleanedStr.substring(firstBrace, lastBrace + 1);
+  cleanedStr = cleanedStr.replace(/\n/g, '\\n').replace(/\r/g, '');
+  
+  try {
+    return JSON.parse(cleanedStr);
+  } catch (err) {
+    throw new Error('JSON malformado devuelto por la IA.');
+  }
+}
+
+// 🛡️ BLINDAJE TRANSACCIONAL DE TOKENS (Igual que en Leads)
+async function reserveAiCredit(supabase, userId, requestId) {
+  const { data, error } = await supabase.rpc('reservar_credito_ia', { p_user_id: userId, p_request_id: requestId });
+  const reservation = getRpcRow(data);
+  if (error || !reservation?.reserved) return null;
+  return reservation;
+}
+
+async function confirmAiCredit(supabase, userId, requestId) {
+  const { data, error } = await supabase.rpc('confirmar_consumo_credito_ia', { p_user_id: userId, p_request_id: requestId });
+  const confirmation = getRpcRow(data);
+  return !error && confirmation?.confirmed === true;
+}
+
+async function refundAiCredit(supabase, userId, requestId) {
+  const { error } = await supabase.rpc('reembolsar_credito_ia', { p_user_id: userId, p_request_id: requestId });
+  if (error) console.error('[Refund Error]', { requestId, message: error.message });
+}
+
 export async function POST({ request, locals, platform }) {
   if (!locals.user) return json({ error: 'No autorizado' }, { status: 401 });
+  if (!platform?.env?.AI) return json({ error: 'Motor de IA offline.' }, { status: 503 });
+
+  const { caracteristicas_inmueble } = await request.json();
+
+  // Usamos el campo exacto de tu arquitectura: ia_creditos_disponibles
+  const { data: broker } = await locals.supabase
+    .from('brokers')
+    .select('id, ia_creditos_disponibles')
+    .eq('auth_user_id', locals.user.id)
+    .single();
+
+  if (!broker) return json({ error: 'Perfil no encontrado' }, { status: 403 });
+  
+  if ((broker.ia_creditos_disponibles || 0) <= 0) {
+    return json({ error: 'Has alcanzado el límite de créditos IA de tu plan actual.' }, { status: 403 });
+  }
+
+  const requestId = crypto.randomUUID();
+  const reservation = await reserveAiCredit(locals.supabase, locals.user.id, requestId);
+  if (!reservation) return json({ error: 'No tienes créditos de IA o existe un error transaccional.' }, { status: 403 });
+
+  let creditConfirmed = false;
+  let finalContent = null;
+  let errorLog = [];
 
   try {
-    const { caracteristicas_inmueble } = await request.json();
+    const systemPrompt = [
+      'Eres un Asesor Inmobiliario Senior experto en redes sociales.',
+      'Redacta una descripción atractiva (caption) para publicar una propiedad en Instagram.',
+      'REGLAS ESTRICTAS:',
+      '1. Tono cálido, servicial y persuasivo.',
+      '2. Máximo 150 palabras. Muy directo.',
+      '3. Usa máximo 3 emojis.',
+      '4. Incluye 3 hashtags relevantes al final.',
+      '5. Responde EXCLUSIVAMENTE con un objeto JSON válido. Sin texto adicional ni markdown.',
+      'FORMATO REQUERIDO:',
+      '{',
+      '  "caption": "Texto exacto listo para publicar en Instagram."',
+      '}'
+    ].join(' ');
 
-    // 1. Obtener el ID del broker y verificar sus tokens en Supabase
-    const { data: broker, error: brokerError } = await locals.supabase
-      .from('brokers')
-      .select('id, available_tokens') 
-      .eq('auth_user_id', locals.user.id)
-      .single();
+    const userPrompt = `Redacta un post para la siguiente propiedad: ${caracteristicas_inmueble}`;
 
-    if (brokerError || !broker) throw new Error('Perfil de broker no encontrado');
-    if (broker.available_tokens <= 0) {
-      return json({ error: 'Saldo de tokens insuficiente para usar la IA' }, { status: 403 });
+    for (const modelId of MODELS_CASCADE) {
+      try {
+        const result = await platform.env.AI.run(modelId, {
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          max_tokens: 300,
+          temperature: 0.7 
+        });
+
+        const parsed = parseAiResponse(result);
+        const textoCaption = parsed.caption || parsed.Caption || parsed.texto || parsed.mensaje;
+        if (!textoCaption) throw new Error('Respuesta IA incompleta');
+        
+        finalContent = { caption: textoCaption };
+        break;
+      } catch (err) {
+        errorLog.push(`${modelId.split('/').pop()}: ${err.message}`);
+        finalContent = null;
+      }
     }
 
-    // 2. Generar el texto con Cloudflare Workers AI de forma nativa
-    const aiResponse = await platform.env.AI.run('@cf/meta/llama-3-8b-instruct', {
-      messages: [
-        { 
-          role: 'system', 
-          content: 'Eres un copywriter inmobiliario. Crea descripciones atractivas para Instagram. Usa emojis, hashtags relevantes y un tono profesional pero persuasivo. Máximo 150 palabras.' 
-        },
-        { 
-          role: 'user', 
-          content: `Redacta un post para esta propiedad: ${caracteristicas_inmueble}` 
-        }
-      ]
-    });
+    if (!finalContent) throw new Error(`Cascada agotada. Errores: ${errorLog.join(' | ')}`);
 
-    const captionGenerado = aiResponse.response;
+    const confirmed = await confirmAiCredit(locals.supabase, locals.user.id, requestId);
+    if (!confirmed) throw new Error('Fallo al confirmar consumo de crédito IA.');
+    
+    creditConfirmed = true;
 
-    // 3. Descontar 1 token al broker
-    const { error: updateError } = await locals.supabase
-      .from('brokers')
-      .update({ available_tokens: broker.available_tokens - 1 })
-      .eq('id', broker.id);
-
-    if (updateError) throw new Error('Error al actualizar el saldo de tokens en la base de datos');
-
-    // 4. Devolver el texto y el nuevo saldo al frontend
     return json({ 
       success: true, 
-      caption: captionGenerado,
-      tokens_restantes: broker.available_tokens - 1
+      caption: finalContent.caption 
     });
 
   } catch (error) {
-    console.error('Error en Endpoint de Cloudflare Workers AI:', error);
-    return json({ error: error.message }, { status: 500 });
+    if (!creditConfirmed) {
+      await refundAiCredit(locals.supabase, locals.user.id, requestId);
+    }
+    console.error('[IG Caption IA Error]', errorLog.length ? errorLog : error.message);
+    return json({ error: 'El redactor de IA está temporalmente saturado. Por favor, inténtalo de nuevo.' }, { status: 502 });
   }
 }
