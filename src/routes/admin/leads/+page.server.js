@@ -1,3 +1,4 @@
+// src/routes/admin/leads/+page.server.js
 import { fail, redirect } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 import { env as privateEnv } from '$env/dynamic/private';
@@ -5,84 +6,35 @@ import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { calcularScore } from '$lib/scoring.js';
 import { reserveAiCredit, confirmAiCredit, refundAiCredit } from '$lib/server/ai-credits.js';
 
-// 🚀 MEJORA 1: CASCADA INVERTIDA (Calidad primero)
 const MODELS_CASCADE = [
   '@cf/qwen/qwen3-30b-a3b-fp8',
   '@cf/meta/llama-3.2-3b-instruct',
   '@cf/ibm-granite/granite-4.0-h-micro'
 ];
 
-function etapaLegible(estado) {
-  return {
-    'nuevo':       'Nuevo — sin contacto previo',
-    'contactado':  'En conversación — primer contacto realizado',
-    'visita':      'Recorrido agendado o realizado',
-    'negociacion': 'Negociación activa — evaluando condiciones',
-    'cerrado':     'Trato cerrado',
-    'descartado':  'Descartado'
-  }[estado] ?? estado;
-}
-
-// 🚀 MEJORA 2: PARSER ROBUSTO ANTI-[object Object] Y ANTI-TRUNCAMIENTO
 function parseAiResponse(result) {
-  const raw = result?.response ?? result;
+  const raw = (result?.response ?? result ?? '').toString();
   
-  // Quitar bloques <think>...</think> de Qwen3 antes de todo
-  const sinThinking = typeof raw === 'string'
-    ? raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
-    : raw;
+  // 1. Eliminar bloques de razonamiento internos <think>...</think> emitidos por Qwen3
+  const sinThinking = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
-  // Si el modelo devolvió un objeto estructurado (evita [object Object])
-  if (sinThinking && typeof sinThinking === 'object' && !Array.isArray(sinThinking)) {
-    const val = sinThinking.whatsapp ?? sinThinking.WhatsApp ?? 
-                sinThinking.mensaje ?? sinThinking.message ?? sinThinking.content;
-    
-    // Si ese valor también es un objeto anidado, extraer el primer string
-    if (val && typeof val === 'object') {
-      const nested = val.mensaje ?? val.message ?? val.content ?? val.text;
-      return { whatsapp: String(nested ?? JSON.stringify(val)).trim() };
-    }
-    if (val) return { whatsapp: String(val).trim() };
-    throw new Error('Objeto IA sin campo de texto reconocible.');
+  // 2. Extraer el texto de un JSON truncado o malformado por fallback
+  const jsonMatch = sinThinking.match(/"whatsapp"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  if (jsonMatch?.[1]) {
+    return { whatsapp: jsonMatch[1].replace(/\\n/g, '\n').trim() };
   }
 
-  if (typeof sinThinking !== 'string' || !sinThinking) {
-    throw new Error('La IA no devolvió formato de texto.');
-  }
-
-  // Intentar extraer con regex primero (funciona con JSON truncado sin cierre)
-  const regexMatch = sinThinking.match(/"(?:whatsapp|WhatsApp|mensaje|message)"\s*:\s*"((?:[^"\\]|\\.)*)"/i);
-  if (regexMatch?.[1]) {
-    return { whatsapp: regexMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim() };
-  }
-
-  // Intentar JSON completo
-  const firstBrace = sinThinking.indexOf('{');
-  const lastBrace = sinThinking.lastIndexOf('}');
-  
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    try {
-      const parsed = JSON.parse(sinThinking.substring(firstBrace, lastBrace + 1));
-      const val = parsed.whatsapp ?? parsed.WhatsApp ?? parsed.mensaje ?? parsed.message;
-      if (val && typeof val === 'string') return { whatsapp: val.trim() };
-      
-      // Anidado
-      if (val && typeof val === 'object') {
-        const nested = val.mensaje ?? val.message ?? val.content ?? val.text;
-        if (nested) return { whatsapp: String(nested).trim() };
-      }
-    } catch (_) { /* continuar con texto plano */ }
-  }
-
-  // Texto plano — limpiar preambles comunes
+  // 3. Paradigma Texto Plano Puro: limpieza de preámbulos, comillas y marcadores
   const limpio = sinThinking
-    .replace(/^(aquí está|aquí tienes|mensaje[:\s]|here'?s?[:\s])[^\n]*/i, '')
-    .replace(/^```[\w]*\n?|```$/g, '')
+    .replace(/^(aquí está|aquí tienes|claro|este es el mensaje|mensaje:|here'?s?)[^:]*:\s*/i, '')
+    .replace(/^```[\w]*\n?/, '').replace(/```$/, '')
     .replace(/^["']|["']$/g, '')
     .trim();
 
-  if (!limpio || limpio.length < 8) throw new Error('Respuesta IA vacía o irreconocible.');
-  
+  if (!limpio || limpio.length < 8) {
+    throw new Error('Respuesta de la IA vacía o demasiado corta tras la limpieza.');
+  }
+
   return { whatsapp: limpio };
 }
 
@@ -346,15 +298,10 @@ export const actions = {
     const formData = await request.formData();
     const leadId = formData.get('lead_id');
 
-    // 🚀 MEJORA 3: OBTENER NOMBRE COMERCIAL PARA EL PROMPT
-    const { data: broker } = await locals.supabase
-      .from('brokers')
-      .select('id, nombre_comercial')
-      .eq('auth_user_id', user.id)
-      .single();
-      
+    const { data: broker } = await locals.supabase.from('brokers').select('id, nombre_comercial').eq('auth_user_id', user.id).single();
     if (!broker) return fail(403, { error: 'Perfil no encontrado' });
-    const brokerNombre = broker.nombre_comercial || 'el asesor inmobiliario';
+    
+    const brokerNombre = broker.nombre_comercial || 'el asesor';
 
     const { data: lead } = await locals.supabase
         .from('leads')
@@ -373,121 +320,128 @@ export const actions = {
     let finalContent = null;
     let errorLog = [];
 
+    function etapaLegible(estado) {
+      return {
+        'nuevo':       'Nuevo — sin contacto previo',
+        'contactado':  'En conversación — primer contacto realizado',
+        'visita':      'Recorrido agendado o realizado',
+        'negociacion': 'Negociación activa — evaluando condiciones',
+        'cerrado':     'Trato cerrado',
+        'descartado':  'Descartado'
+      }[estado] ?? estado;
+    }
+
     try {
-        const hoy = new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' });
+        const hoyStr = new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' });
         
-        // 🚀 MEJORA 4: HISTORIAL DE NOTAS CON FECHAS Y ESTADOS EXPLÍCITOS
         const notasRecientes = (lead.lead_notas || [])
-            .sort((a, b) => new Date(a.creado_en) - new Date(b.creado_en))
+            .sort((a,b) => new Date(a.creado_en).getTime() - new Date(b.creado_en).getTime())
             .slice(-6)
             .map(n => {
-              const fecha = new Date(n.creado_en).toLocaleDateString('es-MX', { day:'2-digit', month:'short' });
+              const fecha = new Date(n.creado_en).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
               const estado = n.completado ? '[HECHO]' : '[PENDIENTE]';
-              const extra = (!n.completado && n.fecha_recordatorio)
-                ? ` → para el ${new Date(n.fecha_recordatorio).toLocaleDateString('es-MX', { day:'2-digit', month:'short' })}`
+              const fechaRec = (!n.completado && n.fecha_recordatorio)
+                ? ` → para el ${new Date(n.fecha_recordatorio).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}`
                 : '';
-              return `• ${fecha} | ${n.tipo.toUpperCase()} ${estado}: "${n.contenido}"${extra}`;
+              return `• ${fecha} | ${n.tipo.toUpperCase()} ${estado}: "${n.contenido}"${fechaRec}`;
             })
             .join('\n');
 
-        // 🚀 MEJORA 5: SYSTEM PROMPT (Sin JSON, identidades estrictas y frases prohibidas)
-        const systemPrompt = `Eres un redactor especialista en comunicación inmobiliaria para el mercado mexicano.
-Tu única función es redactar mensajes de WhatsApp que un asesor de bienes raíces enviará a sus clientes.
+        // 🚀 MEJORA: SYSTEM PROMPT REESCRITO PARA EXIGIR AMABILIDAD, SALUDOS Y HUMANIDAD
+        const systemPrompt = [
+            'Eres un experto en comunicación inmobiliaria y atención al cliente en México.',
+            'Tu única función es redactar mensajes de WhatsApp que un asesor de bienes raíces enviará a su cliente.',
+            '',
+            '════ REGLA CRÍTICA: EL SALUDO ════',
+            '¡NUNCA envíes un mensaje sin saludar! SIEMPRE debes iniciar el mensaje saludando al cliente por su nombre.',
+            'Ejemplo obligatorio: "Hola [Nombre]," o "¡Hola [Nombre]!".',
+            '',
+            '════ REGLA ABSOLUTA DE IDENTIDADES ════',
+            '- Tú eres el ASESOR (hablas en primera persona: yo, te marco, te ayudo).',
+            '- Quien recibe es el CLIENTE (hablas en segunda persona: tú, estás, buscas).',
+            '- NUNCA uses el nombre del asesor en el texto.',
+            '',
+            '════ TONO (MUY AMIGABLE Y CÁLIDO) ════',
+            '- Escribe de forma muy amigable, empática y natural. Queremos que el cliente sienta que lo atiende un humano atento, no un robot corporativo ni un vendedor insistente.',
+            '- Usa tuteo estricto siempre (tú). JAMÁS uses usted/está/tiene.',
+            '- Usa 1 o 2 emojis amigables (ej. 👋, 🏡, ✨) para darle vida al mensaje.',
+            '',
+            '════ ESTRUCTURA DEL MENSAJE ════',
+            '- Conversacional y fácil de leer (máximo 3 oraciones).',
+            '- Oración 1: Saludo con nombre del cliente.',
+            '- Oración 2: Contexto natural basado en las notas del historial.',
+            '- Oración 3: Pregunta casual, amable y sin presión para avanzar.',
+            '',
+            '════ FRASES COMPLETAMENTE PROHIBIDAS (ANTI-BOTS) ════',
+            '✗ "¿Cómo te va?" / "¿Cómo estás?" / "Espero que estés bien" (Suenan a bot, elimínalas y ve al contexto tras el saludo).',
+            '✗ "Estoy intentando contactarte" / "Te escribo para..." / "Te contacto para..." (Suenan a vendedor acartonado o a reclamo).',
+            '✗ "¿Te gustaría que te llamara?" (Muy pasivo. Di: "¿Tendrás 5 minutitos hoy para platicarlo?").',
+            '✗ "Me llamaré" o "me marco" (Error gramatical. Usa "te llamo" o "te marco").',
+            '✗ "Tu casa" (Aún no la compra. Usa "la casa en [Zona]" o "la propiedad").',
+            '',
+            '════ FORMATO DE SALIDA ════',
+            'Escribe ÚNICAMENTE el texto del mensaje listo para enviarse.',
+            'Sin comillas, sin formato JSON, sin preámbulos. Solo el mensaje puro.'
+        ].join('\n');
 
-════ REGLA ABSOLUTA DE IDENTIDADES ════
-- EL ASESOR = quien ESCRIBE y FIRMA el mensaje. Habla en primera persona (yo).
-- EL CLIENTE = quien RECIBE el mensaje. Se le habla en segunda persona (tú).
-- NUNCA confundas estos roles. El mensaje NUNCA menciona el nombre del asesor.
-
-════ GRAMÁTICA (CRÍTICO, CERO EXCEPCIONES) ════
-- Tuteo estricto: "estás", "tienes", "te llamo", "te escribo". JAMÁS "usted/está/tiene".
-- El asesor llama AL cliente: "te llamo", "te marco", "te contacto". NUNCA "me llamaré".
-- La propiedad NO es del cliente todavía: di "la propiedad", "la casa en [Zona]", "el inmueble que te interesó". NUNCA "tu casa".
-
-════ TONO ════
-- Cálido, directo, como un conocido de confianza que sabe de bienes raíces.
-- Seguro y propositivo. El asesor propone, no pide permiso para existir.
-- Sin artificialidad ni frases corporativas.
-
-════ FRASES COMPLETAMENTE PROHIBIDAS ════
-Estas frases producen mensajes de mala calidad. Su uso invalida la respuesta:
-✗ "Espero que estés bien / que todo vaya bien"
-✗ "¿Cómo te va?" / "¿Cómo estás?" / "¿Cómo te encuentras?"
-✗ "Estoy intentando / tratando de contactarte"
-✗ "Nuevamente te escribo / De nuevo me comunico"
-✗ "Para darte seguimiento" / "Para seguirte contactando"
-✗ "¿Te gustaría que te llamara?" (demasiado pasivo — propón directamente)
-✗ Cualquier variante de "me llamaré" o "me marco"
-
-════ ESTRUCTURA ════
-- Máximo 2 oraciones cortas y directas.
-- Oración 1: Contexto específico del prospecto (no genérico).
-- Oración 2: Propuesta concreta para avanzar en su etapa actual.
-- Máximo 1 emoji. Opcional, no obligatorio.
-
-════ FORMATO DE SALIDA ════
-Devuelve ÚNICAMENTE el texto del mensaje.
-Sin JSON. Sin comillas envolventes. Sin explicaciones. Sin etiquetas. Solo el mensaje listo para copiar y pegar.`;
-
-        // 🚀 MEJORA 6: USER PROMPT (Con nombres exactos y contexto puro)
-        const userPrompt = `FECHA DE HOY: ${hoy}
+        // 🚀 INYECCIÓN FORZADA: Le ordenamos directamente empezar con "Hola Nombre,"
+        const userPrompt = `FECHA DE HOY: ${hoyStr}
 ASESOR (quien escribe): ${brokerNombre}
 CLIENTE (quien recibe): ${lead.nombre}
-⚠️ El mensaje debe dirigirse a "${lead.nombre}". El nombre "${brokerNombre}" NO debe aparecer en el mensaje.
+
+⚠️ REGLA ESTRICTA: El mensaje DEBE empezar con "Hola ${lead.nombre}," (o similar, pero usando su nombre).
 
 DATOS DEL CLIENTE:
 - Etapa: ${etapaLegible(lead.estado)}
-- Propiedad de interés: ${lead.propiedades?.titulo ?? 'Búsqueda general — sin propiedad específica aún'}
+- Propiedad de interés: ${lead.propiedades ? lead.propiedades.titulo : 'Búsqueda General'}
 
-HISTORIAL DE INTERACCIONES (cronológico, más reciente al final):
-${notasRecientes || '— Sin interacciones previas registradas. Es el primer acercamiento.'}
+HISTORIAL DE NOTAS (Léelas antes de redactar):
+${notasRecientes || '— Es el primer acercamiento. Preséntate brevemente y pregúntale amablemente en qué le puedes ayudar.'}
 
-INSTRUCCIÓN:
-Basándote ÚNICAMENTE en el historial anterior, redacta el mensaje ideal que ${brokerNombre} le enviará a ${lead.nombre} HOY para avanzar en su proceso de compra/renta.
-No inventes datos que no estén en el historial.`;
+Redacta el mensaje:`;
 
         for (const modelId of MODELS_CASCADE) {
             try {
-                // 🚀 MEJORA 7: MÁS TOKENS (900) Y TEMPERATURA PRECISA (0.3)
                 const result = await platform.env.AI.run(modelId, {
                     messages: [
                         { role: 'system', content: systemPrompt },
                         { role: 'user', content: userPrompt }
                     ],
-                    max_tokens: 900, 
-                    temperature: 0.3 
+                    max_tokens: 600, 
+                    temperature: 0.4 // Subimos a 0.4 para darle un ligero extra de naturalidad y empatía
                 });
 
                 const parsed = parseAiResponse(result);
-                const texto = parsed.whatsapp;
+                const textoWhatsapp = parsed.whatsapp;
                 
-                // 🚀 MEJORA 8: GUARDIA POST-GENERACIÓN ANTI-BASURA
-                if (typeof texto !== 'string' || texto.includes('[object') || texto.startsWith('{')) {
-                  throw new Error('Guardia: el texto generado no es un mensaje válido.');
+                if (!textoWhatsapp) throw new Error('Respuesta IA incompleta post-parser.');
+                
+                const textoLower = textoWhatsapp.toLowerCase();
+                const erroresGramaticales = ['me llamaré', 'me marco a', 'cómo está', '¿cómo está', 'le agradezco', 'agradecerle'];
+                const tieneError = erroresGramaticales.some(e => textoLower.includes(e));
+                
+                if (tieneError) {
+                  throw new Error(`Guardia: El modelo generó un error reflexivo o formal prohibido.`);
                 }
 
-                const FRASES_PROHIBIDAS = [
-                  'me llamaré', 'me marco a', 'cómo te va', 'cómo estás', 'cómo te encuentras',
-                  'espero que estés bien', 'intentando contactarte', 'tratando de contactarte',
-                  '[object', '{ "whatsapp'
-                ];
-                
-                const textoLower = texto.toLowerCase();
-                const fraseMala = FRASES_PROHIBIDAS.find(f => textoLower.includes(f));
-                
-                if (fraseMala || texto.length < 20 || texto.length > 450) {
-                  throw new Error(`Guardia: respuesta inválida — "${fraseMala ?? `${texto.length} chars`}"`);
+                if (textoWhatsapp.length < 15 || textoWhatsapp.length > 500) {
+                  throw new Error(`Guardia: Respuesta fuera de los límites aceptables de longitud (${textoWhatsapp.length} caracteres).`);
                 }
 
-                finalContent = { whatsapp: texto };
-                break;
+                finalContent = { whatsapp: textoWhatsapp };
+                break; 
             } catch (err) {
                 errorLog.push(`${modelId.split('/').pop()}: ${err.message}`);
                 finalContent = null;
             }
         }
 
-        if (!finalContent) throw new Error(`Cascada agotada. Errores: ${errorLog.join(' | ')}`);
+        if (!finalContent) {
+            const mensajeError = errorLog.length === MODELS_CASCADE.length 
+              ? 'No se pudo generar un texto con la calidez requerida. Intenta escribirlo manualmente.'
+              : 'El generador de Inteligencia Artificial tardó demasiado.';
+            throw new Error(mensajeError);
+        }
 
         const confirmed = await confirmAiCredit(locals.supabase, user.id, requestId);
         if (!confirmed) throw new Error('Fallo al confirmar consumo de crédito IA.');
@@ -501,8 +455,7 @@ No inventes datos que no estén en el historial.`;
             await refundAiCredit(locals.supabase, user.id, requestId);
         }
         console.error('[WhatsApp IA Error]', errorLog.length ? errorLog : error.message);
-        
-        return fail(502, { error: 'El redactor de IA está temporalmente saturado. Por favor, inténtalo de nuevo en unos segundos.' });
+        return fail(502, { error: error.message });
     }
   }
 };
