@@ -1,6 +1,5 @@
 import { redirect } from '@sveltejs/kit';
 import { env as privateEnv } from '$env/dynamic/private';
-import { PUBLIC_BASE_URL } from '$env/static/public'; 
 
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
