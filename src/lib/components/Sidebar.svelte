@@ -8,7 +8,8 @@
     LogOut,
     Target,
     Palette,
-    Terminal
+    Terminal,
+    Send // <-- Añadido para el nuevo menú
   } from 'lucide-svelte';
   
   let broker = $derived($page.data.broker || {});
@@ -50,6 +51,12 @@
     <a href="/admin/reportes" class="flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold transition-all {rutaActual.includes('/admin/reportes') ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 border border-transparent'}">
       <TrendingUp class="w-4 h-4 {rutaActual.includes('/admin/reportes') ? 'text-indigo-400' : 'text-zinc-500'}" />
       Inteligencia & Finanzas
+    </a>
+
+    <!-- NUEVO ENLACE: Publicar en Redes -->
+    <a href="/admin/publicar" class="flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold transition-all {rutaActual.includes('/admin/publicar') ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 border border-transparent'}">
+      <Send class="w-4 h-4 {rutaActual.includes('/admin/publicar') ? 'text-indigo-400' : 'text-zinc-500'}" />
+      Publicar en Redes
     </a>
 
     <div class="my-4 border-t border-zinc-800/50 mx-3"></div>
