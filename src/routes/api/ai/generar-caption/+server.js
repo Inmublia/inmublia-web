@@ -59,7 +59,6 @@ export async function POST({ request, locals, platform }) {
 
   const { caracteristicas_inmueble } = await request.json();
 
-  // Usamos el campo exacto de tu arquitectura: ia_creditos_disponibles
   const { data: broker } = await locals.supabase
     .from('brokers')
     .select('id, ia_creditos_disponibles')
@@ -130,7 +129,8 @@ export async function POST({ request, locals, platform }) {
 
     return json({ 
       success: true, 
-      caption: finalContent.caption 
+      caption: finalContent.caption,
+      tokens_restantes: broker.ia_creditos_disponibles - 1 // 🛡️ FIX (Bug 4): Devuelve el saldo real descontado para sincronizar el cliente
     });
 
   } catch (error) {
