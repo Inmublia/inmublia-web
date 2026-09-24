@@ -22,33 +22,35 @@ export const load = async ({ locals }) => {
 
 export const actions = {
   conectarInstagram: async ({ url, locals }) => {
+    // IMPORTANTE: Asegúrate de que en tu archivo .env la variable META_CLIENT_ID 
+    // sea exactamente 1089663933438622 (El ID de la app de Instagram)
     const clientId = privateEnv.META_CLIENT_ID; 
 
-    // 1. URL CENTRAL ESTRICTA: Es la única que Meta va a aceptar (la que guardamos en su panel)
+    // 1. URL CENTRAL ESTRICTA en la lista blanca de Meta
     const redirectUri = 'https://inmublia.com/api/auth/instagram/callback';
     
-    // 2. Extraer el subdominio en el que está navegando el broker (ej. "enrique-alzaga")
+    // 2. Extraer el subdominio actual (ej. "enrique-alzaga")
     const subdominio = url.hostname.split('.')[0];
 
-    // 3. Obtener el ID interno del broker para relacionar su cuenta
+    // 3. Obtener el ID del broker
     const { data: broker } = await locals.supabase
       .from('brokers')
       .select('id')
       .eq('auth_user_id', locals.user.id)
       .single();
 
-    // 4. Empaquetar estado para saber a dónde regresar al broker mágicamente
+    // 4. Empaquetar estado para la redirección dinámica
     const statePayload = JSON.stringify({ 
       sub: subdominio, 
       brokerId: broker.id 
     });
-    const state = btoa(statePayload); // Convertimos a Base64 para mandarlo por la URL
+    const state = btoa(statePayload); 
 
-    // 5. Los permisos exactos de la nueva API
+    // 5. Permisos exclusivos de Instagram
     const scopes = 'instagram_business_basic,instagram_business_content_publish';
 
-    // 6. Endpoint de Graph API moderno (Soporta el módulo donde registramos la URL)
-    const authUrl = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scopes}&response_type=code`;
+    // 6. Endpoint de Autorización Nativo de Instagram API
+    const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scopes}&response_type=code`;
 
     throw redirect(302, authUrl);
   }
