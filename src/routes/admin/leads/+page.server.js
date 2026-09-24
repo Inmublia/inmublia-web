@@ -1,30 +1,28 @@
-// src/routes/admin/leads/+page.server.js
 import { fail, redirect } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 import { env as privateEnv } from '$env/dynamic/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public'; 
 import { calcularScore } from '$lib/scoring.js';
 import { reserveAiCredit, confirmAiCredit, refundAiCredit } from '$lib/server/ai-credits.js';
+import { etapaLegible } from '$lib/utils/leads.js';
 
+// 🚀 CASCADA ENTERPRISE: Modelos capaces de seguir el tono y las instrucciones
 const MODELS_CASCADE = [
   '@cf/qwen/qwen3-30b-a3b-fp8',
-  '@cf/meta/llama-3.2-3b-instruct',
-  '@cf/ibm-granite/granite-4.0-h-micro'
+  '@cf/mistralai/mistral-small-3.1-24b-instruct',
+  '@cf/meta/llama-3.1-8b-instruct-fp8'
 ];
 
 function parseAiResponse(result) {
   const raw = (result?.response ?? result ?? '').toString();
   
-  // 1. Eliminar bloques de razonamiento internos <think>...</think> emitidos por Qwen3
   const sinThinking = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
-  // 2. Extraer el texto de un JSON truncado o malformado por fallback
-  const jsonMatch = sinThinking.match(/"whatsapp"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  const jsonMatch = sinThinking.match(/"(?:whatsapp|WhatsApp|mensaje|message)"\s*:\s*"((?:[^"\\]|\\.)*)"/i);
   if (jsonMatch?.[1]) {
-    return { whatsapp: jsonMatch[1].replace(/\\n/g, '\n').trim() };
+    return { whatsapp: jsonMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim() };
   }
 
-  // 3. Paradigma Texto Plano Puro: limpieza de preámbulos, comillas y marcadores
   const limpio = sinThinking
     .replace(/^(aquí está|aquí tienes|claro|este es el mensaje|mensaje:|here'?s?)[^:]*:\s*/i, '')
     .replace(/^```[\w]*\n?/, '').replace(/```$/, '')
@@ -163,7 +161,7 @@ export const actions = {
     if (notaInicial && leadCreado) {
       await locals.supabase.from('lead_notas').insert({
         lead_id: leadCreado.id,
-        broker_id: locals.user.id,
+        broker_id: broker.id,
         contenido: notaInicial,
         tipo: 'nota',
         completado: false
@@ -248,7 +246,7 @@ export const actions = {
       .from('lead_notas')
       .insert({ 
         lead_id: leadId, 
-        broker_id: locals.user.id, 
+        broker_id: broker.id, 
         contenido: contenido.trim(), 
         tipo: isRecordatorio ? 'recordatorio' : 'nota',
         fecha_recordatorio: isRecordatorio ? fechaRecordatorio : null,
@@ -281,10 +279,14 @@ export const actions = {
   completarRecordatorio: async ({ request, locals }) => {
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
     if (!locals.user) return fail(401, { error: 'No autorizado' });
+
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
+    if (!broker) return fail(403, { error: 'Perfil no encontrado' });
+
     const formData = await request.formData();
     const notaId = formData.get('nota_id');
 
-    const { error } = await locals.supabase.from('lead_notas').update({ completado: true }).eq('id', notaId).eq('broker_id', locals.user.id);
+    const { error } = await locals.supabase.from('lead_notas').update({ completado: true }).eq('id', notaId).eq('broker_id', broker.id);
     if (error) return fail(500, { error: `Fallo BD: ${error.message}` });
     return { success: true };
   },
@@ -320,17 +322,6 @@ export const actions = {
     let finalContent = null;
     let errorLog = [];
 
-    function etapaLegible(estado) {
-      return {
-        'nuevo':       'Nuevo — sin contacto previo',
-        'contactado':  'En conversación — primer contacto realizado',
-        'visita':      'Recorrido agendado o realizado',
-        'negociacion': 'Negociación activa — evaluando condiciones',
-        'cerrado':     'Trato cerrado',
-        'descartado':  'Descartado'
-      }[estado] ?? estado;
-    }
-
     try {
         const hoyStr = new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' });
         
@@ -347,85 +338,79 @@ export const actions = {
             })
             .join('\n');
 
-        // 🚀 MEJORA: SYSTEM PROMPT REESCRITO PARA EXIGIR AMABILIDAD, SALUDOS Y HUMANIDAD
-        const systemPrompt = [
-            'Eres un experto en comunicación inmobiliaria y atención al cliente en México.',
-            'Tu única función es redactar mensajes de WhatsApp que un asesor de bienes raíces enviará a su cliente.',
-            '',
-            '════ REGLA CRÍTICA: EL SALUDO ════',
-            '¡NUNCA envíes un mensaje sin saludar! SIEMPRE debes iniciar el mensaje saludando al cliente por su nombre.',
-            'Ejemplo obligatorio: "Hola [Nombre]," o "¡Hola [Nombre]!".',
-            '',
-            '════ REGLA ABSOLUTA DE IDENTIDADES ════',
-            '- Tú eres el ASESOR (hablas en primera persona: yo, te marco, te ayudo).',
-            '- Quien recibe es el CLIENTE (hablas en segunda persona: tú, estás, buscas).',
-            '- NUNCA uses el nombre del asesor en el texto.',
-            '',
-            '════ TONO (MUY AMIGABLE Y CÁLIDO) ════',
-            '- Escribe de forma muy amigable, empática y natural. Queremos que el cliente sienta que lo atiende un humano atento, no un robot corporativo ni un vendedor insistente.',
-            '- Usa tuteo estricto siempre (tú). JAMÁS uses usted/está/tiene.',
-            '- Usa 1 o 2 emojis amigables (ej. 👋, 🏡, ✨) para darle vida al mensaje.',
-            '',
-            '════ ESTRUCTURA DEL MENSAJE ════',
-            '- Conversacional y fácil de leer (máximo 3 oraciones).',
-            '- Oración 1: Saludo con nombre del cliente.',
-            '- Oración 2: Contexto natural basado en las notas del historial.',
-            '- Oración 3: Pregunta casual, amable y sin presión para avanzar.',
-            '',
-            '════ FRASES COMPLETAMENTE PROHIBIDAS (ANTI-BOTS) ════',
-            '✗ "¿Cómo te va?" / "¿Cómo estás?" / "Espero que estés bien" (Suenan a bot, elimínalas y ve al contexto tras el saludo).',
-            '✗ "Estoy intentando contactarte" / "Te escribo para..." / "Te contacto para..." (Suenan a vendedor acartonado o a reclamo).',
-            '✗ "¿Te gustaría que te llamara?" (Muy pasivo. Di: "¿Tendrás 5 minutitos hoy para platicarlo?").',
-            '✗ "Me llamaré" o "me marco" (Error gramatical. Usa "te llamo" o "te marco").',
-            '✗ "Tu casa" (Aún no la compra. Usa "la casa en [Zona]" o "la propiedad").',
-            '',
-            '════ FORMATO DE SALIDA ════',
-            'Escribe ÚNICAMENTE el texto del mensaje listo para enviarse.',
-            'Sin comillas, sin formato JSON, sin preámbulos. Solo el mensaje puro.'
-        ].join('\n');
+        // 🚀 PROMPT OPTIMIZADO: Positivo, corto y al grano. El "/no_think" fuerza a Qwen3 a omitir el bloque de razonamiento.
+        const systemPrompt = `/no_think
+Eres un asesor inmobiliario en México redactando un WhatsApp para tu cliente.
 
-        // 🚀 INYECCIÓN FORZADA: Le ordenamos directamente empezar con "Hola Nombre,"
+CONTEXTO:
+- Tú eres: ${brokerNombre} (hablas en primera persona, nunca menciones tu nombre explícitamente en la firma)
+- Tu cliente: ${lead.nombre} (tutéalo siempre, nunca uses usted)
+- Etapa de venta: ${etapaLegible(lead.estado)}
+- Inmueble de interés: ${lead.propiedades ? lead.propiedades.titulo : 'Búsqueda general'}
+
+ESCRIBE UN MENSAJE DE WHATSAPP QUE:
+1. Inicie exactamente saludándolo por su nombre: "Hola ${lead.nombre}," o "¡Hola ${lead.nombre}!"
+2. Sea conversacional y cálido, como si lo escribieras a un conocido.
+3. Tenga máximo 2-4 oraciones cortas (adapta la longitud al contexto del historial).
+4. Use 1 emoji natural al final (🏡 ✨ 👋).
+5. Cierre con una pregunta casual y sin presión para continuar el proceso.
+
+EJEMPLOS DE TONO CORRECTO (No los copies, úsalos de guía):
+"¡Hola María! Quería checarte que ya tengo disponible la visita para el jueves por la tarde. ¿Te vendría bien esa hora? 🏡"
+"Hola Carlos, vi que nos quedamos pendientes de agendar la segunda visita. ¿Tienes chance esta semana? ✨"
+
+EVITA escribir: "Espero que estés bien", "Te contacto para...", "usted", "su propiedad".
+Escribe SOLO el mensaje. Sin comillas, sin explicaciones.`;
+
         const userPrompt = `FECHA DE HOY: ${hoyStr}
-ASESOR (quien escribe): ${brokerNombre}
-CLIENTE (quien recibe): ${lead.nombre}
+HISTORIAL DEL CLIENTE:
+${notasRecientes || '— Primer contacto. Preséntate brevemente y pregunta en qué puedes ayudar.'}
 
-⚠️ REGLA ESTRICTA: El mensaje DEBE empezar con "Hola ${lead.nombre}," (o similar, pero usando su nombre).
-
-DATOS DEL CLIENTE:
-- Etapa: ${etapaLegible(lead.estado)}
-- Propiedad de interés: ${lead.propiedades ? lead.propiedades.titulo : 'Búsqueda General'}
-
-HISTORIAL DE NOTAS (Léelas antes de redactar):
-${notasRecientes || '— Es el primer acercamiento. Preséntate brevemente y pregúntale amablemente en qué le puedes ayudar.'}
-
-Redacta el mensaje:`;
+INSTRUCCIÓN: Redacta el mensaje HOY basándote exclusivamente en el historial.`;
 
         for (const modelId of MODELS_CASCADE) {
             try {
+                // 🚀 TEMPERATURA 0.7: Óptimo para Qwen3 cuando tiene thinking apagado
                 const result = await platform.env.AI.run(modelId, {
                     messages: [
                         { role: 'system', content: systemPrompt },
                         { role: 'user', content: userPrompt }
                     ],
                     max_tokens: 600, 
-                    temperature: 0.4 // Subimos a 0.4 para darle un ligero extra de naturalidad y empatía
+                    temperature: 0.7 
                 });
 
                 const parsed = parseAiResponse(result);
                 const textoWhatsapp = parsed.whatsapp;
                 
-                if (!textoWhatsapp) throw new Error('Respuesta IA incompleta post-parser.');
-                
+                // 🚀 GUARDIAS PRECISAS (Sin falsos positivos por nombres)
                 const textoLower = textoWhatsapp.toLowerCase();
-                const erroresGramaticales = ['me llamaré', 'me marco a', 'cómo está', '¿cómo está', 'le agradezco', 'agradecerle'];
-                const tieneError = erroresGramaticales.some(e => textoLower.includes(e));
+                const nombreLower = lead.nombre.split(' ')[0].toLowerCase();
                 
-                if (tieneError) {
-                  throw new Error(`Guardia: El modelo generó un error reflexivo o formal prohibido.`);
+                const empiezaConNombre = textoLower.startsWith(`hola ${nombreLower}`) || 
+                                         textoLower.startsWith(`¡hola ${nombreLower}`) || 
+                                         textoLower.startsWith(`buenos ${nombreLower}`) || 
+                                         textoLower.includes(`hola ${nombreLower}`); 
+                
+                if (!empiezaConNombre) {
+                  throw new Error('Guardia: Mensaje no inicia con el saludo esperado.');
+                }
+
+                const patronesProhibidos = [
+                  /\bme llamaré\b/,
+                  /\bme marco a\b/, 
+                  /\bcómo está\b(?![n])/, // Permite "cómo están"
+                  /\ble agradezco\b/,
+                  /\busted\b/,
+                  /\bsu propiedad\b/
+                ];
+
+                if (patronesProhibidos.some(p => p.test(textoLower))) {
+                  throw new Error(`Guardia: El modelo generó un error reflexivo o lenguaje formal prohibido.`);
                 }
 
                 if (textoWhatsapp.length < 15 || textoWhatsapp.length > 500) {
-                  throw new Error(`Guardia: Respuesta fuera de los límites aceptables de longitud (${textoWhatsapp.length} caracteres).`);
+                  throw new Error(`Guardia: Respuesta fuera de longitud válida (${textoWhatsapp.length} caracteres).`);
                 }
 
                 finalContent = { whatsapp: textoWhatsapp };
@@ -438,7 +423,7 @@ Redacta el mensaje:`;
 
         if (!finalContent) {
             const mensajeError = errorLog.length === MODELS_CASCADE.length 
-              ? 'No se pudo generar un texto con la calidez requerida. Intenta escribirlo manualmente.'
+              ? 'No se pudo generar un texto con la calidad requerida. Intenta escribirlo manualmente.'
               : 'El generador de Inteligencia Artificial tardó demasiado.';
             throw new Error(mensajeError);
         }
