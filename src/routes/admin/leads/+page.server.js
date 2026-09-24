@@ -322,6 +322,9 @@ export const actions = {
     let finalContent = null;
     let errorLog = [];
 
+    // 🚀 MEJORA: Extracción estricta del primer nombre para naturalidad
+    const primerNombre = lead.nombre.split(' ')[0].trim();
+
     try {
         const hoyStr = new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' });
         
@@ -338,18 +341,17 @@ export const actions = {
             })
             .join('\n');
 
-        // 🚀 PROMPT OPTIMIZADO: Positivo, corto y al grano. El "/no_think" fuerza a Qwen3 a omitir el bloque de razonamiento.
         const systemPrompt = `/no_think
 Eres un asesor inmobiliario en México redactando un WhatsApp para tu cliente.
 
 CONTEXTO:
 - Tú eres: ${brokerNombre} (hablas en primera persona, nunca menciones tu nombre explícitamente en la firma)
-- Tu cliente: ${lead.nombre} (tutéalo siempre, nunca uses usted)
+- Tu cliente: ${primerNombre} (tutéalo siempre, nunca uses usted)
 - Etapa de venta: ${etapaLegible(lead.estado)}
 - Inmueble de interés: ${lead.propiedades ? lead.propiedades.titulo : 'Búsqueda general'}
 
 ESCRIBE UN MENSAJE DE WHATSAPP QUE:
-1. Inicie exactamente saludándolo por su nombre: "Hola ${lead.nombre}," o "¡Hola ${lead.nombre}!"
+1. Inicie exactamente saludándolo por su primer nombre: "Hola ${primerNombre}," o "¡Hola ${primerNombre}!"
 2. Sea conversacional y cálido, como si lo escribieras a un conocido.
 3. Tenga máximo 2-4 oraciones cortas (adapta la longitud al contexto del historial).
 4. Use 1 emoji natural al final (🏡 ✨ 👋).
@@ -370,7 +372,6 @@ INSTRUCCIÓN: Redacta el mensaje HOY basándote exclusivamente en el historial.`
 
         for (const modelId of MODELS_CASCADE) {
             try {
-                // 🚀 TEMPERATURA 0.7: Óptimo para Qwen3 cuando tiene thinking apagado
                 const result = await platform.env.AI.run(modelId, {
                     messages: [
                         { role: 'system', content: systemPrompt },
@@ -383,9 +384,8 @@ INSTRUCCIÓN: Redacta el mensaje HOY basándote exclusivamente en el historial.`
                 const parsed = parseAiResponse(result);
                 const textoWhatsapp = parsed.whatsapp;
                 
-                // 🚀 GUARDIAS PRECISAS (Sin falsos positivos por nombres)
                 const textoLower = textoWhatsapp.toLowerCase();
-                const nombreLower = lead.nombre.split(' ')[0].toLowerCase();
+                const nombreLower = primerNombre.toLowerCase();
                 
                 const empiezaConNombre = textoLower.startsWith(`hola ${nombreLower}`) || 
                                          textoLower.startsWith(`¡hola ${nombreLower}`) || 
@@ -399,7 +399,7 @@ INSTRUCCIÓN: Redacta el mensaje HOY basándote exclusivamente en el historial.`
                 const patronesProhibidos = [
                   /\bme llamaré\b/,
                   /\bme marco a\b/, 
-                  /\bcómo está\b(?![n])/, // Permite "cómo están"
+                  /\bcómo está\b(?![n])/,
                   /\ble agradezco\b/,
                   /\busted\b/,
                   /\bsu propiedad\b/
