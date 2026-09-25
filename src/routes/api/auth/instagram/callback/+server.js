@@ -3,10 +3,10 @@ import { env as privateEnv } from '$env/dynamic/private';
 import crypto from 'crypto';
 
 // 🛡️ SEGURIDAD: Encriptación Simétrica para tokens en reposo
-function encryptToken(text) {
-  if (!privateEnv.ENCRYPTION_KEY) return text;
+function encryptToken(text, hexKey) {
+  if (!hexKey) return text;
   const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(privateEnv.ENCRYPTION_KEY, 'hex'), iv);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(hexKey, 'hex'), iv);
   let encrypted = cipher.update(text);
   encrypted = Buffer.concat([encrypted, cipher.final()]);
   return iv.toString('hex') + ':' + encrypted.toString('hex');
@@ -17,7 +17,6 @@ export async function GET({ url, locals, cookies }) {
   const stateParam = url.searchParams.get('state');
   const error = url.searchParams.get('error');
 
-  // 🛡️ FIX: Parsear el state de forma segura fuera del try/catch para evitar doble excepción
   let parsedState = {};
   if (stateParam) {
     try { parsedState = JSON.parse(atob(stateParam)); } catch (e) {}
@@ -25,7 +24,6 @@ export async function GET({ url, locals, cookies }) {
   
   const fallbackSubdomain = parsedState.sub || 'app';
 
-  // Si el broker canceló o Meta rechazó
   if (error || !code || !stateParam) {
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=access_denied`); 
   }
@@ -40,7 +38,6 @@ export async function GET({ url, locals, cookies }) {
   try {
     if (!locals.user) throw new Error("Sesión no autorizada");
 
-    // 🛡️ SEGURIDAD: El ID se obtiene del lado del servidor, JAMÁS del payload del cliente (Evita Account Takeover)
     const { data: broker, error: brokerError } = await locals.supabase
       .from('brokers')
       .select('id')
@@ -52,10 +49,14 @@ export async function GET({ url, locals, cookies }) {
 
     const redirectUri = 'https://inmublia.com/api/auth/instagram/callback';
 
+    // 🚀 LECTURA EXCLUSIVA DE CREDENCIALES DE INSTAGRAM
+    const clientId = privateEnv.INSTAGRAM_CLIENT_ID;
+    const clientSecret = privateEnv.INSTAGRAM_CLIENT_SECRET;
+
     // 1. Canjear el código por un token inicial (La API nativa de IG exige POST con FormData)
     const tokenFormData = new FormData();
-    tokenFormData.append('client_id', privateEnv.META_CLIENT_ID);
-    tokenFormData.append('client_secret', privateEnv.META_CLIENT_SECRET);
+    tokenFormData.append('client_id', clientId);
+    tokenFormData.append('client_secret', clientSecret);
     tokenFormData.append('grant_type', 'authorization_code');
     tokenFormData.append('redirect_uri', redirectUri);
     tokenFormData.append('code', code);
@@ -70,11 +71,11 @@ export async function GET({ url, locals, cookies }) {
 
     const shortLivedToken = tokenData.access_token;
 
-    // 2. 🛡️ SEGURIDAD: Obtener Token Largo evitando pasar el secret por la URL (Evita leaks en logs)
+    // 2. 🛡️ SEGURIDAD: Obtener Token Largo
     const longTokenUrl = 'https://graph.instagram.com/access_token';
     const longTokenParams = new URLSearchParams();
     longTokenParams.append('grant_type', 'ig_exchange_token');
-    longTokenParams.append('client_secret', privateEnv.META_CLIENT_SECRET);
+    longTokenParams.append('client_secret', clientSecret);
     longTokenParams.append('access_token', shortLivedToken);
 
     let longTokenRes = await fetch(longTokenUrl, { 
@@ -100,11 +101,10 @@ export async function GET({ url, locals, cookies }) {
     const igUserRes = await fetch(`https://graph.instagram.com/v21.0/me?fields=id,username&access_token=${longLivedToken}`);
     const igUserData = await igUserRes.json();
     
-    // 🛡️ FIX: Verificar errores antes de usar el ID de usuario
     if (!igUserRes.ok || igUserData.error) throw new Error("Fallo al obtener perfil de IG");
 
-    // 4. 🛡️ SEGURIDAD: Encriptar el token antes de guardarlo en Supabase
-    const encryptedToken = encryptToken(longLivedToken);
+    // 4. 🛡️ SEGURIDAD: Encriptar el token (Node.js crypto restaurado)
+    const encryptedToken = encryptToken(longLivedToken, privateEnv.ENCRYPTION_KEY);
 
     // 5. Guardar en Supabase
     const { error: dbError } = await locals.supabase
