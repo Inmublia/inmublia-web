@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { env as privateEnv } from '$env/dynamic/private';
-import crypto from 'crypto'; // 🛡️ Requerido para generar el candado CSRF
+import crypto from 'crypto';
 
 export const load = async ({ locals }) => {
   if (!locals.user) throw redirect(303, '/login');
@@ -22,33 +22,20 @@ export const load = async ({ locals }) => {
 };
 
 export const actions = {
-  conectarInstagram: async ({ url, cookies }) => { 
-    // IMPORTANTE: Asegúrate de que en tu archivo .env la variable META_CLIENT_ID 
-    // sea exactamente 1089663933438622 (El ID de la app de Instagram)
+  conectarInstagram: async ({ url, cookies }) => {
     const clientId = privateEnv.META_CLIENT_ID; 
 
-    // 1. URL CENTRAL ESTRICTA en la lista blanca de Meta
+    // 🚀 ENTERPRISE FIX: URL canónica estricta para evitar bloqueos por dominios Preview/Web
     const redirectUri = 'https://inmublia.com/api/auth/instagram/callback';
     
-    // 2. Extraer el subdominio actual (ej. "enrique-alzaga")
     const subdominio = url.hostname.split('.')[0];
-
-    // 3. 🛡️ SEGURIDAD (CSRF): Generar Nonce y guardarlo de forma segura en cookies del servidor
     const nonce = crypto.randomBytes(16).toString('hex');
     cookies.set('oauth_nonce', nonce, { path: '/', httpOnly: true, secure: true, maxAge: 600 });
 
-    // 4. 🛡️ SEGURIDAD (Account Takeover): Empaquetamos solo subdominio y nonce. 
-    // JAMÁS enviamos el brokerId al cliente.
-    const statePayload = JSON.stringify({ 
-      sub: subdominio, 
-      nonce: nonce 
-    });
+    const statePayload = JSON.stringify({ sub: subdominio, nonce: nonce });
     const state = btoa(statePayload); 
 
-    // 5. Permisos exclusivos de Instagram
     const scopes = 'instagram_business_basic,instagram_business_content_publish';
-
-    // 6. Endpoint de Autorización Nativo de Instagram API
     const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scopes}&response_type=code`;
 
     throw redirect(302, authUrl);
@@ -57,27 +44,17 @@ export const actions = {
   conectarFacebook: async ({ url, cookies }) => {
     const clientId = privateEnv.META_CLIENT_ID; 
 
-    // 1. URL CENTRAL ESTRICTA en la lista blanca de Meta para Facebook
+    // 🚀 ENTERPRISE FIX: URL canónica estricta idéntica a la lista blanca de Meta
     const redirectUri = 'https://inmublia.com/api/auth/facebook/callback';
     
-    // 2. Extraer el subdominio actual
     const subdominio = url.hostname.split('.')[0];
-
-    // 3. 🛡️ SEGURIDAD (CSRF): Generar Nonce y guardarlo de forma segura
     const nonce = crypto.randomBytes(16).toString('hex');
     cookies.set('oauth_nonce', nonce, { path: '/', httpOnly: true, secure: true, maxAge: 600 });
 
-    // 4. 🛡️ SEGURIDAD: Empaquetar estado para validarlo al retorno
-    const statePayload = JSON.stringify({ 
-      sub: subdominio, 
-      nonce: nonce 
-    });
+    const statePayload = JSON.stringify({ sub: subdominio, nonce: nonce });
     const state = btoa(statePayload); 
 
-    // 5. Los 4 permisos exactos que acordamos en la Fase 1
     const scopes = 'pages_show_list,pages_read_engagement,pages_manage_engagement,pages_manage_posts';
-
-    // 6. Endpoint de Autorización Graph API (Versión actual obligatoria: v26.0)
     const authUrl = `https://www.facebook.com/v26.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scopes}&response_type=code`;
 
     throw redirect(302, authUrl);
