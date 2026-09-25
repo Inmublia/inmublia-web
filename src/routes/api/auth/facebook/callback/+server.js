@@ -40,15 +40,14 @@ export async function GET({ url, locals, cookies }) {
     throw redirect(302, '/admin/configuracion/redes?error=csrf_invalido');
   }
 
-  const clientId = privateEnv.META_CLIENT_ID;
-  const clientSecret = privateEnv.META_CLIENT_SECRET;
+  // 🚀 LECTURA EXCLUSIVA DE CREDENCIALES DE FACEBOOK
+  const clientId = privateEnv.FACEBOOK_CLIENT_ID;
+  const clientSecret = privateEnv.FACEBOOK_CLIENT_SECRET;
   
-  // 🚀 ENTERPRISE FIX: Esta URL DEBE ser un string estático que coincida exactamente 
-  // con la enviada en el paso de autorización, de lo contrario Meta v26.0 rechaza el canje.
   const redirectUri = 'https://inmublia.com/api/auth/facebook/callback';
 
   try {
-    // 1. Obtener Token corto
+    // 1. Obtener Token corto (Graph API v26.0)
     const tokenRes = await fetch(`https://graph.facebook.com/v26.0/oauth/access_token?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${clientSecret}&code=${code}`);
     const tokenData = await tokenRes.json();
     
@@ -68,7 +67,6 @@ export async function GET({ url, locals, cookies }) {
       throw redirect(302, '/admin/configuracion/redes?error=sin_paginas');
     }
 
-    // Seleccionamos la primera página de negocio del broker
     const facebookPage = pagesData.data[0];
     const pageAccessToken = facebookPage.access_token; 
     const pageId = facebookPage.id;
