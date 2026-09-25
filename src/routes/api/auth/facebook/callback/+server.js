@@ -1,21 +1,16 @@
 import { redirect } from '@sveltejs/kit';
 import { env as privateEnv } from '$env/dynamic/private';
+import crypto from 'crypto';
 
-// 🛡️ Encriptación simétrica AES-256-GCM nativa para Cloudflare Workers
-async function encryptToken(text, hexKey) {
-  const keyBuffer = new Uint8Array(hexKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-  const key = await crypto.subtle.importKey('raw', keyBuffer, 'AES-GCM', false, ['encrypt']);
-  
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encoded = new TextEncoder().encode(text);
-  
-  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
-  const encryptedBytes = new Uint8Array(encrypted);
-  
-  const ivHex = Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join('');
-  const dataHex = Array.from(encryptedBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-  
-  return `${ivHex}:${dataHex}`;
+// 🛡️ SEGURIDAD: Encriptación Simétrica Node.js (Compatible con Cloudflare nodejs_compat)
+// Mantenemos AES-256-CBC para compatibilidad estricta con tu base de datos existente.
+function encryptToken(text, hexKey) {
+  if (!hexKey) return text;
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(hexKey, 'hex'), iv);
+  let encrypted = cipher.update(text);
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  return iv.toString('hex') + ':' + encrypted.toString('hex');
 }
 
 export async function GET({ url, locals, cookies }) {
@@ -72,8 +67,8 @@ export async function GET({ url, locals, cookies }) {
     const pageId = facebookPage.id;
     const pageName = facebookPage.name;
 
-    // 4. Encriptación AES-256
-    const encryptedToken = await encryptToken(pageAccessToken, privateEnv.ENCRYPTION_KEY);
+    // 4. Encriptación AES-256-CBC
+    const encryptedToken = encryptToken(pageAccessToken, privateEnv.ENCRYPTION_KEY);
 
     // 5. Guardar en Base de Datos
     const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
