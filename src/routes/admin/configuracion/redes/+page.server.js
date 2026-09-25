@@ -23,11 +23,12 @@ export const load = async ({ locals }) => {
 
 export const actions = {
   conectarInstagram: async ({ url, cookies }) => {
-    const clientId = privateEnv.META_CLIENT_ID; 
+    // 🚀 ENTERPRISE FIX: Credencial EXCLUSIVA de Instagram (ID: 10896639...)
+    const clientId = privateEnv.INSTAGRAM_CLIENT_ID; 
 
     if (!clientId || clientId === 'undefined' || clientId.trim() === '') {
-      console.error('🔥 ERROR: META_CLIENT_ID no configurado.');
-      throw redirect(302, '/admin/configuracion/redes?error=falta_meta_id');
+      console.error('🔥 ERROR: INSTAGRAM_CLIENT_ID no configurado.');
+      throw redirect(302, '/admin/configuracion/redes?error=falta_ig_id');
     }
 
     const redirectUri = 'https://inmublia.com/api/auth/instagram/callback';
@@ -38,23 +39,23 @@ export const actions = {
     const statePayload = JSON.stringify({ sub: subdominio, nonce: nonce });
     const state = btoa(statePayload); 
 
-    // 🚀 FIX INSTAGRAM: Scopes de la Graph API moderna.
-    // Además, solicitamos 'pages_show_list' porque los perfiles profesionales de IG
-    // están vinculados a Páginas de FB, y Meta necesita ese permiso base para hacer el puente.
-    const scopes = 'instagram_basic,instagram_content_publish,pages_show_list';
+    // 🚀 ENTERPRISE FIX: Meta en 2025/2026 reemplazó 'instagram_basic' por 'instagram_business_basic'
+    // para el flujo nativo de Instagram Login.
+    const scopes = 'instagram_business_basic,instagram_business_content_publish';
     
-    // 🚀 FIX INSTAGRAM: Redirigimos al Login Empresarial de FB, NO a api.instagram.com
-    const authUrl = `https://www.facebook.com/v26.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scopes}&response_type=code`;
+    // 🚀 ENTERPRISE FIX: Endpoint nativo y exclusivo de Instagram (Evita la pantalla negra)
+    const authUrl = `https://www.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scopes}&response_type=code`;
 
     throw redirect(302, authUrl);
   },
 
   conectarFacebook: async ({ url, cookies }) => {
-    const clientId = privateEnv.META_CLIENT_ID; 
+    // 🚀 ENTERPRISE FIX: Credencial EXCLUSIVA de Facebook (ID: 38356753...)
+    const clientId = privateEnv.FACEBOOK_CLIENT_ID; 
 
     if (!clientId || clientId === 'undefined' || clientId.trim() === '') {
-      console.error('🔥 ERROR: META_CLIENT_ID no configurado.');
-      throw redirect(302, '/admin/configuracion/redes?error=falta_meta_id');
+      console.error('🔥 ERROR: FACEBOOK_CLIENT_ID no configurado.');
+      throw redirect(302, '/admin/configuracion/redes?error=falta_fb_id');
     }
 
     const redirectUri = 'https://inmublia.com/api/auth/facebook/callback';
@@ -65,11 +66,10 @@ export const actions = {
     const statePayload = JSON.stringify({ sub: subdominio, nonce: nonce });
     const state = btoa(statePayload); 
 
-    // 🚀 FIX FACEBOOK: Scopes purificados. 
-    // Quitamos 'pages_read_user_content' y 'pages_read_engagement' que causaban el crash.
-    // Con estos dos es suficiente para publicar en una página.
+    // 🚀 ENTERPRISE FIX: Scopes purificados. Cero rastro de Instagram aquí.
     const scopes = 'pages_show_list,pages_manage_posts';
     
+    // 🚀 ENTERPRISE FIX: Endpoint Graph API v26.0 exclusivo de Facebook
     const authUrl = `https://www.facebook.com/v26.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scopes}&response_type=code`;
 
     throw redirect(302, authUrl);
