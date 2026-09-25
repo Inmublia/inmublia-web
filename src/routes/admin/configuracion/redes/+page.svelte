@@ -6,6 +6,7 @@
   let conexiones = $derived(data.conexiones || []);
 
   let conectandoIg = $state(false);
+  let conectandoFb = $state(false);
 
   function getConexion(plataforma) {
     return conexiones.find(c => c.platform === plataforma);
@@ -17,7 +18,6 @@
   let redesActivas = $derived(conexiones.filter(c => c.status === 'active').length);
 </script>
 
-<!-- Fondo general claro (Homologado con Reportes) -->
 <div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
@@ -110,24 +110,57 @@
           </div>
         </div>
 
-        <!-- TARJETA FACEBOOK PAGE (Roadmap) -->
-        <div class="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm relative overflow-hidden flex flex-col opacity-75 grayscale hover:grayscale-0 transition-all duration-500">
+        <!-- TARJETA FACEBOOK PAGES (Activa) -->
+        <div class="bg-white border {fbConexion?.status === 'active' ? 'border-blue-500/50 shadow-blue-500/10' : 'border-slate-200'} rounded-3xl p-8 shadow-sm relative overflow-hidden flex flex-col group transition-all hover:shadow-md">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-2xl rounded-full"></div>
+          
           <div class="flex items-start justify-between relative z-10 mb-8">
             <div class="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-md">
               <Facebook class="w-7 h-7 text-white fill-current" />
             </div>
-            <span class="bg-slate-100 text-slate-500 border border-slate-200 text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg">Fase Siguiente</span>
+            {#if fbConexion?.status === 'active'}
+              <span class="bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                <CheckCircle2 class="w-3.5 h-3.5" /> Conectado
+              </span>
+            {:else if fbConexion?.status === 'expired'}
+              <span class="bg-rose-50 text-rose-600 border border-rose-200 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                <AlertTriangle class="w-3.5 h-3.5" /> Expirado
+              </span>
+            {/if}
           </div>
 
           <div class="relative z-10 flex-1">
             <h2 class="text-xl font-black text-slate-900 mb-2">Facebook Pages</h2>
             <p class="text-xs text-slate-500 font-medium leading-relaxed mb-6">Publicación cruzada en tu página de negocio inmobiliario. Extiende el alcance de tu inventario al público de Facebook.</p>
+            
+            {#if fbConexion}
+              <div class="bg-slate-50 rounded-xl p-4 border border-slate-100 mb-6 flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500">
+                  <Facebook class="w-4 h-4 fill-current" />
+                </div>
+                <div>
+                  <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Página Vinculada</p>
+                  <p class="text-sm font-bold text-slate-900">{fbConexion.username}</p>
+                </div>
+              </div>
+            {/if}
           </div>
 
           <div class="relative z-10 shrink-0 mt-auto">
-            <button disabled class="w-full py-3.5 rounded-xl bg-slate-50 text-slate-400 text-xs font-black uppercase tracking-widest border border-slate-200 cursor-not-allowed">
-              En Desarrollo
-            </button>
+            <form method="POST" action="?/conectarFacebook" use:enhance={() => {
+              conectandoFb = true;
+              return async ({ update }) => { conectandoFb = false; await update(); };
+            }}>
+              <button type="submit" disabled={conectandoFb || fbConexion?.status === 'active'} class="w-full py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 {fbConexion?.status === 'active' ? 'bg-slate-50 text-slate-400 cursor-not-allowed border border-slate-200 shadow-none' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md active:scale-95'}">
+                {#if conectandoFb}
+                  <Loader2 class="w-4 h-4 animate-spin" /> Redirigiendo a Meta...
+                {:else if fbConexion?.status === 'active'}
+                  Operativo
+                {:else}
+                  <Link2 class="w-4 h-4" /> {fbConexion?.status === 'expired' ? 'Reconectar Página' : 'Vincular Página'}
+                {/if}
+              </button>
+            </form>
           </div>
         </div>
 
