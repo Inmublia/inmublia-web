@@ -1,9 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import { env as privateEnv } from '$env/dynamic/private';
 
-// 🛡️ Encriptación simétrica AES-256-GCM nativa para Cloudflare Workers (Web Crypto API)
+// 🛡️ Encriptación simétrica AES-256-GCM nativa para Cloudflare Workers
 async function encryptToken(text, hexKey) {
-  // Convertimos la llave HEX de 64 caracteres a Uint8Array
   const keyBuffer = new Uint8Array(hexKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
   const key = await crypto.subtle.importKey('raw', keyBuffer, 'AES-GCM', false, ['encrypt']);
   
@@ -30,12 +29,12 @@ export async function GET({ url, locals, cookies }) {
     throw redirect(302, '/admin/configuracion/redes?error=auth_cancelado');
   }
 
-  // 🛡️ PROTECCIÓN CSRF: Validar que el state que devuelve Meta es nuestro
+  // 🛡️ PROTECCIÓN CSRF
   try {
     const state = JSON.parse(atob(stateB64));
     const savedNonce = cookies.get('oauth_nonce');
     if (!savedNonce || state.nonce !== savedNonce) {
-       throw new Error('CSRF validation failed');
+       throw new Error('Validación CSRF fallida');
     }
   } catch (e) {
     throw redirect(302, '/admin/configuracion/redes?error=csrf_invalido');
@@ -44,7 +43,8 @@ export async function GET({ url, locals, cookies }) {
   const clientId = privateEnv.META_CLIENT_ID;
   const clientSecret = privateEnv.META_CLIENT_SECRET;
   
-  // Esta URL DEBE coincidir al milímetro con la enviada en la fase 1 (sin barra final)
+  // 🚀 ENTERPRISE FIX: Esta URL DEBE ser un string estático que coincida exactamente 
+  // con la enviada en el paso de autorización, de lo contrario Meta v26.0 rechaza el canje.
   const redirectUri = 'https://inmublia.com/api/auth/facebook/callback';
 
   try {
@@ -55,12 +55,12 @@ export async function GET({ url, locals, cookies }) {
     if (tokenData.error) throw new Error(tokenData.error.message);
     const shortLivedToken = tokenData.access_token;
 
-    // 2. Intercambio atómico por Token Largo (60 días)
+    // 2. Extender a Token largo (60 días)
     const longTokenRes = await fetch(`https://graph.facebook.com/v26.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${clientId}&client_secret=${clientSecret}&fb_exchange_token=${shortLivedToken}`);
     const longTokenData = await longTokenRes.json();
     const longLivedToken = longTokenData.access_token || shortLivedToken;
 
-    // 3. Extracción selectiva: Obtener solo la Página Inmobiliaria del Broker
+    // 3. Extraer las Páginas de Empresa
     const pagesRes = await fetch(`https://graph.facebook.com/v26.0/me/accounts?access_token=${longLivedToken}`);
     const pagesData = await pagesRes.json();
 
@@ -68,26 +68,22 @@ export async function GET({ url, locals, cookies }) {
       throw redirect(302, '/admin/configuracion/redes?error=sin_paginas');
     }
 
-    // Por diseño, tomamos la primera página de negocio asociada
+    // Seleccionamos la primera página de negocio del broker
     const facebookPage = pagesData.data[0];
-    const pageAccessToken = facebookPage.access_token; // Este token no caduca por tiempo, solo por revocación
+    const pageAccessToken = facebookPage.access_token; 
     const pageId = facebookPage.id;
     const pageName = facebookPage.name;
 
-    // 4. Encriptación Fuerte
+    // 4. Encriptación AES-256
     const encryptedToken = await encryptToken(pageAccessToken, privateEnv.ENCRYPTION_KEY);
 
-    // 5. Persistencia
-    const { data: broker } = await locals.supabase
-      .from('brokers')
-      .select('id')
-      .eq('auth_user_id', locals.user.id)
-      .single();
+    // 5. Guardar en Base de Datos
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
 
     const { error: dbError } = await locals.supabase.from('broker_social_connections').upsert({
       broker_id: broker.id,
       platform: 'facebook',
-      platform_account_id: pageId,
+      platform_account_id: pageId, 
       username: pageName,
       access_token: encryptedToken,
       status: 'active',
@@ -96,13 +92,11 @@ export async function GET({ url, locals, cookies }) {
 
     if (dbError) throw new Error(dbError.message);
 
-    // 6. Finalizado: Limpiar cookie y volver al dashboard
     cookies.delete('oauth_nonce', { path: '/' });
     throw redirect(302, '/admin/configuracion/redes?success=fb_conectado');
 
   } catch (error) {
     console.error('[FB OAuth Error]', error);
-    // Preservar redirecciones de SvelteKit (throw redirect lanza un error controlable)
     if (error.status && error.location) throw error;
     throw redirect(302, '/admin/configuracion/redes?error=fallo_conexion');
   }
