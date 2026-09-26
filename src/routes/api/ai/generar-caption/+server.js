@@ -1,9 +1,10 @@
 import { json } from '@sveltejs/kit';
 import { reserveAiCredit, confirmAiCredit, refundAiCredit } from '$lib/server/ai-credits';
 
+// 🚀 FIX: Qwen 30B (Modelo masivo y lógico) pasa al frente como prioridad absoluta.
 const MODELS_CASCADE = [
-  '@cf/meta/llama-3.2-3b-instruct',
   '@cf/qwen/qwen3-30b-a3b-fp8',
+  '@cf/meta/llama-3.2-3b-instruct',
   '@cf/ibm-granite/granite-4.0-h-micro'
 ];
 
@@ -18,16 +19,18 @@ const PLATFORM_RULES = {
 function buildSystemPrompt({ idioma = 'español', tono = 'cálido y servicial', plataforma = 'instagram' } = {}) {
   const reglaPlataforma = PLATFORM_RULES[plataforma] || PLATFORM_RULES.instagram;
   
-  // 🚀 FIX CRÍTICO: Directiva Legal PROFECO Anti-Alucinaciones
-  return `Eres un Copywriter Inmobiliario Senior en México, experto en redes sociales y cumplimiento legal.
-Redacta una publicación (caption) para ${plataforma} en idioma: ${idioma}.
+  // 🚀 FIX: Prompt de Contención Nivel PROFECO
+  return `Eres un Copywriter Inmobiliario Senior en México, estrictamente regulado por PROFECO.
+Tu ÚNICO trabajo es redactar un caption atractivo para ${plataforma} en ${idioma} basándote EXCLUSIVAMENTE en los datos proporcionados por el usuario.
 
-⚖️ REGLA LEGAL ESTRICTA (CERO ALUCINACIONES): 
-Tienes ESTRICTAMENTE PROHIBIDO inventar, deducir o agregar medidas (ej. m2), precios, espacios, amenidades o ubicaciones geográficas que no estén EXPLÍCITAMENTE en la información proporcionada.
-Tu trabajo es mejorar la redacción persuasiva usando ÚNICAMENTE los datos reales. Si hay poca información, haz un post corto y misterioso, pero NUNCA inventes características.
+⚠️ REGLA DE ORO (CERO ALUCINACIONES - RIESGO LEGAL):
+1. TIENES PROHIBIDO inventar medidas (ej. 2.8 x 6.6 m).
+2. TIENES PROHIBIDO inventar amenidades (ej. gimnasio, alberca, jardín) que no se mencionen.
+3. TIENES PROHIBIDO inventar precios, ubicaciones o características arquitectónicas.
+4. Si la información es breve, redacta un texto breve y misterioso. NO rellenes con mentiras.
 
-REGLAS DE FORMATO: Tono ${tono}. ${reglaPlataforma}
-Responde EXCLUSIVAMENTE con un objeto JSON válido con esta estructura: {"caption": "Texto exacto listo para publicar"}`;
+ESTILO: Tono ${tono}. ${reglaPlataforma}
+FORMATO: Responde ÚNICAMENTE con un objeto JSON válido con esta estructura: {"caption": "Texto exacto listo para publicar"}`;
 }
 
 function parseAiResponse(result) {
@@ -105,8 +108,9 @@ export async function POST({ request, locals, platform }) {
 
   try {
     const systemPrompt = buildSystemPrompt({ plataforma: plataformaDestino });
-    // 🚀 FIX: Anclamos al usuario para que entienda que ESOS son sus límites
-    const userPrompt = `INFORMACIÓN REAL DE LA PROPIEDAD (Usa estrictamente estos datos, no inventes nada extra): ${caracteristicas}`;
+    
+    // 🚀 FIX: Enjaulamos las características en etiquetas XML falsas para que el modelo identifique los límites de la verdad
+    const userPrompt = `DATOS REALES DE LA PROPIEDAD:\n<datos>\n${caracteristicas}\n</datos>\n\nRedacta el caption usando ÚNICAMENTE la información dentro de las etiquetas <datos>.`;
 
     for (const modelId of MODELS_CASCADE) {
       const t0 = Date.now();
@@ -118,7 +122,7 @@ export async function POST({ request, locals, platform }) {
               { role: 'user', content: userPrompt }
             ],
             max_tokens: 350,
-            temperature: 0.4 // 🚀 FIX: Bajamos la temperatura de 0.7 a 0.4 para reducir drásticamente la creatividad inventiva
+            temperature: 0.2 // 🚀 FIX: Temperatura congelada. Cero creatividad, 100% analítico.
           }),
           new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout superado`)), AI_TIMEOUT_MS))
         ]);
