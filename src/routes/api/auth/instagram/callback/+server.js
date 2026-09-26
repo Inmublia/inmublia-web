@@ -12,17 +12,22 @@ function encryptToken(text, hexKey) {
   return iv.toString('hex') + ':' + encrypted.toString('hex');
 }
 
-export async function GET({ url, locals, cookies }) {
+export async function GET({ url, locals }) {
   const code = url.searchParams.get('code');
   const stateParam = url.searchParams.get('state');
   const error = url.searchParams.get('error');
 
   let parsedState = {};
+  let payloadStr = '';
+  let signature = '';
+
   if (stateParam) {
-    try { 
-      // 🚀 FIX CRÍTICO: Decodificación robusta compatible con el servidor Node.js/V8
+    try {
       const decodedString = Buffer.from(decodeURIComponent(stateParam), 'base64').toString('utf-8');
-      parsedState = JSON.parse(decodedString); 
+      const wrapper = JSON.parse(decodedString);
+      payloadStr = wrapper.p;
+      signature = wrapper.s;
+      parsedState = JSON.parse(payloadStr);
     } catch (e) {
       console.error('🔥 Error parseando state de OAuth:', e);
     }
@@ -34,15 +39,15 @@ export async function GET({ url, locals, cookies }) {
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=access_denied`); 
   }
 
-  // 🛡️ SEGURIDAD: Validación CSRF usando la cookie
-  const savedNonce = cookies.get('oauth_nonce');
-  if (!savedNonce || savedNonce !== parsedState.nonce) {
-    throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=csrf_failed`);
-  }
-  cookies.delete('oauth_nonce', { path: '/' });
-
   try {
     if (!locals.user) throw new Error("Sesión no autorizada");
+
+    // 🛡️ SEGURIDAD: Validación CSRF Stateless (Cero Cookies)
+    const expectedSignature = crypto.createHmac('sha256', privateEnv.ENCRYPTION_KEY).update(payloadStr).digest('hex');
+    if (signature !== expectedSignature || parsedState.uid !== locals.user.id) {
+      console.error('🔥 Violación CSRF detectada: Firma inválida o ID no coincide');
+      throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=csrf_failed`);
+    }
 
     const { data: broker, error: brokerError } = await locals.supabase
       .from('brokers')
@@ -102,13 +107,13 @@ export async function GET({ url, locals, cookies }) {
     const expiresInSeconds = longTokenData.expires_in || 5184000; 
     const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 
-    // 3. Obtener el ID y Nombre de la cuenta de Instagram
+    // 3. Obtener el ID y Nombre (Username) de la cuenta de Instagram
     const igUserRes = await fetch(`https://graph.instagram.com/v21.0/me?fields=id,username&access_token=${longLivedToken}`);
     const igUserData = await igUserRes.json();
     
     if (!igUserRes.ok || igUserData.error) throw new Error("Fallo al obtener perfil de IG");
 
-    // 4. 🛡️ SEGURIDAD: Encriptar el token
+    // 4. 🛡️ SEGURIDAD: Encriptar el token (Node.js crypto restaurado)
     const encryptedToken = encryptToken(longLivedToken, privateEnv.ENCRYPTION_KEY);
 
     // 5. Guardar en Supabase
