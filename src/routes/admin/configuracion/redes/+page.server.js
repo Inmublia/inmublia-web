@@ -34,9 +34,13 @@ export const actions = {
     const subdominio = url.hostname.split('.')[0];
     const nonce = crypto.randomBytes(16).toString('hex');
     
-    // 🚀 FIX CRÍTICO: sameSite 'lax' permite leer la cookie tras la redirección de Meta
+    // 🚀 FIX: Definir el rootDomain para compartir la cookie
+    const rootDomain = url.hostname.includes('inmublia.com') ? '.inmublia.com' : url.hostname;
+    
+    // 🚀 FIX CRÍTICO: sameSite 'lax' y 'domain' permiten leer la cookie tras la redirección
     cookies.set('oauth_nonce', nonce, { 
         path: '/', 
+        domain: rootDomain,
         httpOnly: true, 
         secure: true, 
         maxAge: 600,
@@ -65,8 +69,12 @@ export const actions = {
     const subdominio = url.hostname.split('.')[0];
     const nonce = crypto.randomBytes(16).toString('hex');
     
+    // 🚀 FIX: Definir el rootDomain para compartir la cookie
+    const rootDomain = url.hostname.includes('inmublia.com') ? '.inmublia.com' : url.hostname;
+    
     cookies.set('oauth_nonce', nonce, { 
         path: '/', 
+        domain: rootDomain,
         httpOnly: true, 
         secure: true, 
         maxAge: 600,
