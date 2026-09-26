@@ -7,7 +7,7 @@ const MODELS_CASCADE = [
   '@cf/ibm-granite/granite-4.0-h-micro'
 ];
 
-const AI_TIMEOUT_MS = 8000; // 🛡️ Timeout duro de 8 segundos por modelo
+const AI_TIMEOUT_MS = 8000; 
 
 const PLATFORM_RULES = {
   instagram: 'Máximo 150 palabras. 3 emojis. 3 hashtags relevantes al final.',
@@ -41,7 +41,6 @@ function parseAiResponse(result) {
   try {
     return JSON.parse(cleanedStr);
   } catch {
-    // 🛡️ Fallback robusto con Regex si el parser nativo falla por saltos de línea (\n)
     const match = cleanedStr.match(/"caption"\s*:\s*"((?:[^"\\]|\\.)*)"/s);
     if (match?.[1]) return { caption: match[1].replace(/\\n/g, '\n') };
     throw new Error('No se pudo extraer el caption de la respuesta JSON.');
@@ -49,10 +48,17 @@ function parseAiResponse(result) {
 }
 
 export async function POST({ request, locals, platform }) {
-  if (!locals.user) return json({ error: 'No autorizado' }, { status: 401 });
+  // 🚀 FIX CRÍTICO: Recuperación dinámica de sesión. 
+  // Si el hook global te ignora por ser una ruta /api, extraemos el usuario a la fuerza.
+  let user = locals.user;
+  if (!user && locals.supabase) {
+    const { data } = await locals.supabase.auth.getUser();
+    user = data?.user;
+  }
+
+  if (!user) return json({ error: 'No autorizado' }, { status: 401 });
   if (!platform?.env?.AI) return json({ error: 'Motor de IA offline.' }, { status: 503 });
 
-  // 🛡️ C3 & C4: Captura segura del payload y validación estricta de inputs
   const body = await request.json().catch(() => null);
   if (!body || typeof body.caracteristicas_inmueble !== 'string') {
     return json({ error: 'Payload inválido.' }, { status: 400 });
@@ -64,13 +70,10 @@ export async function POST({ request, locals, platform }) {
   }
 
   const plataformaDestino = body.plataforma || 'instagram';
-  
-  // 🛡️ M3: Soporte para Idempotencia si el cliente manda el requestId
   const requestId = body.requestId || crypto.randomUUID();
 
-  // 🛡️ I3: Rate Limiting de seguridad vía Cloudflare KV (Falla elegante si KV no está configurado)
   if (platform?.env?.KV) {
-    const rateLimitKey = `rl:caption:${locals.user.id}`;
+    const rateLimitKey = `rl:caption:${user.id}`;
     const requests = parseInt(await platform.env.KV.get(rateLimitKey) ?? '0');
     if (requests >= 10) {
       return json({ error: 'Demasiadas solicitudes. Espera un momento.' }, { status: 429 });
@@ -81,13 +84,12 @@ export async function POST({ request, locals, platform }) {
   const { data: broker } = await locals.supabase
     .from('brokers')
     .select('id')
-    .eq('auth_user_id', locals.user.id)
+    .eq('auth_user_id', user.id)
     .single();
 
   if (!broker) return json({ error: 'Perfil no encontrado' }, { status: 403 });
   
-  // 🛡️ C1: La validación de saldo manual fue eliminada. Confiamos la atomicidad a la RPC.
-  const reservation = await reserveAiCredit(locals.supabase, locals.user.id, requestId);
+  const reservation = await reserveAiCredit(locals.supabase, user.id, requestId);
   if (!reservation) {
     return json({ error: 'No tienes créditos de IA disponibles o existe un error transaccional.' }, { status: 403 });
   }
@@ -103,7 +105,6 @@ export async function POST({ request, locals, platform }) {
     for (const modelId of MODELS_CASCADE) {
       const t0 = Date.now();
       try {
-        // 🛡️ I2: Ejecución contra reloj (Timeout)
         const result = await Promise.race([
           platform.env.AI.run(modelId, {
             messages: [
@@ -129,17 +130,15 @@ export async function POST({ request, locals, platform }) {
       }
     }
 
-    // 🛡️ I1: Registro estructurado en consola (Workers Logs / Logpush)
-    console.log(JSON.stringify({ event: 'ai_caption_attempt', userId: locals.user.id, requestId, attempts: attemptLog }));
+    console.log(JSON.stringify({ event: 'ai_caption_attempt', userId: user.id, requestId, attempts: attemptLog }));
 
     if (!finalContent) throw new Error('Cascada de modelos agotada sin respuesta válida.');
 
-    const confirmed = await confirmAiCredit(locals.supabase, locals.user.id, requestId);
+    const confirmed = await confirmAiCredit(locals.supabase, user.id, requestId);
     if (!confirmed) throw new Error('Fallo al confirmar consumo de crédito IA.');
     
     creditConfirmed = true;
 
-    // 🛡️ C2: Obtener el saldo real y actualizado directamente de la BD tras la confirmación
     const { data: saldoActual } = await locals.supabase
       .from('brokers')
       .select('ia_creditos_disponibles')
@@ -154,7 +153,7 @@ export async function POST({ request, locals, platform }) {
 
   } catch (error) {
     if (!creditConfirmed) {
-      await refundAiCredit(locals.supabase, locals.user.id, requestId);
+      await refundAiCredit(locals.supabase, user.id, requestId);
     }
     console.error('[IG Caption IA Error]', attemptLog.length ? attemptLog : error.message);
     return json({ error: 'El motor de IA está temporalmente saturado. Por favor, inténtalo de nuevo.' }, { status: 502 });
