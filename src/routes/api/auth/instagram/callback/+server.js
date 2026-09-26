@@ -19,7 +19,13 @@ export async function GET({ url, locals, cookies }) {
 
   let parsedState = {};
   if (stateParam) {
-    try { parsedState = JSON.parse(atob(stateParam)); } catch (e) {}
+    try { 
+      // 🚀 FIX CRÍTICO: Decodificación robusta compatible con el servidor Node.js/V8
+      const decodedString = Buffer.from(decodeURIComponent(stateParam), 'base64').toString('utf-8');
+      parsedState = JSON.parse(decodedString); 
+    } catch (e) {
+      console.error('🔥 Error parseando state de OAuth:', e);
+    }
   }
   
   const fallbackSubdomain = parsedState.sub || 'app';
@@ -53,7 +59,7 @@ export async function GET({ url, locals, cookies }) {
     const clientId = privateEnv.INSTAGRAM_CLIENT_ID;
     const clientSecret = privateEnv.INSTAGRAM_CLIENT_SECRET;
 
-    // 1. Canjear el código por un token inicial (La API nativa de IG exige POST con FormData)
+    // 1. Canjear el código por un token inicial
     const tokenFormData = new FormData();
     tokenFormData.append('client_id', clientId);
     tokenFormData.append('client_secret', clientSecret);
@@ -85,7 +91,6 @@ export async function GET({ url, locals, cookies }) {
     });
     let longTokenData = await longTokenRes.json();
     
-    // Fallback: Meta a veces rechaza POST para este endpoint específico. 
     if (!longTokenRes.ok && longTokenData.error?.type === 'OAuthException') {
       longTokenRes = await fetch(`${longTokenUrl}?${longTokenParams.toString()}`);
       longTokenData = await longTokenRes.json();
@@ -97,13 +102,13 @@ export async function GET({ url, locals, cookies }) {
     const expiresInSeconds = longTokenData.expires_in || 5184000; 
     const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 
-    // 3. Obtener el ID y Nombre (Username) de la cuenta de Instagram
+    // 3. Obtener el ID y Nombre de la cuenta de Instagram
     const igUserRes = await fetch(`https://graph.instagram.com/v21.0/me?fields=id,username&access_token=${longLivedToken}`);
     const igUserData = await igUserRes.json();
     
     if (!igUserRes.ok || igUserData.error) throw new Error("Fallo al obtener perfil de IG");
 
-    // 4. 🛡️ SEGURIDAD: Encriptar el token (Node.js crypto restaurado)
+    // 4. 🛡️ SEGURIDAD: Encriptar el token
     const encryptedToken = encryptToken(longLivedToken, privateEnv.ENCRYPTION_KEY);
 
     // 5. Guardar en Supabase
