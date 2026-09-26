@@ -22,7 +22,8 @@ export const load = async ({ locals }) => {
 };
 
 export const actions = {
-  conectarInstagram: async ({ url, cookies }) => {
+  conectarInstagram: async ({ url, locals }) => {
+    if (!locals.user) throw redirect(302, '/login');
     const clientId = privateEnv.INSTAGRAM_CLIENT_ID; 
 
     if (!clientId || clientId === 'undefined' || clientId.trim() === '') {
@@ -32,23 +33,11 @@ export const actions = {
 
     const redirectUri = 'https://inmublia.com/api/auth/instagram/callback';
     const subdominio = url.hostname.split('.')[0];
-    const nonce = crypto.randomBytes(16).toString('hex');
-    
-    // 🚀 FIX: Definir el rootDomain para compartir la cookie
-    const rootDomain = url.hostname.includes('inmublia.com') ? '.inmublia.com' : url.hostname;
-    
-    // 🚀 FIX CRÍTICO: sameSite 'lax' y 'domain' permiten leer la cookie tras la redirección
-    cookies.set('oauth_nonce', nonce, { 
-        path: '/', 
-        domain: rootDomain,
-        httpOnly: true, 
-        secure: true, 
-        maxAge: 600,
-        sameSite: 'lax' 
-    });
 
-    const statePayload = JSON.stringify({ sub: subdominio, nonce: nonce });
-    // 🚀 FIX CRÍTICO: Codificación segura para URL, evita que el símbolo "+" corrompa el JSON
+    // 🚀 ENTERPRISE STATELESS CSRF: Eliminamos la cookie frágil. Firmamos el estado con criptografía.
+    const payload = JSON.stringify({ sub: subdominio, uid: locals.user.id });
+    const signature = crypto.createHmac('sha256', privateEnv.ENCRYPTION_KEY).update(payload).digest('hex');
+    const statePayload = JSON.stringify({ p: payload, s: signature });
     const state = encodeURIComponent(Buffer.from(statePayload).toString('base64')); 
 
     const scopes = 'instagram_business_basic,instagram_business_content_publish';
@@ -57,7 +46,8 @@ export const actions = {
     throw redirect(302, authUrl);
   },
 
-  conectarFacebook: async ({ url, cookies }) => {
+  conectarFacebook: async ({ url, locals }) => {
+    if (!locals.user) throw redirect(302, '/login');
     const clientId = privateEnv.FACEBOOK_CLIENT_ID; 
 
     if (!clientId || clientId === 'undefined' || clientId.trim() === '') {
@@ -67,21 +57,11 @@ export const actions = {
 
     const redirectUri = 'https://inmublia.com/api/auth/facebook/callback';
     const subdominio = url.hostname.split('.')[0];
-    const nonce = crypto.randomBytes(16).toString('hex');
-    
-    // 🚀 FIX: Definir el rootDomain para compartir la cookie
-    const rootDomain = url.hostname.includes('inmublia.com') ? '.inmublia.com' : url.hostname;
-    
-    cookies.set('oauth_nonce', nonce, { 
-        path: '/', 
-        domain: rootDomain,
-        httpOnly: true, 
-        secure: true, 
-        maxAge: 600,
-        sameSite: 'lax' 
-    });
 
-    const statePayload = JSON.stringify({ sub: subdominio, nonce: nonce });
+    // 🚀 ENTERPRISE STATELESS CSRF
+    const payload = JSON.stringify({ sub: subdominio, uid: locals.user.id });
+    const signature = crypto.createHmac('sha256', privateEnv.ENCRYPTION_KEY).update(payload).digest('hex');
+    const statePayload = JSON.stringify({ p: payload, s: signature });
     const state = encodeURIComponent(Buffer.from(statePayload).toString('base64')); 
 
     const scopes = 'pages_show_list,pages_manage_posts';
