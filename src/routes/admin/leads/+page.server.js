@@ -284,10 +284,32 @@ export const actions = {
     if (!broker) return fail(403, { error: 'Perfil no encontrado' });
 
     const formData = await request.formData();
-    const notaId = formData.get('nota_id');
+    
+    // 🔬 SENSOR 1: Extraer el ID buscando ambos nombres posibles y capturar todas las llaves enviadas
+    const formKeys = Array.from(formData.keys());
+    const notaId = formData.get('nota_id') || formData.get('id'); 
 
-    const { error } = await locals.supabase.from('lead_notas').update({ completado: true }).eq('id', notaId).eq('broker_id', broker.id);
+    if (!notaId) {
+        console.error("🔥 CRÍTICO FRONTEND: No llegó el ID de la nota. El formulario envió estas variables:", formKeys);
+        return fail(400, { error: `Falta ID. El frontend solo envió: [${formKeys.join(', ')}]` });
+    }
+
+    // 🔬 SENSOR 2: El .select() obliga a Supabase a escupir la fila si tuvo éxito, destapando fallos silenciosos
+    const { data: notaActualizada, error } = await locals.supabase
+        .from('lead_notas')
+        .update({ completado: true })
+        .eq('id', notaId)
+        .eq('broker_id', broker.id)
+        .select();
+
     if (error) return fail(500, { error: `Fallo BD: ${error.message}` });
+    
+    // 🔬 SENSOR 3: Si actualizó 0 filas, el ID existe pero no pertenece a este broker
+    if (!notaActualizada || notaActualizada.length === 0) {
+        console.error(`🔥 CRÍTICO BACKEND: Cero filas actualizadas. Buscando nota: ${notaId} y broker: ${broker.id}`);
+        return fail(400, { error: 'La nota no existe o el broker_id no coincide en la base de datos.' });
+    }
+
     return { success: true };
   },
 
