@@ -1,8 +1,8 @@
-import { redirect } from '@sveltejs/kit';
+import { redirect, isRedirect } from '@sveltejs/kit';
 import { env as privateEnv } from '$env/dynamic/private';
 import crypto from 'crypto';
 
-// 🛡️ SEGURIDAD: Encriptación Simétrica para tokens en reposo
+// 🛡️ SEGURIDAD: Encriptación Simétrica (Se mantiene CBC por compatibilidad estricta con desencriptador actual)
 function encryptToken(text, hexKey) {
   if (!hexKey) return text;
   const iv = crypto.randomBytes(16);
@@ -42,8 +42,10 @@ export async function GET({ url, locals }) {
   try {
     if (!locals.user) throw new Error("Sesión no autorizada");
 
-    // 🛡️ SEGURIDAD: Validación CSRF Stateless (Cero Cookies)
-    const expectedSignature = crypto.createHmac('sha256', privateEnv.ENCRYPTION_KEY).update(payloadStr).digest('hex');
+    // ✅ Bug #5 Eliminado: Fallback inteligente de la firma
+    const hmacSecret = privateEnv.HMAC_SECRET || privateEnv.ENCRYPTION_KEY;
+    const expectedSignature = crypto.createHmac('sha256', hmacSecret).update(payloadStr).digest('hex');
+    
     if (signature !== expectedSignature || parsedState.uid !== locals.user.id) {
       console.error('🔥 Violación CSRF detectada: Firma inválida o ID no coincide');
       throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=csrf_failed`);
@@ -60,11 +62,9 @@ export async function GET({ url, locals }) {
 
     const redirectUri = 'https://inmublia.com/api/auth/instagram/callback';
 
-    // 🚀 LECTURA EXCLUSIVA DE CREDENCIALES DE INSTAGRAM
     const clientId = privateEnv.INSTAGRAM_CLIENT_ID;
     const clientSecret = privateEnv.INSTAGRAM_CLIENT_SECRET;
 
-    // 1. Canjear el código por un token inicial
     const tokenFormData = new FormData();
     tokenFormData.append('client_id', clientId);
     tokenFormData.append('client_secret', clientSecret);
@@ -82,7 +82,6 @@ export async function GET({ url, locals }) {
 
     const shortLivedToken = tokenData.access_token;
 
-    // 2. 🛡️ SEGURIDAD: Obtener Token Largo
     const longTokenUrl = 'https://graph.instagram.com/access_token';
     const longTokenParams = new URLSearchParams();
     longTokenParams.append('grant_type', 'ig_exchange_token');
@@ -107,16 +106,14 @@ export async function GET({ url, locals }) {
     const expiresInSeconds = longTokenData.expires_in || 5184000; 
     const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 
-    // 3. Obtener el ID y Nombre (Username) de la cuenta de Instagram
-    const igUserRes = await fetch(`https://graph.instagram.com/v21.0/me?fields=id,username&access_token=${longLivedToken}`);
+    // ✅ Bug #4 Eliminado: API v26.0 estricta
+    const igUserRes = await fetch(`https://graph.instagram.com/v26.0/me?fields=id,username&access_token=${longLivedToken}`);
     const igUserData = await igUserRes.json();
     
     if (!igUserRes.ok || igUserData.error) throw new Error("Fallo al obtener perfil de IG");
 
-    // 4. 🛡️ SEGURIDAD: Encriptar el token (Node.js crypto restaurado)
     const encryptedToken = encryptToken(longLivedToken, privateEnv.ENCRYPTION_KEY);
 
-    // 5. Guardar en Supabase
     const { error: dbError } = await locals.supabase
       .from('broker_social_connections')
       .upsert({
@@ -132,11 +129,13 @@ export async function GET({ url, locals }) {
 
     if (dbError) throw dbError;
 
-    // 6. Redirigir de regreso al subdominio del broker
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?success=true`);
 
   } catch (err) {
-    console.error('Error crítico en OAuth Callback IG Nativo:', err);
+    // ✅ Bug #3 Eliminado: SvelteKit 2.0 native support. Deja pasar las redirecciones puras.
+    if (isRedirect(err)) throw err;
+
+    console.error('Error crítico en OAuth Callback IG Nativo:', err.message || err);
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=auth_failed`);
   }
 }
