@@ -2,11 +2,9 @@ import { json } from '@sveltejs/kit';
 import { env as privateEnv } from '$env/dynamic/private';
 import crypto from 'crypto';
 
-// 🛡️ FIX (Bug 10): Centralizar versión de la API de Meta (Actualizado a v26.0 para coincidir con el token)
 const META_GRAPH_VERSION = 'v26.0';
 const META_GRAPH_URL = `https://graph.instagram.com/${META_GRAPH_VERSION}`;
 
-// 🛡️ FIX (Bug 6): Función para desencriptar el token de la BD
 function decryptToken(encryptedText) {
   if (!privateEnv.ENCRYPTION_KEY) throw new Error('ENCRYPTION_KEY no configurada en el entorno');
   if (!encryptedText || !encryptedText.includes(':')) return encryptedText;
@@ -21,8 +19,10 @@ function decryptToken(encryptedText) {
   return decrypted.toString('utf-8');
 }
 
+// 🚀 FIX: Función para crear un retraso artificial (Delay)
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function POST({ request, locals }) {
-  // 🚀 RECUPERACIÓN DINÁMICA DE SESIÓN (Adiós al bloqueo "No autorizado" de SvelteKit)
   let user = locals.user;
   if (!user && locals.supabase) {
     const { data } = await locals.supabase.auth.getUser();
@@ -41,12 +41,11 @@ export async function POST({ request, locals }) {
     const { data: broker, error: brokerError } = await locals.supabase
       .from('brokers')
       .select('id')
-      .eq('auth_user_id', user.id) // 🚀 FIX: Usamos el ID del usuario dinámicamente recuperado
+      .eq('auth_user_id', user.id)
       .single();
 
     if (brokerError || !broker) throw new Error('No se encontró el perfil del broker');
 
-    // 🛡️ FIX (Bug 9): Traer token_expires_at para validarlo
     const { data: connection, error: connError } = await locals.supabase
       .from('broker_social_connections')
       .select('platform_user_id, access_token, token_expires_at')
@@ -59,17 +58,14 @@ export async function POST({ request, locals }) {
       throw new Error('La cuenta de Instagram no está conectada o está inactiva');
     }
 
-    // 🛡️ FIX (Bug 9): Validar vencimiento del token antes de gastar recursos
     if (new Date(connection.token_expires_at) < new Date()) {
       await locals.supabase.from('broker_social_connections').update({ status: 'expired' }).eq('broker_id', broker.id).eq('platform', 'instagram');
       return json({ error: 'Tu conexión de Instagram venció. Ve a Configuración → Redes y reconecta tu cuenta.' }, { status: 401 });
     }
 
     const { platform_user_id } = connection;
-    // 🛡️ FIX (Bug 6): Desencriptar token para hablar con Meta
     const access_token = decryptToken(connection.access_token);
 
-    // 🛡️ FIX (Mejora menor): Checar Rate Limit de Meta antes de intentar publicar
     const limitRes = await fetch(`${META_GRAPH_URL}/${platform_user_id}/content_publishing_limit?fields=quota_usage&access_token=${access_token}`);
     if (limitRes.ok) {
        const limitData = await limitRes.json();
@@ -102,7 +98,7 @@ export async function POST({ request, locals }) {
     const creationId = containerData.id;
 
     // ==========================================
-    // PASO 2 DE META: PUBLICAR EN EL FEED
+    // PASO 2 DE META: PUBLICAR EN EL FEED (Con Retraso y Reintentos)
     // ==========================================
     const publishUrl = `${META_GRAPH_URL}/${platform_user_id}/media_publish`;
     const publishParams = new URLSearchParams({
@@ -110,15 +106,38 @@ export async function POST({ request, locals }) {
       access_token: access_token
     });
 
-    const publishRes = await fetch(publishUrl, {
-      method: 'POST',
-      body: publishParams
-    });
+    let publishRes;
+    let publishData;
+    let attempt = 0;
+    const maxAttempts = 3; // Intentar publicar 3 veces
 
-    const publishData = await publishRes.json();
+    while (attempt < maxAttempts) {
+      attempt++;
+      // Esperar 3 segundos antes del primer intento y 5 segundos entre reintentos
+      await delay(attempt === 1 ? 3000 : 5000); 
+
+      publishRes = await fetch(publishUrl, {
+        method: 'POST',
+        body: publishParams
+      });
+
+      publishData = await publishRes.json();
+
+      // Si la publicación fue exitosa, salir del bucle
+      if (publishRes.ok && !publishData.error) {
+        break; 
+      }
+
+      // Si hay un error diferente a "Media ID is not available", detener los reintentos
+      if (publishData.error?.message && !publishData.error.message.includes('Media ID is not available')) {
+          break;
+      }
+      
+      console.warn(`[IG Publish] Intento ${attempt} fallido: Media aún no disponible. Reintentando...`);
+    }
 
     if (!publishRes.ok || publishData.error) {
-      throw new Error(`Fallo al publicar en feed IG: ${publishData.error?.message || 'Error desconocido'}`);
+      throw new Error(`Fallo al publicar en feed IG tras ${maxAttempts} intentos: ${publishData.error?.message || 'Error desconocido'}`);
     }
 
     return json({ 
