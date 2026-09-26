@@ -2,7 +2,7 @@ import { redirect, isRedirect } from '@sveltejs/kit';
 import { env as privateEnv } from '$env/dynamic/private';
 import crypto from 'crypto';
 
-// 🛡️ SEGURIDAD: Encriptación Simétrica (Se mantiene CBC por compatibilidad estricta con desencriptador actual)
+// 🛡️ SEGURIDAD: Encriptación Simétrica (Se mantiene CBC por compatibilidad estricta con el desencriptador global de Inmublia)
 function encryptToken(text, hexKey) {
   if (!hexKey) return text;
   const iv = crypto.randomBytes(16);
@@ -63,15 +63,18 @@ export async function GET({ url, locals }) {
     const clientId = privateEnv.INSTAGRAM_CLIENT_ID;
     const clientSecret = privateEnv.INSTAGRAM_CLIENT_SECRET;
 
-    // 🚀 FIX: Endpoint moderno de Graph API (v26.0) + URLSearchParams estricto
+    // 🚀 FIX: Limpiamos el hash maldito '#_' que Meta a veces inyecta al final del código
+    const cleanCode = code.replace('#_', ''); 
+
+    // 🚀 FIX CRÍTICO 1: El endpoint de tokens cortos es api.instagram.com (SIN VERSIÓN v26.0)
     const tokenParams = new URLSearchParams();
     tokenParams.append('client_id', clientId);
     tokenParams.append('client_secret', clientSecret);
     tokenParams.append('grant_type', 'authorization_code');
     tokenParams.append('redirect_uri', redirectUri);
-    tokenParams.append('code', code);
+    tokenParams.append('code', cleanCode);
 
-    const tokenRes = await fetch('https://graph.instagram.com/v26.0/oauth/access_token', {
+    const tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: tokenParams.toString()
@@ -81,14 +84,18 @@ export async function GET({ url, locals }) {
     if (!tokenRes.ok) throw new Error(tokenData.error_message || tokenData.error?.message || 'Fallo al obtener token corto de Meta');
 
     const shortLivedToken = tokenData.access_token;
+    
+    // Capturamos el ID directamente del primer bloque por si el endpoint /me colapsa
+    let igUserId = tokenData.user_id; 
+    let igUsername = `IG_${igUserId}`;
 
-    // 🚀 FIX: Las peticiones ig_exchange_token por estándar Graph API son GET
+    // 🚀 FIX CRÍTICO 2: El endpoint de tokens largos es graph.instagram.com (SIN VERSIÓN)
     const longTokenParams = new URLSearchParams();
     longTokenParams.append('grant_type', 'ig_exchange_token');
     longTokenParams.append('client_secret', clientSecret);
     longTokenParams.append('access_token', shortLivedToken);
 
-    const longTokenUrl = `https://graph.instagram.com/v26.0/access_token?${longTokenParams.toString()}`;
+    const longTokenUrl = `https://graph.instagram.com/access_token?${longTokenParams.toString()}`;
     const longTokenRes = await fetch(longTokenUrl, { method: 'GET' });
     const longTokenData = await longTokenRes.json();
     
@@ -98,10 +105,20 @@ export async function GET({ url, locals }) {
     const expiresInSeconds = longTokenData.expires_in || 5184000; 
     const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 
-    const igUserRes = await fetch(`https://graph.instagram.com/v26.0/me?fields=id,username&access_token=${longLivedToken}`);
-    const igUserData = await igUserRes.json();
-    
-    if (!igUserRes.ok || igUserData.error) throw new Error(igUserData.error?.message || "Fallo al obtener el perfil de usuario de IG");
+    // 🚀 DEFENSA ENTERPRISE: Intentamos obtener el nombre de usuario (solo este lleva v26.0)
+    try {
+      const igUserRes = await fetch(`https://graph.instagram.com/v26.0/me?fields=id,username&access_token=${longLivedToken}`);
+      const igUserData = await igUserRes.json();
+      
+      if (igUserRes.ok && !igUserData.error) {
+        igUserId = igUserData.id || igUserId;
+        igUsername = igUserData.username || igUsername;
+      } else {
+        console.warn('🔥 Advertencia: Meta bloqueó el endpoint /me. Usando Fallback ID.', igUserData.error);
+      }
+    } catch (e) {
+      console.warn('🔥 Excepción en /me. El token es válido, procediendo con Fallback ID.');
+    }
 
     const encryptedToken = encryptToken(longLivedToken, privateEnv.ENCRYPTION_KEY);
 
@@ -110,8 +127,8 @@ export async function GET({ url, locals }) {
       .upsert({
         broker_id: brokerId,
         platform: 'instagram',
-        platform_user_id: igUserData.id,
-        username: igUserData.username, 
+        platform_user_id: igUserId,
+        username: igUsername, 
         access_token: encryptedToken,
         token_expires_at: expiresAt,
         status: 'active',
@@ -127,7 +144,7 @@ export async function GET({ url, locals }) {
 
     console.error('Error crítico en OAuth Callback IG Nativo:', err.message || err);
     
-    // 🔥 ENTERPRISE DEBUG: Enviamos el error real a la URL para no volar a ciegas
+    // Mostramos el error directo en la URL por si Meta sigue arrojando excepciones extrañas
     const safeErrorMsg = encodeURIComponent(err.message || 'Error desconocido');
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=auth_failed&detalle=${safeErrorMsg}`);
   }
