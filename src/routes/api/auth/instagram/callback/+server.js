@@ -42,7 +42,6 @@ export async function GET({ url, locals }) {
   try {
     if (!locals.user) throw new Error("Sesión no autorizada");
 
-    // ✅ Bug #5 Eliminado: Fallback inteligente de la firma
     const hmacSecret = privateEnv.HMAC_SECRET || privateEnv.ENCRYPTION_KEY;
     const expectedSignature = crypto.createHmac('sha256', hmacSecret).update(payloadStr).digest('hex');
     
@@ -61,56 +60,48 @@ export async function GET({ url, locals }) {
     const brokerId = broker.id;
 
     const redirectUri = 'https://inmublia.com/api/auth/instagram/callback';
-
     const clientId = privateEnv.INSTAGRAM_CLIENT_ID;
     const clientSecret = privateEnv.INSTAGRAM_CLIENT_SECRET;
 
-    const tokenFormData = new FormData();
-    tokenFormData.append('client_id', clientId);
-    tokenFormData.append('client_secret', clientSecret);
-    tokenFormData.append('grant_type', 'authorization_code');
-    tokenFormData.append('redirect_uri', redirectUri);
-    tokenFormData.append('code', code);
+    // 🚀 FIX: Endpoint moderno de Graph API (v26.0) + URLSearchParams estricto
+    const tokenParams = new URLSearchParams();
+    tokenParams.append('client_id', clientId);
+    tokenParams.append('client_secret', clientSecret);
+    tokenParams.append('grant_type', 'authorization_code');
+    tokenParams.append('redirect_uri', redirectUri);
+    tokenParams.append('code', code);
 
-    const tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
+    const tokenRes = await fetch('https://graph.instagram.com/v26.0/oauth/access_token', {
       method: 'POST',
-      body: tokenFormData
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: tokenParams.toString()
     });
     
     const tokenData = await tokenRes.json();
-    if (!tokenRes.ok) throw new Error(tokenData.error_message || 'Fallo al obtener token corto');
+    if (!tokenRes.ok) throw new Error(tokenData.error_message || tokenData.error?.message || 'Fallo al obtener token corto de Meta');
 
     const shortLivedToken = tokenData.access_token;
 
-    const longTokenUrl = 'https://graph.instagram.com/access_token';
+    // 🚀 FIX: Las peticiones ig_exchange_token por estándar Graph API son GET
     const longTokenParams = new URLSearchParams();
     longTokenParams.append('grant_type', 'ig_exchange_token');
     longTokenParams.append('client_secret', clientSecret);
     longTokenParams.append('access_token', shortLivedToken);
 
-    let longTokenRes = await fetch(longTokenUrl, { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, 
-      body: longTokenParams.toString() 
-    });
-    let longTokenData = await longTokenRes.json();
+    const longTokenUrl = `https://graph.instagram.com/v26.0/access_token?${longTokenParams.toString()}`;
+    const longTokenRes = await fetch(longTokenUrl, { method: 'GET' });
+    const longTokenData = await longTokenRes.json();
     
-    if (!longTokenRes.ok && longTokenData.error?.type === 'OAuthException') {
-      longTokenRes = await fetch(`${longTokenUrl}?${longTokenParams.toString()}`);
-      longTokenData = await longTokenRes.json();
-    }
-
-    if (!longTokenRes.ok) throw new Error(longTokenData.error?.message || 'Fallo al obtener token largo');
+    if (!longTokenRes.ok) throw new Error(longTokenData.error?.message || 'Fallo al intercambiar por token largo');
 
     const longLivedToken = longTokenData.access_token;
     const expiresInSeconds = longTokenData.expires_in || 5184000; 
     const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 
-    // ✅ Bug #4 Eliminado: API v26.0 estricta
     const igUserRes = await fetch(`https://graph.instagram.com/v26.0/me?fields=id,username&access_token=${longLivedToken}`);
     const igUserData = await igUserRes.json();
     
-    if (!igUserRes.ok || igUserData.error) throw new Error("Fallo al obtener perfil de IG");
+    if (!igUserRes.ok || igUserData.error) throw new Error(igUserData.error?.message || "Fallo al obtener el perfil de usuario de IG");
 
     const encryptedToken = encryptToken(longLivedToken, privateEnv.ENCRYPTION_KEY);
 
@@ -127,15 +118,17 @@ export async function GET({ url, locals }) {
         updated_at: new Date().toISOString()
       }, { onConflict: 'broker_id, platform' });
 
-    if (dbError) throw dbError;
+    if (dbError) throw new Error(`Fallo en BD: ${dbError.message}`);
 
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?success=true`);
 
   } catch (err) {
-    // ✅ Bug #3 Eliminado: SvelteKit 2.0 native support. Deja pasar las redirecciones puras.
     if (isRedirect(err)) throw err;
 
     console.error('Error crítico en OAuth Callback IG Nativo:', err.message || err);
-    throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=auth_failed`);
+    
+    // 🔥 ENTERPRISE DEBUG: Enviamos el error real a la URL para no volar a ciegas
+    const safeErrorMsg = encodeURIComponent(err.message || 'Error desconocido');
+    throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=auth_failed&detalle=${safeErrorMsg}`);
   }
 }
