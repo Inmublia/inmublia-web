@@ -2,7 +2,7 @@ import { redirect, isRedirect } from '@sveltejs/kit';
 import { env as privateEnv } from '$env/dynamic/private';
 import crypto from 'crypto';
 
-// 🛡️ SEGURIDAD: Encriptación Simétrica (Se mantiene CBC por compatibilidad estricta con el desencriptador global de Inmublia)
+// 🛡️ SEGURIDAD: Encriptación Simétrica
 function encryptToken(text, hexKey) {
   if (!hexKey) return text;
   const iv = crypto.randomBytes(16);
@@ -35,25 +35,28 @@ export async function GET({ url, locals }) {
   
   const fallbackSubdomain = parsedState.sub || 'app';
 
-  if (error || !code || !stateParam) {
+  if (error || !code || !stateParam || !payloadStr) {
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=access_denied`); 
   }
 
   try {
-    if (!locals.user) throw new Error("Sesión no autorizada");
-
+    // 🚀 EL FIX MAESTRO: Validamos la firma HMAC en lugar de buscar la cookie (locals.user)
     const hmacSecret = privateEnv.HMAC_SECRET || privateEnv.ENCRYPTION_KEY;
     const expectedSignature = crypto.createHmac('sha256', hmacSecret).update(payloadStr).digest('hex');
     
-    if (signature !== expectedSignature || parsedState.uid !== locals.user.id) {
-      console.error('🔥 Violación CSRF detectada: Firma inválida o ID no coincide');
+    if (signature !== expectedSignature) {
+      console.error('🔥 Violación CSRF detectada: Firma matemática inválida');
       throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=csrf_failed`);
     }
+
+    // Como la firma es auténtica, el UID en el payload es ley. No necesitamos la cookie.
+    const validUserId = parsedState.uid;
+    if (!validUserId) throw new Error("Firma válida pero UID ausente en el estado");
 
     const { data: broker, error: brokerError } = await locals.supabase
       .from('brokers')
       .select('id')
-      .eq('auth_user_id', locals.user.id)
+      .eq('auth_user_id', validUserId)
       .single();
       
     if (brokerError || !broker) throw new Error("Perfil de broker no encontrado");
@@ -63,10 +66,9 @@ export async function GET({ url, locals }) {
     const clientId = privateEnv.INSTAGRAM_CLIENT_ID;
     const clientSecret = privateEnv.INSTAGRAM_CLIENT_SECRET;
 
-    // 🚀 FIX: Limpiamos el hash maldito '#_' que Meta a veces inyecta al final del código
     const cleanCode = code.replace('#_', ''); 
 
-    // 🚀 FIX CRÍTICO 1: El endpoint de tokens cortos es api.instagram.com (SIN VERSIÓN v26.0)
+    // 1. Canje del token corto
     const tokenParams = new URLSearchParams();
     tokenParams.append('client_id', clientId);
     tokenParams.append('client_secret', clientSecret);
@@ -84,12 +86,10 @@ export async function GET({ url, locals }) {
     if (!tokenRes.ok) throw new Error(tokenData.error_message || tokenData.error?.message || 'Fallo al obtener token corto de Meta');
 
     const shortLivedToken = tokenData.access_token;
-    
-    // Capturamos el ID directamente del primer bloque por si el endpoint /me colapsa
     let igUserId = tokenData.user_id; 
     let igUsername = `IG_${igUserId}`;
 
-    // 🚀 FIX CRÍTICO 2: El endpoint de tokens largos es graph.instagram.com (SIN VERSIÓN)
+    // 2. Canje por token largo
     const longTokenParams = new URLSearchParams();
     longTokenParams.append('grant_type', 'ig_exchange_token');
     longTokenParams.append('client_secret', clientSecret);
@@ -105,7 +105,7 @@ export async function GET({ url, locals }) {
     const expiresInSeconds = longTokenData.expires_in || 5184000; 
     const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 
-    // 🚀 DEFENSA ENTERPRISE: Intentamos obtener el nombre de usuario (solo este lleva v26.0)
+    // 3. Extracción de datos del perfil
     try {
       const igUserRes = await fetch(`https://graph.instagram.com/v26.0/me?fields=id,username&access_token=${longLivedToken}`);
       const igUserData = await igUserRes.json();
@@ -113,15 +113,14 @@ export async function GET({ url, locals }) {
       if (igUserRes.ok && !igUserData.error) {
         igUserId = igUserData.id || igUserId;
         igUsername = igUserData.username || igUsername;
-      } else {
-        console.warn('🔥 Advertencia: Meta bloqueó el endpoint /me. Usando Fallback ID.', igUserData.error);
       }
     } catch (e) {
-      console.warn('🔥 Excepción en /me. El token es válido, procediendo con Fallback ID.');
+      console.warn('🔥 Excepción en /me ignorada.');
     }
 
     const encryptedToken = encryptToken(longLivedToken, privateEnv.ENCRYPTION_KEY);
 
+    // 4. Guardado seguro en BD
     const { error: dbError } = await locals.supabase
       .from('broker_social_connections')
       .upsert({
@@ -144,7 +143,6 @@ export async function GET({ url, locals }) {
 
     console.error('Error crítico en OAuth Callback IG Nativo:', err.message || err);
     
-    // Mostramos el error directo en la URL por si Meta sigue arrojando excepciones extrañas
     const safeErrorMsg = encodeURIComponent(err.message || 'Error desconocido');
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=auth_failed&detalle=${safeErrorMsg}`);
   }
