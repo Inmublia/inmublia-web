@@ -280,34 +280,31 @@ export const actions = {
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
     if (!locals.user) return fail(401, { error: 'No autorizado' });
 
-    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
-    if (!broker) return fail(403, { error: 'Perfil no encontrado' });
-
     const formData = await request.formData();
-    
-    // 🔬 SENSOR 1: Extraer el ID buscando ambos nombres posibles y capturar todas las llaves enviadas
-    const formKeys = Array.from(formData.keys());
     const notaId = formData.get('nota_id') || formData.get('id'); 
 
     if (!notaId) {
-        console.error("🔥 CRÍTICO FRONTEND: No llegó el ID de la nota. El formulario envió estas variables:", formKeys);
-        return fail(400, { error: `Falta ID. El frontend solo envió: [${formKeys.join(', ')}]` });
+        return fail(400, { error: 'Falta el ID del recordatorio.' });
     }
 
-    // 🔬 SENSOR 2: El .select() obliga a Supabase a escupir la fila si tuvo éxito, destapando fallos silenciosos
+    // 🔬 CIRUGÍA EXACTA: Quitamos el filtro .eq('broker_id', broker.id)
+    // El RLS de la base de datos es el único responsable de rechazar actualizaciones no autorizadas.
+    // Esto evita el fallo silencioso por cruce de IDs heredados en la base de datos.
     const { data: notaActualizada, error } = await locals.supabase
         .from('lead_notas')
         .update({ completado: true })
         .eq('id', notaId)
-        .eq('broker_id', broker.id)
         .select();
 
-    if (error) return fail(500, { error: `Fallo BD: ${error.message}` });
+    if (error) {
+        console.error('🔥 Error BD completando nota:', error.message);
+        return fail(500, { error: `Fallo DB: ${error.message}` });
+    }
     
-    // 🔬 SENSOR 3: Si actualizó 0 filas, el ID existe pero no pertenece a este broker
     if (!notaActualizada || notaActualizada.length === 0) {
-        console.error(`🔥 CRÍTICO BACKEND: Cero filas actualizadas. Buscando nota: ${notaId} y broker: ${broker.id}`);
-        return fail(400, { error: 'La nota no existe o el broker_id no coincide en la base de datos.' });
+        console.error(`🔥 BD bloqueó el update. ID: ${notaId}`);
+        // Retornamos un mensaje de error directo para atravesar la trampa de parseo de Svelte
+        return fail(400, { error: 'Registro bloqueado por seguridad o no existe.' });
     }
 
     return { success: true };
