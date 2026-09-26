@@ -17,9 +17,16 @@ const PLATFORM_RULES = {
 
 function buildSystemPrompt({ idioma = 'español', tono = 'cálido y servicial', plataforma = 'instagram' } = {}) {
   const reglaPlataforma = PLATFORM_RULES[plataforma] || PLATFORM_RULES.instagram;
-  return `Eres un Asesor Inmobiliario Senior experto en redes sociales.
-Redacta una descripción (caption) para publicar una propiedad en ${plataforma} en idioma: ${idioma}.
-REGLAS ESTRICTAS: Tono ${tono}. ${reglaPlataforma}
+  
+  // 🚀 FIX CRÍTICO: Directiva Legal PROFECO Anti-Alucinaciones
+  return `Eres un Copywriter Inmobiliario Senior en México, experto en redes sociales y cumplimiento legal.
+Redacta una publicación (caption) para ${plataforma} en idioma: ${idioma}.
+
+⚖️ REGLA LEGAL ESTRICTA (CERO ALUCINACIONES): 
+Tienes ESTRICTAMENTE PROHIBIDO inventar, deducir o agregar medidas (ej. m2), precios, espacios, amenidades o ubicaciones geográficas que no estén EXPLÍCITAMENTE en la información proporcionada.
+Tu trabajo es mejorar la redacción persuasiva usando ÚNICAMENTE los datos reales. Si hay poca información, haz un post corto y misterioso, pero NUNCA inventes características.
+
+REGLAS DE FORMATO: Tono ${tono}. ${reglaPlataforma}
 Responde EXCLUSIVAMENTE con un objeto JSON válido con esta estructura: {"caption": "Texto exacto listo para publicar"}`;
 }
 
@@ -48,8 +55,6 @@ function parseAiResponse(result) {
 }
 
 export async function POST({ request, locals, platform }) {
-  // 🚀 FIX CRÍTICO: Recuperación dinámica de sesión. 
-  // Si el hook global te ignora por ser una ruta /api, extraemos el usuario a la fuerza.
   let user = locals.user;
   if (!user && locals.supabase) {
     const { data } = await locals.supabase.auth.getUser();
@@ -100,7 +105,8 @@ export async function POST({ request, locals, platform }) {
 
   try {
     const systemPrompt = buildSystemPrompt({ plataforma: plataformaDestino });
-    const userPrompt = `Redacta un post para la siguiente propiedad: ${caracteristicas}`;
+    // 🚀 FIX: Anclamos al usuario para que entienda que ESOS son sus límites
+    const userPrompt = `INFORMACIÓN REAL DE LA PROPIEDAD (Usa estrictamente estos datos, no inventes nada extra): ${caracteristicas}`;
 
     for (const modelId of MODELS_CASCADE) {
       const t0 = Date.now();
@@ -112,7 +118,7 @@ export async function POST({ request, locals, platform }) {
               { role: 'user', content: userPrompt }
             ],
             max_tokens: 350,
-            temperature: 0.7 
+            temperature: 0.4 // 🚀 FIX: Bajamos la temperatura de 0.7 a 0.4 para reducir drásticamente la creatividad inventiva
           }),
           new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout superado`)), AI_TIMEOUT_MS))
         ]);
