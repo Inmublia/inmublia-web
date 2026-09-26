@@ -4,10 +4,12 @@ import crypto from 'crypto';
 
 // 🛡️ SEGURIDAD: Encriptación Simétrica
 function encryptToken(text, hexKey) {
+  if (!text) return '';
   if (!hexKey) return text;
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(hexKey, 'hex'), iv);
-  let encrypted = cipher.update(text);
+  
+  let encrypted = cipher.update(Buffer.from(text, 'utf-8'));
   encrypted = Buffer.concat([encrypted, cipher.final()]);
   return iv.toString('hex') + ':' + encrypted.toString('hex');
 }
@@ -17,39 +19,58 @@ export async function GET({ url, locals }) {
   const stateParam = url.searchParams.get('state');
   const error = url.searchParams.get('error');
 
+  // 🛡️ EXTRACCIÓN DE ENTORNO (Guardias Críticas)
+  const hmacKey = privateEnv.HMAC_SECRET || privateEnv.ENCRYPTION_KEY;
+  const encryptionKey = privateEnv.ENCRYPTION_KEY;
+  const clientSecret = privateEnv.INSTAGRAM_CLIENT_SECRET;
+  const clientId = privateEnv.INSTAGRAM_CLIENT_ID;
+
   let parsedState = {};
   let payloadStr = '';
   let signature = '';
+  let fallbackSubdomain = 'app';
 
   if (stateParam) {
     try {
       const decodedString = Buffer.from(decodeURIComponent(stateParam), 'base64').toString('utf-8');
       const wrapper = JSON.parse(decodedString);
-      payloadStr = wrapper.p;
-      signature = wrapper.s;
-      parsedState = JSON.parse(payloadStr);
+      payloadStr = wrapper.p || '';
+      signature = wrapper.s || '';
+      if (payloadStr) {
+        parsedState = JSON.parse(payloadStr);
+        fallbackSubdomain = parsedState.sub || 'app';
+      }
     } catch (e) {
       console.error('🔥 Error parseando state de OAuth:', e);
     }
   }
-  
-  const fallbackSubdomain = parsedState.sub || 'app';
+
+  // 🛡️ VALIDACIÓN DE VARIABLES DE ENTORNO ANTES DE EJECUTAR NADA
+  if (!hmacKey || !encryptionKey) {
+    console.error('🔥 FATAL: ENCRYPTION_KEY no está configurada en el entorno del Callback');
+    throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=config_error&detalle=missing_encryption_key`);
+  }
+
+  if (!clientSecret || !clientId) {
+    console.error('🔥 FATAL: Credenciales de Instagram no configuradas en el entorno del Callback');
+    throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=config_error&detalle=missing_ig_credentials`);
+  }
 
   if (error || !code || !stateParam || !payloadStr) {
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=access_denied`); 
   }
 
   try {
-    // 🚀 EL FIX MAESTRO: Validamos la firma HMAC en lugar de buscar la cookie (locals.user)
-    const hmacSecret = privateEnv.HMAC_SECRET || privateEnv.ENCRYPTION_KEY;
-    const expectedSignature = crypto.createHmac('sha256', hmacSecret).update(payloadStr).digest('hex');
+    // La llave ya está validada, la firma no explotará por 'undefined'
+    const expectedSignature = crypto.createHmac('sha256', hmacKey)
+      .update(Buffer.from(payloadStr, 'utf-8'))
+      .digest('hex');
     
     if (signature !== expectedSignature) {
       console.error('🔥 Violación CSRF detectada: Firma matemática inválida');
       throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=csrf_failed`);
     }
 
-    // Como la firma es auténtica, el UID en el payload es ley. No necesitamos la cookie.
     const validUserId = parsedState.uid;
     if (!validUserId) throw new Error("Firma válida pero UID ausente en el estado");
 
@@ -63,9 +84,6 @@ export async function GET({ url, locals }) {
     const brokerId = broker.id;
 
     const redirectUri = 'https://inmublia.com/api/auth/instagram/callback';
-    const clientId = privateEnv.INSTAGRAM_CLIENT_ID;
-    const clientSecret = privateEnv.INSTAGRAM_CLIENT_SECRET;
-
     const cleanCode = code.replace('#_', ''); 
 
     // 1. Canje del token corto
@@ -118,7 +136,7 @@ export async function GET({ url, locals }) {
       console.warn('🔥 Excepción en /me ignorada.');
     }
 
-    const encryptedToken = encryptToken(longLivedToken, privateEnv.ENCRYPTION_KEY);
+    const encryptedToken = encryptToken(longLivedToken, encryptionKey);
 
     // 4. Guardado seguro en BD
     const { error: dbError } = await locals.supabase
