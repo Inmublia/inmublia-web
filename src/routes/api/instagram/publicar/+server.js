@@ -2,24 +2,34 @@ import { json } from '@sveltejs/kit';
 import { env as privateEnv } from '$env/dynamic/private';
 import crypto from 'crypto';
 
-// 🛡️ FIX (Bug 10): Centralizar versión de la API de Meta
-const META_GRAPH_VERSION = 'v21.0';
+// 🛡️ FIX (Bug 10): Centralizar versión de la API de Meta (Actualizado a v26.0 para coincidir con el token)
+const META_GRAPH_VERSION = 'v26.0';
 const META_GRAPH_URL = `https://graph.instagram.com/${META_GRAPH_VERSION}`;
 
 // 🛡️ FIX (Bug 6): Función para desencriptar el token de la BD
 function decryptToken(encryptedText) {
-  if (!privateEnv.ENCRYPTION_KEY || !encryptedText.includes(':')) return encryptedText;
+  if (!privateEnv.ENCRYPTION_KEY) throw new Error('ENCRYPTION_KEY no configurada en el entorno');
+  if (!encryptedText || !encryptedText.includes(':')) return encryptedText;
+  
   const textParts = encryptedText.split(':');
   const iv = Buffer.from(textParts.shift(), 'hex');
   const encryptedData = Buffer.from(textParts.join(':'), 'hex');
   const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(privateEnv.ENCRYPTION_KEY, 'hex'), iv);
+  
   let decrypted = decipher.update(encryptedData);
   decrypted = Buffer.concat([decrypted, decipher.final()]);
-  return decrypted.toString();
+  return decrypted.toString('utf-8');
 }
 
 export async function POST({ request, locals }) {
-  if (!locals.user) {
+  // 🚀 RECUPERACIÓN DINÁMICA DE SESIÓN (Adiós al bloqueo "No autorizado" de SvelteKit)
+  let user = locals.user;
+  if (!user && locals.supabase) {
+    const { data } = await locals.supabase.auth.getUser();
+    user = data?.user;
+  }
+
+  if (!user) {
     return json({ error: 'No autorizado' }, { status: 401 });
   }
 
@@ -31,7 +41,7 @@ export async function POST({ request, locals }) {
     const { data: broker, error: brokerError } = await locals.supabase
       .from('brokers')
       .select('id')
-      .eq('auth_user_id', locals.user.id)
+      .eq('auth_user_id', user.id) // 🚀 FIX: Usamos el ID del usuario dinámicamente recuperado
       .single();
 
     if (brokerError || !broker) throw new Error('No se encontró el perfil del broker');
@@ -70,7 +80,6 @@ export async function POST({ request, locals }) {
 
     // ==========================================
     // PASO 1 DE META: CREAR EL CONTENEDOR DE MEDIA
-    // 🛡️ FIX (Bug 2): Se utiliza el path nativo graph.instagram.com
     // ==========================================
     const containerUrl = `${META_GRAPH_URL}/${platform_user_id}/media`;
     const containerParams = new URLSearchParams({
