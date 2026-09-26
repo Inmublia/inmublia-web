@@ -22,7 +22,7 @@ export const load = async ({ locals }) => {
 };
 
 export const actions = {
-  conectarInstagram: async ({ url, locals }) => {
+  conectarInstagram: async ({ locals }) => {
     if (!locals.user) throw redirect(302, '/login');
     const clientId = privateEnv.INSTAGRAM_CLIENT_ID; 
 
@@ -31,12 +31,24 @@ export const actions = {
       throw redirect(302, '/admin/configuracion/redes?error=falta_ig_id');
     }
 
-    const redirectUri = 'https://inmublia.com/api/auth/instagram/callback';
-    const subdominio = url.hostname.split('.')[0];
+    // ✅ Bug #1 Eliminado: Obtenemos el subdominio real, sin importar el entorno (Vercel/Local)
+    const { data: broker } = await locals.supabase
+      .from('brokers')
+      .select('id, subdominio')
+      .eq('auth_user_id', locals.user.id)
+      .single();
 
-    // 🚀 ENTERPRISE STATELESS CSRF: Eliminamos la cookie frágil. Firmamos el estado con criptografía.
+    if (!broker) throw redirect(302, '/admin/configuracion/redes?error=perfil_no_encontrado');
+
+    const subdominio = broker.subdominio;
+    const redirectUri = 'https://inmublia.com/api/auth/instagram/callback';
+
     const payload = JSON.stringify({ sub: subdominio, uid: locals.user.id });
-    const signature = crypto.createHmac('sha256', privateEnv.ENCRYPTION_KEY).update(payload).digest('hex');
+    
+    // ✅ Bug #5 Eliminado (Backlog): Listo para usar HMAC_SECRET sin romper la key actual
+    const hmacSecret = privateEnv.HMAC_SECRET || privateEnv.ENCRYPTION_KEY;
+    const signature = crypto.createHmac('sha256', hmacSecret).update(payload).digest('hex');
+    
     const statePayload = JSON.stringify({ p: payload, s: signature });
     const state = encodeURIComponent(Buffer.from(statePayload).toString('base64')); 
 
@@ -46,7 +58,7 @@ export const actions = {
     throw redirect(302, authUrl);
   },
 
-  conectarFacebook: async ({ url, locals }) => {
+  conectarFacebook: async ({ locals }) => {
     if (!locals.user) throw redirect(302, '/login');
     const clientId = privateEnv.FACEBOOK_CLIENT_ID; 
 
@@ -55,12 +67,24 @@ export const actions = {
       throw redirect(302, '/admin/configuracion/redes?error=falta_fb_id');
     }
 
-    const redirectUri = 'https://inmublia.com/api/auth/facebook/callback';
-    const subdominio = url.hostname.split('.')[0];
+    // ✅ Bug #1 Eliminado
+    const { data: broker } = await locals.supabase
+      .from('brokers')
+      .select('id, subdominio')
+      .eq('auth_user_id', locals.user.id)
+      .single();
 
-    // 🚀 ENTERPRISE STATELESS CSRF
+    if (!broker) throw redirect(302, '/admin/configuracion/redes?error=perfil_no_encontrado');
+
+    const subdominio = broker.subdominio;
+    const redirectUri = 'https://inmublia.com/api/auth/facebook/callback';
+
     const payload = JSON.stringify({ sub: subdominio, uid: locals.user.id });
-    const signature = crypto.createHmac('sha256', privateEnv.ENCRYPTION_KEY).update(payload).digest('hex');
+    
+    // ✅ Bug #5 Eliminado
+    const hmacSecret = privateEnv.HMAC_SECRET || privateEnv.ENCRYPTION_KEY;
+    const signature = crypto.createHmac('sha256', hmacSecret).update(payload).digest('hex');
+    
     const statePayload = JSON.stringify({ p: payload, s: signature });
     const state = encodeURIComponent(Buffer.from(statePayload).toString('base64')); 
 
