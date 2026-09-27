@@ -2,6 +2,7 @@ import { redirect, isRedirect } from '@sveltejs/kit';
 import { env as privateEnv } from '$env/dynamic/private';
 import crypto from 'crypto';
 
+// 🛡️ SEGURIDAD: Encriptación Simétrica Node.js
 function encryptToken(text, hexKey) {
   if (!text) return '';
   if (!hexKey) return text;
@@ -18,9 +19,7 @@ export async function GET({ url, locals, platform }) {
   const stateParam = url.searchParams.get('state');
   const error = url.searchParams.get('error');
 
-  // 🚀 REDUNDANCIA ENTERPRISE: Cross-Service Credential Coalescing
-  // Si la variable específica de FB no está en la memoria del Worker (por falta de redeploy), 
-  // enrutamos a la de IG que comparte exactamente el mismo App ID en Meta.
+  // 🚀 REDUNDANCIA ENTERPRISE
   const hmacKey = privateEnv.HMAC_SECRET || privateEnv.ENCRYPTION_KEY || platform?.env?.HMAC_SECRET || platform?.env?.ENCRYPTION_KEY;
   const encryptionKey = privateEnv.ENCRYPTION_KEY || platform?.env?.ENCRYPTION_KEY;
   
@@ -47,92 +46,59 @@ export async function GET({ url, locals, platform }) {
     }
   }
 
-  // 🛡️ AUDITORÍA DE ENTORNO AISLADA
-  if (!hmacKey || !encryptionKey) {
-    throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=configuracion&detalle=missing_encryption_key`);
-  }
-
-  if (!clientId) {
-    throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=configuracion&detalle=missing_client_id`);
-  }
-
-  if (!clientSecret) {
-    throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=configuracion&detalle=missing_client_secret`);
-  }
-
-  if (error || !code || !stateParam || !payloadStr) {
-    throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=acceso_denegado_oauth`); 
-  }
+  // 🛡️ VALIDACIONES ESTRICTAS
+  if (!hmacKey || !encryptionKey) throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=configuracion&detalle=missing_encryption_key`);
+  if (!clientId || !clientSecret) throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=configuracion&detalle=missing_meta_credentials`);
+  if (error || !code || !stateParam || !payloadStr) throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=acceso_denegado`); 
 
   try {
-    const expectedSignature = crypto.createHmac('sha256', hmacKey)
-      .update(Buffer.from(payloadStr, 'utf-8'))
-      .digest('hex');
-    
-    if (signature !== expectedSignature) {
-      throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=violacion_seguridad_csrf`);
-    }
+    // 🛡️ PROTECCIÓN CSRF
+    const expectedSignature = crypto.createHmac('sha256', hmacKey).update(Buffer.from(payloadStr, 'utf-8')).digest('hex');
+    if (signature !== expectedSignature) throw new Error("Violacion_CSRF");
 
     const validUserId = parsedState.uid;
-    if (!validUserId) throw new Error("Firma válida pero UID ausente en el estado");
+    if (!validUserId) throw new Error("UID_Ausente");
 
-    const { data: broker, error: brokerError } = await locals.supabase
-      .from('brokers')
-      .select('id')
-      .eq('auth_user_id', validUserId)
-      .single();
-      
-    if (brokerError || !broker) throw new Error("Perfil de broker no encontrado");
+    const { data: broker, error: brokerError } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', validUserId).single();
+    if (brokerError || !broker) throw new Error("Broker_No_Encontrado");
     const brokerId = broker.id;
 
     const redirectUri = 'https://inmublia.com/api/auth/facebook/callback';
     
-    // 1. Obtener Token corto vía POST (Protegiendo Secretos en Logs)
-    const tokenParams = new URLSearchParams({
-        client_id: clientId,
-        redirect_uri: redirectUri,
-        client_secret: clientSecret,
-        code: code 
-    });
+    // 1. Obtener Token corto (RESTAURADO AL ESTÁNDAR GET OFICIAL DE META)
+    const tokenUrl = new URL('https://graph.facebook.com/v26.0/oauth/access_token');
+    tokenUrl.searchParams.append('client_id', clientId);
+    tokenUrl.searchParams.append('redirect_uri', redirectUri);
+    tokenUrl.searchParams.append('client_secret', clientSecret);
+    tokenUrl.searchParams.append('code', code);
 
-    const tokenRes = await fetch('https://graph.facebook.com/v26.0/oauth/access_token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: tokenParams
-    });
-    
+    const tokenRes = await fetch(tokenUrl.toString());
     const tokenData = await tokenRes.json();
-    if (tokenData.error) throw new Error(tokenData.error.message);
+    
+    if (tokenData.error) throw new Error(`Meta_API_Token1: ${tokenData.error.message}`);
     const shortLivedToken = tokenData.access_token;
 
     // 2. Extender a Token largo (User Token)
-    const exchangeParams = new URLSearchParams({
-        grant_type: 'fb_exchange_token',
-        client_id: clientId,
-        client_secret: clientSecret,
-        fb_exchange_token: shortLivedToken
-    });
+    const exchangeUrl = new URL('https://graph.facebook.com/v26.0/oauth/access_token');
+    exchangeUrl.searchParams.append('grant_type', 'fb_exchange_token');
+    exchangeUrl.searchParams.append('client_id', clientId);
+    exchangeUrl.searchParams.append('client_secret', clientSecret);
+    exchangeUrl.searchParams.append('fb_exchange_token', shortLivedToken);
 
-    const longTokenRes = await fetch('https://graph.facebook.com/v26.0/oauth/access_token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: exchangeParams
-    });
-    
+    const longTokenRes = await fetch(exchangeUrl.toString());
     const longTokenData = await longTokenRes.json();
+    
+    if (longTokenData.error) throw new Error(`Meta_API_Token2: ${longTokenData.error.message}`);
     const longLivedUserToken = longTokenData.access_token || shortLivedToken;
-    const userTokenExpiresIn = longTokenData.expires_in || 5184000;
+    const userTokenExpiresIn = longTokenData.expires_in || 5184000; // 60 días fallback
 
     // 3. Extraer Páginas
     const pagesRes = await fetch(`https://graph.facebook.com/v26.0/me/accounts?access_token=${longLivedUserToken}`);
     const pagesData = await pagesRes.json();
 
+    if (pagesData.error) throw new Error(`Meta_API_Pages: ${pagesData.error.message}`);
     if (!pagesData.data || pagesData.data.length === 0) {
       throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=sin_paginas_empresariales`);
-    }
-
-    if (pagesData.data.length > 1) {
-        console.warn(`[Inmublia Router] Multi-páginas detectadas. Enlazando página índice 0. Frontend UI selector en backlog.`);
     }
 
     const facebookPage = pagesData.data[0];
@@ -143,7 +109,7 @@ export async function GET({ url, locals, platform }) {
     const encryptedPageToken = encryptToken(pageAccessToken, encryptionKey);
     const encryptedUserToken = encryptToken(longLivedUserToken, encryptionKey); 
 
-    // 4. Guardado transaccional en Supabase
+    // 4. Guardado en Supabase
     const { error: dbError } = await locals.supabase
       .from('broker_social_connections')
       .upsert({
@@ -158,13 +124,17 @@ export async function GET({ url, locals, platform }) {
         updated_at: new Date().toISOString()
       }, { onConflict: 'broker_id, platform' });
 
-    if (dbError) throw new Error(`Fallo en BD: ${dbError.message}`);
+    if (dbError) throw new Error(`DB_Error: ${dbError.message}`);
 
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?success=true`);
 
   } catch (err) {
     if (isRedirect(err)) throw err;
-    console.error('Error crítico en FB Callback:', err.message || err);
-    throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=conexion_fallida`);
+    
+    console.error('🔥 Error crítico en FB Callback:', err.message || err);
+    
+    // BUBBLING DE ERROR: Mostrará la falla exacta de Facebook en la barra de direcciones
+    const cleanErrorMsg = (err.message || 'Error_desconocido').substring(0, 150);
+    throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=conexion_fallida&detalle=${encodeURIComponent(cleanErrorMsg)}`);
   }
 }
