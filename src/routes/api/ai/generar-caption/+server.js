@@ -1,7 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { reserveAiCredit, confirmAiCredit, refundAiCredit } from '$lib/server/ai-credits';
 
-// 🚀 FIX: Cascada de modelos robustos capaces de seguir instrucciones restrictivas
 const MODELS_CASCADE = [
   '@cf/qwen/qwen3-30b-a3b-fp8',
   '@cf/meta/llama-3.1-8b-instruct-fp8',
@@ -18,20 +17,23 @@ const PLATFORM_RULES = {
 
 function buildSystemPrompt({ plataforma = 'instagram' } = {}) {
   const reglaPlataforma = PLATFORM_RULES[plataforma] || PLATFORM_RULES.instagram;
-  // 🚀 FIX: Técnica de Lista Blanca. En lugar de prohibir, restringimos el uso exclusivo a la etiqueta [DATO]
-  return `Eres un redactor de anuncios inmobiliarios para ${plataforma} en México.
+  
+  // 🚀 FIX: Tono profesional y directivo. Evitamos palabras agresivas ("PROHIBIDO") que activan el rechazo del modelo.
+  return `Eres un redactor inmobiliario profesional para ${plataforma} en México.
 
-REGLA ABSOLUTA: Solo puedes usar información marcada con [DATO].
-Cualquier dato que no esté marcado como [DATO] NO EXISTE.
-Prohibido inventar: medidas, precios, amenidades, ubicaciones, características.
-Si los datos son pocos, escribe un texto corto. Nunca rellenes con suposiciones.
+INSTRUCCIONES VITALES DE REDACCIÓN:
+1. Basa tu texto ÚNICA Y EXCLUSIVAMENTE en la información proporcionada (etiquetada como [DATO]).
+2. No agregues medidas, precios, ubicaciones, amenidades ni características arquitectónicas que no estén explícitamente en la lista.
+3. Si la lista de datos es breve, redacta un texto corto, elegante y misterioso.
 
-FORMATO: Responde solo con JSON válido → {"caption": "texto listo para publicar"}
+FORMATO ESTRICTO:
+Debes responder obligatoriamente con un único objeto JSON válido. No agregues texto fuera del JSON.
+Ejemplo de salida: {"caption": "Tu redacción aquí"}
+
 ESTILO: ${reglaPlataforma}`;
 }
 
 function formatearDatos(texto) {
-  // 🚀 FIX: Convierte el texto libre en una lista estricta etiquetada
   return texto
     .split(/[,\n;]+/)
     .map(l => l.trim())
@@ -40,8 +42,19 @@ function formatearDatos(texto) {
     .join('\n');
 }
 
+// 🚀 FIX: Escudo Anti-Rechazos. Evita que te cobren si el modelo se niega a trabajar.
+function detectarRechazo(caption) {
+  const lower = caption.toLowerCase();
+  const rechazos = [
+    'lo siento', 'no puedo', 'no puedo cumplir', 'as an ai', 
+    'inteligencia artificial', 'no tengo permitido', 'no estoy autorizado'
+  ];
+  if (rechazos.some(r => lower.includes(r))) {
+    throw new Error('El modelo rechazó la solicitud por filtros de seguridad internos.');
+  }
+}
+
 function detectarAlucinacion(caption, inputOriginal) {
-  // 🚀 FIX: Guardia de hierro post-generación. Si hay un número nuevo, aborta.
   const numerosCaption = caption.match(/\d+[\.,]?\d*/g) || [];
   const numerosInput = new Set(inputOriginal.match(/\d+[\.,]?\d*/g) || []);
   const inventados = numerosCaption.filter(n => !numerosInput.has(n));
@@ -74,7 +87,6 @@ function parseAiResponse(result) {
 }
 
 export async function POST({ request, locals, platform }) {
-  // 🛡️ Mantiene la recuperación de sesión para evitar errores 401
   let user = locals.user;
   if (!user && locals.supabase) {
     const { data } = await locals.supabase.auth.getUser();
@@ -127,7 +139,7 @@ export async function POST({ request, locals, platform }) {
   try {
     const systemPrompt = buildSystemPrompt({ plataforma: plataformaDestino });
     const datosEtiquetados = formatearDatos(caracteristicas);
-    const userPrompt = `Datos de la propiedad:\n${datosEtiquetados}\n\nRedacta el caption usando SOLO los [DATO] anteriores. Responde con JSON: {"caption": "..."}`;
+    const userPrompt = `Datos de la propiedad:\n${datosEtiquetados}\n\nRedacta el caption usando SOLO los [DATO] anteriores.`;
 
     for (const modelId of MODELS_CASCADE) {
       const t0 = Date.now();
@@ -139,7 +151,7 @@ export async function POST({ request, locals, platform }) {
               { role: 'user', content: userPrompt }
             ],
             max_tokens: 350,
-            temperature: 0.3 // Ligera flexibilidad sintáctica, pero controlada por las barreras
+            temperature: 0.3
           }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), AI_TIMEOUT_MS))
         ]);
@@ -148,10 +160,11 @@ export async function POST({ request, locals, platform }) {
         const textoCaption = parsed.caption || parsed.Caption || parsed.texto;
         if (!textoCaption) throw new Error('Respuesta incompleta');
 
-        // 🚀 FIX: Guardia anti-alucinación numérica ejecutándose
+        // 🚀 FIX: Revisar rechazos de IA ANTES de cobrar el crédito
+        detectarRechazo(textoCaption);
         detectarAlucinacion(textoCaption, caracteristicas);
 
-        if (textoCaption.length < 20 || textoCaption.length > 600) {
+        if (textoCaption.length < 15 || textoCaption.length > 600) {
           throw new Error(`Longitud inválida: ${textoCaption.length} chars`);
         }
 
@@ -169,7 +182,6 @@ export async function POST({ request, locals, platform }) {
       event: 'ai_caption_attempt', 
       userId: user.id, 
       requestId, 
-      plataforma: plataformaDestino,
       attempts: attemptLog 
     }));
 
@@ -192,8 +204,9 @@ export async function POST({ request, locals, platform }) {
     });
 
   } catch (error) {
+    // 🛡️ FIX: Si la IA rechaza o alucina en todos los modelos, el crédito se devuelve intacto.
     if (!creditConfirmed) await refundAiCredit(locals.supabase, user.id, requestId);
     console.error('[Caption IA Error]', attemptLog.length ? attemptLog : error.message);
-    return json({ error: 'El motor de IA está temporalmente saturado o no pudo procesar los datos con seguridad. Inténtalo de nuevo.' }, { status: 502 });
+    return json({ error: 'La IA no pudo procesar esta solicitud. No se te cobró ningún crédito.' }, { status: 502 });
   }
 }
