@@ -6,7 +6,6 @@ import { calcularScore } from '$lib/scoring.js';
 import { reserveAiCredit, confirmAiCredit, refundAiCredit } from '$lib/server/ai-credits.js';
 import { etapaLegible } from '$lib/utils/leads.js';
 
-// 🚀 CASCADA ENTERPRISE: Modelos capaces de seguir el tono y las instrucciones
 const MODELS_CASCADE = [
   '@cf/qwen/qwen3-30b-a3b-fp8',
   '@cf/mistralai/mistral-small-3.1-24b-instruct',
@@ -15,7 +14,6 @@ const MODELS_CASCADE = [
 
 function parseAiResponse(result) {
   const raw = (result?.response ?? result ?? '').toString();
-  
   const sinThinking = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
   const jsonMatch = sinThinking.match(/"(?:whatsapp|WhatsApp|mensaje|message)"\s*:\s*"((?:[^"\\]|\\.)*)"/i);
@@ -121,10 +119,17 @@ export const load = async ({ locals }) => {
 export const actions = {
   crearLeadManual: async ({ request, locals }) => {
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización.' });
-    if (!locals.user) return fail(401, { error: 'No autorizado' });
+    
+    // 🚀 FIX: Recuperación Dinámica de Sesión
+    let user = locals.user;
+    if (!user && locals.supabase) {
+      const { data } = await locals.supabase.auth.getUser();
+      user = data?.user;
+    }
+    if (!user) return fail(401, { error: 'No autorizado' });
 
-    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
-    if (!broker) return fail(403, { error: 'Perfil no encontrado' });
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', user.id).single();
+    if (!broker || !broker.id) return fail(403, { error: 'Perfil no encontrado o ID corrupto' });
 
     const formData = await request.formData();
     const nombre = formData.get('nombre')?.toString().trim();
@@ -173,10 +178,17 @@ export const actions = {
 
   actualizar: async ({ request, locals }) => {
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización: No puedes alterar los prospectos del cliente.' });
-    if (!locals.user) return fail(401, { error: 'No autorizado' });
+    
+    // 🚀 FIX: Recuperación Dinámica de Sesión
+    let user = locals.user;
+    if (!user && locals.supabase) {
+      const { data } = await locals.supabase.auth.getUser();
+      user = data?.user;
+    }
+    if (!user) return fail(401, { error: 'No autorizado' });
 
-    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
-    if (!broker) return fail(403, { error: 'Perfil no encontrado' });
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', user.id).single();
+    if (!broker || !broker.id) return fail(403, { error: 'Perfil no encontrado' });
 
     const formData = await request.formData();
     const id = formData.get('id');
@@ -211,10 +223,17 @@ export const actions = {
 
   eliminar: async ({ request, locals }) => {
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
-    if (!locals.user) return fail(401, { error: 'No autorizado' });
+    
+    // 🚀 FIX: Recuperación Dinámica de Sesión
+    let user = locals.user;
+    if (!user && locals.supabase) {
+      const { data } = await locals.supabase.auth.getUser();
+      user = data?.user;
+    }
+    if (!user) return fail(401, { error: 'No autorizado' });
 
-    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
-    if (!broker) return fail(403, { error: 'Perfil no encontrado' });
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', user.id).single();
+    if (!broker || !broker.id) return fail(403, { error: 'Perfil no encontrado' });
 
     const formData = await request.formData();
     const id = formData.get('id');
@@ -226,10 +245,18 @@ export const actions = {
 
   guardarNota: async ({ request, locals }) => {
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización: No puedes agregar notas al cliente.' });
-    if (!locals.user) return fail(401, { error: 'No autorizado' });
+    
+    // 🚀 FIX: Recuperación Dinámica de Sesión
+    let user = locals.user;
+    if (!user && locals.supabase) {
+      const { data } = await locals.supabase.auth.getUser();
+      user = data?.user;
+    }
+    if (!user) return fail(401, { error: 'No autorizado' });
 
-    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', locals.user.id).single();
-    if (!broker) return fail(403, { error: 'Perfil no encontrado' });
+    const { data: broker } = await locals.supabase.from('brokers').select('id').eq('auth_user_id', user.id).single();
+    // 🛡️ FIX CRÍTICO: Validamos que el broker.id exista físicamente antes de interactuar con la FK de la BD
+    if (!broker || !broker.id) return fail(403, { error: 'Perfil no encontrado' });
 
     const formData = await request.formData();
     const leadId = formData.get('lead_id');
@@ -240,13 +267,13 @@ export const actions = {
     if (!contenido || !contenido.trim()) return fail(400, { error: 'Nota vacía' });
 
     const { data: lead, error: checkError } = await locals.supabase.from('leads').select('id, estado').eq('id', leadId).eq('broker_id', broker.id).maybeSingle();
-    if (checkError || !lead) return fail(403, { error: 'No autorizado' });
+    if (checkError || !lead) return fail(403, { error: 'Lead no encontrado o sin acceso autorizado' });
 
     const { error: notaError } = await locals.supabase
       .from('lead_notas')
       .insert({ 
         lead_id: leadId, 
-        broker_id: broker.id, 
+        broker_id: broker.id, // ✅ ID Seguro inyectado en la llave foránea
         contenido: contenido.trim(), 
         tipo: isRecordatorio ? 'recordatorio' : 'nota',
         fecha_recordatorio: isRecordatorio ? fechaRecordatorio : null,
@@ -278,7 +305,13 @@ export const actions = {
 
   completarRecordatorio: async ({ request, locals }) => {
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
-    if (!locals.user) return fail(401, { error: 'No autorizado' });
+    
+    let user = locals.user;
+    if (!user && locals.supabase) {
+      const { data } = await locals.supabase.auth.getUser();
+      user = data?.user;
+    }
+    if (!user) return fail(401, { error: 'No autorizado' });
 
     const formData = await request.formData();
     const notaId = formData.get('nota_id') || formData.get('id'); 
@@ -287,9 +320,6 @@ export const actions = {
         return fail(400, { error: 'Falta el ID del recordatorio.' });
     }
 
-    // 🔬 CIRUGÍA EXACTA: Quitamos el filtro .eq('broker_id', broker.id)
-    // El RLS de la base de datos es el único responsable de rechazar actualizaciones no autorizadas.
-    // Esto evita el fallo silencioso por cruce de IDs heredados en la base de datos.
     const { data: notaActualizada, error } = await locals.supabase
         .from('lead_notas')
         .update({ completado: true })
@@ -303,7 +333,6 @@ export const actions = {
     
     if (!notaActualizada || notaActualizada.length === 0) {
         console.error(`🔥 BD bloqueó el update. ID: ${notaId}`);
-        // Retornamos un mensaje de error directo para atravesar la trampa de parseo de Svelte
         return fail(400, { error: 'Registro bloqueado por seguridad o no existe.' });
     }
 
@@ -312,15 +341,22 @@ export const actions = {
 
   generarScriptWhatsapp: async ({ request, locals, platform }) => {
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
-    const user = locals.user;
+    
+    // 🚀 FIX: Recuperación Dinámica de Sesión
+    let user = locals.user;
+    if (!user && locals.supabase) {
+      const { data } = await locals.supabase.auth.getUser();
+      user = data?.user;
+    }
     if (!user) return fail(401, { error: 'No autorizado' });
+    
     if (!platform?.env?.AI) return fail(503, { error: 'Motor de IA offline.' });
 
     const formData = await request.formData();
     const leadId = formData.get('lead_id');
 
     const { data: broker } = await locals.supabase.from('brokers').select('id, nombre_comercial').eq('auth_user_id', user.id).single();
-    if (!broker) return fail(403, { error: 'Perfil no encontrado' });
+    if (!broker || !broker.id) return fail(403, { error: 'Perfil no encontrado' });
     
     const brokerNombre = broker.nombre_comercial || 'el asesor';
 
@@ -341,7 +377,6 @@ export const actions = {
     let finalContent = null;
     let errorLog = [];
 
-    // 🚀 MEJORA: Extracción estricta del primer nombre para naturalidad
     const primerNombre = lead.nombre.split(' ')[0].trim();
 
     try {
