@@ -14,16 +14,16 @@ function encryptToken(text, hexKey) {
   return iv.toString('hex') + ':' + encrypted.toString('hex');
 }
 
-export async function GET({ url, locals }) {
+export async function GET({ url, locals, platform }) {
   const code = url.searchParams.get('code');
   const stateParam = url.searchParams.get('state');
   const error = url.searchParams.get('error');
 
-  // 🛡️ EXTRACCIÓN DE ENTORNO (Guardias Críticas homólogas a Instagram)
-  const hmacKey = privateEnv.HMAC_SECRET || privateEnv.ENCRYPTION_KEY;
-  const encryptionKey = privateEnv.ENCRYPTION_KEY;
-  const clientSecret = privateEnv.FACEBOOK_CLIENT_SECRET;
-  const clientId = privateEnv.FACEBOOK_CLIENT_ID;
+  // 🚀 LECTURA DE ENTORNO ENTERPRISE (SvelteKit + Cloudflare Bindings Fallback)
+  const hmacKey = privateEnv.HMAC_SECRET || privateEnv.ENCRYPTION_KEY || platform?.env?.HMAC_SECRET || platform?.env?.ENCRYPTION_KEY;
+  const encryptionKey = privateEnv.ENCRYPTION_KEY || platform?.env?.ENCRYPTION_KEY;
+  const clientSecret = privateEnv.FACEBOOK_CLIENT_SECRET || platform?.env?.FACEBOOK_CLIENT_SECRET;
+  const clientId = privateEnv.FACEBOOK_CLIENT_ID || platform?.env?.FACEBOOK_CLIENT_ID;
 
   let parsedState = {};
   let payloadStr = '';
@@ -45,14 +45,14 @@ export async function GET({ url, locals }) {
     }
   }
 
-  // 🛡️ VALIDACIÓN DE VARIABLES DE ENTORNO
+  // 🛡️ VALIDACIÓN ESTRICTA DE ENTORNO ANTES DE EJECUTAR
   if (!hmacKey || !encryptionKey) {
-    console.error('🔥 FATAL: ENCRYPTION_KEY no está configurada en el entorno del Callback');
+    console.error('🔥 FATAL: ENCRYPTION_KEY no está configurada en el entorno del Callback FB');
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=config_error&detalle=missing_encryption_key`);
   }
 
   if (!clientSecret || !clientId) {
-    console.error('🔥 FATAL: Credenciales de Facebook no configuradas en el entorno del Callback');
+    console.error('🔥 FATAL: Credenciales de Facebook no encontradas en Cloudflare Bindings ni Svelte Env');
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=config_error&detalle=missing_fb_credentials`);
   }
 
@@ -61,7 +61,7 @@ export async function GET({ url, locals }) {
   }
 
   try {
-    // 🛡️ PROTECCIÓN CSRF: Validación Matemática (Idéntica a IG)
+    // 🛡️ PROTECCIÓN CSRF: Validación Matemática
     const expectedSignature = crypto.createHmac('sha256', hmacKey)
       .update(Buffer.from(payloadStr, 'utf-8'))
       .digest('hex');
@@ -111,7 +111,7 @@ export async function GET({ url, locals }) {
     const pageId = facebookPage.id;
     const pageName = facebookPage.name;
 
-    // Calcular expiración aproximada (FB no suele devolver expires_in en page tokens, asumimos 60 días como el longToken)
+    // Meta Page Tokens no siempre devuelven expires_in, asumimos 60 días del token principal
     const expiresInSeconds = longTokenData.expires_in || (60 * 24 * 60 * 60); 
     const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 
@@ -124,7 +124,7 @@ export async function GET({ url, locals }) {
       .upsert({
         broker_id: brokerId,
         platform: 'facebook',
-        platform_user_id: pageId, // Homologado con IG, en FB guardamos el ID de la página
+        platform_user_id: pageId, 
         username: pageName,
         access_token: encryptedToken,
         token_expires_at: expiresAt,
@@ -134,6 +134,7 @@ export async function GET({ url, locals }) {
 
     if (dbError) throw new Error(`Fallo en BD FB: ${dbError.message}`);
 
+    // Redirección final con URL absoluta al subdominio del cliente
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?success=true`);
 
   } catch (err) {
