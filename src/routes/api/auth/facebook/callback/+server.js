@@ -2,7 +2,6 @@ import { redirect, isRedirect } from '@sveltejs/kit';
 import { env as privateEnv } from '$env/dynamic/private';
 import crypto from 'crypto';
 
-// 🛡️ SEGURIDAD: Encriptación Simétrica Node.js
 function encryptToken(text, hexKey) {
   if (!text) return '';
   if (!hexKey) return text;
@@ -19,12 +18,12 @@ export async function GET({ url, locals, platform }) {
   const stateParam = url.searchParams.get('state');
   const error = url.searchParams.get('error');
 
-  // 🚀 REDUNDANCIA ENTERPRISE
+  // 🚀 LECTURA ESTRICTA: Solo variables de la App de Facebook
   const hmacKey = privateEnv.HMAC_SECRET || privateEnv.ENCRYPTION_KEY || platform?.env?.HMAC_SECRET || platform?.env?.ENCRYPTION_KEY;
   const encryptionKey = privateEnv.ENCRYPTION_KEY || platform?.env?.ENCRYPTION_KEY;
   
-  const clientId = privateEnv.FACEBOOK_CLIENT_ID || privateEnv.META_CLIENT_ID || privateEnv.INSTAGRAM_CLIENT_ID || platform?.env?.FACEBOOK_CLIENT_ID;
-  const clientSecret = privateEnv.FACEBOOK_CLIENT_SECRET || privateEnv.META_CLIENT_SECRET || privateEnv.INSTAGRAM_CLIENT_SECRET || platform?.env?.FACEBOOK_CLIENT_SECRET;
+  const clientId = privateEnv.FACEBOOK_CLIENT_ID || platform?.env?.FACEBOOK_CLIENT_ID;
+  const clientSecret = privateEnv.FACEBOOK_CLIENT_SECRET || platform?.env?.FACEBOOK_CLIENT_SECRET;
 
   let parsedState = {};
   let payloadStr = '';
@@ -41,18 +40,15 @@ export async function GET({ url, locals, platform }) {
         parsedState = JSON.parse(payloadStr);
         fallbackSubdomain = parsedState.sub || 'app';
       }
-    } catch (e) {
-      console.error('🔥 Error parseando state de OAuth en FB:', e);
-    }
+    } catch (e) {}
   }
 
-  // 🛡️ VALIDACIONES ESTRICTAS
+  // 🛡️ AUDITORÍA DE ENTORNO
   if (!hmacKey || !encryptionKey) throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=configuracion&detalle=missing_encryption_key`);
-  if (!clientId || !clientSecret) throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=configuracion&detalle=missing_meta_credentials`);
+  if (!clientId || !clientSecret) throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=configuracion&detalle=missing_fb_credentials`);
   if (error || !code || !stateParam || !payloadStr) throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=acceso_denegado`); 
 
   try {
-    // 🛡️ PROTECCIÓN CSRF
     const expectedSignature = crypto.createHmac('sha256', hmacKey).update(Buffer.from(payloadStr, 'utf-8')).digest('hex');
     if (signature !== expectedSignature) throw new Error("Violacion_CSRF");
 
@@ -65,7 +61,7 @@ export async function GET({ url, locals, platform }) {
 
     const redirectUri = 'https://inmublia.com/api/auth/facebook/callback';
     
-    // 1. Obtener Token corto (RESTAURADO AL ESTÁNDAR GET OFICIAL DE META)
+    // 1. Obtener Token corto (Estricto API v26.0)
     const tokenUrl = new URL('https://graph.facebook.com/v26.0/oauth/access_token');
     tokenUrl.searchParams.append('client_id', clientId);
     tokenUrl.searchParams.append('redirect_uri', redirectUri);
@@ -90,7 +86,7 @@ export async function GET({ url, locals, platform }) {
     
     if (longTokenData.error) throw new Error(`Meta_API_Token2: ${longTokenData.error.message}`);
     const longLivedUserToken = longTokenData.access_token || shortLivedToken;
-    const userTokenExpiresIn = longTokenData.expires_in || 5184000; // 60 días fallback
+    const userTokenExpiresIn = longTokenData.expires_in || 5184000;
 
     // 3. Extraer Páginas
     const pagesRes = await fetch(`https://graph.facebook.com/v26.0/me/accounts?access_token=${longLivedUserToken}`);
@@ -109,7 +105,7 @@ export async function GET({ url, locals, platform }) {
     const encryptedPageToken = encryptToken(pageAccessToken, encryptionKey);
     const encryptedUserToken = encryptToken(longLivedUserToken, encryptionKey); 
 
-    // 4. Guardado en Supabase
+    // 4. Guardado en BD
     const { error: dbError } = await locals.supabase
       .from('broker_social_connections')
       .upsert({
@@ -130,10 +126,6 @@ export async function GET({ url, locals, platform }) {
 
   } catch (err) {
     if (isRedirect(err)) throw err;
-    
-    console.error('🔥 Error crítico en FB Callback:', err.message || err);
-    
-    // BUBBLING DE ERROR: Mostrará la falla exacta de Facebook en la barra de direcciones
     const cleanErrorMsg = (err.message || 'Error_desconocido').substring(0, 150);
     throw redirect(303, `https://${fallbackSubdomain}.inmublia.com/admin/configuracion/redes?error=conexion_fallida&detalle=${encodeURIComponent(cleanErrorMsg)}`);
   }
