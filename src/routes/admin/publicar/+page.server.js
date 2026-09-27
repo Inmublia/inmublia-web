@@ -12,7 +12,7 @@ export const load = async ({ locals }) => {
 
   if (!broker) throw redirect(303, '/login');
 
-  // 2. Extraer propiedades activas con el campo correcto de la BD (galeria_urls)
+  // 2. Extraer propiedades activas
   const { data: propiedades } = await locals.supabase
     .from('propiedades')
     .select('id, titulo, precio, recamaras, banos, descripcion, galeria_urls')
@@ -20,19 +20,22 @@ export const load = async ({ locals }) => {
     .neq('estatus', 'Vendida')
     .order('creado_en', { ascending: false });
 
-  // 3. Verificar si tiene la cuenta de Instagram vinculada y activa
-  const { data: igConnection } = await locals.supabase
+  // 🚀 FIX: 3. Extraer TODAS las redes sociales vinculadas y activas (No solo Instagram)
+  const { data: connections } = await locals.supabase
     .from('broker_social_connections')
-    .select('status, username')
+    .select('platform, status, username')
     .eq('broker_id', broker.id)
-    .eq('platform', 'instagram')
-    .eq('status', 'active')
-    .maybeSingle();
+    .eq('status', 'active');
+
+  const redesActivas = {
+    instagram: connections?.find(c => c.platform === 'instagram') || null,
+    facebook: connections?.find(c => c.platform === 'facebook') || null,
+    tiktok: connections?.find(c => c.platform === 'tiktok') || null
+  };
 
   return {
     propiedades: propiedades || [],
     tokens: broker.ia_creditos_disponibles || 0,
-    igConectado: !!igConnection,
-    igUsername: igConnection?.username || null
+    redes: redesActivas // 🚀 FIX: Pasamos el objeto completo de redes
   };
 };
