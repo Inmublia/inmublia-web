@@ -1,10 +1,14 @@
 <script>
-  import { Sparkles, Send, Image as ImageIcon, AlertTriangle, CheckCircle2, Instagram, Loader2 } from 'lucide-svelte';
+  import { Sparkles, Send, Image as ImageIcon, AlertTriangle, CheckCircle2, Instagram, Facebook, Video, Loader2 } from 'lucide-svelte';
 
   let { data } = $props();
   let propiedades = $derived(data.propiedades);
-  let igConectado = $derived(data.igConectado);
+  let redes = $derived(data.redes); // 🚀 FIX: Recibimos el objeto de redes completo
   let tokensDisponibles = $state(data.tokens);
+
+  // 🚀 FIX: Estado para controlar en qué red estamos trabajando actualmente
+  let plataformaSeleccionada = $state('instagram');
+  let redActual = $derived(redes[plataformaSeleccionada]);
 
   let propiedadSeleccionadaId = $state('');
   let propiedadActiva = $derived(propiedades.find(p => p.id === propiedadSeleccionadaId));
@@ -17,11 +21,10 @@
   let mensajeExito = $state('');
   let errorMsg = $state('');
 
-  // 🛡️ UX Fix (Bug 8): Resetear formulario al cambiar de propiedad para evitar cruces
+  // 🛡️ Resetear formulario al cambiar de propiedad o de red social
   $effect(() => {
-    if (propiedadSeleccionadaId) {
-      imagenSeleccionada = '';
-      captionFinal = '';
+    if (propiedadSeleccionadaId || plataformaSeleccionada) {
+      // Solo borramos el error y éxito al cambiar de pestaña, mantenemos los datos si cambias de red para no perder el progreso
       errorMsg = '';
       mensajeExito = '';
     }
@@ -32,14 +35,17 @@
     errorMsg = '';
     generando = true;
     
-    // Armamos un resumen rápido para la IA
     const caracteristicas = `${propiedadActiva.titulo}. Precio: $${propiedadActiva.precio}. ${propiedadActiva.recamaras} recámaras, ${propiedadActiva.banos} baños. ${propiedadActiva.descripcion || ''}`;
 
     try {
       const res = await fetch('/api/ai/generar-caption', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ caracteristicas_inmueble: caracteristicas })
+        // 🚀 FIX: Le decimos a la IA para qué red específica estamos redactando
+        body: JSON.stringify({ 
+          caracteristicas_inmueble: caracteristicas,
+          plataforma: plataformaSeleccionada 
+        })
       });
       const dataRes = await res.json();
       
@@ -47,7 +53,6 @@
       
       captionFinal = dataRes.caption;
       
-      // 🛡️ FIX (Bug 4): Sincronizar el saldo descontado real desde el servidor
       if (dataRes.tokens_restantes !== undefined) {
         tokensDisponibles = dataRes.tokens_restantes; 
       }
@@ -58,7 +63,7 @@
     }
   }
 
-  async function publicarInstagram() {
+  async function publicarEnRed() {
     if (!imagenSeleccionada || !captionFinal) {
       errorMsg = 'Selecciona una imagen y asegúrate de tener un texto.';
       return;
@@ -69,8 +74,8 @@
     mensajeExito = '';
 
     try {
-      // 🛡️ FIX (Bug 1): Se asegura que el endpoint no busque la carpeta /auth/
-      const res = await fetch('/api/instagram/publicar', {
+      // 🚀 FIX: Ruteo dinámico. Si es FB va a /api/facebook/publicar, si es IG va a /api/instagram/publicar
+      const res = await fetch(`/api/${plataformaSeleccionada}/publicar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -82,7 +87,7 @@
       
       if (!res.ok) throw new Error(dataRes.error || 'Fallo al publicar');
       
-      mensajeExito = '¡Propiedad publicada exitosamente en Instagram!';
+      mensajeExito = `¡Propiedad publicada exitosamente en ${plataformaSeleccionada.toUpperCase()}!`;
       captionFinal = '';
       imagenSeleccionada = '';
       propiedadSeleccionadaId = '';
@@ -94,12 +99,10 @@
   }
 </script>
 
-<!-- Fondo general claro (Homologado con Reportes) -->
 <div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
-  <!-- ENCABEZADO PANORÁMICO -->
   <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
@@ -110,11 +113,10 @@
           Marketing en Redes
         </h1>
         <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
-          Difunde tu inventario en Instagram con textos optimizados por Inteligencia Artificial.
+          Difunde tu inventario en múltiples plataformas con textos optimizados por IA.
         </p>
       </div>
       
-      <!-- WIDGET SUPERIOR DERECHO (Créditos IA) -->
       <div class="bg-white/10 backdrop-blur-md border border-white/10 px-5 py-3 rounded-2xl flex items-center gap-4">
         <div class="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300">
           <Sparkles class="w-5 h-5" />
@@ -127,19 +129,38 @@
     </div>
   </header>
 
-  <!-- CONTENIDO PRINCIPAL -->
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
-      
-      <!-- Contenedor centrado para que el formulario no se estire demasiado -->
       <div class="max-w-4xl">
+
+        <!-- 🚀 FIX: Selector dinámico de plataformas -->
+        <div class="bg-white border border-slate-200 rounded-3xl p-2 shadow-sm mb-6 flex gap-2">
+          <button 
+            onclick={() => plataformaSeleccionada = 'instagram'}
+            class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm transition-all {plataformaSeleccionada === 'instagram' ? 'bg-gradient-to-r from-fuchsia-600 to-pink-500 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}"
+          >
+            <Instagram class="w-5 h-5" /> Instagram
+          </button>
+          <button 
+            onclick={() => plataformaSeleccionada = 'facebook'}
+            class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm transition-all {plataformaSeleccionada === 'facebook' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}"
+          >
+            <Facebook class="w-5 h-5" /> Facebook
+          </button>
+          <button 
+            onclick={() => plataformaSeleccionada = 'tiktok'}
+            class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm transition-all {plataformaSeleccionada === 'tiktok' ? 'bg-zinc-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}"
+          >
+            <Video class="w-5 h-5" /> TikTok
+          </button>
+        </div>
         
-        {#if !igConectado}
+        {#if !redActual}
           <div class="bg-rose-50 border border-rose-100 rounded-3xl p-6 mb-8 flex items-start gap-4 shadow-sm">
             <AlertTriangle class="w-6 h-6 text-rose-500 shrink-0" />
             <div>
-              <h3 class="text-rose-600 font-bold mb-1">Instagram no vinculado</h3>
-              <p class="text-sm text-slate-600 mb-4 font-medium">Debes conectar tu cuenta profesional de Instagram para poder publicar desde Inmublia.</p>
+              <h3 class="text-rose-600 font-bold mb-1 capitalize">{plataformaSeleccionada} no vinculado</h3>
+              <p class="text-sm text-slate-600 mb-4 font-medium">Debes conectar tu cuenta profesional de {plataformaSeleccionada} para poder publicar.</p>
               <a href="/admin/configuracion/redes" class="inline-flex bg-slate-900 border border-slate-800 text-white text-xs font-bold px-5 py-2.5 rounded-xl hover:bg-slate-800 transition-colors shadow-sm">
                 Ir a Configuración de Redes
               </a>
@@ -159,10 +180,9 @@
             </div>
           {/if}
 
-          <!-- TARJETA DEL FORMULARIO (Estilo claro homologado) -->
           <div class="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm mb-8">
             
-            <!-- PASO 1: Selección de Propiedad -->
+            <!-- PASO 1 -->
             <div class="mb-10">
               <label for="propiedad" class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">1. Selecciona una Propiedad</label>
               <select 
@@ -178,7 +198,7 @@
             </div>
 
             {#if propiedadActiva}
-              <!-- PASO 2: Selección de Imagen -->
+              <!-- PASO 2 -->
               <div class="mb-10">
                 <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">2. Selecciona la Imagen a Publicar</label>
                 
@@ -205,7 +225,7 @@
                 {/if}
               </div>
 
-              <!-- PASO 3: Generación de Texto -->
+              <!-- PASO 3 -->
               <div class="mb-10">
                 <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">3. Texto de la Publicación</label>
 
@@ -216,32 +236,32 @@
                     class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {#if generando}
-                      <Loader2 class="w-5 h-5 animate-spin" /> Redactando con IA...
+                      <Loader2 class="w-5 h-5 animate-spin" /> Redactando con IA para {plataformaSeleccionada}...
                     {:else}
-                      <Sparkles class="w-5 h-5" /> Autogenerar con Inteligencia Artificial (1 Crédito)
+                      <Sparkles class="w-5 h-5" /> Autogenerar texto para {plataformaSeleccionada} (1 Crédito)
                     {/if}
                   </button>
 
                   <textarea 
                     bind:value={captionFinal}
                     rows="5"
-                    placeholder="El texto de tu publicación aparecerá aquí. Puedes editarlo libremente antes de enviar..."
+                    placeholder="El texto optimizado para {plataformaSeleccionada} aparecerá aquí..."
                     class="w-full bg-slate-50 border border-slate-200 text-slate-900 font-medium rounded-xl p-4 focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500 resize-none transition-colors"
                   ></textarea>
                 </div>
               </div>
 
-              <!-- PASO 4: Publicar -->
+              <!-- PASO 4 -->
               <div class="pt-8 border-t border-slate-100">
                 <button 
-                  onclick={publicarInstagram}
+                  onclick={publicarEnRed}
                   disabled={publicando || !captionFinal || !imagenSeleccionada}
                   class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest py-4.5 px-6 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-100 disabled:text-slate-400 disabled:border disabled:border-slate-200 disabled:cursor-not-allowed disabled:shadow-none"
                 >
                   {#if publicando}
-                    <Loader2 class="w-5 h-5 animate-spin" /> Enviando a los servidores de Meta...
+                    <Loader2 class="w-5 h-5 animate-spin" /> Enviando a los servidores...
                   {:else}
-                    <Instagram class="w-5 h-5" /> Publicar en Instagram @{data.igUsername}
+                    <Send class="w-5 h-5" /> Publicar en {plataformaSeleccionada} @{redActual.username}
                   {/if}
                 </button>
               </div>
