@@ -3,10 +3,9 @@
 
   let { data } = $props();
   let propiedades = $derived(data.propiedades);
-  let redes = $derived(data.redes); // 🚀 FIX: Recibimos el objeto de redes completo
+  let redes = $derived(data.redes); 
   let tokensDisponibles = $state(data.tokens);
 
-  // 🚀 FIX: Estado para controlar en qué red estamos trabajando actualmente
   let plataformaSeleccionada = $state('instagram');
   let redActual = $derived(redes[plataformaSeleccionada]);
 
@@ -21,13 +20,20 @@
   let mensajeExito = $state('');
   let errorMsg = $state('');
 
-  // 🛡️ Resetear formulario al cambiar de propiedad o de red social
+  // 🚀 FIX: $effect Quirúrgico 1 - Solo limpia campos operativos al cambiar de propiedad
   $effect(() => {
-    if (propiedadSeleccionadaId || plataformaSeleccionada) {
-      // Solo borramos el error y éxito al cambiar de pestaña, mantenemos los datos si cambias de red para no perder el progreso
-      errorMsg = '';
-      mensajeExito = '';
-    }
+    propiedadSeleccionadaId; // dependencia explícita
+    imagenSeleccionada = '';
+    captionFinal = '';
+    errorMsg = '';
+    mensajeExito = '';
+  });
+
+  // 🚀 FIX: $effect Quirúrgico 2 - Limpia mensajes pero NO borra el texto redactado al cambiar de red
+  $effect(() => {
+    plataformaSeleccionada; // dependencia explícita
+    errorMsg = '';
+    mensajeExito = '';
   });
 
   async function generarTextoIA() {
@@ -35,13 +41,22 @@
     errorMsg = '';
     generando = true;
     
-    const caracteristicas = `${propiedadActiva.titulo}. Precio: $${propiedadActiva.precio}. ${propiedadActiva.recamaras} recámaras, ${propiedadActiva.banos} baños. ${propiedadActiva.descripcion || ''}`;
+    // 🚀 FIX: Formateo estricto por saltos de línea y formateo de precio con comas para que la IA y el Validador hablen el mismo idioma
+    const precioFormateado = propiedadActiva.precio ? Number(propiedadActiva.precio).toLocaleString('es-MX') : null;
+    const partes = [
+      propiedadActiva.titulo,
+      precioFormateado ? `Precio: $${precioFormateado}` : null,
+      propiedadActiva.recamaras ? `${propiedadActiva.recamaras} recámaras` : null,
+      propiedadActiva.banos ? `${propiedadActiva.banos} baños` : null,
+      propiedadActiva.descripcion?.trim() || null
+    ].filter(Boolean);
+
+    const caracteristicas = partes.join('\n');
 
     try {
       const res = await fetch('/api/ai/generar-caption', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // 🚀 FIX: Le decimos a la IA para qué red específica estamos redactando
         body: JSON.stringify({ 
           caracteristicas_inmueble: caracteristicas,
           plataforma: plataformaSeleccionada 
@@ -69,12 +84,18 @@
       return;
     }
     
+    // 🚀 FIX: Whitelist de seguridad para evitar inyección de rutas (Path Traversal)
+    const PLATAFORMAS_VALIDAS = ['instagram', 'facebook'];
+    if (!PLATAFORMAS_VALIDAS.includes(plataformaSeleccionada)) {
+      errorMsg = 'Plataforma no disponible por el momento.';
+      return;
+    }
+
     errorMsg = '';
     publicando = true;
     mensajeExito = '';
 
     try {
-      // 🚀 FIX: Ruteo dinámico. Si es FB va a /api/facebook/publicar, si es IG va a /api/instagram/publicar
       const res = await fetch(`/api/${plataformaSeleccionada}/publicar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -87,10 +108,11 @@
       
       if (!res.ok) throw new Error(dataRes.error || 'Fallo al publicar');
       
-      mensajeExito = `¡Propiedad publicada exitosamente en ${plataformaSeleccionada.toUpperCase()}!`;
+      // 🚀 FIX: Nombres capitalizados correctamente y evitamos limpiar propiedadSeleccionadaId para no matar el mensaje de éxito
+      const NOMBRES_RED = { instagram: 'Instagram', facebook: 'Facebook' };
+      mensajeExito = `¡Publicado exitosamente en ${NOMBRES_RED[plataformaSeleccionada]}!`;
       captionFinal = '';
       imagenSeleccionada = '';
-      propiedadSeleccionadaId = '';
     } catch (err) {
       errorMsg = err.message;
     } finally {
@@ -133,7 +155,6 @@
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
       <div class="max-w-4xl">
 
-        <!-- 🚀 FIX: Selector dinámico de plataformas -->
         <div class="bg-white border border-slate-200 rounded-3xl p-2 shadow-sm mb-6 flex gap-2">
           <button 
             onclick={() => plataformaSeleccionada = 'instagram'}
@@ -147,11 +168,15 @@
           >
             <Facebook class="w-5 h-5" /> Facebook
           </button>
+          <!-- 🚀 FIX: Botón de TikTok en estado Próximamente -->
           <button 
-            onclick={() => plataformaSeleccionada = 'tiktok'}
-            class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm transition-all {plataformaSeleccionada === 'tiktok' ? 'bg-zinc-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}"
+            disabled
+            class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm text-slate-300 cursor-not-allowed relative border border-dashed border-slate-200"
           >
             <Video class="w-5 h-5" /> TikTok
+            <span class="absolute -top-2 -right-1 text-[9px] bg-slate-200 text-slate-500 font-black px-2 py-0.5 rounded-full uppercase tracking-widest">
+              Pronto
+            </span>
           </button>
         </div>
         
@@ -182,7 +207,6 @@
 
           <div class="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm mb-8">
             
-            <!-- PASO 1 -->
             <div class="mb-10">
               <label for="propiedad" class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">1. Selecciona una Propiedad</label>
               <select 
@@ -198,7 +222,6 @@
             </div>
 
             {#if propiedadActiva}
-              <!-- PASO 2 -->
               <div class="mb-10">
                 <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">2. Selecciona la Imagen a Publicar</label>
                 
@@ -213,7 +236,8 @@
                         class="relative aspect-square rounded-xl overflow-hidden border-2 transition-all group {imagenSeleccionada === img ? 'border-blue-500 ring-4 ring-blue-500/20' : 'border-slate-100 hover:border-slate-300'}"
                         onclick={() => imagenSeleccionada = img}
                       >
-                        <img src={img} alt="Inmueble" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                        <!-- 🚀 FIX: Loading Lazy para optimizar el frontend -->
+                        <img src={img} alt="Inmueble" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                         {#if imagenSeleccionada === img}
                           <div class="absolute inset-0 bg-blue-500/20 flex items-center justify-center backdrop-blur-[2px]">
                             <CheckCircle2 class="w-10 h-10 text-white drop-shadow-md" />
@@ -225,7 +249,6 @@
                 {/if}
               </div>
 
-              <!-- PASO 3 -->
               <div class="mb-10">
                 <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">3. Texto de la Publicación</label>
 
@@ -251,17 +274,17 @@
                 </div>
               </div>
 
-              <!-- PASO 4 -->
               <div class="pt-8 border-t border-slate-100">
                 <button 
                   onclick={publicarEnRed}
                   disabled={publicando || !captionFinal || !imagenSeleccionada}
-                  class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest py-4.5 px-6 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-100 disabled:text-slate-400 disabled:border disabled:border-slate-200 disabled:cursor-not-allowed disabled:shadow-none"
+                  class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest py-4 px-6 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-100 disabled:text-slate-400 disabled:border disabled:border-slate-200 disabled:cursor-not-allowed disabled:shadow-none"
                 >
                   {#if publicando}
                     <Loader2 class="w-5 h-5 animate-spin" /> Enviando a los servidores...
                   {:else}
-                    <Send class="w-5 h-5" /> Publicar en {plataformaSeleccionada} @{redActual.username}
+                    <!-- 🚀 FIX: Manejo seguro del username por si Meta falló en devolverlo -->
+                    <Send class="w-5 h-5" /> Publicar en {plataformaSeleccionada}{redActual.username ? ` @${redActual.username}` : ''}
                   {/if}
                 </button>
               </div>
