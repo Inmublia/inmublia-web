@@ -3,7 +3,7 @@
   import { browser } from '$app/environment';
   import { createBrowserClient } from '@supabase/ssr';
   import { env } from '$env/dynamic/public';
-  import { AlertTriangle, LogOut, Sun, Moon } from 'lucide-svelte';
+  import { AlertTriangle, LogOut } from 'lucide-svelte';
   import './layout.css';
 
   let { data, children } = $props();
@@ -12,44 +12,6 @@
     env.PUBLIC_SUPABASE_URL, 
     env.PUBLIC_SUPABASE_ANON_KEY
   );
-
-  // 🔥 GESTOR DE TEMAS GLOBALES (Light/Dark Mode)
-  let isDarkMode = $state(false);
-
-  $effect(() => {
-    if (!browser) return;
-    
-    // Sincroniza el estado inicial con el DOM que dejó el script del app.html
-    isDarkMode = document.documentElement.classList.contains('dark');
-    
-    // Escucha cambios a nivel de sistema operativo en tiempo real
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
-        if (!localStorage.getItem('theme')) {
-            isDarkMode = e.matches;
-            if (e.matches) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        }
-    };
-    
-    mediaQuery.addEventListener('change', handleSystemThemeChange);
-    return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
-  });
-
-  const toggleTheme = () => {
-    isDarkMode = !isDarkMode;
-    if (isDarkMode) {
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-    } else {
-        document.documentElement.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-    }
-  };
-
 
   // 🔥 MOTOR DE SEGURIDAD ZERO-TRUST (Estándar 2026)
   const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutos
@@ -175,19 +137,6 @@
 
 <div class="min-h-screen relative pb-8">
   {@render children()}
-  
-  <!-- Control Flotante Temporal (MOVido A LA IZQUIERDA PARA NO CHOCAR CON EL CHAT WIDGET) -->
-  <button 
-    onclick={toggleTheme}
-    class="fixed bottom-10 left-6 z-[9999] p-3 rounded-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-xl text-slate-600 dark:text-zinc-300 hover:scale-110 transition-all"
-    aria-label="Toggle Theme"
-  >
-    {#if isDarkMode}
-      <Sun class="w-5 h-5" />
-    {:else}
-      <Moon class="w-5 h-5" />
-    {/if}
-  </button>
 
   <!-- Enlace Legal Global y Discreto -->
   <footer class="absolute bottom-2 w-full text-center z-40">
