@@ -3,7 +3,7 @@
   import { browser } from '$app/environment';
   import { createBrowserClient } from '@supabase/ssr';
   import { env } from '$env/dynamic/public';
-  import { AlertTriangle, LogOut } from 'lucide-svelte';
+  import { AlertTriangle, LogOut, Sun, Moon } from 'lucide-svelte';
   import './layout.css';
 
   let { data, children } = $props();
@@ -12,6 +12,44 @@
     env.PUBLIC_SUPABASE_URL, 
     env.PUBLIC_SUPABASE_ANON_KEY
   );
+
+  // 🔥 GESTOR DE TEMAS GLOBALES (Light/Dark Mode)
+  let isDarkMode = $state(false);
+
+  $effect(() => {
+    if (!browser) return;
+    
+    // Sincroniza el estado inicial con el DOM que dejó el script del app.html
+    isDarkMode = document.documentElement.classList.contains('dark');
+    
+    // Escucha cambios a nivel de sistema operativo en tiempo real
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+        if (!localStorage.getItem('theme')) {
+            isDarkMode = e.matches;
+            if (e.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }
+    };
+    
+    mediaQuery.addEventListener('change', handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
+  });
+
+  const toggleTheme = () => {
+    isDarkMode = !isDarkMode;
+    if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+    }
+  };
+
 
   // 🔥 MOTOR DE SEGURIDAD ZERO-TRUST (Estándar 2026)
   const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutos
@@ -112,23 +150,22 @@
 </svelte:head>
 
 <!-- MODAL DE ADVERTENCIA DE CIERRE DE SESIÓN -->
+<!-- NOTA TÉCNICA: Actualicé el modal para soportar dark mode -->
 {#if showWarning}
   <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-300">
-    <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center border border-rose-100 transform transition-all scale-100">
-      <div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-5 ring-4 ring-rose-50">
+    <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center border border-rose-100 dark:border-rose-900/50 transform transition-all scale-100">
+      <div class="w-16 h-16 bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-full flex items-center justify-center mx-auto mb-5 ring-4 ring-rose-50 dark:ring-rose-500/5">
         <AlertTriangle class="w-8 h-8" />
       </div>
-      <h2 class="text-xl font-black text-slate-900 mb-2 tracking-tight">Sesión Inactiva</h2>
-      <p class="text-sm text-slate-500 mb-6 font-medium leading-relaxed">
-        Por seguridad, cerraremos tu cuenta en <span class="font-black text-rose-600 text-lg mx-1">{countdown}</span> seg.
+      <h2 class="text-xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">Sesión Inactiva</h2>
+      <p class="text-sm text-slate-500 dark:text-zinc-400 mb-6 font-medium leading-relaxed">
+        Por seguridad, cerraremos tu cuenta en <span class="font-black text-rose-600 dark:text-rose-400 text-lg mx-1">{countdown}</span> seg.
       </p>
       <div class="flex flex-col sm:flex-row gap-3 justify-center">
-        <!-- OJO: Aquí reasignamos window.location directo para que forceLogout no dependa del Runa -->
-        <button onclick={() => window.location.href = '/logout'} class="px-5 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+        <button onclick={() => window.location.href = '/logout'} class="px-5 py-3 rounded-xl font-bold text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
           <LogOut class="w-3.5 h-3.5" /> Salir Ahora
         </button>
-        <!-- Inyectamos un evento sintético de mousemove para resetear la actividad -->
-        <button onclick={() => window.dispatchEvent(new Event('mousemove'))} class="px-6 py-3 rounded-xl font-black uppercase tracking-widest bg-slate-900 hover:bg-indigo-600 text-white shadow-lg transition-all text-[10px] active:scale-95">
+        <button onclick={() => window.dispatchEvent(new Event('mousemove'))} class="px-6 py-3 rounded-xl font-black uppercase tracking-widest bg-slate-900 dark:bg-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-500 text-white shadow-lg transition-all text-[10px] active:scale-95">
           Mantener Conexión
         </button>
       </div>
@@ -139,9 +176,22 @@
 <div class="min-h-screen relative pb-8">
   {@render children()}
   
+  <!-- Control Flotante Temporal (Para que cambies de modo y pruebes) -->
+  <button 
+    onclick={toggleTheme}
+    class="fixed bottom-10 right-6 z-50 p-3 rounded-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-lg text-slate-600 dark:text-zinc-300 hover:scale-110 transition-all"
+    aria-label="Toggle Theme"
+  >
+    {#if isDarkMode}
+      <Sun class="w-5 h-5" />
+    {:else}
+      <Moon class="w-5 h-5" />
+    {/if}
+  </button>
+
   <!-- Enlace Legal Global y Discreto -->
   <footer class="absolute bottom-2 w-full text-center z-40">
-    <a href="/privacidad" class="text-[10px] font-medium text-slate-400/60 hover:text-slate-600/90 transition-colors duration-300">
+    <a href="/privacidad" class="text-[10px] font-medium text-slate-400/60 hover:text-slate-600/90 dark:text-zinc-500/60 dark:hover:text-zinc-400 transition-colors duration-300">
       Privacidad y Legal
     </a>
   </footer>
