@@ -176,10 +176,10 @@
 <div class="min-h-screen relative pb-8">
   {@render children()}
   
-  <!-- Control Flotante Temporal (Para que cambies de modo y pruebes) -->
+  <!-- Control Flotante Temporal (MOVido A LA IZQUIERDA PARA NO CHOCAR CON EL CHAT WIDGET) -->
   <button 
     onclick={toggleTheme}
-    class="fixed bottom-10 right-6 z-50 p-3 rounded-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-lg text-slate-600 dark:text-zinc-300 hover:scale-110 transition-all"
+    class="fixed bottom-10 left-6 z-[9999] p-3 rounded-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-xl text-slate-600 dark:text-zinc-300 hover:scale-110 transition-all"
     aria-label="Toggle Theme"
   >
     {#if isDarkMode}
