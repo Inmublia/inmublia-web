@@ -33,6 +33,7 @@
   }
 </script>
 
+<!-- A11y: click requiere un elemento interactivo pero window es una excepción especial de svelte:window -->
 <svelte:window onclick={handleClickOutside} />
 
 <!-- 🚀 FIX: La clase global oculta este componente si el Canvas está abierto -->
@@ -41,21 +42,21 @@
   {#if isOpen}
     <div 
       transition:slide={{ duration: 250, axis: 'y' }}
-      class="absolute bottom-full right-0 mb-4 w-[340px] sm:w-[380px] bg-white rounded-3xl shadow-[0_-10px_50px_-10px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden z-50 transform origin-bottom-right"
+      class="absolute bottom-full right-0 mb-4 w-[340px] sm:w-[380px] bg-white dark:bg-zinc-900 rounded-3xl shadow-[0_-10px_50px_-10px_rgba(0,0,0,0.2)] dark:shadow-[0_-10px_50px_-10px_rgba(0,0,0,0.5)] border border-slate-200 dark:border-zinc-800 overflow-hidden z-50 transform origin-bottom-right transition-colors"
     >
-      <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
-        <h3 class="text-sm font-black text-slate-900 tracking-tight">Centro de Control</h3>
+      <div class="px-5 py-4 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/80 dark:bg-zinc-800/50 flex items-center justify-between">
+        <h3 class="text-sm font-black text-slate-900 dark:text-white tracking-tight">Centro de Control</h3>
         {#if unreadCount > 0}
-          <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">{unreadCount} Pendientes</span>
+          <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-500/20">{unreadCount} Pendientes</span>
         {/if}
       </div>
 
-      <div class="max-h-[380px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
+      <div class="max-h-[380px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700">
         {#if unreadCount === 0}
           <div class="flex flex-col items-center justify-center p-8 text-center opacity-60">
             <CheckCircle2 class="w-10 h-10 text-emerald-500 mb-3" />
-            <p class="text-sm font-bold text-slate-700">¡Todo al día!</p>
-            <p class="text-xs font-medium text-slate-500 mt-1">No tienes recordatorios urgentes ni alertas.</p>
+            <p class="text-sm font-bold text-slate-700 dark:text-zinc-300">¡Todo al día!</p>
+            <p class="text-xs font-medium text-slate-500 dark:text-zinc-500 mt-1">No tienes recordatorios urgentes ni alertas.</p>
           </div>
         {:else}
           <div class="flex flex-col">
@@ -63,7 +64,7 @@
               <a 
                 href={alert.lead?.id ? `/admin/leads?open=${alert.lead.id}` : '/admin/alertas'}
                 onclick={() => isOpen = false}
-                class="flex items-start gap-4 p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors group relative"
+                class="flex items-start gap-4 p-4 border-b border-slate-50 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors group relative"
               >
                 <div class="mt-1.5 shrink-0">
                    {#if alert.tipo_alerta === 'recordatorio'}
@@ -78,35 +79,35 @@
                 </div>
                 
                 <div class="flex-1 min-w-0">
-                  <p class="text-xs font-black text-slate-900 truncate mb-0.5 flex items-center justify-between">
+                  <p class="text-xs font-black text-slate-900 dark:text-zinc-100 truncate mb-0.5 flex items-center justify-between">
                     {alert.lead?.nombre || 'Alerta del Sistema'}
                     
                     {#if alert.tipo_alerta === 'recordatorio'}
                       {#if isPast(alert.fecha)}
-                        <span class="text-[9px] font-bold uppercase tracking-widest text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
+                        <span class="text-[9px] font-bold uppercase tracking-widest text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 px-1.5 py-0.5 rounded">
                           Vencido
                         </span>
                       {:else}
-                        <span class="text-[9px] font-bold uppercase tracking-widest text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <span class="text-[9px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-1.5 py-0.5 rounded flex items-center gap-1">
                           <Clock class="w-2.5 h-2.5" /> Próximo
                         </span>
                       {/if}
                     {:else}
-                      <span class="text-[9px] font-bold uppercase tracking-widest text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
+                      <span class="text-[9px] font-bold uppercase tracking-widest text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 px-1.5 py-0.5 rounded">
                         Alerta
                       </span>
                     {/if}
                   </p>
-                  <p class="text-[11px] text-slate-600 line-clamp-2 leading-relaxed font-medium mb-2">{alert.mensaje || alert.titulo}</p>
+                  <p class="text-[11px] text-slate-600 dark:text-zinc-400 line-clamp-2 leading-relaxed font-medium mb-2">{alert.mensaje || alert.titulo}</p>
                   
                   {#if alert.fecha_formateada}
-                    <p class="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                    <p class="text-[10px] font-bold text-slate-400 dark:text-zinc-500 flex items-center gap-1">
                       <CalendarClock class="w-3 h-3 {alert.tipo_alerta === 'recordatorio' && !isPast(alert.fecha) ? 'text-indigo-400' : 'text-rose-400'}" /> 
                       <time datetime={alert.fecha}>{alert.fecha_formateada}</time>
                     </p>
                   {/if}
                 </div>
-                <ChevronRight class="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transition-colors mt-4 shrink-0" />
+                <ChevronRight class="w-4 h-4 text-slate-300 dark:text-zinc-600 group-hover:text-indigo-500 transition-colors mt-4 shrink-0" />
               </a>
             {/each}
           </div>
@@ -117,14 +118,14 @@
 
   <button 
     onclick={toggleDropdown}
-    class="relative flex items-center justify-center w-14 h-14 rounded-full {unreadCount > 0 ? 'bg-slate-900 hover:bg-slate-800' : 'bg-white border border-slate-200 hover:bg-slate-50'} transition-all duration-300 shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-900/20 active:scale-95 group"
+    class="relative flex items-center justify-center w-14 h-14 rounded-full {unreadCount > 0 ? 'bg-slate-900 dark:bg-zinc-800 hover:bg-slate-800 dark:hover:bg-zinc-700' : 'bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800'} transition-all duration-300 shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-900/20 dark:focus:ring-zinc-800/50 active:scale-95 group"
     aria-label="Notificaciones"
   >
-    <Bell class="w-6 h-6 {unreadCount > 0 ? 'text-white' : 'text-slate-600'} transition-transform duration-300 group-hover:rotate-12" />
+    <Bell class="w-6 h-6 {unreadCount > 0 ? 'text-white' : 'text-slate-600 dark:text-zinc-400'} transition-transform duration-300 group-hover:rotate-12" />
     {#if unreadCount > 0}
       <span class="absolute -top-1 -right-1 flex h-5 w-5">
         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-        <span class="relative inline-flex rounded-full h-5 w-5 bg-rose-500 text-[10px] font-black text-white items-center justify-center border-2 border-slate-900">
+        <span class="relative inline-flex rounded-full h-5 w-5 bg-rose-500 text-[10px] font-black text-white items-center justify-center border-2 border-slate-900 dark:border-zinc-800">
           {unreadCount > 9 ? '9+' : unreadCount}
         </span>
       </span>
