@@ -5,6 +5,8 @@
 <svelte:head>
   <title>Privacidad y Términos Legales | Inmublia CRM</title>
   <meta name="description" content="Aviso de privacidad, términos de servicio e instrucciones de eliminación de datos para usuarios de Inmublia CRM.">
+  <!-- INYECCIÓN: Bloqueo estricto para que Google/Bing NO indexen tu nombre -->
+  <meta name="robots" content="noindex, nofollow, noarchive">
 </svelte:head>
 
 <!-- Fondo general claro -->
