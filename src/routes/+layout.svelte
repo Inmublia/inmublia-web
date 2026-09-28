@@ -13,16 +13,14 @@
     env.PUBLIC_SUPABASE_ANON_KEY
   );
 
-  // 🔥 MOTOR DE SEGURIDAD ZERO-TRUST (Estándar 2026)
+  // 🔥 MOTOR DE SEGURIDAD ZERO-TRUST
   const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutos
   const WARNING_WINDOW = 60 * 1000; // Avisar 60 segundos antes de cerrar
   
   let showWarning = $state(false);
   let countdown = $state(0);
 
-  // Runa 1: Vigía de Inactividad (Nativo Svelte 5)
   $effect(() => {
-    // Protección absoluta contra SSR: esto solo corre en el cliente y si hay sesión
     if (!browser || !data.session) return;
 
     let lastActivity = Date.now();
@@ -30,12 +28,11 @@
 
     const forceLogout = () => {
       authChannel.postMessage({ type: 'LOGOUT_FORCED' });
-      window.location.href = '/logout'; // Golpe directo a +server.js
+      window.location.href = '/logout';
     };
 
     const updateActivity = () => {
       const now = Date.now();
-      // Throttling: Solo procesa clics/movimientos cada 2 segundos
       if (now - lastActivity > 2000) {
         lastActivity = now;
         if (showWarning) showWarning = false;
@@ -57,7 +54,6 @@
       }
     };
 
-    // Sincronización Multi-Pestaña
     authChannel.onmessage = (event) => {
       if (event.data.type === 'LOGOUT_FORCED') {
         window.location.href = '/logout';
@@ -67,20 +63,16 @@
       }
     };
 
-    // Auditoría de eventos silenciosos
     const events = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'];
     events.forEach(e => window.addEventListener(e, updateActivity, { passive: true }));
     
-    // Parche de seguridad para navegadores suspendidos (Laptops cerradas/Pestañas ocultas)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') checkInactivity();
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Reloj interno
     const checkInterval = setInterval(checkInactivity, 1000);
 
-    // Limpieza de Runa (Garbage Collection cuando el layout se destruye)
     return () => {
       events.forEach(e => window.removeEventListener(e, updateActivity));
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -89,7 +81,6 @@
     };
   });
 
-  // Runa 2: Vigía de Supabase Auth
   $effect(() => {
     if (!browser) return;
 
@@ -98,7 +89,6 @@
         invalidate('supabase:auth');
       }
       if (event === 'SIGNED_OUT') {
-        // Redundancia: si supabase expira, forzamos cierre masivo
         window.location.href = '/logout';
       }
     });
@@ -111,10 +101,8 @@
   <link rel="icon" type="image/png" href="/favicon.png?v=3" />
 </svelte:head>
 
-<!-- MODAL DE ADVERTENCIA DE CIERRE DE SESIÓN -->
-<!-- NOTA TÉCNICA: Actualicé el modal para soportar dark mode -->
 {#if showWarning}
-  <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-300">
+  <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-300 transition-colors">
     <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center border border-rose-100 dark:border-rose-900/50 transform transition-all scale-100">
       <div class="w-16 h-16 bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-full flex items-center justify-center mx-auto mb-5 ring-4 ring-rose-50 dark:ring-rose-500/5">
         <AlertTriangle class="w-8 h-8" />
@@ -138,7 +126,6 @@
 <div class="min-h-screen relative pb-8">
   {@render children()}
 
-  <!-- Enlace Legal Global y Discreto -->
   <footer class="absolute bottom-2 w-full text-center z-40">
     <a href="/privacidad" class="text-[10px] font-medium text-slate-400/60 hover:text-slate-600/90 dark:text-zinc-500/60 dark:hover:text-zinc-400 transition-colors duration-300">
       Privacidad y Legal
