@@ -17,7 +17,7 @@
   let creditosIA = $state(data?.creditos_ia ?? 15);
   let planSuscripcion = $derived(data?.plan_suscripcion ?? 'basico'); 
   
-  // 🚀 EXTRACCIÓN DE PAYWALLS DESDE EL LAYOUT (Sin romper lógica extra)
+  // 🚀 EXTRACCIÓN DE PAYWALLS DESDE EL LAYOUT
   let hitOHPaywall = $derived(data?.limits?.hitOHPaywall || false);
   
   let generandoIA = $state(false);
@@ -27,7 +27,7 @@
   let iaErrorMsg = $state('');
   let copiadoWhatsapp = $state(false);
 
-  // 🚀 VARIABLES DE ESTADO ENLAZADAS (BINDING) PARA EVITAR ALUCINACIONES
+  // 🚀 VARIABLES DE ESTADO ENLAZADAS (BINDING)
   let valPropiedadId = $state('');
   let valTitle = $state('');
   let valDate = $state('');
@@ -37,7 +37,7 @@
   let valBenefit = $state('');
   let valDescription = $state('');
 
-  // 🚀 FIX: Validación derivada de horarios lógicos
+  // 🚀 FIX: Validación derivada
   let horarioValido = $derived(!valTimeStart || !valTimeEnd || valTimeStart < valTimeEnd);
 
   const timeOptions = [];
@@ -69,14 +69,13 @@
     }
   }
 
-  // 🚀 MOTOR BLINDADO CON EXTRACCIÓN REAL DE DATOS
+  // 🚀 MOTOR BLINDADO
   async function generarCampañaIA() {
     if (!valPropiedadId) {
       iaErrorMsg = "Selecciona una Propiedad Base en la Sección 1.";
       return;
     }
     
-    // 🛡️ BLOQUEO: Si no hay datos de evento, no hay IA. Cero alucinaciones.
     if (!valDate || !valTimeStart || !valTimeEnd) {
       iaErrorMsg = "Completa la Fecha y Horarios del evento para que la IA redacte datos reales.";
       document.getElementById('date')?.focus();
@@ -96,7 +95,6 @@
     valDescription = '';
     textoGeneradoWhatsapp = '';
 
-    // 🚀 FIX: Un solo mecanismo de timeout limpio (AbortController)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25000); 
 
@@ -127,7 +125,6 @@
       } catch (e) { throw new Error("Datos corruptos"); }
 
       if (result.type === 'success' && result.data) {
-        // 🚀 FIX: Descuento Optimista + Sincronización en BD
         creditosIA = result.data.creditos_restantes ?? (creditosIA - 1);
         invalidateAll(); 
         
@@ -141,7 +138,6 @@
           typeWriter(result.data.whatsapp, (v) => textoGeneradoWhatsapp = v, 10, sig)
         ]);
         
-        // 🚀 FIX: Scroll al resultado de IA una vez que empieza a escribir
         setTimeout(() => document.getElementById('seccion-resultado-ia')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
       } else if (result.type === 'failure') {
         throw new Error(`${result.data?.error || "Falla en generación"}`);
@@ -153,7 +149,6 @@
       if (e.name === 'AbortError') {
         iaErrorMsg = "La IA tardó más de 25 segundos. Intenta de nuevo por favor.";
       } else {
-        // 🚀 FIX: Mensaje amigable, sin mostrar código crudo
         iaErrorMsg = `Error al generar: ${e.message.split(':')[0] || 'Intenta de nuevo en un momento'}`;
       }
     } finally {
@@ -162,7 +157,6 @@
     }
   }
 
-  // 🚀 FIX: Portapapeles Seguro y Asíncrono
   async function copiarAlPortapapeles(texto) {
     try {
       await navigator.clipboard.writeText(texto);
@@ -178,7 +172,8 @@
   }
 </script>
 
-<div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
+<!-- ARQUITECTURA B2B 2026: Fondo dinámico global -->
+<div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
@@ -196,17 +191,16 @@
         </div>
       </div>
 
-      <!-- 🚀 FIX: Mutación del Botón Principal (Header) por Paywall -->
       {#if hitOHPaywall}
         <a href="/admin/perfil" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold transition-all bg-indigo-600 text-white hover:bg-indigo-700 h-11 px-6 gap-2 shadow-lg active:scale-95 shrink-0">
           <Lock class="w-4 h-4" /> Actualizar Plan
         </a>
       {:else}
-        <button type="submit" form="form-openhouse" disabled={isSubmitting || generandoIA} class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95 shrink-0">
+        <button type="submit" form="form-openhouse" disabled={isSubmitting || generandoIA} class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white border border-slate-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-800 h-11 px-6 gap-2 shadow-sm active:scale-95 shrink-0">
           {#if isSubmitting}
-            <Loader2 class="w-4 h-4 animate-spin text-zinc-950" /> Lanzando...
+            <Loader2 class="w-4 h-4 animate-spin text-zinc-950 dark:text-white" /> Lanzando...
           {:else}
-            <Rocket class="w-4 h-4 text-indigo-500" /> Lanzar Evento
+            <Rocket class="w-4 h-4 text-indigo-500 dark:text-indigo-400" /> Lanzar Evento
           {/if}
         </button>
       {/if}
@@ -216,16 +210,15 @@
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 h-full">
       
-      <!-- 🚀 FIX: AVISO DE PAYWALL EN PANTALLA -->
       {#if hitOHPaywall}
-        <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-[fadeIn_0.4s_ease-out] shadow-sm">
+        <div class="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-[fadeIn_0.4s_ease-out] shadow-sm">
           <div class="flex gap-4">
-            <div class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-              <Lock class="w-6 h-6 text-indigo-600" />
+            <div class="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center shrink-0">
+              <Lock class="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
-              <h3 class="text-lg font-bold text-indigo-900">Módulo Bloqueado</h3>
-              <p class="text-sm text-indigo-700 mt-1 font-medium">
+              <h3 class="text-lg font-bold text-indigo-900 dark:text-indigo-100">Módulo Bloqueado</h3>
+              <p class="text-sm text-indigo-700 dark:text-indigo-300 mt-1 font-medium">
                 {#if planSuscripcion === 'basico'}
                   El plan Básico no incluye eventos Open House. Mejora a Profesional para desbloquearlo.
                 {:else}
@@ -240,7 +233,6 @@
         </div>
       {/if}
 
-      <!-- 🚀 FIX: Formulario desactivado si hay paywall (opacity-50 pointer-events-none) -->
       <form id="form-openhouse" action="?/crear" method="POST" use:enhance={({ cancel }) => {
         if (hitOHPaywall) {
           cancel();
@@ -251,23 +243,24 @@
         return async ({ update }) => { isSubmitting = false; update(); };
       }} class="space-y-8 pb-10 {hitOHPaywall ? 'opacity-50 pointer-events-none' : ''}">
         
-        <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-          <div class="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-start gap-4">
-            <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700 shrink-0">
+        <!-- Bloque 1: Identidad del Evento -->
+        <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 overflow-hidden transition-colors duration-300">
+          <div class="px-8 py-6 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/50 dark:bg-zinc-900 flex items-start gap-4">
+            <div class="bg-white dark:bg-zinc-800 p-2.5 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm text-slate-700 dark:text-zinc-300 shrink-0">
               <Building2 class="w-5 h-5" />
             </div>
             <div>
-              <h2 class="text-lg font-black text-slate-900 tracking-tight">Identidad del Evento</h2>
-              <p class="text-xs font-medium text-slate-500 mt-1">Seleccione el activo inmobiliario y defina su presentación.</p>
+              <h2 class="text-lg font-black text-slate-900 dark:text-white tracking-tight">Identidad del Evento</h2>
+              <p class="text-xs font-medium text-slate-500 dark:text-zinc-400 mt-1">Seleccione el activo inmobiliario y defina su presentación.</p>
             </div>
           </div>
           
           <div class="p-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="lg:col-span-2">
-              <label for="propiedad_id" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Seleccionar Propiedad Base *</label>
+              <label for="propiedad_id" class="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Seleccionar Propiedad Base *</label>
               <div class="relative w-full">
-                <select id="propiedad_id" name="propiedad_id" bind:value={valPropiedadId} required class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer appearance-none">
-                  <option value="" class="text-slate-400">Selecciona una propiedad del inventario...</option>
+                <select id="propiedad_id" name="propiedad_id" bind:value={valPropiedadId} required class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm cursor-pointer appearance-none transition-colors">
+                  <option value="" class="text-slate-400 dark:text-zinc-500">Selecciona una propiedad del inventario...</option>
                   {#each propiedades as prop}
                     <option value={prop.id}>{prop.titulo} ({prop.operacion})</option>
                   {/each}
@@ -275,86 +268,89 @@
                     <option value="" disabled>Sin propiedades activas — agrega una propiedad primero</option>
                   {/if}
                 </select>
-                <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+                <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400 dark:text-zinc-500">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </div>
               </div>
             </div>
 
             <div class="lg:col-span-2">
-              <label for="title" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Título Promocional del Evento *</label>
-              <input id="title" type="text" name="title" bind:value={valTitle} required placeholder="Ej. Presentación Exclusiva: Residencia en Puerta de Hierro" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 placeholder:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm">
+              <label for="title" class="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Título Promocional del Evento *</label>
+              <input id="title" type="text" name="title" bind:value={valTitle} required placeholder="Ej. Presentación Exclusiva: Residencia en Puerta de Hierro" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm transition-colors">
             </div>
           </div>
         </div>
 
-        <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-          <div class="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-start gap-4">
-            <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700 shrink-0">
+        <!-- Bloque 2: Horarios -->
+        <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 overflow-hidden transition-colors duration-300">
+          <div class="px-8 py-6 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/50 dark:bg-zinc-900 flex items-start gap-4">
+            <div class="bg-white dark:bg-zinc-800 p-2.5 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm text-slate-700 dark:text-zinc-300 shrink-0">
               <CalendarClock class="w-5 h-5" />
             </div>
             <div>
-              <h2 class="text-lg font-black text-slate-900 tracking-tight">Horarios y Aforos</h2>
-              <p class="text-xs font-medium text-slate-500 mt-1">Establezca los parámetros de acceso y la capacidad operativa.</p>
+              <h2 class="text-lg font-black text-slate-900 dark:text-white tracking-tight">Horarios y Aforos</h2>
+              <p class="text-xs font-medium text-slate-500 dark:text-zinc-400 mt-1">Establezca los parámetros de acceso y la capacidad operativa.</p>
             </div>
           </div>
           
           <div class="p-8">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div class="lg:col-span-1">
-                <label for="date" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Fecha de Convocatoria *</label>
+                <label for="date" class="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Fecha de Convocatoria *</label>
                 <div class="relative">
-                  <CalendarDays class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                  <input id="date" type="date" name="date" bind:value={valDate} required class="w-full bg-white border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-text">
+                  <CalendarDays class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
+                  <!-- NOTA: Los inputs type="date" en Dark Mode dependen del navegador, pero forzamos estilos base -->
+                  <input id="date" type="date" name="date" bind:value={valDate} required class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl pl-11 pr-4 py-3.5 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm cursor-text transition-colors">
                 </div>
               </div>
 
               <div class="lg:col-span-1">
-                <label for="timeStart" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Apertura *</label>
+                <label for="timeStart" class="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Apertura *</label>
                 <div class="relative w-full">
-                  <select id="timeStart" name="timeStart" bind:value={valTimeStart} required class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer appearance-none">
+                  <select id="timeStart" name="timeStart" bind:value={valTimeStart} required class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm cursor-pointer appearance-none transition-colors">
                     <option value="">Seleccionar...</option>
                     {#each timeOptions as time}
                       <option value={time.value}>{time.label}</option>
                     {/each}
                   </select>
-                  <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
+                  <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400 dark:text-zinc-500">
                     <Clock class="w-3.5 h-3.5" />
                   </div>
                 </div>
               </div>
 
               <div class="lg:col-span-1">
-                <label for="timeEnd" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cierre *</label>
+                <label for="timeEnd" class="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Cierre *</label>
                 <div class="relative w-full">
-                  <select id="timeEnd" name="timeEnd" bind:value={valTimeEnd} required class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer appearance-none {!horarioValido && valTimeEnd ? 'border-red-400 ring-1 ring-red-400' : ''}">
+                  <select id="timeEnd" name="timeEnd" bind:value={valTimeEnd} required class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm cursor-pointer appearance-none transition-colors {!horarioValido && valTimeEnd ? 'border-red-400 dark:border-red-500/50 ring-1 ring-red-400 dark:ring-red-500/50' : ''}">
                     <option value="">Seleccionar...</option>
                     {#each timeOptions as time}
                       <option value={time.value}>{time.label}</option>
                     {/each}
                   </select>
-                  <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
+                  <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400 dark:text-zinc-500">
                     <Clock class="w-3.5 h-3.5" />
                   </div>
                 </div>
                 {#if !horarioValido && valTimeEnd}
-                  <p class="text-red-500 text-[10px] font-bold mt-1.5">El cierre debe ser posterior a la apertura.</p>
+                  <p class="text-red-500 dark:text-red-400 text-[10px] font-bold mt-1.5">El cierre debe ser posterior a la apertura.</p>
                 {/if}
               </div>
 
               <div class="lg:col-span-1">
-                <label for="maxCapacity" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Aforo Máximo *</label>
+                <label for="maxCapacity" class="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Aforo Máximo *</label>
                 <div class="relative">
-                  <Users class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                  <input id="maxCapacity" type="number" name="maxCapacity" bind:value={valMaxCapacity} required min="1" max="100" placeholder="Ej. 15" class="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-center">
+                  <Users class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
+                  <input id="maxCapacity" type="number" name="maxCapacity" bind:value={valMaxCapacity} required min="1" max="100" placeholder="Ej. 15" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl pl-10 pr-4 py-3.5 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm text-center transition-colors">
                 </div>
               </div>
             </div>
           </div>
         </div>
 
+        <!-- Bloque 3: Estudio Creativo IA (Mantener predominantemente oscuro para estilo premium) -->
         <section class="relative">
-          <div class="bg-slate-800 rounded-[2rem] p-8 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
+          <div class="bg-slate-800 dark:bg-slate-900 rounded-[2rem] p-8 sm:p-10 relative overflow-hidden shadow-[0_4px_20px_-2px_rgba(15,23,42,0.1)] border border-slate-700 dark:border-slate-800 transition-colors duration-300">
             <div class="absolute -top-32 -right-32 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none"></div>
 
             <div class="relative z-10 w-full flex flex-col gap-6 text-left">
@@ -382,11 +378,11 @@
               {/if}
 
               {#if creditosIA > 0}
-                <div class="flex flex-col sm:flex-row items-end gap-4 w-full bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-6 shadow-inner">
+                <div class="flex flex-col sm:flex-row items-end gap-4 w-full bg-slate-700/40 dark:bg-slate-800/40 border border-slate-600/50 dark:border-slate-700/50 backdrop-blur-md rounded-2xl p-6 shadow-inner">
                   <div class="w-full md:flex-1">
                     <label for="tono-ia" class="block text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-2">Tono de Invitación</label>
                     <div class="relative w-full">
-                      <select id="tono-ia" bind:value={tonoIA} class="w-full bg-slate-800 text-white border border-slate-600 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner cursor-pointer appearance-none pr-10">
+                      <select id="tono-ia" bind:value={tonoIA} class="w-full bg-slate-800 dark:bg-slate-900 text-white border border-slate-600 dark:border-slate-700 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner cursor-pointer appearance-none pr-10">
                         <option value="lujo">Gala / Exclusiva</option>
                         <option value="familiar">Casual / Familiar</option>
                         <option value="inversionista">Business / Inversión</option>
@@ -398,7 +394,7 @@
                   </div>
 
                   <div class="w-full md:w-auto shrink-0 flex flex-col sm:flex-row gap-4">
-                    <div class="h-[46px] px-6 flex items-center justify-center gap-2 bg-slate-800 rounded-xl border border-slate-600/80 text-xs font-bold text-slate-200 shadow-inner">
+                    <div class="h-[46px] px-6 flex items-center justify-center gap-2 bg-slate-800 dark:bg-slate-900 rounded-xl border border-slate-600/80 dark:border-slate-700/80 text-xs font-bold text-slate-200 shadow-inner">
                       <Sparkles class="w-4 h-4 text-amber-400" />
                       {creditosIA} {creditosIA === 1 ? 'Crédito' : 'Créditos'}
                     </div>
@@ -425,13 +421,13 @@
             <div id="seccion-resultado-ia">
               {#if iaEjecutada && textoGeneradoWhatsapp}
                 <div class="mt-6 animate-[fadeIn_0.4s_ease-out] relative z-10 w-full">
-                  <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col w-full">
+                  <div class="bg-slate-800/40 dark:bg-slate-900/40 border border-slate-700/50 dark:border-slate-800/50 rounded-xl p-6 flex flex-col w-full">
                     <div class="flex items-center justify-between mb-4">
                       <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
                         <MessageCircle class="w-4 h-4 text-emerald-400" /> Campaña WhatsApp
                       </h4>
                       {#if !generandoIA}
-                        <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600/50">
+                        <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-[10px] font-bold uppercase tracking-wider bg-slate-700 dark:bg-slate-800 text-slate-300 hover:bg-slate-600 dark:hover:bg-slate-700 hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600/50 dark:border-slate-700/50">
                           {#if copiadoWhatsapp}
                             <Check class="w-3.5 h-3.5 text-emerald-400"/> Copiado
                           {:else}
@@ -450,19 +446,20 @@
           </div>
         </section>
 
-        <div id="seccion-copywriting" class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-          <div class="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-4">
+        <!-- Bloque 4: Copywriting -->
+        <div id="seccion-copywriting" class="bg-white dark:bg-zinc-900 rounded-3xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 overflow-hidden transition-colors duration-300">
+          <div class="px-8 py-6 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/50 dark:bg-zinc-900 flex items-center justify-between gap-4">
             <div class="flex items-start gap-4">
-              <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm text-slate-700 shrink-0">
+              <div class="bg-white dark:bg-zinc-800 p-2.5 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm text-slate-700 dark:text-zinc-300 shrink-0">
                 <PenTool class="w-5 h-5" />
               </div>
               <div>
-                <h2 class="text-lg font-black text-slate-900 tracking-tight">Persuasión y Copywriting</h2>
-                <p class="text-xs font-medium text-slate-500 mt-1">Defina los diferenciadores que impulsarán el registro de prospectos.</p>
+                <h2 class="text-lg font-black text-slate-900 dark:text-white tracking-tight">Persuasión y Copywriting</h2>
+                <p class="text-xs font-medium text-slate-500 dark:text-zinc-400 mt-1">Defina los diferenciadores que impulsarán el registro de prospectos.</p>
               </div>
             </div>
             {#if iaEjecutada && !generandoIA}
-              <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5 animate-[fadeIn_0.4s_ease-out] shrink-0">
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-500/20 flex items-center gap-1.5 animate-[fadeIn_0.4s_ease-out] shrink-0">
                 <CheckCircle2 class="w-3.5 h-3.5" /> Autocompletado
               </span>
             {/if}
@@ -471,28 +468,27 @@
           <div class="p-8 space-y-6">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div class="lg:col-span-2">
-                <label for="benefit" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Incentivo de Asistencia (Opcional)</label>
+                <label for="benefit" class="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Incentivo de Asistencia (Opcional)</label>
                 <div class="relative">
-                  <Gift class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                  <input id="benefit" type="text" name="benefit" bind:value={valBenefit} placeholder="Ej. Asesoría financiera gratuita y coctel de bienvenida" class="w-full bg-white border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 text-sm font-bold text-slate-900 placeholder:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm">
+                  <Gift class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
+                  <input id="benefit" type="text" name="benefit" bind:value={valBenefit} placeholder="Ej. Asesoría financiera gratuita y coctel de bienvenida" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl pl-11 pr-4 py-3.5 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm transition-colors">
                 </div>
               </div>
 
               <div class="lg:col-span-2">
-                <label for="description" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Sinopsis del Evento (Storytelling) *</label>
-                <textarea id="description" name="description" bind:value={valDescription} rows="8" required placeholder="Redacte la experiencia..." class="w-full bg-white border border-slate-200 rounded-xl px-5 py-4 text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm resize-y leading-relaxed"></textarea>
+                <label for="description" class="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Sinopsis del Evento (Storytelling) *</label>
+                <textarea id="description" name="description" bind:value={valDescription} rows="8" required placeholder="Redacte la experiencia..." class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-zinc-300 placeholder:text-slate-300 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm resize-y leading-relaxed transition-colors"></textarea>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 🚀 FIX: Mutación del Botón de Guardado Inferior por Paywall -->
         {#if hitOHPaywall}
           <a href="/admin/perfil" class="sm:hidden w-full inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold transition-all bg-indigo-600 text-white hover:bg-indigo-700 h-14 gap-2 shadow-lg active:scale-95 mt-4">
             <Lock class="w-5 h-5" /> Actualizar Plan
           </a>
         {:else}
-          <button type="submit" disabled={isSubmitting || generandoIA} class="sm:hidden w-full inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-white hover:bg-indigo-600 h-14 gap-2 shadow-lg active:scale-95 mt-4">
+          <button type="submit" disabled={isSubmitting || generandoIA} class="sm:hidden w-full inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-indigo-600 dark:hover:bg-slate-200 h-14 gap-2 shadow-lg active:scale-95 mt-4">
             {#if isSubmitting}
               <Loader2 class="w-5 h-5 animate-spin" /> Lanzando...
             {:else}
