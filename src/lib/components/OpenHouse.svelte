@@ -51,7 +51,7 @@
     stopScanner();
   });
 
-  // 🚀 FIX ÉLITE: Reconstrucción Hexadecimal de Emojis para evadir corrupción del Servidor ()
+  // 🚀 FIX ÉLITE: Reconstrucción Hexadecimal de Emojis para evadir corrupción del Servidor
   const emojiCasa = String.fromCodePoint(0x1F3E1);
   const emojiBrillo = String.fromCodePoint(0x2728);
   
@@ -115,7 +115,8 @@
   }
 </script>
 
-<div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
+<!-- ARQUITECTURA B2B 2026: Fondo Dinámico Global -->
+<div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
@@ -156,77 +157,78 @@
       
       <!-- TOP 4 KPIS -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 flex flex-col justify-between">
+        <div class="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 flex flex-col justify-between transition-colors">
           <div class="flex items-center justify-between mb-4">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Registrados</p>
-            <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+            <p class="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Registrados</p>
+            <div class="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-transparent">
               <Users class="w-4 h-4" />
             </div>
           </div>
           <div class="flex items-end gap-2">
-            <p class="text-4xl font-black text-slate-900 tracking-tight">{listadoAsistentes.length}</p>
-            <p class="text-xs text-slate-500 font-medium mb-1">Capacidad: {event.maxCapacity || '-'}</p>
+            <p class="text-4xl font-black text-slate-900 dark:text-white tracking-tight">{listadoAsistentes.length}</p>
+            <p class="text-xs text-slate-500 dark:text-zinc-500 font-medium mb-1">Capacidad: {event.maxCapacity || '-'}</p>
           </div>
         </div>
 
-        <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 flex flex-col justify-between">
-          <div class="flex items-center justify-between mb-4">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">En Propiedad</p>
-            <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+        <div class="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 flex flex-col justify-between transition-colors relative overflow-hidden">
+          <div class="absolute -right-4 -top-4 w-24 h-24 bg-emerald-50 dark:bg-emerald-500/10 rounded-full blur-2xl opacity-50 pointer-events-none"></div>
+          <div class="flex items-center justify-between mb-4 relative z-10">
+            <p class="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">En Propiedad</p>
+            <div class="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-transparent">
               <CheckSquare class="w-4 h-4" />
             </div>
           </div>
-          <div class="flex items-end gap-2">
-            <p class="text-4xl font-black text-emerald-600 tracking-tight">{listadoAsistentes.filter(a => a.checked_in).length}</p>
-            <p class="text-xs text-slate-500 font-medium mb-1">Check-ins Físicos</p>
+          <div class="flex items-end gap-2 relative z-10">
+            <p class="text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">{listadoAsistentes.filter(a => a.checked_in).length}</p>
+            <p class="text-xs text-slate-500 dark:text-zinc-500 font-medium mb-1">Check-ins Físicos</p>
           </div>
         </div>
 
-        <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 flex flex-col justify-between">
+        <div class="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 flex flex-col justify-between transition-colors">
           <div class="flex items-center justify-between mb-4">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Alta Intención</p>
-            <div class="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
+            <p class="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Alta Intención</p>
+            <div class="w-8 h-8 rounded-full bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-transparent">
               <TrendingUp class="w-4 h-4" />
             </div>
           </div>
           <div class="flex items-end gap-2">
-            <p class="text-4xl font-black text-amber-600 tracking-tight">{listadoAsistentes.filter(a => a.intent === 'Comprar' || a.intent === 'Invertir').length}</p>
-            <p class="text-xs text-slate-500 font-medium mb-1">Patrimonial/Inversor</p>
+            <p class="text-4xl font-black text-amber-600 dark:text-amber-400 tracking-tight">{listadoAsistentes.filter(a => a.intent === 'Comprar' || a.intent === 'Invertir').length}</p>
+            <p class="text-xs text-slate-500 dark:text-zinc-500 font-medium mb-1">Patrimonial/Inversor</p>
           </div>
         </div>
 
-        <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 flex flex-col justify-between">
+        <div class="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 flex flex-col justify-between transition-colors">
           <div class="flex items-center justify-between mb-4">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Lista Espera</p>
-            <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-600">
+            <p class="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Lista Espera</p>
+            <div class="w-8 h-8 rounded-full bg-slate-50 dark:bg-zinc-800 flex items-center justify-center text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-transparent">
               <Clock class="w-4 h-4" />
             </div>
           </div>
           <div class="flex items-end gap-2">
-            <p class="text-4xl font-black text-slate-400 tracking-tight">{listadoAsistentes.filter(a => a.status === 'waitlist').length}</p>
-            <p class="text-xs text-slate-500 font-medium mb-1">Pendientes</p>
+            <p class="text-4xl font-black text-slate-400 dark:text-zinc-500 tracking-tight">{listadoAsistentes.filter(a => a.status === 'waitlist').length}</p>
+            <p class="text-xs text-slate-500 dark:text-zinc-500 font-medium mb-1">Pendientes</p>
           </div>
         </div>
       </div>
 
       <!-- TABS -->
-      <div class="flex gap-8 border-b border-slate-200 mb-8">
-        <button class="pb-4 text-sm font-bold transition-all relative {activeTab === 'overview' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-700'}" onclick={() => activeTab = 'overview'}>
+      <div class="flex gap-8 border-b border-slate-200 dark:border-zinc-800 mb-8 transition-colors">
+        <button class="pb-4 text-sm font-bold transition-all relative {activeTab === 'overview' ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}" onclick={() => activeTab = 'overview'}>
           Difusión Comercial
           {#if activeTab === 'overview'}
-            <div class="absolute bottom-0 left-0 w-full h-0.5 bg-slate-900 rounded-t-full"></div>
+            <div class="absolute bottom-0 left-0 w-full h-0.5 bg-slate-900 dark:bg-indigo-500 rounded-t-full transition-colors"></div>
           {/if}
         </button>
-        <button class="pb-4 text-sm font-bold transition-all relative {activeTab === 'attendees' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-700'}" onclick={() => activeTab = 'attendees'}>
+        <button class="pb-4 text-sm font-bold transition-all relative {activeTab === 'attendees' ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}" onclick={() => activeTab = 'attendees'}>
           Asistentes ({listadoAsistentes.length})
           {#if activeTab === 'attendees'}
-            <div class="absolute bottom-0 left-0 w-full h-0.5 bg-slate-900 rounded-t-full"></div>
+            <div class="absolute bottom-0 left-0 w-full h-0.5 bg-slate-900 dark:bg-indigo-500 rounded-t-full transition-colors"></div>
           {/if}
         </button>
-        <button class="pb-4 text-sm font-bold transition-all relative {activeTab === 'analytics' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-700'}" onclick={() => activeTab = 'analytics'}>
+        <button class="pb-4 text-sm font-bold transition-all relative {activeTab === 'analytics' ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}" onclick={() => activeTab = 'analytics'}>
           Analíticas
           {#if activeTab === 'analytics'}
-            <div class="absolute bottom-0 left-0 w-full h-0.5 bg-slate-900 rounded-t-full"></div>
+            <div class="absolute bottom-0 left-0 w-full h-0.5 bg-slate-900 dark:bg-indigo-500 rounded-t-full transition-colors"></div>
           {/if}
         </button>
       </div>
@@ -234,48 +236,48 @@
       <!-- TAB: OVERVIEW -->
       {#if activeTab === 'overview'}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
-             <h3 class="text-lg font-black text-slate-900 mb-2">Canales de Difusión Directa</h3>
-             <p class="text-sm text-slate-500 font-medium mb-8">Utiliza estos enlaces para promover el evento exclusivo en tus redes.</p>
+          <div class="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 transition-colors">
+             <h3 class="text-lg font-black text-slate-900 dark:text-white mb-2">Canales de Difusión Directa</h3>
+             <p class="text-sm text-slate-500 dark:text-zinc-400 font-medium mb-8">Utiliza estos enlaces para promover el evento exclusivo en tus redes.</p>
              
              <div class="flex flex-col gap-4">
-               <a href="https://api.whatsapp.com/send?text={shareMsg}" target="_blank" rel="noopener noreferrer" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors border border-emerald-200 shadow-sm text-sm uppercase tracking-wider">
+               <a href="https://api.whatsapp.com/send?text={shareMsg}" target="_blank" rel="noopener noreferrer" class="bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors border border-emerald-200 dark:border-emerald-500/20 shadow-sm text-sm uppercase tracking-wider">
                  <Share2 class="w-4 h-4" />
                  Compartir Invitación en WhatsApp
                </a>
                
                <div class="flex flex-col sm:flex-row gap-3">
-                 <button class="flex-1 bg-white hover:bg-slate-50 text-slate-700 font-bold py-4 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors border border-slate-200 text-sm shadow-sm" onclick={() => copyToClipboard(`https://${event.agent?.url}/open-house/${event.id}`)}>
-                   <Copy class="w-4 h-4 text-slate-400" />
+                 <button class="flex-1 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-bold py-4 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors border border-slate-200 dark:border-zinc-700 text-sm shadow-sm" onclick={() => copyToClipboard(`https://${event.agent?.url}/open-house/${event.id}`)}>
+                   <Copy class="w-4 h-4 text-slate-400 dark:text-zinc-500" />
                    Copiar Enlace
                  </button>
-                 <a href="https://{event.agent?.url}/open-house/{event.id}" target="_blank" rel="noopener noreferrer" class="bg-slate-900 hover:bg-indigo-600 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md active:scale-95 text-sm" title="Abrir Landing Page">
+                 <a href="https://{event.agent?.url}/open-house/{event.id}" target="_blank" rel="noopener noreferrer" class="bg-slate-900 dark:bg-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md active:scale-95 text-sm" title="Abrir Landing Page">
                    <ExternalLink class="w-4 h-4" /> Landing
                  </a>
                </div>
 
-               <button class="mt-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors border border-slate-200 text-sm" onclick={() => showCheckin = !showCheckin}>
-                 <QrCode class="w-4 h-4 text-slate-400" />
+               <button class="mt-4 bg-slate-100 dark:bg-zinc-800/50 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors border border-slate-200 dark:border-zinc-700/50 text-sm shadow-inner" onclick={() => showCheckin = !showCheckin}>
+                 <QrCode class="w-4 h-4 text-slate-400 dark:text-zinc-500" />
                  {showCheckin ? 'Ocultar QR de Recepción' : 'Desplegar QR de Recepción'}
                </button>
              </div>
           </div>
           
           {#if showCheckin}
-            <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center animate-[fadeIn_0.3s_ease-out] relative">
-              <h4 class="text-xl font-black text-slate-900 mb-2">Código QR de Autoregistro</h4>
-              <p class="text-sm text-slate-500 font-medium mb-6 max-w-sm mx-auto">Muestra esto en la recepción de la casa para que los prospectos escaneen y liberen su acceso físico.</p>
+            <div class="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 flex flex-col items-center justify-center text-center animate-[fadeIn_0.3s_ease-out] relative transition-colors">
+              <h4 class="text-xl font-black text-slate-900 dark:text-white mb-2">Código QR de Autoregistro</h4>
+              <p class="text-sm text-slate-500 dark:text-zinc-400 font-medium mb-6 max-w-sm mx-auto">Muestra esto en la recepción de la casa para que los prospectos escaneen y liberen su acceso físico.</p>
               
-              <div class="p-4 bg-white border border-slate-200 rounded-3xl shadow-sm mb-6">
+              <div class="p-4 bg-white border border-slate-200 dark:border-zinc-700 rounded-3xl shadow-sm mb-6">
                 <img src="https://api.qrserver.com/v1/create-qr-code/?size=400x400&data={encodeURIComponent(`https://${event.agent?.url}/open-house/${event.id}/checkin`)}&format=png&margin=0" alt="QR" class="w-56 h-56">
               </div>
 
               <div class="flex flex-col gap-3 items-center w-full max-w-[280px]">
-                <button onclick={descargarQR} class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors text-sm shadow-sm active:scale-95">
+                <button onclick={descargarQR} class="w-full bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white font-bold py-3.5 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors text-sm shadow-sm active:scale-95">
                   <DownloadCloud class="w-4 h-4" />
                   Descargar PNG
                 </button>
-                <span class="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase bg-slate-50 px-3 py-2 rounded-md w-full text-center border border-slate-100">ID: {event.id?.split('-')[0] || ''}</span>
+                <span class="text-[10px] font-mono font-bold tracking-widest text-slate-400 dark:text-zinc-500 uppercase bg-slate-50 dark:bg-zinc-800/50 px-3 py-2 rounded-md w-full text-center border border-slate-100 dark:border-zinc-700">ID: {event.id?.split('-')[0] || ''}</span>
               </div>
             </div>
           {/if}
@@ -283,20 +285,20 @@
 
       <!-- TAB: ATTENDEES -->
       {:else if activeTab === 'attendees'}
-        <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-          <div class="px-8 py-6 border-b border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-50/50">
-            <h3 class="text-lg font-black text-slate-900">Directorio de Accesos</h3>
+        <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 overflow-hidden transition-colors">
+          <div class="px-8 py-6 border-b border-slate-100 dark:border-zinc-800/50 flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-50/50 dark:bg-zinc-900">
+            <h3 class="text-lg font-black text-slate-900 dark:text-white">Directorio de Accesos</h3>
             
             <div class="flex items-center gap-3 w-full sm:w-auto">
-              <button class="flex-1 sm:flex-none bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 px-5 py-2.5 rounded-xl text-xs font-bold transition-colors shadow-sm flex items-center justify-center gap-2" onclick={showScanner ? stopScanner : startScanner}>
+              <button class="flex-1 sm:flex-none bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 hover:text-indigo-800 dark:hover:text-indigo-300 px-5 py-2.5 rounded-xl text-xs font-bold transition-colors shadow-sm flex items-center justify-center gap-2" onclick={showScanner ? stopScanner : startScanner}>
                 {#if showScanner}
-                  <XCircle class="w-4 h-4 text-indigo-500" /> Cerrar Escáner
+                  <XCircle class="w-4 h-4 text-indigo-500 dark:text-indigo-400" /> Cerrar Escáner
                 {:else}
-                  <ScanLine class="w-4 h-4 text-indigo-500" /> Escanear Asistente
+                  <ScanLine class="w-4 h-4 text-indigo-500 dark:text-indigo-400" /> Escanear Asistente
                 {/if}
               </button>
-              <button class="flex-1 sm:flex-none bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 px-5 py-2.5 rounded-xl text-xs font-bold transition-colors shadow-sm flex items-center justify-center gap-2" onclick={exportToCSV}>
-                <FileDown class="w-4 h-4 text-slate-400" /> Exportar CSV
+              <button class="flex-1 sm:flex-none bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 hover:text-slate-900 dark:hover:text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors shadow-sm flex items-center justify-center gap-2" onclick={exportToCSV}>
+                <FileDown class="w-4 h-4 text-slate-400 dark:text-zinc-500" /> Exportar CSV
               </button>
             </div>
           </div>
@@ -318,7 +320,7 @@
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse table-fixed min-w-[900px]">
               <thead>
-                <tr class="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-white border-b border-slate-100">
+                <tr class="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest bg-white dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-800/50">
                   <th class="w-[30%] px-8 py-5">Prospecto</th>
                   <th class="w-[20%] px-8 py-5">Contacto</th>
                   <th class="w-[15%] px-8 py-5 text-center">Interés</th>
@@ -327,32 +329,34 @@
                   <th class="w-[20%] px-8 py-5 text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-100">
+              <tbody class="divide-y divide-slate-100/80 dark:divide-zinc-800/50">
                 {#each listadoAsistentes as att}
-                  <tr class="group hover:bg-slate-50/80 transition-colors {att.checked_in ? 'bg-emerald-50/20' : ''}">
+                  <tr class="group hover:bg-slate-50/80 dark:hover:bg-zinc-800/30 transition-colors {att.checked_in ? 'bg-emerald-50/30 dark:bg-emerald-500/5' : ''}">
                     <td class="px-8 py-5 truncate">
                       <div class="flex items-center gap-4">
-                        <img src="https://ui-avatars.com/api/?name={att.name}&background=f8fafc&color=0f172a" alt="Avatar" class="w-10 h-10 rounded-full shadow-sm ring-1 ring-slate-200">
-                        <div class="font-bold text-sm text-slate-900 truncate">{att.name}</div>
+                        <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden shadow-sm ring-1 ring-slate-200 dark:ring-zinc-700 shrink-0">
+                          <img src="https://ui-avatars.com/api/?name={att.name}&background=f8fafc&color=0f172a" alt="Avatar" class="w-full h-full object-cover dark:invert">
+                        </div>
+                        <div class="font-bold text-sm text-slate-900 dark:text-zinc-100 truncate">{att.name}</div>
                       </div>
                     </td>
-                    <td class="px-8 py-5 truncate font-mono text-xs font-semibold text-slate-600">{att.phone}</td>
+                    <td class="px-8 py-5 truncate font-mono text-xs font-semibold text-slate-600 dark:text-zinc-400">{att.phone}</td>
                     <td class="px-8 py-5 text-center truncate">
                       {#if att.intent === 'Comprar'}
-                        <span class="px-3 py-1.5 inline-flex text-[9px] font-bold uppercase tracking-widest rounded-lg bg-amber-50 text-amber-600 border border-amber-200">Comprar</span>
+                        <span class="px-3 py-1.5 inline-flex text-[9px] font-bold uppercase tracking-widest rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20">Comprar</span>
                       {:else if att.intent === 'Invertir'}
-                        <span class="px-3 py-1.5 inline-flex text-[9px] font-bold uppercase tracking-widest rounded-lg bg-blue-50 text-blue-600 border border-blue-200">Invertir</span>
+                        <span class="px-3 py-1.5 inline-flex text-[9px] font-bold uppercase tracking-widest rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20">Invertir</span>
                       {:else}
-                        <span class="px-3 py-1.5 inline-flex text-[9px] font-bold uppercase tracking-widest rounded-lg bg-slate-100 text-slate-600 border border-slate-200">{att.intent}</span>
+                        <span class="px-3 py-1.5 inline-flex text-[9px] font-bold uppercase tracking-widest rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">{att.intent}</span>
                       {/if}
                     </td>
                     <td class="px-8 py-5 text-center truncate">
-                      <span class="text-[10px] font-bold text-slate-500">{att.budget || 'Sin Confirmar'}</span>
+                      <span class="text-[10px] font-bold text-slate-500 dark:text-zinc-500">{att.budget || 'Sin Confirmar'}</span>
                     </td>
                     <td class="px-8 py-5 text-center truncate">
                       <div class="flex items-center justify-center gap-2">
-                        <span class="w-2.5 h-2.5 rounded-full {att.checked_in ? 'bg-emerald-500 shadow-sm' : 'bg-slate-300'}"></span>
-                        <span class="text-[10px] font-bold uppercase tracking-wider {att.checked_in ? 'text-emerald-600' : 'text-slate-400'}">{att.checked_in ? 'Ingresó' : 'Pendiente'}</span>
+                        <span class="w-2.5 h-2.5 rounded-full {att.checked_in ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-slate-300 dark:bg-zinc-600'}"></span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider {att.checked_in ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-zinc-500'}">{att.checked_in ? 'Ingresó' : 'Pendiente'}</span>
                       </div>
                     </td>
                     <td class="px-8 py-5 text-right">
@@ -360,7 +364,7 @@
                         {#if att.status === 'waitlist'}
                           <form method="POST" action="?/admitir" use:enhance class="m-0 p-0">
                             <input type="hidden" name="attendee_id" value={att.id}>
-                            <button type="submit" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors border border-indigo-200 flex items-center gap-1.5">
+                            <button type="submit" class="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors border border-indigo-200 dark:border-indigo-500/30 flex items-center gap-1.5">
                               <UserPlus class="w-3.5 h-3.5" /> Admitir
                             </button>
                           </form>
@@ -368,12 +372,12 @@
                         {#if !att.checked_in}
                           <form method="POST" action="?/checkin" use:enhance class="m-0 p-0">
                             <input type="hidden" name="attendee_id" value={att.id}>
-                            <button type="submit" class="text-white bg-slate-900 hover:bg-slate-800 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm flex items-center gap-1.5">
+                            <button type="submit" class="text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm flex items-center gap-1.5 border border-transparent dark:border-indigo-500/50">
                               <Check class="w-3.5 h-3.5" /> Check-in
                             </button>
                           </form>
                         {/if}
-                        <a href="https://wa.me/{att.phone.replace(/\D/g, '')}?text={encodeURIComponent('Hola ' + att.name.split(' ')[0] + ', soy tu asesor de Inmublia. Te escribo sobre tu registro al Open House privado.')}" target="_blank" rel="noopener noreferrer" class="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 p-2 rounded-xl transition-colors border border-emerald-200" title="Mensaje WhatsApp">
+                        <a href="https://wa.me/{att.phone.replace(/\D/g, '')}?text={encodeURIComponent('Hola ' + att.name.split(' ')[0] + ', soy tu asesor de Inmublia. Te escribo sobre tu registro al Open House privado.')}" target="_blank" rel="noopener noreferrer" class="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 p-2 rounded-xl transition-colors border border-emerald-200 dark:border-emerald-500/20" title="Mensaje WhatsApp">
                            <MessageSquareQuote class="w-4 h-4" />
                         </a>
                       </div>
@@ -382,9 +386,9 @@
                 {/each}
                 {#if listadoAsistentes.length === 0}
                   <tr>
-                    <td colspan="6" class="text-center py-20 text-slate-400 font-medium">
+                    <td colspan="6" class="text-center py-20 text-slate-400 dark:text-zinc-600 font-medium">
                       <div class="flex flex-col items-center justify-center gap-4">
-                        <Users class="w-10 h-10 text-slate-300" />
+                        <Users class="w-10 h-10 text-slate-300 dark:text-zinc-700" />
                         Ningún prospecto ha solicitado acceso aún.
                       </div>
                     </td>
@@ -398,28 +402,28 @@
       <!-- TAB: ANALYTICS -->
       {:else if activeTab === 'analytics'}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div class="bg-white p-10 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-center">
-            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Conversión Comercial (Proyección)</h4>
-            <div class="text-7xl font-black text-slate-900 mb-6 tracking-tighter">
+          <div class="bg-white dark:bg-zinc-900 p-10 rounded-3xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 flex flex-col justify-center transition-colors">
+            <h4 class="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3">Conversión Comercial (Proyección)</h4>
+            <div class="text-7xl font-black text-slate-900 dark:text-white mb-6 tracking-tighter">
               {listadoAsistentes.length > 0 ? ((listadoAsistentes.filter(a => a.intent === 'Comprar' || a.intent === 'Invertir').length / listadoAsistentes.length) * 100).toFixed(0) : 0}%
             </div>
-            <p class="text-sm text-slate-500 font-medium leading-relaxed max-w-md">Porcentaje total de la audiencia registrada que cuenta con intenciones directas de compra de capital o inversión sobre el activo.</p>
+            <p class="text-sm text-slate-500 dark:text-zinc-400 font-medium leading-relaxed max-w-md">Porcentaje total de la audiencia registrada que cuenta con intenciones directas de compra de capital o inversión sobre el activo.</p>
           </div>
           
-          <div class="bg-white p-10 rounded-3xl shadow-sm border border-slate-200">
-            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-8">Eficiencia Operativa</h4>
+          <div class="bg-white dark:bg-zinc-900 p-10 rounded-3xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 transition-colors">
+            <h4 class="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-8">Eficiencia Operativa</h4>
             <div class="flex flex-col gap-6">
-              <div class="flex justify-between items-center border-b border-slate-100 pb-5">
-                <span class="text-sm text-slate-600 font-bold flex items-center gap-3"><Users class="w-5 h-5 text-slate-400" /> Ocupación del Aforo</span>
-                <span class="text-lg font-black text-slate-900 bg-slate-50 px-4 py-1.5 rounded-lg border border-slate-200">{event.maxCapacity > 0 ? ((listadoAsistentes.length / event.maxCapacity) * 100).toFixed(0) : 0}%</span>
+              <div class="flex justify-between items-center border-b border-slate-100 dark:border-zinc-800/50 pb-5">
+                <span class="text-sm text-slate-600 dark:text-zinc-300 font-bold flex items-center gap-3"><Users class="w-5 h-5 text-slate-400 dark:text-zinc-500" /> Ocupación del Aforo</span>
+                <span class="text-lg font-black text-slate-900 dark:text-white bg-slate-50 dark:bg-zinc-800 px-4 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700">{event.maxCapacity > 0 ? ((listadoAsistentes.length / event.maxCapacity) * 100).toFixed(0) : 0}%</span>
               </div>
-              <div class="flex justify-between items-center border-b border-slate-100 pb-5">
-                <span class="text-sm text-slate-600 font-bold flex items-center gap-3"><CheckSquare class="w-5 h-5 text-emerald-500" /> Show-Rate (Asistencia)</span>
-                <span class="text-lg font-black text-emerald-700 bg-emerald-50 px-4 py-1.5 rounded-lg border border-emerald-200">{listadoAsistentes.length > 0 ? ((listadoAsistentes.filter(a => a.checked_in).length / listadoAsistentes.length) * 100).toFixed(0) : 0}%</span>
+              <div class="flex justify-between items-center border-b border-slate-100 dark:border-zinc-800/50 pb-5">
+                <span class="text-sm text-slate-600 dark:text-zinc-300 font-bold flex items-center gap-3"><CheckSquare class="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Show-Rate (Asistencia)</span>
+                <span class="text-lg font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-500/20">{listadoAsistentes.length > 0 ? ((listadoAsistentes.filter(a => a.checked_in).length / listadoAsistentes.length) * 100).toFixed(0) : 0}%</span>
               </div>
               <div class="flex justify-between items-center pb-2">
-                <span class="text-sm text-slate-600 font-bold flex items-center gap-3"><Clock class="w-5 h-5 text-amber-500" /> Cuello de Botella</span>
-                <span class="text-sm font-black text-amber-600 bg-amber-50 border border-amber-200 px-4 py-1.5 rounded-lg">{listadoAsistentes.filter(a => a.status === 'waitlist').length} leads en espera</span>
+                <span class="text-sm text-slate-600 dark:text-zinc-300 font-bold flex items-center gap-3"><Clock class="w-5 h-5 text-amber-500 dark:text-amber-400" /> Cuello de Botella</span>
+                <span class="text-sm font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-4 py-1.5 rounded-lg">{listadoAsistentes.filter(a => a.status === 'waitlist').length} leads en espera</span>
               </div>
             </div>
           </div>
