@@ -1,1 +1,6 @@
 @import 'tailwindcss';
+/* 🚀 LA VERDADERA CONFIGURACIÓN EN TAILWIND V4 */
+/* Obliga al compilador a obedecer la clase .dark de nuestro botón de Svelte */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ... el resto de tus estilos (si tienes) ... */
