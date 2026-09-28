@@ -123,7 +123,8 @@
   }
 </script>
 
-<div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
+<!-- ARQUITECTURA B2B 2026: Fondo base condicionado y suavizado global -->
+<div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
 <div class="w-full flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
@@ -147,6 +148,7 @@
         <a href="/admin/open-house/nueva" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-indigo-100 h-11 px-5 gap-2 backdrop-blur-sm">
           <CalendarPlus class="w-4 h-4" /> Open House
         </a>
+        <!-- CTA Principal: Mayor prominencia en Light/Dark -->
         <a href="/admin/nueva" class="inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95">
           <Plus class="w-4 h-4" /> Nueva Propiedad
         </a>
@@ -157,107 +159,114 @@
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10">
       
+      <!-- TARJETAS DE MÉTRICAS (Subtle Neumorphism) -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:border-slate-300 transition-all">
+        
+        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
           <div class="flex items-center justify-between mb-3">
-            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Valor de Portafolio</p>
-            <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+            <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Valor de Portafolio</p>
+            <div class="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-transparent group-hover:scale-110 transition-transform">
               <BadgeDollarSign class="w-4 h-4" />
             </div>
           </div>
-          <p class="text-2xl font-black text-slate-900 tracking-tight truncate">{formatter.format(valorPortafolio)}</p>
+          <p class="text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">{formatter.format(valorPortafolio)}</p>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:border-slate-300 transition-all">
+        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
           <div class="flex items-center justify-between mb-3">
-            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Unidades</p>
-            <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+            <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Total Unidades</p>
+            <div class="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-transparent group-hover:scale-110 transition-transform">
               <Building2 class="w-4 h-4" />
             </div>
           </div>
-          <p class="text-3xl font-black text-slate-900 tracking-tight">{totalPropiedades}</p>
+          <p class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{totalPropiedades}</p>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:border-slate-300 transition-all">
-          <div class="flex items-center justify-between mb-3">
-            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Públicas</p>
-            <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group relative overflow-hidden">
+          <div class="absolute -right-4 -top-4 w-24 h-24 bg-indigo-50 dark:bg-indigo-500/10 rounded-full blur-2xl opacity-50 pointer-events-none"></div>
+          <div class="flex items-center justify-between mb-3 relative z-10">
+            <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Públicas</p>
+            <div class="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-transparent group-hover:scale-110 transition-transform">
               <CheckCircle2 class="w-4 h-4" />
             </div>
           </div>
-          <div class="flex items-end gap-2">
-            <p class="text-3xl font-black text-slate-900 tracking-tight">{activasCount}</p>
-            <p class="text-xs text-slate-400 font-medium mb-1">En mercado</p>
+          <div class="flex items-end gap-2 relative z-10">
+            <p class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{activasCount}</p>
+            <p class="text-xs text-slate-400 dark:text-zinc-500 font-medium mb-1">En mercado</p>
           </div>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:border-slate-300 transition-all">
+        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
           <div class="flex items-center justify-between mb-3">
-            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Pre-Mercado</p>
-            <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
+            <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Pre-Mercado</p>
+            <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700 group-hover:scale-110 transition-transform">
               <EyeOff class="w-4 h-4" />
             </div>
           </div>
           <div class="flex items-end gap-2">
-            <p class="text-3xl font-black text-slate-900 tracking-tight">{preMercadoCount}</p>
-            <p class="text-xs text-slate-400 font-medium mb-1">Ocultas</p>
+            <p class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{preMercadoCount}</p>
+            <p class="text-xs text-slate-400 dark:text-zinc-500 font-medium mb-1">Ocultas</p>
           </div>
         </div>
       </div>
 
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
-        <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <!-- LISTADO Y TABLA -->
+      <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 overflow-hidden relative transition-colors duration-300">
+        
+        <div class="p-5 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/50 dark:bg-zinc-900 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="relative flex-1 max-w-md">
-            <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input type="text" bind:value={searchQuery} placeholder="Buscar por título o colonia..." class="flex h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 py-2 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm">
+            <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-zinc-500" />
+            <input type="text" bind:value={searchQuery} placeholder="Buscar por título o colonia..." class="flex h-11 w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 pl-10 pr-3 py-2 text-sm font-medium text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-500 transition-all shadow-sm dark:shadow-none">
           </div>
         </div>
 
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse table-fixed min-w-[900px]">
             <thead>
-              <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-white border-b border-slate-100">
+              <tr class="text-[10px] font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest bg-white dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-800/50">
                 <th class="w-[40%] px-6 py-4">Activo Inmobiliario</th>
                 <th class="w-[20%] px-6 py-4">Valor</th>
                 <th class="w-[15%] px-6 py-4 text-center">Estatus</th>
                 <th class="w-[25%] px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100/80">
+            <tbody class="divide-y divide-slate-100/80 dark:divide-zinc-800/50">
               {#if propiedadesFiltradas.length === 0}
                 <tr>
-                  <td colspan="4" class="px-6 py-16 text-center text-slate-500 text-sm font-medium">
+                  <td colspan="4" class="px-6 py-16 text-center text-slate-500 dark:text-zinc-500 text-sm font-medium">
                     <div class="flex flex-col items-center justify-center gap-3">
-                      <Search class="w-8 h-8 text-slate-300" />
+                      <Search class="w-8 h-8 text-slate-300 dark:text-zinc-700" />
                       No se encontraron propiedades.
                     </div>
                   </td>
                 </tr>
               {:else}
                 {#each propiedadesFiltradas as propiedad}
-                  <tr class="group hover:bg-slate-50/60 transition-colors {propiedad.estatus === 'Vendida' ? 'opacity-80 bg-slate-50/50' : ''}">
+                  <!-- Fila reactiva B2B -->
+                  <tr class="group hover:bg-slate-50/80 dark:hover:bg-zinc-800/30 transition-colors {propiedad.estatus === 'Vendida' ? 'opacity-80 bg-slate-50/50 dark:bg-zinc-900/50' : ''}">
+                    
                     <td class="px-6 py-5">
                       <div class="flex items-center gap-4">
-                        <div class="h-14 w-20 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200/60 shadow-sm group-hover:border-indigo-200 transition-colors relative">
+                        <div class="h-14 w-20 rounded-lg overflow-hidden bg-slate-100 dark:bg-zinc-800 shrink-0 border border-slate-200/60 dark:border-zinc-700/50 shadow-sm group-hover:border-indigo-200 dark:group-hover:border-indigo-500/50 transition-colors relative">
                           
                           {#if propiedad.estatus === 'Vendida'}
-                            <div class="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-10 flex items-center justify-center overflow-hidden">
+                            <div class="absolute inset-0 bg-white/40 dark:bg-zinc-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center overflow-hidden">
                               <img src="/sello-vendido.png" alt="Vendido" class="w-[120%] h-auto object-contain opacity-90 -rotate-12 drop-shadow-md scale-110" />
                             </div>
                           {/if}
                           
-                          <img src={propiedad.imagen_url} alt="Portada" class="w-full h-full object-cover {propiedad.estatus === 'Vendida' ? 'grayscale-[50%]' : ''}">
+                          <img src={propiedad.imagen_url} alt="Portada" class="w-full h-full object-cover {propiedad.estatus === 'Vendida' ? 'grayscale-[50%] dark:opacity-50' : ''}">
                         </div>
                         
                         <div class="truncate">
-                          <div class="text-sm font-bold {propiedad.estatus === 'Vendida' ? 'text-slate-600 line-through decoration-slate-300' : 'text-slate-900'} leading-tight mb-1 flex items-center gap-2 truncate">
+                          <div class="text-sm font-bold {propiedad.estatus === 'Vendida' ? 'text-slate-600 dark:text-zinc-500 line-through decoration-slate-300 dark:decoration-zinc-700' : 'text-slate-900 dark:text-zinc-100'} leading-tight mb-1 flex items-center gap-2 truncate">
                             <span class="truncate">{propiedad.titulo}</span>
                             {#if propiedad.destacada && propiedad.estatus !== 'Vendida'}
                               <span class="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-sm shrink-0">VIP</span>
                             {/if}
                           </div>
-                          <p class="text-xs text-slate-500 flex items-center gap-1.5 truncate font-medium">
-                            <MapPin class="w-3 h-3 shrink-0 text-slate-400" />
+                          <p class="text-xs text-slate-500 dark:text-zinc-500 flex items-center gap-1.5 truncate font-medium">
+                            <MapPin class="w-3 h-3 shrink-0 text-slate-400 dark:text-zinc-600" />
                             <span class="truncate">{propiedad.ubicacion}</span>
                           </p>
                         </div>
@@ -265,8 +274,8 @@
                     </td>
 
                     <td class="px-6 py-5 truncate">
-                      <p class="text-sm font-black {propiedad.estatus === 'Vendida' ? 'text-slate-500' : 'text-slate-900'}">{formatter.format(propiedad.precio)}</p>
-                      <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                      <p class="text-sm font-black {propiedad.estatus === 'Vendida' ? 'text-slate-500 dark:text-zinc-600' : 'text-slate-900 dark:text-zinc-100'}">{formatter.format(propiedad.precio)}</p>
+                      <p class="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mt-0.5 flex items-center gap-1">
                         <TrendingUp class="w-3 h-3" /> {propiedad.operacion}
                       </p>
                     </td>
@@ -275,32 +284,31 @@
                       <div class="flex flex-col items-center justify-center gap-2 h-full">
                         {#if propiedad.estatus === 'Vendida'}
                           <span class="inline-flex flex-col items-center gap-1">
-                            <span class="inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1 text-[9px] font-black text-rose-700 uppercase tracking-widest shadow-sm">
-                              <CheckCircle2 class="w-3 h-3 mr-1.5 text-rose-500" /> VENDIDA
+                            <span class="inline-flex items-center rounded-md border border-rose-200 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-1 text-[9px] font-black text-rose-700 dark:text-rose-400 uppercase tracking-widest shadow-sm">
+                              <CheckCircle2 class="w-3 h-3 mr-1.5 text-rose-500 dark:text-rose-400" /> VENDIDA
                             </span>
-                            <span class="text-[8px] font-bold text-slate-400">Oculta en {diasRestantesVisibilidad(propiedad.fecha_vendida)} días</span>
+                            <span class="text-[8px] font-bold text-slate-400 dark:text-zinc-600">Oculta en {diasRestantesVisibilidad(propiedad.fecha_vendida)} días</span>
                           </span>
                         {:else if propiedad.estatus === 'Pre-Mercado'}
-                          <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1 text-[9px] font-bold text-slate-600 uppercase tracking-widest shadow-sm">
-                            <EyeOff class="w-3 h-3 mr-1.5 text-slate-400" /> Oculta
+                          <span class="inline-flex items-center rounded-md border border-slate-200 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 px-2.5 py-1 text-[9px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-widest shadow-sm">
+                            <EyeOff class="w-3 h-3 mr-1.5 text-slate-400 dark:text-zinc-500" /> Oculta
                           </span>
                         {:else}
-                          <span class="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[9px] font-bold text-emerald-700 uppercase tracking-widest shadow-sm">
-                            <CheckCircle2 class="w-3 h-3 mr-1.5 text-emerald-500" /> Pública
+                          <span class="inline-flex items-center rounded-md border border-emerald-200 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest shadow-sm">
+                            <CheckCircle2 class="w-3 h-3 mr-1.5 text-emerald-500 dark:text-emerald-400" /> Pública
                           </span>
                         {/if}
 
-                        <!-- 🚀 FIX: Buscar de forma robusta el Open House más actual o el único que existe -->
                         {#if propiedad.open_houses && propiedad.open_houses.length > 0}
                           {@const activeOH = propiedad.open_houses.find(oh => getOpenHouseStatus(oh) === 'active') || [...propiedad.open_houses].sort((a,b) => new Date(b.event_date) - new Date(a.event_date))[0]}
                           {@const ohStatus = getOpenHouseStatus(activeOH)}
                           
                           {#if ohStatus === 'active'}
-                            <a href="/admin/open-house/{activeOH.id}" class="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[9px] font-bold text-indigo-700 hover:bg-indigo-100 transition-colors uppercase tracking-widest">
+                            <a href="/admin/open-house/{activeOH.id}" class="inline-flex items-center rounded-md border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-1 text-[9px] font-bold text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors uppercase tracking-widest">
                               <CalendarPlus class="w-3 h-3 mr-1" /> Open House
                             </a>
                           {:else}
-                            <a href="/admin/open-house/{activeOH.id}" class="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-50 transition-colors uppercase tracking-widest">
+                            <a href="/admin/open-house/{activeOH.id}" class="inline-flex items-center rounded-md border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1 text-[9px] font-bold text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors uppercase tracking-widest">
                               <CalendarPlus class="w-3 h-3 mr-1" /> Histórico OH
                             </a>
                           {/if}
@@ -308,50 +316,51 @@
                       </div>
                     </td>
 
+                    <!-- Botones de Acción: Limpios y sutiles -->
                     <td class="px-6 py-5">
-                      <div class="flex justify-end gap-1.5 items-center">
+                      <div class="flex justify-end gap-1 items-center">
                         
                         {#if propiedad.estatus !== 'Vendida'}
                           <form method="POST" action="?/marcarVendida" use:enhance class="inline-block m-0 p-0">
                             <input type="hidden" name="id" value={propiedad.id}>
-                            <button type="button" class="p-2 text-emerald-600 hover:text-white hover:bg-emerald-500 rounded-lg transition-colors bg-emerald-50 border border-emerald-100 shadow-sm mr-1" onclick={(e) => { if(confirm('¡Felicidades! ¿Marcar esta propiedad como VENDIDA? Se ocultará automáticamente en 3 días.')) e.target.closest('form').submit(); }} title="Marcar como Vendida">
+                            <button type="button" class="p-2 text-emerald-600 dark:text-emerald-500 hover:text-white dark:hover:text-white hover:bg-emerald-500 dark:hover:bg-emerald-600 rounded-lg transition-colors bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 shadow-sm mr-1" onclick={(e) => { if(confirm('¡Felicidades! ¿Marcar esta propiedad como VENDIDA? Se ocultará automáticamente en 3 días.')) e.target.closest('form').submit(); }} title="Marcar como Vendida">
                               <Handshake class="w-4 h-4" />
                             </button>
                           </form>
                         {:else}
                           <form method="POST" action="?/deshacerVendida" use:enhance class="inline-block m-0 p-0">
                             <input type="hidden" name="id" value={propiedad.id}>
-                            <button type="button" class="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors bg-slate-50 border border-slate-200 shadow-sm mr-1" onclick={(e) => { if(confirm('¿Deseas revertir el estatus de esta propiedad a Activa?')) e.target.closest('form').submit(); }} title="Deshacer Venta">
+                            <button type="button" class="p-2 text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded-lg transition-colors bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-sm mr-1" onclick={(e) => { if(confirm('¿Deseas revertir el estatus de esta propiedad a Activa?')) e.target.closest('form').submit(); }} title="Deshacer Venta">
                               <Handshake class="w-4 h-4" />
                             </button>
                           </form>
                         {/if}
 
-                        <button onclick={() => descargarFicha(propiedad)} disabled={generandoPDF} class="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50" title="Descargar PDF">
+                        <button onclick={() => descargarFicha(propiedad)} disabled={generandoPDF} class="p-2 text-slate-400 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg border border-transparent transition-all disabled:opacity-50" title="Descargar PDF">
                           <DownloadCloud class="w-4 h-4 {generandoPDF ? 'animate-pulse' : ''}" />
                         </button>
                         
-                        <button onclick={() => intentarAbrirBrochure(propiedad.slug)} class="p-2 text-amber-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Smart Brochure">
+                        <button onclick={() => intentarAbrirBrochure(propiedad.slug)} class="p-2 text-amber-500 dark:text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg border border-transparent transition-all" title="Smart Brochure">
                           <Sparkles class="w-4 h-4" />
                         </button>
                         
-                        <button onclick={() => abrirQR(propiedad.slug, propiedad.titulo)} class="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors" title="Generar QR">
+                        <button onclick={() => abrirQR(propiedad.slug, propiedad.titulo)} class="p-2 text-slate-400 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg border border-transparent transition-all" title="Generar QR">
                           <QrCode class="w-4 h-4" />
                         </button>
                         
-                        <button onclick={() => copiarEnlace(propiedad.slug)} class="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors" title="Copiar Enlace">
+                        <button onclick={() => copiarEnlace(propiedad.slug)} class="p-2 text-slate-400 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg border border-transparent transition-all" title="Copiar Enlace">
                           <Link2 class="w-4 h-4" />
                         </button>
 
-                        <div class="w-px h-5 bg-slate-200 mx-1"></div>
+                        <div class="w-px h-5 bg-slate-200 dark:bg-zinc-700 mx-1"></div>
 
-                        <a href="/admin/editar/{propiedad.id}" class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar">
+                        <a href="/admin/editar/{propiedad.id}" class="p-2 text-slate-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg border border-transparent transition-all" title="Editar">
                           <Pencil class="w-4 h-4" />
                         </a>
 
                         <form method="POST" action="?/eliminar" use:enhance class="inline-block m-0 p-0">
                           <input type="hidden" name="id" value={propiedad.id}>
-                          <button type="button" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" onclick={(e) => { if(confirm('¿Borrar propiedad permanentemente?')) e.target.closest('form').submit(); }} title="Eliminar">
+                          <button type="button" class="p-2 text-slate-400 dark:text-zinc-500 hover:text-red-600 dark:hover:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/10 rounded-lg border border-transparent transition-all" onclick={(e) => { if(confirm('¿Borrar propiedad permanentemente?')) e.target.closest('form').submit(); }} title="Eliminar">
                             <Trash2 class="w-4 h-4" />
                           </button>
                         </form>
@@ -368,28 +377,29 @@
   </main>
 </div>
 
+<!-- MODAL B2B -->
 {#if showUpsellModal}
-  <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]" onclick={() => showUpsellModal = false}>
-    <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden transform transition-all border border-slate-200" onclick={e => e.stopPropagation()}>
-      <div class="bg-slate-900 p-8 text-center relative overflow-hidden">
+  <div class="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]" onclick={() => showUpsellModal = false}>
+    <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] max-w-sm w-full overflow-hidden transform transition-all border border-slate-200 dark:border-zinc-800" onclick={e => e.stopPropagation()}>
+      <div class="bg-slate-900 dark:bg-black p-8 text-center relative overflow-hidden">
          <div class="absolute top-0 right-0 w-40 h-40 bg-amber-500/20 rounded-full blur-3xl -mr-10 -mt-10"></div>
          <Sparkles class="w-10 h-10 mx-auto mb-4 text-amber-400 relative z-10" />
          <h3 class="text-xl font-bold tracking-tight text-white relative z-10">Smart Brochure</h3>
       </div>
       <div class="p-8">
-        <p class="text-slate-600 text-sm leading-relaxed mb-6 font-medium text-center">
+        <p class="text-slate-600 dark:text-zinc-400 text-sm leading-relaxed mb-6 font-medium text-center">
           Elimina las distracciones de tu catálogo y envuelve a tu cliente en una experiencia inmersiva, diseñada puramente para cerrar ventas más rápido.
         </p>
-        <div class="bg-amber-50 border border-amber-200/60 rounded-xl p-3 mb-8">
-          <p class="text-[10px] font-bold text-amber-600 text-center uppercase tracking-widest flex items-center justify-center gap-1.5">
+        <div class="bg-amber-50 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-500/20 rounded-xl p-3 mb-8">
+          <p class="text-[10px] font-bold text-amber-600 dark:text-amber-400 text-center uppercase tracking-widest flex items-center justify-center gap-1.5">
             <Sparkles class="w-3 h-3" /> Exclusivo Planes Pro y Elite
           </p>
         </div>
         <div class="flex flex-col gap-3">
-          <a href="/admin/perfil" class="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl text-center hover:bg-slate-800 transition-all text-sm shadow-md active:scale-95">
+          <a href="/admin/perfil" class="w-full bg-slate-900 dark:bg-white text-white dark:text-zinc-900 font-bold py-3.5 rounded-xl text-center hover:bg-slate-800 dark:hover:bg-zinc-200 transition-all text-sm shadow-md active:scale-95">
             Mejorar mi Plan
           </a>
-          <button onclick={() => showUpsellModal = false} class="w-full bg-white text-slate-500 font-bold py-3.5 rounded-xl text-center border border-slate-200 hover:bg-slate-50 transition-all text-sm">
+          <button onclick={() => showUpsellModal = false} class="w-full bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 font-bold py-3.5 rounded-xl text-center border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all text-sm">
             Quizás más tarde
           </button>
         </div>
