@@ -136,4 +136,13 @@
   </div>
 {/if}
 
-{@render children()}
+<div class="min-h-screen relative pb-8">
+  {@render children()}
+  
+  <!-- Enlace Legal Global y Discreto -->
+  <footer class="absolute bottom-2 w-full text-center z-40">
+    <a href="/privacidad" class="text-[10px] font-medium text-slate-400/60 hover:text-slate-600/90 transition-colors duration-300">
+      Privacidad y Legal
+    </a>
+  </footer>
+</div>
