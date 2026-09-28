@@ -15,7 +15,7 @@
   let isAnnual = $state(true);
   let isProcessing = $state(false);
 
-  // Mapeo exacto de los IDs de Stripe que me proporcionaste
+  // Mapeo exacto de los IDs de Stripe
   const plans = {
     basico: {
       mensual: 'price_1UFgBoJHda98KYP8zVxz1V2h',
@@ -49,7 +49,10 @@
   }
 </script>
 
-<div class="min-h-screen bg-slate-50 flex flex-col font-sans">
+<!-- ARQUITECTURA B2B 2026: Fondo Dinámico Global -->
+<div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
+
+<div class="min-h-screen flex flex-col font-sans relative z-10 transition-colors duration-300">
   
   {#if GodMode}
     <div class="bg-indigo-600 text-white px-6 py-2.5 flex items-center justify-center gap-3 shadow-md z-50">
@@ -72,30 +75,34 @@
 
   <div class="flex-1 max-w-6xl mx-auto w-full px-6 py-16">
     <div class="text-center max-w-2xl mx-auto mb-12">
-      <h1 class="text-4xl font-black text-slate-900 tracking-tight mb-4">
+      <h1 class="text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-4">
         La infraestructura de las agencias top
       </h1>
-      <p class="text-slate-500 text-lg">
+      <p class="text-slate-500 dark:text-zinc-400 text-lg">
         Activa tu cuenta hoy. Cancela cuando quieras.
       </p>
 
       <!-- Toggle Mensual / Anual -->
       <div class="flex items-center justify-center gap-4 mt-8">
-        <span class="text-sm font-bold {isAnnual ? 'text-slate-400' : 'text-slate-900'}">Mensual</span>
+        <span class="text-sm font-bold {isAnnual ? 'text-slate-400 dark:text-zinc-500' : 'text-slate-900 dark:text-white'}">Mensual</span>
+        
+        <!-- 🚀 FIX A11Y: aria-label añadido para cumplimiento estricto Svelte 5 -->
         <button 
           type="button"
-          class="relative w-16 h-8 rounded-full transition-colors duration-300 focus:outline-none {isAnnual ? 'bg-indigo-600' : 'bg-slate-300'}"
+          aria-label={isAnnual ? "Cambiar a facturación mensual" : "Cambiar a facturación anual"}
+          class="relative w-16 h-8 rounded-full transition-colors duration-300 focus:outline-none {isAnnual ? 'bg-indigo-600 dark:bg-indigo-500' : 'bg-slate-300 dark:bg-zinc-700'}"
           onclick={() => isAnnual = !isAnnual}
         >
           <div class="absolute top-1 left-1 bg-white w-6 h-6 rounded-full shadow-sm transition-transform duration-300 {isAnnual ? 'translate-x-8' : ''}"></div>
         </button>
-        <span class="text-sm font-bold {isAnnual ? 'text-slate-900' : 'text-slate-400'}">
-          Anual <span class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full ml-1 uppercase tracking-wider">Ahorra 20%</span>
+        
+        <span class="text-sm font-bold {isAnnual ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500'}">
+          Anual <span class="text-[10px] bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full ml-1 uppercase tracking-wider">Ahorra 20%</span>
         </span>
       </div>
 
       {#if form?.error}
-        <div class="mt-6 p-4 bg-red-50 text-red-600 font-bold rounded-xl border border-red-100 text-sm">
+        <div class="mt-6 p-4 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 font-bold rounded-xl border border-red-100 dark:border-red-500/30 text-sm shadow-sm transition-colors">
           {form.error}
         </div>
       {/if}
@@ -105,29 +112,29 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
       
       <!-- BÁSICO -->
-      <form method="POST" action="?/checkout" use:enhance={checkoutHandler} class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative flex flex-col h-full">
+      <form method="POST" action="?/checkout" use:enhance={checkoutHandler} class="bg-white dark:bg-zinc-900 rounded-3xl p-8 border border-slate-200 dark:border-zinc-800 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none hover:border-slate-300 dark:hover:border-zinc-700 transition-colors relative flex flex-col h-full">
         <input type="hidden" name="price_id" value={isAnnual ? plans.basico.anual : plans.basico.mensual}>
         <div class="mb-6">
-          <h3 class="text-xl font-black text-slate-900 mb-2">{plans.basico.name}</h3>
-          <p class="text-sm text-slate-500 font-medium">Esencial para agentes independientes.</p>
+          <h3 class="text-xl font-black text-slate-900 dark:text-white mb-2">{plans.basico.name}</h3>
+          <p class="text-sm text-slate-500 dark:text-zinc-400 font-medium">Esencial para agentes independientes.</p>
         </div>
         <div class="mb-8">
-          <span class="text-4xl font-black text-slate-900">${isAnnual ? plans.basico.priceA : plans.basico.priceM}</span>
-          <span class="text-sm text-slate-500 font-bold">/mes</span>
-          {#if isAnnual}<p class="text-xs text-slate-400 mt-1">Facturado anualmente</p>{/if}
+          <span class="text-4xl font-black text-slate-900 dark:text-white">${isAnnual ? plans.basico.priceA : plans.basico.priceM}</span>
+          <span class="text-sm text-slate-500 dark:text-zinc-500 font-bold">/mes</span>
+          {#if isAnnual}<p class="text-xs text-slate-400 dark:text-zinc-500 mt-1">Facturado anualmente</p>{/if}
         </div>
         <ul class="space-y-4 mb-8 flex-1">
-          <li class="flex items-start gap-3 text-sm text-slate-700 font-medium"><CheckCircle2 class="w-5 h-5 text-emerald-500 shrink-0" /> Inventario ilimitado</li>
-          <li class="flex items-start gap-3 text-sm text-slate-700 font-medium"><CheckCircle2 class="w-5 h-5 text-emerald-500 shrink-0" /> 15 Créditos IA mensuales</li>
-          <li class="flex items-start gap-3 text-sm text-slate-700 font-medium"><CheckCircle2 class="w-5 h-5 text-emerald-500 shrink-0" /> 2 Plantillas Web</li>
+          <li class="flex items-start gap-3 text-sm text-slate-700 dark:text-zinc-300 font-medium"><CheckCircle2 class="w-5 h-5 text-emerald-500 dark:text-emerald-400 shrink-0" /> Inventario ilimitado</li>
+          <li class="flex items-start gap-3 text-sm text-slate-700 dark:text-zinc-300 font-medium"><CheckCircle2 class="w-5 h-5 text-emerald-500 dark:text-emerald-400 shrink-0" /> 15 Créditos IA mensuales</li>
+          <li class="flex items-start gap-3 text-sm text-slate-700 dark:text-zinc-300 font-medium"><CheckCircle2 class="w-5 h-5 text-emerald-500 dark:text-emerald-400 shrink-0" /> 2 Plantillas Web</li>
         </ul>
-        <button type="submit" disabled={isProcessing || GodMode} class="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center">
+        <button type="submit" disabled={isProcessing || GodMode} class="w-full bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-900 dark:text-white font-bold py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center">
           {isProcessing ? 'Conectando...' : GodMode ? 'Acción Bloqueada' : 'Elegir Básico'}
         </button>
       </form>
 
-      <!-- PRO (Highlighted) -->
-      <form method="POST" action="?/checkout" use:enhance={checkoutHandler} class="bg-slate-900 rounded-3xl p-8 border border-slate-800 shadow-2xl relative flex flex-col h-full transform md:-translate-y-4">
+      <!-- PRO (Highlighted - Mantenemos oscuro en ambos modos por diseño premium) -->
+      <form method="POST" action="?/checkout" use:enhance={checkoutHandler} class="bg-slate-900 dark:bg-black rounded-3xl p-8 border border-slate-800 dark:border-zinc-800 shadow-2xl relative flex flex-col h-full transform md:-translate-y-4 transition-colors">
         <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-sm flex items-center gap-1">
           <Zap class="w-3 h-3" /> Más Popular
         </div>
@@ -148,30 +155,30 @@
           <li class="flex items-start gap-3 text-sm text-slate-200 font-medium"><CheckCircle2 class="w-5 h-5 text-amber-400 shrink-0" /> Tracking (Meta Pixel & GA4)</li>
           <li class="flex items-start gap-3 text-sm text-slate-200 font-medium"><CheckCircle2 class="w-5 h-5 text-amber-400 shrink-0" /> Webhook API Access</li>
         </ul>
-        <button type="submit" disabled={isProcessing || GodMode} class="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center shadow-lg shadow-amber-500/20">
+        <button type="submit" disabled={isProcessing || GodMode} class="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center shadow-[0_4px_15px_rgba(245,158,11,0.2)]">
           {isProcessing ? 'Conectando...' : GodMode ? 'Acción Bloqueada' : 'Elegir Pro'}
         </button>
       </form>
 
       <!-- ELITE -->
-      <form method="POST" action="?/checkout" use:enhance={checkoutHandler} class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative flex flex-col h-full">
+      <form method="POST" action="?/checkout" use:enhance={checkoutHandler} class="bg-white dark:bg-zinc-900 rounded-3xl p-8 border border-slate-200 dark:border-zinc-800 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none hover:border-slate-300 dark:hover:border-zinc-700 transition-colors relative flex flex-col h-full">
         <input type="hidden" name="price_id" value={isAnnual ? plans.elite.anual : plans.elite.mensual}>
         <div class="mb-6">
-          <h3 class="text-xl font-black text-slate-900 mb-2">{plans.elite.name}</h3>
-          <p class="text-sm text-slate-500 font-medium">Dominio total del mercado.</p>
+          <h3 class="text-xl font-black text-slate-900 dark:text-white mb-2">{plans.elite.name}</h3>
+          <p class="text-sm text-slate-500 dark:text-zinc-400 font-medium">Dominio total del mercado.</p>
         </div>
         <div class="mb-8">
-          <span class="text-4xl font-black text-slate-900">${isAnnual ? plans.elite.priceA : plans.elite.priceM}</span>
-          <span class="text-sm text-slate-500 font-bold">/mes</span>
-          {#if isAnnual}<p class="text-xs text-slate-400 mt-1">Facturado anualmente</p>{/if}
+          <span class="text-4xl font-black text-slate-900 dark:text-white">${isAnnual ? plans.elite.priceA : plans.elite.priceM}</span>
+          <span class="text-sm text-slate-500 dark:text-zinc-500 font-bold">/mes</span>
+          {#if isAnnual}<p class="text-xs text-slate-400 dark:text-zinc-500 mt-1">Facturado anualmente</p>{/if}
         </div>
         <ul class="space-y-4 mb-8 flex-1">
-          <li class="flex items-start gap-3 text-sm text-slate-700 font-medium"><ShieldCheck class="w-5 h-5 text-indigo-500 shrink-0" /> Todo lo del plan Pro</li>
-          <li class="flex items-start gap-3 text-sm text-slate-700 font-medium"><CheckCircle2 class="w-5 h-5 text-indigo-500 shrink-0" /> 500 Créditos IA mensuales</li>
-          <li class="flex items-start gap-3 text-sm text-slate-700 font-medium"><CheckCircle2 class="w-5 h-5 text-indigo-500 shrink-0" /> TikTok Pixel ID</li>
-          <li class="flex items-start gap-3 text-sm text-slate-700 font-medium"><CheckCircle2 class="w-5 h-5 text-indigo-500 shrink-0" /> Todas las plantillas Elite</li>
+          <li class="flex items-start gap-3 text-sm text-slate-700 dark:text-zinc-300 font-medium"><ShieldCheck class="w-5 h-5 text-indigo-500 dark:text-indigo-400 shrink-0" /> Todo lo del plan Pro</li>
+          <li class="flex items-start gap-3 text-sm text-slate-700 dark:text-zinc-300 font-medium"><CheckCircle2 class="w-5 h-5 text-indigo-500 dark:text-indigo-400 shrink-0" /> 500 Créditos IA mensuales</li>
+          <li class="flex items-start gap-3 text-sm text-slate-700 dark:text-zinc-300 font-medium"><CheckCircle2 class="w-5 h-5 text-indigo-500 dark:text-indigo-400 shrink-0" /> TikTok Pixel ID</li>
+          <li class="flex items-start gap-3 text-sm text-slate-700 dark:text-zinc-300 font-medium"><CheckCircle2 class="w-5 h-5 text-indigo-500 dark:text-indigo-400 shrink-0" /> Todas las plantillas Elite</li>
         </ul>
-        <button type="submit" disabled={isProcessing || GodMode} class="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center">
+        <button type="submit" disabled={isProcessing || GodMode} class="w-full bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-900 dark:text-white font-bold py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center">
           {isProcessing ? 'Conectando...' : GodMode ? 'Acción Bloqueada' : 'Elegir Elite'}
         </button>
       </form>
