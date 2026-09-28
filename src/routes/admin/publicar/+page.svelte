@@ -1,3 +1,4 @@
+<!-- src/routes/admin/publicar/+page.svelte -->
 <script>
   import { Sparkles, Send, Image as ImageIcon, AlertTriangle, CheckCircle2, Instagram, Facebook, Video, Loader2 } from 'lucide-svelte';
 
@@ -121,7 +122,8 @@
   }
 </script>
 
-<div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
+<!-- ARQUITECTURA B2B 2026: Fondo Dinámico Global -->
+<div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
@@ -139,7 +141,7 @@
         </p>
       </div>
       
-      <div class="bg-white/10 backdrop-blur-md border border-white/10 px-5 py-3 rounded-2xl flex items-center gap-4">
+      <div class="bg-white/10 dark:bg-black/20 backdrop-blur-md border border-white/10 dark:border-white/5 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors">
         <div class="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300">
           <Sparkles class="w-5 h-5" />
         </div>
@@ -155,38 +157,38 @@
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
       <div class="max-w-4xl">
 
-        <div class="bg-white border border-slate-200 rounded-3xl p-2 shadow-sm mb-6 flex gap-2">
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-2 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none mb-6 flex gap-2 transition-colors">
           <button 
             onclick={() => plataformaSeleccionada = 'instagram'}
-            class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm transition-all {plataformaSeleccionada === 'instagram' ? 'bg-gradient-to-r from-fuchsia-600 to-pink-500 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}"
+            class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm transition-all {plataformaSeleccionada === 'instagram' ? 'bg-gradient-to-r from-fuchsia-600 to-pink-500 text-white shadow-md dark:shadow-none' : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800'}"
           >
             <Instagram class="w-5 h-5" /> Instagram
           </button>
           <button 
             onclick={() => plataformaSeleccionada = 'facebook'}
-            class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm transition-all {plataformaSeleccionada === 'facebook' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}"
+            class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm transition-all {plataformaSeleccionada === 'facebook' ? 'bg-blue-600 text-white shadow-md dark:shadow-none' : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800'}"
           >
             <Facebook class="w-5 h-5" /> Facebook
           </button>
           <!-- 🚀 FIX: Botón de TikTok en estado Próximamente -->
           <button 
             disabled
-            class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm text-slate-300 cursor-not-allowed relative border border-dashed border-slate-200"
+            class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm text-slate-300 dark:text-zinc-600 cursor-not-allowed relative border border-dashed border-slate-200 dark:border-zinc-700 transition-colors"
           >
             <Video class="w-5 h-5" /> TikTok
-            <span class="absolute -top-2 -right-1 text-[9px] bg-slate-200 text-slate-500 font-black px-2 py-0.5 rounded-full uppercase tracking-widest">
+            <span class="absolute -top-2 -right-1 text-[9px] bg-slate-200 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 font-black px-2 py-0.5 rounded-full uppercase tracking-widest transition-colors">
               Pronto
             </span>
           </button>
         </div>
         
         {#if !redActual}
-          <div class="bg-rose-50 border border-rose-100 rounded-3xl p-6 mb-8 flex items-start gap-4 shadow-sm">
-            <AlertTriangle class="w-6 h-6 text-rose-500 shrink-0" />
+          <div class="bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-3xl p-6 mb-8 flex items-start gap-4 shadow-sm transition-colors">
+            <AlertTriangle class="w-6 h-6 text-rose-500 dark:text-rose-400 shrink-0" />
             <div>
-              <h3 class="text-rose-600 font-bold mb-1 capitalize">{plataformaSeleccionada} no vinculado</h3>
-              <p class="text-sm text-slate-600 mb-4 font-medium">Debes conectar tu cuenta profesional de {plataformaSeleccionada} para poder publicar.</p>
-              <a href="/admin/configuracion/redes" class="inline-flex bg-slate-900 border border-slate-800 text-white text-xs font-bold px-5 py-2.5 rounded-xl hover:bg-slate-800 transition-colors shadow-sm">
+              <h3 class="text-rose-600 dark:text-rose-400 font-bold mb-1 capitalize">{plataformaSeleccionada} no vinculado</h3>
+              <p class="text-sm text-slate-600 dark:text-zinc-400 mb-4 font-medium">Debes conectar tu cuenta profesional de {plataformaSeleccionada} para poder publicar.</p>
+              <a href="/admin/configuracion/redes" class="inline-flex bg-slate-900 dark:bg-white border border-slate-800 dark:border-white text-white dark:text-zinc-900 text-xs font-bold px-5 py-2.5 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors shadow-sm">
                 Ir a Configuración de Redes
               </a>
             </div>
@@ -194,25 +196,25 @@
         {:else}
 
           {#if errorMsg}
-            <div class="bg-rose-50 border border-rose-100 text-rose-600 text-sm font-semibold p-4 rounded-xl mb-6 flex items-center gap-3 shadow-sm">
+            <div class="bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 text-sm font-semibold p-4 rounded-xl mb-6 flex items-center gap-3 shadow-sm transition-colors">
               <AlertTriangle class="w-5 h-5 shrink-0" /> {errorMsg}
             </div>
           {/if}
 
           {#if mensajeExito}
-            <div class="bg-emerald-50 border border-emerald-100 text-emerald-600 text-sm font-semibold p-4 rounded-xl mb-6 flex items-center gap-3 shadow-sm">
+            <div class="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-sm font-semibold p-4 rounded-xl mb-6 flex items-center gap-3 shadow-sm transition-colors">
               <CheckCircle2 class="w-5 h-5 shrink-0" /> {mensajeExito}
             </div>
           {/if}
 
-          <div class="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm mb-8">
+          <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-8 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none mb-8 transition-colors">
             
             <div class="mb-10">
-              <label for="propiedad" class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">1. Selecciona una Propiedad</label>
+              <label for="propiedad" class="block text-xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 transition-colors">1. Selecciona una Propiedad</label>
               <select 
                 id="propiedad" 
                 bind:value={propiedadSeleccionadaId} 
-                class="w-full bg-slate-50 border border-slate-200 text-slate-900 font-semibold rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors cursor-pointer hover:bg-slate-100"
+                class="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-white font-semibold rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-700"
               >
                 <option value="">-- Elige del inventario activo --</option>
                 {#each propiedades as prop}
@@ -223,17 +225,18 @@
 
             {#if propiedadActiva}
               <div class="mb-10">
-                <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">2. Selecciona la Imagen a Publicar</label>
+                <!-- 🚀 FIX A11Y: Se cambia <label> por <p> porque no envuelve ni referencia (for="") a ningún input real -->
+                <p class="block text-xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 transition-colors">2. Selecciona la Imagen a Publicar</p>
                 
                 {#if !propiedadActiva.galeria_urls || propiedadActiva.galeria_urls.length === 0}
-                  <div class="text-sm text-slate-500 font-medium bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center gap-3">
-                    <ImageIcon class="w-5 h-5 text-slate-400" /> Esta propiedad no tiene imágenes cargadas.
+                  <div class="text-sm text-slate-500 dark:text-zinc-400 font-medium bg-slate-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 flex items-center gap-3 transition-colors">
+                    <ImageIcon class="w-5 h-5 text-slate-400 dark:text-zinc-500" /> Esta propiedad no tiene imágenes cargadas.
                   </div>
                 {:else}
                   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {#each propiedadActiva.galeria_urls as img}
                       <button 
-                        class="relative aspect-square rounded-xl overflow-hidden border-2 transition-all group {imagenSeleccionada === img ? 'border-blue-500 ring-4 ring-blue-500/20' : 'border-slate-100 hover:border-slate-300'}"
+                        class="relative aspect-square rounded-xl overflow-hidden border-2 transition-all group {imagenSeleccionada === img ? 'border-blue-500 ring-4 ring-blue-500/20' : 'border-slate-100 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-600'}"
                         onclick={() => imagenSeleccionada = img}
                       >
                         <!-- 🚀 FIX: Loading Lazy para optimizar el frontend -->
@@ -250,13 +253,14 @@
               </div>
 
               <div class="mb-10">
-                <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">3. Texto de la Publicación</label>
+                <!-- 🚀 FIX A11Y: Se agrega el atributo for="captionFinal" para ligarlo al textarea -->
+                <label for="captionFinal" class="block text-xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 transition-colors">3. Texto de la Publicación</label>
 
                 <div class="flex flex-col gap-4">
                   <button 
                     onclick={generarTextoIA} 
                     disabled={generando || tokensDisponibles <= 0}
-                    class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-[0_4px_15px_rgba(59,130,246,0.2)] transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                   >
                     {#if generando}
                       <Loader2 class="w-5 h-5 animate-spin" /> Redactando con IA para {plataformaSeleccionada}...
@@ -266,19 +270,20 @@
                   </button>
 
                   <textarea 
+                    id="captionFinal"
                     bind:value={captionFinal}
                     rows="5"
                     placeholder="El texto optimizado para {plataformaSeleccionada} aparecerá aquí..."
-                    class="w-full bg-slate-50 border border-slate-200 text-slate-900 font-medium rounded-xl p-4 focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500 resize-none transition-colors"
+                    class="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-white font-medium rounded-xl p-4 focus:outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-zinc-900 focus:ring-1 focus:ring-blue-500 resize-none transition-colors placeholder:text-slate-400 dark:placeholder:text-zinc-500"
                   ></textarea>
                 </div>
               </div>
 
-              <div class="pt-8 border-t border-slate-100">
+              <div class="pt-8 border-t border-slate-100 dark:border-zinc-800 transition-colors">
                 <button 
                   onclick={publicarEnRed}
                   disabled={publicando || !captionFinal || !imagenSeleccionada}
-                  class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest py-4 px-6 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-100 disabled:text-slate-400 disabled:border disabled:border-slate-200 disabled:cursor-not-allowed disabled:shadow-none"
+                  class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest py-4 px-6 rounded-xl shadow-[0_4px_15px_rgba(37,99,235,0.2)] transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:text-slate-400 dark:disabled:text-zinc-600 disabled:border disabled:border-slate-200 dark:disabled:border-zinc-700 disabled:cursor-not-allowed disabled:shadow-none"
                 >
                   {#if publicando}
                     <Loader2 class="w-5 h-5 animate-spin" /> Enviando a los servidores...
