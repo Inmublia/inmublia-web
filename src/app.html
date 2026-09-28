@@ -8,20 +8,28 @@
 		<!-- Metaetiqueta de verificación de dominio de Meta (Inmublia SaaS) -->
 		<meta name="facebook-domain-verification" content="3xyroe067favruj25jxn1pqw6ciomx" />
 		
-		<!-- 1. Declaración explícita para navegadores modernos (PNG) -->
 		<link rel="icon" type="image/png" href="%sveltekit.assets%/favicon.png?v=3" />
-		
-		<!-- 2. Declaración explícita para evitar que busque el .ico por defecto (si lo mantienes) -->
-		<!-- Si eliminaste el .ico por completo, puedes omitir esta línea -->
 		<link rel="alternate icon" type="image/x-icon" href="%sveltekit.assets%/favicon.ico?v=3" />
 		
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
 
+		<!-- THEME INITIALIZER (Evita el FOUC) -->
+		<script>
+			try {
+				if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+					document.documentElement.classList.add('dark');
+				} else {
+					document.documentElement.classList.remove('dark');
+				}
+			} catch (_) {}
+		</script>
+
 		%sveltekit.head%
 	</head>
-	<body data-sveltekit-preload-data="hover" class="bg-slate-50 text-slate-900 antialiased selection:bg-blue-600 selection:text-white">
+	<!-- NOTA TÉCNICA: Cambié los fondos base para que respondan al dark mode global -->
+	<body data-sveltekit-preload-data="hover" class="bg-[#F8FAFC] dark:bg-zinc-950 text-slate-900 dark:text-zinc-50 antialiased selection:bg-indigo-500/30">
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>
