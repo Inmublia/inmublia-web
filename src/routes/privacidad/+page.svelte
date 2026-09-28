@@ -72,6 +72,7 @@
           </div>
           <div class="prose prose-sm prose-slate max-w-none text-slate-600 font-medium leading-relaxed">
             <p>En estricto cumplimiento con la <strong>Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP)</strong> de los Estados Unidos Mexicanos y normativas internacionales de privacidad digital, la plataforma <strong>Inmublia</strong> (en adelante "El Sistema", "La Plataforma" o "Nosotros"), operada desde Guadalajara, Jalisco, México, se constituye como el responsable principal del tratamiento, uso, confidencialidad y protección de sus datos personales y comerciales.</p>
+            <p>Para efectos legales, de registro corporativo y de auditoría ante terceros (incluyendo la verificación de desarrolladores de Meta Platforms, Inc.), la plataforma Inmublia es desarrollada, operada y representada legalmente bajo la razón social de Persona Física por <strong>Enrique Alzaga Vargas</strong>, actuando como titular y administrador exclusivo del dominio y la infraestructura tecnológica asociada.</p>
             <p>La presente política regula el uso de los servicios en la nube proporcionados por Inmublia, estableciendo los lineamientos técnicos y legales bajo los cuales procesamos la información que usted confía a nuestra infraestructura.</p>
           </div>
         </section>
