@@ -126,43 +126,44 @@
 <!-- ARQUITECTURA B2B 2026: Fondo base condicionado y suavizado global -->
 <div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
+<!-- 🚀 FIX: Removido el `-mt-16` del main y ajustado el padding de la cabecera para evitar superposición -->
 <div class="w-full flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
-  <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
+  <header class="w-full bg-white dark:bg-zinc-950 text-slate-900 dark:text-white pt-8 pb-12 px-6 sm:px-10 relative overflow-hidden shrink-0 border-b border-slate-200 dark:border-zinc-800 transition-colors duration-300">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
     <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
       <div>
-        <h1 class="text-3xl font-bold tracking-tight text-zinc-50">Inventario Maestro</h1>
-        <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
+        <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">Inventario Maestro</h1>
+        <p class="text-sm font-medium text-slate-500 dark:text-zinc-400 mt-1 flex items-center gap-2">
           <Building2 class="w-4 h-4" /> Consola de Gestión Inmublia
         </p>
       </div>
       
       <div class="flex items-center gap-3">
         {#if broker && broker.subdominio}
-          <a href="https://{broker.subdominio}.inmublia.com" target="_blank" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 hover:text-white h-11 px-5 gap-2 backdrop-blur-sm">
+          <a href="https://{broker.subdominio}.inmublia.com" target="_blank" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/50 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white h-11 px-5 gap-2 backdrop-blur-sm">
             <ExternalLink class="w-4 h-4" /> Ver Portal Público
           </a>
         {/if}
-        <a href="/admin/open-house/nueva" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-indigo-100 h-11 px-5 gap-2 backdrop-blur-sm">
+        <a href="/admin/open-house/nueva" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 h-11 px-5 gap-2 backdrop-blur-sm">
           <CalendarPlus class="w-4 h-4" /> Open House
         </a>
-        <!-- CTA Principal: Mayor prominencia en Light/Dark -->
-        <a href="/admin/nueva" class="inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors bg-white text-zinc-950 hover:bg-zinc-200 h-11 px-6 gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95">
+        <a href="/admin/nueva" class="inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors bg-slate-900 dark:bg-white text-white dark:text-zinc-950 hover:bg-slate-800 dark:hover:bg-zinc-200 h-11 px-6 gap-2 shadow-md active:scale-95">
           <Plus class="w-4 h-4" /> Nueva Propiedad
         </a>
       </div>
     </div>
   </header>
 
-  <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
+  <!-- 🚀 FIX: Padding top añadido al main para que las tarjetas no se peguen a la cabecera -->
+  <main class="w-full flex-1 flex flex-col relative z-20 pt-8">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10">
       
-      <!-- TARJETAS DE MÉTRICAS (Subtle Neumorphism) -->
+      <!-- TARJETAS DE MÉTRICAS -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         
-        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
+        <div class="bg-white dark:bg-zinc-900/40 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800/60 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
           <div class="flex items-center justify-between mb-3">
             <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Valor de Portafolio</p>
             <div class="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-transparent group-hover:scale-110 transition-transform">
@@ -172,7 +173,7 @@
           <p class="text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">{formatter.format(valorPortafolio)}</p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
+        <div class="bg-white dark:bg-zinc-900/40 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800/60 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
           <div class="flex items-center justify-between mb-3">
             <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Total Unidades</p>
             <div class="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-transparent group-hover:scale-110 transition-transform">
@@ -182,7 +183,7 @@
           <p class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{totalPropiedades}</p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group relative overflow-hidden">
+        <div class="bg-white dark:bg-zinc-900/40 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800/60 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group relative overflow-hidden">
           <div class="absolute -right-4 -top-4 w-24 h-24 bg-indigo-50 dark:bg-indigo-500/10 rounded-full blur-2xl opacity-50 pointer-events-none"></div>
           <div class="flex items-center justify-between mb-3 relative z-10">
             <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Públicas</p>
@@ -196,7 +197,7 @@
           </div>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
+        <div class="bg-white dark:bg-zinc-900/40 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800/60 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
           <div class="flex items-center justify-between mb-3">
             <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Pre-Mercado</p>
             <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700 group-hover:scale-110 transition-transform">
@@ -211,19 +212,19 @@
       </div>
 
       <!-- LISTADO Y TABLA -->
-      <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 overflow-hidden relative transition-colors duration-300">
+      <div class="bg-white dark:bg-zinc-900/40 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800/60 overflow-hidden relative transition-colors duration-300">
         
-        <div class="p-5 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/50 dark:bg-zinc-900 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="p-5 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/50 dark:bg-zinc-900/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="relative flex-1 max-w-md">
             <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-zinc-500" />
-            <input type="text" bind:value={searchQuery} placeholder="Buscar por título o colonia..." class="flex h-11 w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 pl-10 pr-3 py-2 text-sm font-medium text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-500 transition-all shadow-sm dark:shadow-none">
+            <input type="text" bind:value={searchQuery} placeholder="Buscar por título o colonia..." class="flex h-11 w-full rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-black/40 pl-10 pr-3 py-2 text-sm font-medium text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-500 transition-all shadow-sm">
           </div>
         </div>
 
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse table-fixed min-w-[900px]">
             <thead>
-              <tr class="text-[10px] font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest bg-white dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-800/50">
+              <tr class="text-[10px] font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest bg-white dark:bg-zinc-900/40 border-b border-slate-100 dark:border-zinc-800/50">
                 <th class="w-[40%] px-6 py-4">Activo Inmobiliario</th>
                 <th class="w-[20%] px-6 py-4">Valor</th>
                 <th class="w-[15%] px-6 py-4 text-center">Estatus</th>
@@ -396,7 +397,7 @@
           </p>
         </div>
         <div class="flex flex-col gap-3">
-          <a href="/admin/perfil" class="w-full bg-slate-900 dark:bg-white text-white dark:text-zinc-900 font-bold py-3.5 rounded-xl text-center hover:bg-slate-800 dark:hover:bg-zinc-200 transition-all text-sm shadow-md active:scale-95">
+          <a href="/admin/perfil" class="w-full bg-slate-900 dark:bg-white text-white dark:text-zinc-900 font-bold py-3.5 rounded-xl text-center hover:bg-slate-800 dark:hover:bg-zinc-200 transition-all text-sm shadow-md active:scale-[0.98]">
             Mejorar mi Plan
           </a>
           <button onclick={() => showUpsellModal = false} class="w-full bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 font-bold py-3.5 rounded-xl text-center border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all text-sm">
