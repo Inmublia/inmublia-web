@@ -8,6 +8,9 @@
     Pencil, Trash2, EyeOff, CheckCircle2, BadgeDollarSign, TrendingUp, Handshake
   } from 'lucide-svelte';
 
+  // 🚀 Importamos la cabecera universal
+  import PageHeader from '$lib/components/PageHeader.svelte';
+
   let { data } = $props();
   let broker = $derived(data.broker);
   let propiedades = $derived(data.propiedades || []);
@@ -30,7 +33,6 @@
   function getOpenHouseStatus(openHouse) {
     if (!openHouse || !openHouse.event_date || !openHouse.time_end) return 'none';
     const now = new Date();
-    // 🚀 FIX: Asegura el parseo correcto de la fecha y hora combinada.
     const eventEndString = `${openHouse.event_date}T${openHouse.time_end}`;
     return now > new Date(eventEndString) ? 'archived' : 'active';
   }
@@ -123,47 +125,40 @@
   }
 </script>
 
-<!-- ARQUITECTURA B2B 2026: Fondo base condicionado y suavizado global -->
 <div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
-<!-- 🚀 FIX: Removido el `-mt-16` del main y ajustado el padding de la cabecera para evitar superposición -->
-<div class="w-full flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
+<!-- 🚀 FIX: El layout principal vuelve a ser relativo y el padding inferior se mantiene -->
+<div class="w-full flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out] relative">
   
-  <header class="w-full bg-white dark:bg-zinc-950 text-slate-900 dark:text-white pt-8 pb-12 px-6 sm:px-10 relative overflow-hidden shrink-0 border-b border-slate-200 dark:border-zinc-800 transition-colors duration-300">
-    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
+  <!-- 🚀 FIX: Usamos PageHeader. Note que la cabecera es position: absolute / sticky o relative con alto z-index -->
+  <PageHeader title="Inventario Maestro" icon={Building2}>
+    {#snippet subtitle()}
+      Consola de Gestión Inmublia
+    {/snippet}
 
-    <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-      <div>
-        <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">Inventario Maestro</h1>
-        <p class="text-sm font-medium text-slate-500 dark:text-zinc-400 mt-1 flex items-center gap-2">
-          <Building2 class="w-4 h-4" /> Consola de Gestión Inmublia
-        </p>
-      </div>
-      
-      <div class="flex items-center gap-3">
-        {#if broker && broker.subdominio}
-          <a href="https://{broker.subdominio}.inmublia.com" target="_blank" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/50 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white h-11 px-5 gap-2 backdrop-blur-sm">
-            <ExternalLink class="w-4 h-4" /> Ver Portal Público
-          </a>
-        {/if}
-        <a href="/admin/open-house/nueva" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 h-11 px-5 gap-2 backdrop-blur-sm">
-          <CalendarPlus class="w-4 h-4" /> Open House
+    {#snippet actions()}
+      {#if broker && broker.subdominio}
+        <a href="https://{broker.subdominio}.inmublia.com" target="_blank" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/50 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white h-11 px-5 gap-2 backdrop-blur-sm">
+          <ExternalLink class="w-4 h-4" /> Ver Portal Público
         </a>
-        <a href="/admin/nueva" class="inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors bg-slate-900 dark:bg-white text-white dark:text-zinc-950 hover:bg-slate-800 dark:hover:bg-zinc-200 h-11 px-6 gap-2 shadow-md active:scale-95">
-          <Plus class="w-4 h-4" /> Nueva Propiedad
-        </a>
-      </div>
-    </div>
-  </header>
+      {/if}
+      <a href="/admin/open-house/nueva" class="hidden sm:inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 h-11 px-5 gap-2 backdrop-blur-sm">
+        <CalendarPlus class="w-4 h-4" /> Open House
+      </a>
+      <a href="/admin/nueva" class="inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors bg-slate-900 dark:bg-white text-white dark:text-zinc-950 hover:bg-slate-800 dark:hover:bg-zinc-200 h-11 px-6 gap-2 shadow-md active:scale-95">
+        <Plus class="w-4 h-4" /> Nueva Propiedad
+      </a>
+    {/snippet}
+  </PageHeader>
 
-  <!-- 🚀 FIX: Padding top añadido al main para que las tarjetas no se peguen a la cabecera -->
-  <main class="w-full flex-1 flex flex-col relative z-20 pt-8">
+  <!-- 🚀 FIX: El main recupera su margen negativo (-mt-16) para crear el efecto Glassmorphism debajo del Header -->
+  <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10">
       
-      <!-- TARJETAS DE MÉTRICAS -->
+      <!-- TARJETAS DE MÉTRICAS (🚀 FIX: Colores sólidos en dark mode: dark:bg-zinc-900) -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         
-        <div class="bg-white dark:bg-zinc-900/40 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800/60 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
+        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
           <div class="flex items-center justify-between mb-3">
             <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Valor de Portafolio</p>
             <div class="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-transparent group-hover:scale-110 transition-transform">
@@ -173,7 +168,7 @@
           <p class="text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">{formatter.format(valorPortafolio)}</p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900/40 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800/60 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
+        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
           <div class="flex items-center justify-between mb-3">
             <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Total Unidades</p>
             <div class="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-transparent group-hover:scale-110 transition-transform">
@@ -183,7 +178,7 @@
           <p class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{totalPropiedades}</p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900/40 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800/60 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group relative overflow-hidden">
+        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group relative overflow-hidden">
           <div class="absolute -right-4 -top-4 w-24 h-24 bg-indigo-50 dark:bg-indigo-500/10 rounded-full blur-2xl opacity-50 pointer-events-none"></div>
           <div class="flex items-center justify-between mb-3 relative z-10">
             <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Públicas</p>
@@ -197,7 +192,7 @@
           </div>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900/40 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800/60 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
+        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
           <div class="flex items-center justify-between mb-3">
             <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Pre-Mercado</p>
             <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700 group-hover:scale-110 transition-transform">
@@ -212,8 +207,10 @@
       </div>
 
       <!-- LISTADO Y TABLA -->
-      <div class="bg-white dark:bg-zinc-900/40 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800/60 overflow-hidden relative transition-colors duration-300">
+      <!-- 🚀 FIX: bg-zinc-900 sólido en dark mode para evitar transparencias lodosas -->
+      <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800 overflow-hidden relative transition-colors duration-300">
         
+        <!-- Barra de búsqueda -->
         <div class="p-5 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/50 dark:bg-zinc-900/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="relative flex-1 max-w-md">
             <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-zinc-500" />
@@ -243,7 +240,6 @@
                 </tr>
               {:else}
                 {#each propiedadesFiltradas as propiedad}
-                  <!-- Fila reactiva B2B -->
                   <tr class="group hover:bg-slate-50/80 dark:hover:bg-zinc-800/30 transition-colors {propiedad.estatus === 'Vendida' ? 'opacity-80 bg-slate-50/50 dark:bg-zinc-900/50' : ''}">
                     
                     <td class="px-6 py-5">
@@ -317,7 +313,6 @@
                       </div>
                     </td>
 
-                    <!-- Botones de Acción: Limpios y sutiles -->
                     <td class="px-6 py-5">
                       <div class="flex justify-end gap-1 items-center">
                         
