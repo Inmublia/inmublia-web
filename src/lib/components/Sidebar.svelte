@@ -49,8 +49,8 @@
   
   <a href="/admin" class="h-20 flex items-center border-b border-slate-200 dark:border-zinc-800/50 hover:bg-slate-100 dark:hover:bg-zinc-900/50 transition-colors group px-6" aria-label="Ir al Inventario Real">
     <div class="flex items-center gap-3 transition-transform duration-300 group-hover:scale-105">
-      <!-- 🚀 FIX: Logo original restaurado, sin íconos genéricos -->
-      <img src="/logo.png" alt="Logo Inmublia" class="w-8 h-8 rounded-lg object-contain bg-violet-600 p-1 shadow-[0_4px_12px_rgba(124,58,237,0.3)]" onerror="this.style.display='none'">
+      <!-- 🚀 FIX: Manejador de eventos nativo de Svelte 5 para el error de imagen -->
+      <img src="/logo.png" alt="Logo Inmublia" class="w-8 h-8 rounded-lg object-contain bg-violet-600 p-1 shadow-[0_4px_12px_rgba(124,58,237,0.3)]" onerror={(e) => e.currentTarget.style.display = 'none'}>
       <h1 class="text-xl font-black tracking-tight text-slate-900 dark:text-white leading-none">Inmublia</h1>
     </div>
   </a>
@@ -110,10 +110,8 @@
     {/if}
   </nav>
   
-  <!-- 🚀 FIX: Arquitectura de Grid Definitiva (Cero Superposiciones) -->
   <div class="p-4 border-t border-slate-200 dark:border-zinc-800/50 bg-slate-50 dark:bg-zinc-950 shrink-0 transition-colors duration-300">
     
-    <!-- Fila 1: Perfil de Usuario (Limpiado y a todo lo ancho para no pelear por espacio) -->
     <div class="flex items-center gap-3 mb-4 px-2">
       <div class="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border border-slate-300 dark:border-zinc-700 shadow-sm shrink-0">
         <img src={broker.avatar_url || `https://ui-avatars.com/api/?name=${broker.nombre_comercial || 'U'}&background=e2e8f0&color=475569`} alt="Avatar" class="w-full h-full object-cover">
@@ -124,9 +122,7 @@
       </div>
     </div>
 
-    <!-- Fila 2: Botones de Acción (Grid simétrico, el botón de tema ya no choca con el texto) -->
     <div class="grid grid-cols-[auto_1fr] gap-2">
-      <!-- Botón de Tema (Cuadrado/Redondeado a la izquierda) -->
       <button 
         onclick={toggleTheme}
         class="flex items-center justify-center w-11 h-11 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-all shadow-sm active:scale-95"
@@ -140,7 +136,6 @@
         {/if}
       </button>
 
-      <!-- Botón de Cerrar Sesión (Ocupa el resto del espacio) -->
       <form action="/logout" method="POST" class="m-0 p-0">
         <button type="submit" class="flex items-center justify-center gap-2 h-11 w-full bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 font-bold transition-all rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm hover:border-rose-200 hover:bg-rose-50 dark:hover:border-rose-500/20 dark:hover:bg-rose-500/10 text-xs cursor-pointer active:scale-95">
           <LogOut class="w-4 h-4" />
