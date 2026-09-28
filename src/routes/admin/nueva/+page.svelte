@@ -215,7 +215,8 @@
   }
 </script>
 
-<div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
+<!-- ARQUITECTURA B2B 2026: Fondo global dinámico -->
+<div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
@@ -237,10 +238,11 @@
 
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1000px] mx-auto px-4 sm:px-10 h-full">
-      <div class="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 sm:p-10 mb-10">
+      <!-- MAIN CONTAINER: Adaptable al tema oscuro -->
+      <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 p-6 sm:p-10 mb-10 transition-colors duration-300">
         
         {#if form?.error}
-          <div class="mb-8 bg-red-50 text-red-600 font-semibold p-4 rounded-xl text-sm border border-red-100 animate-[fadeIn_0.3s_ease-out]">{form.error}</div>
+          <div class="mb-8 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 font-semibold p-4 rounded-xl text-sm border border-red-100 dark:border-red-500/20 animate-[fadeIn_0.3s_ease-out]">{form.error}</div>
         {/if}
 
         <form method="POST" action="?/crear" enctype="multipart/form-data" use:enhance={async ({ formData, cancel }) => { 
@@ -289,16 +291,16 @@
           return async ({ update }) => { loading = false; update(); }; 
         }} class="space-y-12">
           
-          <!-- 🚀 FIX: AVISO DE PAYWALL (Solo si ya llegó al límite) -->
+          <!-- AVISO PAYWALL -->
           {#if hitPropsPaywall}
-             <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-[fadeIn_0.4s_ease-out] shadow-sm">
+             <div class="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-[fadeIn_0.4s_ease-out] shadow-sm">
                 <div class="flex gap-4">
-                  <div class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                    <Lock class="w-6 h-6 text-indigo-600" />
+                  <div class="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center shrink-0">
+                    <Lock class="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <div>
-                    <h3 class="text-lg font-bold text-indigo-900">Límite de Inventario Alcanzado</h3>
-                    <p class="text-sm text-indigo-700 mt-1 font-medium">Has publicado {currentProps} de {maxProps} propiedades permitidas en tu plan actual.</p>
+                    <h3 class="text-lg font-bold text-indigo-900 dark:text-indigo-100">Límite de Inventario Alcanzado</h3>
+                    <p class="text-sm text-indigo-700 dark:text-indigo-300 mt-1 font-medium">Has publicado {currentProps} de {maxProps} propiedades permitidas en tu plan actual.</p>
                   </div>
                 </div>
                 <a href="/admin/perfil" class="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl transition-all shadow-md active:scale-95 text-sm">
@@ -308,113 +310,136 @@
           {/if}
 
           <section class="space-y-6 {hitPropsPaywall ? 'opacity-50 pointer-events-none' : ''}">
-            <div class="border-b border-slate-100 pb-3">
-              <h2 class="text-xl font-bold text-slate-900 tracking-tight">1. Estructura y Multimedia</h2>
+            <div class="border-b border-slate-100 dark:border-zinc-800 pb-3">
+              <h2 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight">1. Estructura y Multimedia</h2>
             </div>
 
-            <div class="p-5 bg-slate-50/50 rounded-xl border border-slate-200 flex items-start gap-4">
+            <!-- Caja Oculta -->
+            <div class="p-5 bg-slate-50/50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 flex items-start gap-4 transition-colors">
               <div class="flex items-center h-5 mt-0.5">
-                <input type="checkbox" id="is_oculta" name="is_oculta" bind:checked={isOculta} class="w-4 h-4 text-slate-900 border-slate-300 rounded focus:ring-slate-900 cursor-pointer">
+                <input type="checkbox" id="is_oculta" name="is_oculta" bind:checked={isOculta} class="w-4 h-4 text-indigo-600 bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 rounded focus:ring-indigo-600 dark:focus:ring-indigo-500 cursor-pointer">
               </div>
               <div class="flex-1">
-                <label for="is_oculta" class="text-sm font-semibold text-slate-900 cursor-pointer">Mantener en Pre-Mercado (Oculta)</label>
-                <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                <label for="is_oculta" class="text-sm font-semibold text-slate-900 dark:text-zinc-100 cursor-pointer">Mantener en Pre-Mercado (Oculta)</label>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
                   La propiedad no será visible en el catálogo público. Solo accesible vía enlace directo.
                 </p>
               </div>
             </div>
 
             <div class="grid grid-cols-1 gap-y-6 gap-x-6 sm:grid-cols-2">
+              
+              <!-- INPUTS Y SELECTS (Adaptables al modo oscuro) -->
               <div>
-                <label for="operacion" class="block text-xs font-semibold text-slate-500 mb-1.5">Operación</label>
+                <label for="operacion" class="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5">Operación</label>
                 <div class="relative w-full">
-                  <select bind:value={valOperacion} id="operacion" name="operacion" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm cursor-pointer appearance-none">
+                  <select bind:value={valOperacion} id="operacion" name="operacion" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm cursor-pointer appearance-none transition-colors">
                     <option value="Venta">Venta</option>
                     <option value="Renta">Renta</option>
                   </select>
                   <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <svg class="w-4 h-4 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                   </div>
                 </div>
               </div>
+
               <div>
-                <label for="tipo" class="block text-xs font-semibold text-slate-500 mb-1.5">Tipo de Inmueble</label>
+                <label for="tipo" class="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5">Tipo de Inmueble</label>
                 <div class="relative w-full">
-                  <select bind:value={valTipo} id="tipo" name="tipo" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm cursor-pointer appearance-none">
+                  <select bind:value={valTipo} id="tipo" name="tipo" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm cursor-pointer appearance-none transition-colors">
                     <option value="Casa">Casa</option>
                     <option value="Departamento">Departamento</option>
                     <option value="Terreno">Terreno</option>
                   </select>
                   <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <svg class="w-4 h-4 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                   </div>
                 </div>
               </div>
 
               <div class="sm:col-span-1">
-                <label for="precio" class="block text-xs font-semibold text-slate-500 mb-1.5">Precio de Mercado (MXN)</label>
+                <label for="precio" class="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5">Precio de Mercado (MXN)</label>
                 <div class="relative">
-                  <BadgeDollarSign class="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
-                  <input bind:value={valPrecio} id="precio" type="text" name="precio" required class="flex h-10 w-full rounded-md border border-slate-200 bg-white pl-10 pr-3 py-2 text-sm font-bold ring-offset-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-sm transition-colors" placeholder="Ej. 5,500,000">
+                  <BadgeDollarSign class="absolute left-3 top-2.5 h-5 w-5 text-slate-400 dark:text-zinc-500" />
+                  <input bind:value={valPrecio} id="precio" type="text" name="precio" required class="flex h-10 w-full rounded-md border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 pl-10 pr-3 py-2 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 shadow-sm transition-colors" placeholder="Ej. 5,500,000">
                 </div>
               </div>
 
+              <!-- Switch Mantenimiento -->
               <div class="sm:col-span-1">
                 <div class="flex justify-between items-center mb-1.5">
-                  <label class="block text-xs font-semibold text-slate-500">Cuota de Mantenimiento</label>
-                  <button type="button" role="switch" aria-checked={cobraMantenimiento} class="relative inline-flex h-4 w-7 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 {cobraMantenimiento ? 'bg-indigo-500' : 'bg-slate-300'}" onclick={() => cobraMantenimiento = !cobraMantenimiento}>
+                  <label class="block text-xs font-semibold text-slate-500 dark:text-zinc-400">Cuota de Mantenimiento</label>
+                  <button type="button" role="switch" aria-checked={cobraMantenimiento} class="relative inline-flex h-4 w-7 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 {cobraMantenimiento ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-zinc-700'}" onclick={() => cobraMantenimiento = !cobraMantenimiento}>
                     <span class="inline-block h-3 w-3 transform rounded-full bg-white transition-transform {cobraMantenimiento ? 'translate-x-3.5' : 'translate-x-0.5'}"></span>
                   </button>
                 </div>
                 {#if cobraMantenimiento}
                   <div class="relative animate-[fadeIn_0.2s_ease-out]">
-                    <BadgeDollarSign class="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
-                    <input bind:value={valMantenimiento} id="mantenimiento" type="text" name="mantenimiento" class="flex h-10 w-full rounded-md border border-indigo-200 bg-white pl-10 pr-3 py-2 text-sm font-bold ring-offset-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shadow-sm transition-colors" placeholder="Ej. 2,500">
+                    <BadgeDollarSign class="absolute left-3 top-2.5 h-5 w-5 text-slate-400 dark:text-zinc-500" />
+                    <input bind:value={valMantenimiento} id="mantenimiento" type="text" name="mantenimiento" class="flex h-10 w-full rounded-md border border-indigo-200 dark:border-indigo-500/50 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white pl-10 pr-3 py-2 text-sm font-bold placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shadow-sm transition-colors" placeholder="Ej. 2,500">
                   </div>
                 {:else}
-                   <div class="h-10 w-full rounded-md border border-slate-100 bg-slate-50 flex items-center px-3 text-xs text-slate-400 font-medium">Sin cuota de mantenimiento</div>
+                   <div class="h-10 w-full rounded-md border border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50 flex items-center px-3 text-xs text-slate-400 dark:text-zinc-500 font-medium">Sin cuota de mantenimiento</div>
                 {/if}
               </div>
 
+              <!-- Comisión -->
               <div class="sm:col-span-2">
-                <label for="comision" class="block text-xs font-semibold text-slate-500 mb-1.5">Comisión Pactada (%) <span class="font-normal text-[10px] text-slate-400">(Opcional)</span></label>
+                <label for="comision" class="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5">Comisión Pactada (%) <span class="font-normal text-[10px] text-slate-400 dark:text-zinc-500">(Opcional)</span></label>
                 <div class="relative">
-                  <input id="comision" type="number" step="0.1" max="100" min="0" name="comision" class="w-full bg-white border border-slate-200 rounded-lg pl-4 pr-10 py-2 text-sm font-bold ring-offset-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 shadow-sm" placeholder="Ej. 6.5">
-                  <span class="absolute right-4 top-2.5 text-slate-400 font-bold">%</span>
+                  <input id="comision" type="number" step="0.1" max="100" min="0" name="comision" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg pl-4 pr-10 py-2 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 shadow-sm transition-colors" placeholder="Ej. 6.5">
+                  <span class="absolute right-4 top-2.5 text-slate-400 dark:text-zinc-500 font-bold">%</span>
                 </div>
-                <p class="text-[10px] text-slate-400 mt-1">Si dejas este campo en blanco, se usará tu porcentaje base global.</p>
+                <p class="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">Si dejas este campo en blanco, se usará tu porcentaje base global.</p>
               </div>
 
               <div class="sm:col-span-2">
-                <label for="ubicacion" class="block text-xs font-semibold text-slate-500 mb-1.5">Ubicación Estratégica (Colonia, Ciudad)</label>
+                <label for="ubicacion" class="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5">Ubicación Estratégica (Colonia, Ciudad)</label>
                 <div class="relative">
-                  <MapPin class="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                  <input bind:value={valUbicacion} id="ubicacion" type="text" name="ubicacion" placeholder="Ej. Puerta de Hierro, Zapopan" class="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none shadow-sm">
+                  <MapPin class="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-zinc-500" />
+                  <input bind:value={valUbicacion} id="ubicacion" type="text" name="ubicacion" placeholder="Ej. Puerta de Hierro, Zapopan" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg pl-9 pr-4 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-400 dark:placeholder:text-zinc-500 transition-colors">
                 </div>
               </div>
 
+              <!-- Matriz de Características Numéricas -->
               <div class="col-span-2 grid grid-cols-3 sm:grid-cols-7 gap-4">
-                <div><label for="recamaras" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Recámaras</label><input bind:value={valRecamaras} id="recamaras" type="number" name="recamaras" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-                <div><label for="banos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Baños</label><input bind:value={valBanos} id="banos" type="number" name="banos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-                <div><label for="medio_bano" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">1/2 Baños</label><input bind:value={valMedioBano} id="medio_bano" type="number" name="medio_bano" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-                <div><label for="estacionamientos" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Autos</label><input bind:value={valEstacionamientos} id="estacionamientos" type="number" name="estacionamientos" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-                <div><label for="m2_terreno" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Terreno</label><input bind:value={valM2Terreno} id="m2_terreno" type="number" name="m2_terreno" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-                <div><label for="m2_construccion" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">M² Const.</label><input bind:value={valM2Construccion} id="m2_construccion" type="number" name="m2_construccion" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-200" placeholder="0"></div>
-                <div><label for="antiguedad" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 text-center w-full">Antigüedad</label><input bind:value={valAntiguedad} id="antiguedad" type="text" name="antiguedad" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm text-center focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-300" placeholder="Ej. 5 años"></div>
+                {#each [
+                  {id:'recamaras', label:'Recámaras', bind: valRecamaras, type:'number'},
+                  {id:'banos', label:'Baños', bind: valBanos, type:'number'},
+                  {id:'medio_bano', label:'1/2 Baños', bind: valMedioBano, type:'number'},
+                  {id:'estacionamientos', label:'Autos', bind: valEstacionamientos, type:'number'},
+                  {id:'m2_terreno', label:'M² Terreno', bind: valM2Terreno, type:'number'},
+                  {id:'m2_construccion', label:'M² Const.', bind: valM2Construccion, type:'number'},
+                  {id:'antiguedad', label:'Antigüedad', bind: valAntiguedad, type:'text', ph:'Ej. 5 años'}
+                ] as field}
+                  <div>
+                    <label for={field.id} class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">{field.label}</label>
+                    <input bind:value={this[field.bind]} id={field.id} type={field.type} name={field.id} class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-200 dark:placeholder:text-zinc-600 transition-colors" placeholder={field.ph || "0"} oninput={(e) => {
+                      if(field.id === 'recamaras') valRecamaras = e.target.value;
+                      if(field.id === 'banos') valBanos = e.target.value;
+                      if(field.id === 'medio_bano') valMedioBano = e.target.value;
+                      if(field.id === 'estacionamientos') valEstacionamientos = e.target.value;
+                      if(field.id === 'm2_terreno') valM2Terreno = e.target.value;
+                      if(field.id === 'm2_construccion') valM2Construccion = e.target.value;
+                      if(field.id === 'antiguedad') valAntiguedad = e.target.value;
+                    }}>
+                  </div>
+                {/each}
               </div>
 
+              <!-- DROPZONES MULTIMEDIA -->
               <div class="sm:col-span-2 pt-2">
-                <label for="imagen_principal" class="block text-xs font-semibold text-slate-500 mb-1.5">Fotografía Principal (Hero)</label>
-                <div class="flex justify-center px-6 pt-5 pb-6 border-2 border-slate-200 border-dashed rounded-xl hover:border-slate-400 bg-slate-50 transition-colors relative overflow-hidden group h-48 cursor-pointer shadow-inner">
+                <label for="imagen_principal" class="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5">Fotografía Principal (Hero)</label>
+                <div class="flex justify-center px-6 pt-5 pb-6 border-2 border-slate-200 dark:border-zinc-700 border-dashed rounded-xl hover:border-slate-400 dark:hover:border-zinc-500 bg-slate-50 dark:bg-zinc-800/50 transition-colors relative overflow-hidden group h-48 cursor-pointer shadow-inner">
                   {#if imagePreview}
                     <img src={imagePreview} alt="Vista previa" class="absolute inset-0 w-full h-full object-cover z-10" />
                     <div class="absolute inset-0 bg-black/10 z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   {/if}
                   <div class="relative z-20 flex flex-col items-center justify-center {imagePreview ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'} transition-opacity">
-                    <div class="bg-white p-3 rounded-full shadow-sm border border-slate-200 mb-2 text-slate-600">
+                    <div class="bg-white dark:bg-zinc-800 p-3 rounded-full shadow-sm border border-slate-200 dark:border-zinc-700 mb-2 text-slate-600 dark:text-zinc-400">
                       <UploadCloud class="w-5 h-5" />
                     </div>
-                    <span class="text-slate-700 font-semibold bg-white/90 backdrop-blur-sm px-3 py-1 rounded-md text-xs shadow-sm border border-slate-200">Subir Portada</span>
+                    <span class="text-slate-700 dark:text-zinc-300 font-semibold bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm px-3 py-1 rounded-md text-xs shadow-sm border border-slate-200 dark:border-zinc-700">Subir Portada</span>
                   </div>
                   <input id="imagen_principal" name="imagen" type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30" required onchange={handleImageChange}>
                 </div>
@@ -422,22 +447,22 @@
 
               <div class="sm:col-span-2">
                 <div class="flex justify-between items-end mb-1.5">
-                  <label for="galeria_input" class="block text-xs font-semibold text-slate-500">Galería Secundaria (1 a 15 fotos)</label>
+                  <label for="galeria_input" class="block text-xs font-semibold text-slate-500 dark:text-zinc-400">Galería Secundaria (1 a 15 fotos)</label>
                   {#if comprimiendoGaleria}
-                    <span class="text-[10px] font-bold text-indigo-600 flex items-center gap-1.5 bg-indigo-50 px-2 py-1 rounded"><Loader2 class="w-3 h-3 animate-spin"/> Optimizando...</span>
+                    <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-1 rounded"><Loader2 class="w-3 h-3 animate-spin"/> Optimizando...</span>
                   {/if}
                 </div>
-                <div class="flex flex-col items-center justify-center p-6 border-2 border-slate-200 border-dashed rounded-xl hover:border-slate-400 bg-slate-50 transition-colors relative cursor-pointer min-h-[120px] shadow-inner">
+                <div class="flex flex-col items-center justify-center p-6 border-2 border-slate-200 dark:border-zinc-700 border-dashed rounded-xl hover:border-slate-400 dark:hover:border-zinc-500 bg-slate-50 dark:bg-zinc-800/50 transition-colors relative cursor-pointer min-h-[120px] shadow-inner">
                   <div class="text-center z-10 relative flex flex-col items-center">
-                    <Images class="w-5 h-5 text-slate-400 mb-2" />
-                    <span class="text-slate-700 font-semibold bg-white px-4 py-2 rounded-md shadow-sm border border-slate-200 text-xs hover:bg-slate-50 transition-colors">Seleccionar Fotos Adicionales</span>
+                    <Images class="w-5 h-5 text-slate-400 dark:text-zinc-500 mb-2" />
+                    <span class="text-slate-700 dark:text-zinc-300 font-semibold bg-white dark:bg-zinc-900 px-4 py-2 rounded-md shadow-sm border border-slate-200 dark:border-zinc-700 text-xs hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">Seleccionar Fotos Adicionales</span>
                   </div>
                   <input id="galeria_input" name="galeria" type="file" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30" onchange={handleGaleriaChange}>
                   
                   {#if galeriaPreviews.length > 0}
                     <div class="mt-6 grid grid-cols-4 sm:grid-cols-6 gap-2 w-full relative z-20 pointer-events-none">
                       {#each galeriaPreviews as preview, index}
-                        <div class="aspect-square rounded-md overflow-hidden bg-slate-200 shadow-sm"><img src={preview} alt="Miniatura {index + 1}" class="w-full h-full object-cover"/></div>
+                        <div class="aspect-square rounded-md overflow-hidden bg-slate-200 dark:bg-zinc-800 shadow-sm"><img src={preview} alt="Miniatura {index + 1}" class="w-full h-full object-cover"/></div>
                       {/each}
                     </div>
                   {/if}
@@ -445,21 +470,22 @@
               </div>
 
               <div class="sm:col-span-2 pt-2">
-                <label for="video_url" class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Video Recorrido (YouTube / Vimeo)</label>
-                <input id="video_url" type="url" name="video_url" placeholder="Ej. https://www.youtube.com/watch?v=..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 shadow-sm">
+                <label for="video_url" class="block text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">Video Recorrido (YouTube / Vimeo)</label>
+                <input id="video_url" type="url" name="video_url" placeholder="Ej. https://www.youtube.com/watch?v=..." class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none text-slate-900 dark:text-white shadow-sm placeholder:text-slate-400 dark:placeholder:text-zinc-500 transition-colors">
               </div>
 
               <div class="sm:col-span-2">
-                <label for="recorrido_3d_url" class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Recorrido 3D (Matterport)</label>
-                <input id="recorrido_3d_url" type="url" name="recorrido_3d_url" placeholder="Ej. https://my.matterport.com/show/?m=..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 outline-none text-slate-900 shadow-sm">
+                <label for="recorrido_3d_url" class="block text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">Recorrido 3D (Matterport)</label>
+                <input id="recorrido_3d_url" type="url" name="recorrido_3d_url" placeholder="Ej. https://my.matterport.com/show/?m=..." class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none text-slate-900 dark:text-white shadow-sm placeholder:text-slate-400 dark:placeholder:text-zinc-500 transition-colors">
               </div>
             </div>
           </section>
 
+          <!-- SECCIÓN IA (Mantener estética oscura como contraste de marca) -->
           <section class="relative {hitPropsPaywall ? 'opacity-50 pointer-events-none' : ''}">
-            <div class="bg-slate-800 rounded-[2rem] p-6 sm:p-10 relative overflow-hidden shadow-lg border border-slate-700">
+            <div class="bg-slate-900 rounded-[2rem] p-6 sm:p-10 relative overflow-hidden shadow-lg border border-slate-800">
               
-              <div class="absolute -top-32 -right-32 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none"></div>
+              <div class="absolute -top-32 -right-32 w-64 h-64 bg-indigo-500/20 blur-[80px] rounded-full pointer-events-none"></div>
 
               <div class="relative z-10">
                 <div class="flex flex-col items-center w-full mb-8">
@@ -486,11 +512,11 @@
                 {/if}
 
                 {#if creditosIA > 0}
-                  <div class="flex flex-col sm:flex-row items-end justify-center gap-4 sm:gap-6 w-full max-w-3xl mx-auto bg-slate-700/40 border border-slate-600/50 backdrop-blur-md rounded-2xl p-4 shadow-inner">
+                  <div class="flex flex-col sm:flex-row items-end justify-center gap-4 sm:gap-6 w-full max-w-3xl mx-auto bg-slate-800/60 border border-slate-700/50 backdrop-blur-md rounded-2xl p-4 shadow-inner">
                     <div class="flex flex-col items-center gap-2 w-full sm:w-1/3">
                       <label for="tono-ia" class="text-[10px] font-bold text-slate-300 uppercase tracking-widest text-center w-full">Tono de Redacción</label>
                       <div class="relative w-full">
-                        <select id="tono-ia" bind:value={tonoIA} class="w-full bg-slate-800 text-white border border-slate-600 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner cursor-pointer appearance-none pr-10">
+                        <select id="tono-ia" bind:value={tonoIA} class="w-full bg-slate-900 text-white border border-slate-700 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner cursor-pointer appearance-none pr-10">
                           <option value="lujo">Premium / Elegante</option>
                           <option value="familiar">Familiar / Cálido</option>
                           <option value="inversionista">Analítico / ROI</option>
@@ -502,7 +528,7 @@
                     </div>
 
                     <div class="flex items-center justify-center w-full sm:w-1/3 pb-1">
-                      <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-800 border border-slate-600/80 rounded-full text-xs font-bold text-slate-200 shadow-inner">
+                      <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 border border-slate-700/80 rounded-full text-xs font-bold text-slate-200 shadow-inner">
                         <Sparkles class="w-4 h-4 text-amber-400" />
                         {creditosIA} {creditosIA === 1 ? 'Crédito' : 'Créditos'}
                       </div>
@@ -522,6 +548,7 @@
                     </div>
                   </div>
                 {:else}
+                  <!-- El bloque de Paywall IA se mantiene intacto con su estilo propio -->
                   <div class="w-full max-w-3xl mx-auto bg-gradient-to-br from-indigo-900/50 to-slate-900/80 border border-indigo-500/30 rounded-2xl p-8 shadow-2xl text-center relative overflow-hidden">
                     <Zap class="w-12 h-12 text-amber-400 mx-auto mb-4 animate-bounce" />
                     
@@ -564,7 +591,7 @@
 
               {#if iaEjecutada && textoGeneradoWhatsapp}
                 <div class="mt-8 animate-[fadeIn_0.4s_ease-out] relative z-10 max-w-2xl mx-auto">
-                  <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 flex flex-col">
+                  <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl p-6 flex flex-col">
                     <div class="flex items-center justify-between mb-4">
                       <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
                         <MessageCircle class="w-4 h-4 text-emerald-400" />
@@ -601,11 +628,11 @@
             </div>
           </section>
 
-          <section id="seccion-oficial" class="space-y-6 pt-10 border-t border-slate-100 {hitPropsPaywall ? 'opacity-50 pointer-events-none' : ''}">
-            <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
-              <h2 class="text-xl font-bold text-slate-900 tracking-tight">3. Publicación Oficial</h2>
+          <section id="seccion-oficial" class="space-y-6 pt-10 border-t border-slate-100 dark:border-zinc-800 transition-colors {hitPropsPaywall ? 'opacity-50 pointer-events-none' : ''}">
+            <div class="border-b border-slate-100 dark:border-zinc-800 pb-3 flex items-center justify-between">
+              <h2 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight">3. Publicación Oficial</h2>
               {#if iaEjecutada && !generandoIA}
-                <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5 animate-[fadeIn_0.4s_ease-out]">
+                <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-500/20 flex items-center gap-1.5 animate-[fadeIn_0.4s_ease-out]">
                   <CheckCircle2 class="w-3.5 h-3.5" />
                   Autocompletado por IA
                 </span>
@@ -613,36 +640,36 @@
             </div>
 
             <div>
-              <label for="titulo" class="block text-xs font-semibold text-slate-500 mb-1.5">Título de la Publicación (Obligatorio)</label>
-              <input bind:value={valTitulo} id="titulo" type="text" name="titulo" required class="w-full bg-white border border-slate-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-slate-900 text-sm font-bold shadow-sm outline-none text-slate-900 placeholder:text-slate-300 transition-colors" placeholder="Ej. Residencia Minimalista en Puerta de Hierro">
+              <label for="titulo" class="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5">Título de la Publicación (Obligatorio)</label>
+              <input bind:value={valTitulo} id="titulo" type="text" name="titulo" required class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500/50 text-sm font-bold shadow-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-zinc-600 transition-colors" placeholder="Ej. Residencia Minimalista en Puerta de Hierro">
             </div>
 
             <div>
-              <label for="descripcion" class="block text-xs font-semibold text-slate-500 mb-1.5">Descripción Editorial (Obligatorio)</label>
-              <textarea bind:value={valDescripcion} id="descripcion" name="descripcion" rows="12" class="w-full bg-white border border-slate-200 rounded-lg p-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-slate-900 text-slate-800 leading-relaxed resize-y placeholder:text-slate-300 transition-colors" placeholder="Escribe aquí los detalles de la propiedad o usa el Estudio Creativo IA para redactar..."></textarea>
+              <label for="descripcion" class="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5">Descripción Editorial (Obligatorio)</label>
+              <textarea bind:value={valDescripcion} id="descripcion" name="descripcion" rows="12" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-800 dark:text-zinc-300 leading-relaxed resize-y placeholder:text-slate-300 dark:placeholder:text-zinc-600 transition-colors" placeholder="Escribe aquí los detalles de la propiedad o usa el Estudio Creativo IA para redactar..."></textarea>
             </div>
 
-            <div class="flex items-start mt-4 p-5 bg-slate-50/50 rounded-xl border border-slate-200 shadow-inner">
+            <div class="flex items-start mt-4 p-5 bg-slate-50/50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-inner transition-colors">
               <div class="flex items-center h-5 mt-0.5">
-                <input type="checkbox" id="destacada" name="destacada" class="w-4 h-4 text-slate-900 rounded cursor-pointer border border-slate-300 focus:ring-slate-900">
+                <input type="checkbox" id="destacada" name="destacada" class="w-4 h-4 text-indigo-600 bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 rounded cursor-pointer focus:ring-indigo-600 dark:focus:ring-indigo-500">
               </div>
               <div class="ml-3 flex-1">
-                <label for="destacada" class="text-sm font-semibold text-slate-900 cursor-pointer">VIP / Signature (Propiedad Destacada)</label>
-                <p class="text-xs text-slate-500 mt-1 leading-relaxed">Resalta este inmueble en tu catálogo público como una exclusiva de alto valor.</p>
+                <label for="destacada" class="text-sm font-semibold text-slate-900 dark:text-zinc-100 cursor-pointer">VIP / Signature (Propiedad Destacada)</label>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">Resalta este inmueble en tu catálogo público como una exclusiva de alto valor.</p>
               </div>
             </div>
           </section>
 
-          <section class="space-y-6 pt-10 border-t border-slate-100 {hitPropsPaywall ? 'opacity-50 pointer-events-none' : ''}">
-            <div class="border-b border-slate-100 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <section class="space-y-6 pt-10 border-t border-slate-100 dark:border-zinc-800 transition-colors {hitPropsPaywall ? 'opacity-50 pointer-events-none' : ''}">
+            <div class="border-b border-slate-100 dark:border-zinc-800 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h2 class="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                  <LayoutTemplate class="w-5 h-5 text-indigo-500" /> 4. Diseño del Smart Brochure
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                  <LayoutTemplate class="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> 4. Diseño del Smart Brochure
                 </h2>
-                <p class="text-xs text-slate-500 mt-1">Elige la plantilla específica para vestir la página de este inmueble.</p>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">Elige la plantilla específica para vestir la página de este inmueble.</p>
               </div>
-              <div class="bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-lg">
-                <p class="text-[10px] font-bold text-indigo-800 uppercase tracking-widest">Plan de Acceso: {planSuscripcion}</p>
+              <div class="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 px-3 py-1.5 rounded-lg">
+                <p class="text-[10px] font-bold text-indigo-800 dark:text-indigo-400 uppercase tracking-widest">Plan de Acceso: {planSuscripcion}</p>
               </div>
             </div>
 
@@ -654,10 +681,10 @@
                 {@const activo = selectedTemplate === template.id}
                 
                 <div class="flex flex-col gap-3">
-                  <label class="relative border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group {activo ? 'border-indigo-600 ring-2 ring-indigo-600 shadow-md bg-indigo-50/10' : 'border-slate-200 hover:border-slate-300 bg-white'} {!autorizado ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-1 hover:shadow-lg'}">
+                  <label class="relative border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group {activo ? 'border-indigo-600 dark:border-indigo-500 ring-2 ring-indigo-600 dark:ring-indigo-500 shadow-md bg-indigo-50/50 dark:bg-indigo-500/10' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-500 bg-white dark:bg-zinc-900'} {!autorizado ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-1 hover:shadow-lg'}">
                     <input type="radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
                     
-                    <div class="aspect-video w-full bg-slate-100 relative overflow-hidden border-b border-slate-100">
+                    <div class="aspect-video w-full bg-slate-100 dark:bg-zinc-800 relative overflow-hidden border-b border-slate-100 dark:border-zinc-800">
                        <img 
                          src={template.img} 
                          alt={template.nombre} 
@@ -665,26 +692,26 @@
                          class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                        />
                        {#if activo}
-                         <div class="absolute inset-0 bg-indigo-600/15 mix-blend-multiply transition-colors"></div>
+                         <div class="absolute inset-0 bg-indigo-600/15 dark:bg-indigo-500/20 mix-blend-multiply transition-colors"></div>
                        {/if}
                     </div>
 
-                    <div class="p-4 flex flex-col justify-between flex-1 bg-white">
+                    <div class="p-4 flex flex-col justify-between flex-1 bg-transparent">
                       <div class="flex items-center justify-between gap-2">
-                        <span class="font-bold text-sm leading-tight {activo ? 'text-indigo-900' : 'text-slate-900'}">{template.nombre}</span>
+                        <span class="font-bold text-sm leading-tight {activo ? 'text-indigo-900 dark:text-indigo-300' : 'text-slate-900 dark:text-zinc-200'}">{template.nombre}</span>
                         {#if !autorizado}
-                          <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-slate-200 text-slate-500 shrink-0">
+                          <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 shrink-0">
                             🔒 {template.minPlan}
                           </span>
                         {:else if activo}
-                          <CheckCircle2 class="w-5 h-5 text-indigo-600 shrink-0" />
+                          <CheckCircle2 class="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                         {/if}
                       </div>
                     </div>
                   </label>
                   
                   {#if autorizado}
-                    <a href="/propiedad-demo?template={template.id}&sandbox=true" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 text-[11px] font-bold py-2 rounded-lg transition-colors border border-slate-200">
+                    <a href="/propiedad-demo?template={template.id}&sandbox=true" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 text-[11px] font-bold py-2 rounded-lg transition-colors border border-slate-200 dark:border-zinc-700">
                       <Eye class="w-3.5 h-3.5" /> Previsualizar Diseño
                     </a>
                   {/if}
@@ -693,19 +720,18 @@
             </div>
           </section>
 
-          <div class="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-100">
-            <a href="/admin" class="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold py-2.5 px-6 rounded-lg transition-colors text-sm text-center">Cancelar</a>
+          <div class="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-100 dark:border-zinc-800 transition-colors">
+            <a href="/admin" class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 font-semibold py-2.5 px-6 rounded-lg transition-colors text-sm text-center">Cancelar</a>
             
-            <!-- 🚀 FIX: Mutación dinámica del botón de Acción Principal según el Paywall -->
             {#if hitPropsPaywall}
               <a href="/admin/perfil" class="bg-indigo-600 text-white font-bold py-2.5 px-8 rounded-lg shadow-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-95">
                  <Lock class="w-4 h-4" />
                  Actualizar Plan para Continuar
               </a>
             {:else}
-              <button type="submit" disabled={loading || comprimiendoGaleria} class="bg-slate-900 text-white font-bold py-2.5 px-8 rounded-lg disabled:opacity-50 shadow-sm hover:bg-slate-800 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-95">
+              <button type="submit" disabled={loading || comprimiendoGaleria} class="bg-slate-900 dark:bg-white text-white dark:text-zinc-900 font-bold py-2.5 px-8 rounded-lg disabled:opacity-50 shadow-sm hover:bg-slate-800 dark:hover:bg-slate-100 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-95">
                 {#if loading || comprimiendoGaleria}
-                  <Loader2 class="animate-spin w-4 h-4 text-white" />
+                  <Loader2 class="animate-spin w-4 h-4 {loading ? 'text-white dark:text-zinc-900' : ''}" />
                    Procesando...
                 {:else}
                    <UploadCloud class="w-4 h-4" />
