@@ -39,7 +39,8 @@
       fbq('track', 'PageView');
     </script>
     <noscript>
-      <img height="1" width="1" style="display:none"
+      <!-- FIX: Atributo alt="" añadido para silenciar el warning de a11y -->
+      <img height="1" width="1" style="display:none" alt=""
       src="https://www.facebook.com/tr?id={fbPixel}&ev=PageView&noscript=1"
       />
     </noscript>
