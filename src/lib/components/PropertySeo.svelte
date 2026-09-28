@@ -2,14 +2,15 @@
   let { propiedad, broker, urlActual } = $props();
 
   // Resolución Dinámica de Moneda (Preparado para expansión LATAM)
-  // Verifica si la propiedad tiene una moneda asignada; si no, asume MXN.
-  const monedaDinamica = propiedad.moneda || "MXN";
+  // 🚀 FIX: Envuelto en $derived para mantener la reactividad estricta de Svelte 5
+  let monedaDinamica = $derived(propiedad.moneda || "MXN");
 
   // Resolución del país basado en la moneda para el esquema
-  const countryCode = monedaDinamica === "MXN" ? "MX" : (monedaDinamica === "COP" ? "CO" : "LATAM");
+  let countryCode = $derived(monedaDinamica === "MXN" ? "MX" : (monedaDinamica === "COP" ? "CO" : "LATAM"));
 
   // Construcción del Esquema JSON-LD para ChatGPT, Gemini y Google
-  const jsonLd = {
+  // 🚀 FIX: Convertido a $derived para asegurar que si los props cambian, el esquema se actualice
+  let jsonLd = $derived({
     "@context": "https://schema.org",
     "@type": "RealEstateListing",
     "name": propiedad.titulo,
@@ -40,7 +41,7 @@
       "value": propiedad.m2_construccion,
       "unitCode": "MTK" // Standard Unit Code para Metros Cuadrados
     }
-  };
+  });
 </script>
 
 <svelte:head>
