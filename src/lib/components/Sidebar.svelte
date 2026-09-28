@@ -1,5 +1,7 @@
+<!-- src/lib/components/Sidebar.svelte -->
 <script>
   import { page } from '$app/stores';
+  import { browser } from '$app/environment';
   import { 
     LayoutDashboard, 
     Users, 
@@ -9,8 +11,10 @@
     Target,
     Palette,
     Terminal,
-    Share2, // Sustituido 'Send' por 'Share2' (más estándar en B2B para publicación multicanal)
-    Building2
+    Share2, 
+    Building2,
+    Sun,
+    Moon
   } from 'lucide-svelte';
   
   let broker = $derived($page.data.broker || {});
@@ -19,6 +23,26 @@
   const rolesOperativos = ['soporte', 'operaciones', 'ingenieria', 'superadmin'];
   let miRol = $derived($page.data.rolInterno || 'broker');
   let tieneAcceso = $derived(rolesOperativos.includes(miRol));
+
+  // 🔥 GESTIÓN DEL TEMA NATIVO EN EL SIDEBAR (SaaS 2026 Standard)
+  let isDarkMode = $state(false);
+
+  $effect(() => {
+    if (browser) {
+      isDarkMode = document.documentElement.classList.contains('dark');
+    }
+  });
+
+  function toggleTheme() {
+    isDarkMode = !isDarkMode;
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }
 </script>
 
 <!-- 
@@ -29,7 +53,6 @@
 <aside class="w-[260px] bg-slate-50 dark:bg-zinc-950 flex flex-col hidden md:flex shrink-0 shadow-[4px_0_24px_rgba(15,23,42,0.02)] dark:shadow-2xl z-10 h-screen font-sans border-r border-slate-200 dark:border-transparent transition-colors duration-300">
   
   <a href="/admin" class="h-20 flex items-center justify-center border-b border-slate-200 dark:border-zinc-800/50 hover:bg-slate-100 dark:hover:bg-zinc-900/50 transition-colors group px-6" aria-label="Ir al Inventario Real">
-    <!-- Icono tipográfico moderno en lugar de PNG estático (mejor contraste dual) -->
     <div class="flex items-center gap-3 transition-transform duration-300 group-hover:scale-105">
       <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-[0_4px_12px_rgba(79,70,229,0.3)]">
         <Building2 class="w-4 h-4" />
@@ -97,15 +120,31 @@
   </nav>
   
   <div class="p-6 border-t border-slate-200 dark:border-zinc-800/50 bg-slate-50 dark:bg-zinc-950 shrink-0 transition-colors duration-300">
-    <div class="flex items-center gap-3 mb-5 px-2">
+    <div class="flex items-center justify-between gap-3 mb-5 px-2">
       <!-- Soporte para Avatars tanto claros como oscuros -->
-      <div class="w-9 h-9 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border border-slate-300 dark:border-zinc-700 shadow-sm shrink-0">
-        <img src={broker.avatar_url || `https://ui-avatars.com/api/?name=${broker.nombre_comercial || 'U'}&background=e2e8f0&color=475569`} alt="Avatar" class="w-full h-full object-cover">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border border-slate-300 dark:border-zinc-700 shadow-sm shrink-0">
+          <img src={broker.avatar_url || `https://ui-avatars.com/api/?name=${broker.nombre_comercial || 'U'}&background=e2e8f0&color=475569`} alt="Avatar" class="w-full h-full object-cover">
+        </div>
+        <div class="truncate">
+          <p class="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate">{broker.nombre_comercial || 'Usuario Maestro'}</p>
+          <p class="text-[10px] font-semibold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Asesor Inmobiliario</p>
+        </div>
       </div>
-      <div class="truncate">
-        <p class="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate">{broker.nombre_comercial || 'Usuario Maestro'}</p>
-        <p class="text-[10px] font-semibold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Asesor Inmobiliario</p>
-      </div>
+      
+      <!-- 🚀 FIX: Toggle de Tema Integrado Elegantemente (SaaS Standard) -->
+      <button 
+        onclick={toggleTheme}
+        class="shrink-0 p-2 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-all shadow-sm active:scale-95"
+        aria-label="Alternar Tema"
+        title="Cambiar Apariencia"
+      >
+        {#if isDarkMode}
+          <Sun class="w-4 h-4" />
+        {:else}
+          <Moon class="w-4 h-4" />
+        {/if}
+      </button>
     </div>
 
     <form action="/logout" method="POST">
