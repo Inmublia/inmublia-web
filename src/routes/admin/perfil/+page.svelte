@@ -174,18 +174,19 @@
 </script>
 
 {#if showSuccess}
-  <div class="fixed bottom-10 right-10 z-[100] p-5 bg-slate-900 rounded-2xl flex items-center gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-700 animate-[fadeIn_0.3s_ease-out]" role="alert">
+  <div class="fixed bottom-10 right-10 z-[100] p-5 bg-slate-900 dark:bg-zinc-800 rounded-2xl flex items-center gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-700 dark:border-zinc-700 animate-[fadeIn_0.3s_ease-out] transition-colors" role="alert">
     <div class="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center shrink-0 border border-emerald-500/30">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
     </div>
     <div class="pr-4">
       <p class="text-sm font-black text-white tracking-wide">¡Guardado con éxito!</p>
-      <p class="text-xs font-medium text-slate-400 mt-0.5">{successMessage}</p>
+      <p class="text-xs font-medium text-slate-400 dark:text-zinc-400 mt-0.5">{successMessage}</p>
     </div>
   </div>
 {/if}
 
-<div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
+<!-- ARQUITECTURA B2B 2026: Fondo Dinámico Global -->
+<div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
   
@@ -213,11 +214,12 @@
 
       {#if !accesoBloqueado}
         <div>
-          <button type="button" onclick={() => submitBtnPerfil?.click()} disabled={savingProfile || subdominioError} class="bg-white hover:bg-zinc-200 disabled:bg-zinc-300 disabled:text-zinc-500 text-zinc-950 font-bold py-3 px-6 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center gap-2 transition-all text-sm cursor-pointer active:scale-95">
+          <!-- CTA Bimodal -->
+          <button type="button" onclick={() => submitBtnPerfil?.click()} disabled={savingProfile || subdominioError} class="bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 disabled:bg-zinc-300 dark:disabled:bg-zinc-800 disabled:text-zinc-500 dark:disabled:text-zinc-600 text-zinc-950 dark:text-white border border-transparent dark:border-zinc-700 font-bold py-3 px-6 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.15)] dark:shadow-[0_0_20px_rgba(0,0,0,0.5)] flex items-center gap-2 transition-all text-sm cursor-pointer active:scale-95">
             {#if savingProfile}
-              <span class="w-4 h-4 border-2 border-zinc-950/30 border-t-zinc-950 rounded-full animate-spin"></span> Guardando...
+              <span class="w-4 h-4 border-2 border-zinc-950/30 dark:border-white/30 border-t-zinc-950 dark:border-t-white rounded-full animate-spin"></span> Guardando...
             {:else}
-              <Save class="w-4 h-4 text-indigo-500" /> Guardar Perfil
+              <Save class="w-4 h-4 text-indigo-500 dark:text-indigo-400" /> Guardar Perfil
             {/if}
           </button>
         </div>
@@ -230,31 +232,31 @@
 
       {#if accesoBloqueado}
         <div class="flex items-center justify-center pt-10">
-          <div class="bg-white rounded-3xl max-w-lg w-full p-10 shadow-2xl text-center border border-red-100 relative overflow-hidden animate-[fadeIn_0.3s_ease-out]">
+          <div class="bg-white dark:bg-zinc-900 rounded-3xl max-w-lg w-full p-10 shadow-[0_20px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.6)] text-center border border-red-100 dark:border-red-900/30 relative overflow-hidden animate-[fadeIn_0.3s_ease-out] transition-colors">
             <div class="absolute top-0 right-0 w-40 h-40 {esCancelado ? 'bg-red-500/10' : 'bg-amber-500/10'} rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
             
             {#if esCancelado}
-              <AlertOctagon class="w-16 h-16 text-red-500 mx-auto mb-5 relative z-10" />
-              <h2 class="text-2xl font-black text-slate-900 mb-3 relative z-10">Suscripción Cancelada</h2>
-              <p class="text-sm text-slate-600 mb-8 leading-relaxed font-medium relative z-10">
+              <AlertOctagon class="w-16 h-16 text-red-500 dark:text-red-400 mx-auto mb-5 relative z-10" />
+              <h2 class="text-2xl font-black text-slate-900 dark:text-white mb-3 relative z-10">Suscripción Cancelada</h2>
+              <p class="text-sm text-slate-600 dark:text-zinc-400 mb-8 leading-relaxed font-medium relative z-10">
                 Tu plan ha sido cancelado y el acceso a la plataforma ha sido revocado. Para volver a utilizar tu CRM y publicar tu inventario, es necesario recontratar un plan.
               </p>
-              <a href="/admin/planes" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl transition-all shadow-xl active:scale-95 relative z-10">
+              <a href="/admin/planes" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white font-bold py-4 rounded-xl transition-all shadow-xl active:scale-95 relative z-10">
                 Ver Planes y Contratar
               </a>
             {:else}
-              <AlertOctagon class="w-16 h-16 text-amber-500 mx-auto mb-5 relative z-10" />
-              <h2 class="text-2xl font-black text-slate-900 mb-3 relative z-10">Método de Pago Rechazado</h2>
-              <p class="text-sm text-slate-600 mb-8 leading-relaxed font-medium relative z-10">
+              <AlertOctagon class="w-16 h-16 text-amber-500 dark:text-amber-400 mx-auto mb-5 relative z-10" />
+              <h2 class="text-2xl font-black text-slate-900 dark:text-white mb-3 relative z-10">Método de Pago Rechazado</h2>
+              <p class="text-sm text-slate-600 dark:text-zinc-400 mb-8 leading-relaxed font-medium relative z-10">
                 No pudimos procesar el cobro de tu membresía. Para reactivar de inmediato el acceso a tu inventario y a la consola operativa, por favor actualiza los fondos o la tarjeta.
               </p>
-              <a href="/api/stripe/portal" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl transition-all shadow-xl active:scale-95 relative z-10">
+              <a href="/api/stripe/portal" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white font-bold py-4 rounded-xl transition-all shadow-xl active:scale-95 relative z-10">
                 Actualizar Tarjeta en Stripe
               </a>
             {/if}
 
             <div class="mt-8 flex justify-center relative z-10">
-              <a href="/login" class="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest">Cerrar Sesión</a>
+              <a href="/login" class="text-xs font-bold text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors uppercase tracking-widest">Cerrar Sesión</a>
             </div>
           </div>
         </div>
@@ -262,8 +264,8 @@
       {:else}
 
         {#if form?.error && form?.formId !== 'webhook'}
-           <div class="mb-6 bg-red-100 text-red-800 font-bold p-6 rounded-xl border-2 border-red-300 text-sm whitespace-pre-wrap shadow-lg" role="alert">
-              ⚠️ DIAGNÓSTICO: {form.error}
+           <div class="mb-6 bg-red-100 dark:bg-red-500/10 text-red-800 dark:text-red-400 font-bold p-6 rounded-xl border border-red-300 dark:border-red-500/30 text-sm whitespace-pre-wrap shadow-lg" role="alert">
+             ⚠️ DIAGNÓSTICO: {form.error}
            </div>
         {/if}
 
@@ -312,68 +314,67 @@
               
               <button type="submit" aria-hidden="true" bind:this={submitBtnPerfil} class="hidden">Guardar</button>
 
-              <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
+              <div class="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-zinc-800 mb-6 transition-colors">
                 <div class="flex items-center gap-3 mb-6">
-                  <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                  <h3 class="text-lg font-black text-slate-900">Identidad de Marca</h3>
+                  <svg class="w-5 h-5 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                  <h3 class="text-lg font-black text-slate-900 dark:text-white">Identidad de Marca</h3>
                 </div>
 
                 <div class="space-y-5">
-                  <div class="flex items-center gap-6 pb-4 border-b border-slate-50">
-                    <label class="block cursor-pointer relative w-20 h-20 bg-slate-100 rounded-full border border-slate-200 overflow-hidden shadow-sm group">
+                  <div class="flex items-center gap-6 pb-4 border-b border-slate-50 dark:border-zinc-800/50">
+                    <label class="block cursor-pointer relative w-20 h-20 bg-slate-100 dark:bg-zinc-800 rounded-full border border-slate-200 dark:border-zinc-700 overflow-hidden shadow-sm group">
                       <input type="file" name="avatar" accept="image/png, image/jpeg, image/webp" class="hidden" onchange={handleFileSelect} />
                       {#if previewUrl || broker.avatar_url}
                         <img src={previewUrl || broker.avatar_url} alt="Logo" class="w-full h-full object-cover">
                       {:else}
-                        <svg class="w-8 h-8 m-auto text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <svg class="w-8 h-8 m-auto text-slate-400 dark:text-zinc-500 mt-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                       {/if}
                       <div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <span class="text-[10px] font-bold text-white uppercase tracking-widest">Cambiar</span>
                       </div>
                     </label>
                     <div>
-                      <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Logo o Fotografía</span>
-                      <p class="text-xs text-slate-400 font-medium">Recomendado: 400x400px en formato PNG o JPG. (Máx {MAX_MB}MB)</p>
+                      <span class="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-1">Logo o Fotografía</span>
+                      <p class="text-xs text-slate-400 dark:text-zinc-500 font-medium">Recomendado: 400x400px en formato PNG o JPG. (Máx {MAX_MB}MB)</p>
                     </div>
                   </div>
 
                   <div>
-                    <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Nombre Comercial / Agencia</span>
-                    <input type="text" name="nombre_comercial" bind:value={broker.nombre_comercial} required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none">
+                    <span class="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-2">Nombre Comercial / Agencia</span>
+                    <input type="text" name="nombre_comercial" bind:value={broker.nombre_comercial} required class="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none transition-colors">
                   </div>
                   
-                  <!-- 🚀 FIX: Input WhatsApp con feedback visual correcto -->
                   <div>
-                    <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">WhatsApp de Contacto</span>
+                    <span class="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-2">WhatsApp de Contacto</span>
                     <input type="tel" name="whatsapp" bind:value={broker.whatsapp} required 
-                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-colors
-                                  {whatsappEstado() === 'invalido' ? 'border-amber-300 bg-amber-50' : 
-                                   whatsappEstado() === 'valido' ? 'border-emerald-300' : ''}" 
+                           class="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-zinc-600
+                                  {whatsappEstado() === 'invalido' ? 'border-amber-300 dark:border-amber-500/50 bg-amber-50 dark:bg-amber-500/5' : 
+                                   whatsappEstado() === 'valido' ? 'border-emerald-300 dark:border-emerald-500/50' : ''}" 
                            placeholder="Ej. 523312345678">
                     
                     {#if whatsappEstado() === 'invalido'}
-                      <p class="text-[10px] text-amber-600 font-bold mt-1.5">Recuerda incluir el código de país (Ej. 52 para México) sin el signo + ni espacios.</p>
+                      <p class="text-[10px] text-amber-600 dark:text-amber-400 font-bold mt-1.5">Recuerda incluir el código de país (Ej. 52 para México) sin el signo + ni espacios.</p>
                     {:else if whatsappEstado() === 'incompleto'}
-                      <p class="text-[10px] text-slate-400 font-medium mt-1.5">Continúa escribiendo... 12 dígitos requeridos.</p>
+                      <p class="text-[10px] text-slate-400 dark:text-zinc-500 font-medium mt-1.5">Continúa escribiendo... 12 dígitos requeridos.</p>
                     {/if}
                   </div>
 
                   <div>
-                    <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Biografía Profesional (Pitch)</span>
-                    <textarea name="bio" bind:value={broker.bio} rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none placeholder:text-slate-400"></textarea>
+                    <span class="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-2">Biografía Profesional (Pitch)</span>
+                    <textarea name="bio" bind:value={broker.bio} rows="3" class="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none placeholder:text-slate-400 dark:placeholder:text-zinc-600 transition-colors"></textarea>
                   </div>
                 </div>
               </div>
 
-              <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
+              <div class="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-zinc-800 mb-6 transition-colors">
                 <div class="flex items-center gap-3 mb-6">
-                  <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
-                  <h3 class="text-lg font-black text-slate-900">Redes y Dominio</h3>
+                  <svg class="w-5 h-5 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                  <h3 class="text-lg font-black text-slate-900 dark:text-white">Redes y Dominio</h3>
                 </div>
 
                 <div class="space-y-6">
                   <div>
-                    <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Enlace Personalizado</span>
+                    <span class="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-2">Enlace Personalizado</span>
                     <div class="flex items-center">
                       <input 
                         type="text" 
@@ -381,49 +382,49 @@
                         bind:value={broker.subdominio} 
                         oninput={(e) => { broker.subdominio = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/--+/g, '-'); }}
                         required 
-                        class="flex-1 bg-slate-50 border rounded-l-xl px-4 py-3 text-sm font-bold text-slate-900 text-right focus:ring-2 focus:ring-indigo-100 outline-none transition-colors {subdominioError ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-indigo-400'}"
+                        class="flex-1 bg-slate-50 dark:bg-zinc-900 border border-r-0 rounded-l-xl px-4 py-3 text-sm font-bold text-slate-900 dark:text-white text-right focus:ring-2 focus:ring-indigo-500/30 outline-none transition-colors {subdominioError ? 'border-red-300 dark:border-red-500/50 focus:border-red-400' : 'border-slate-200 dark:border-zinc-700 focus:border-indigo-500'}"
                       >
-                      <div class="bg-slate-100 border-y border-r border-slate-200 rounded-r-xl px-4 py-3 text-sm font-medium text-slate-500 pointer-events-none">.inmublia.com</div>
+                      <div class="bg-slate-100 dark:bg-zinc-800 border-y border-r border-slate-200 dark:border-zinc-700 rounded-r-xl px-4 py-3 text-sm font-medium text-slate-500 dark:text-zinc-400 pointer-events-none transition-colors">.inmublia.com</div>
                     </div>
                     {#if verificandoSubdominio}
-                      <p class="text-[10px] text-slate-400 font-bold mt-1.5 animate-pulse">Verificando disponibilidad...</p>
+                      <p class="text-[10px] text-slate-400 dark:text-zinc-500 font-bold mt-1.5 animate-pulse">Verificando disponibilidad...</p>
                     {:else if subdominioError}
-                      <p class="text-[10px] text-red-500 font-bold mt-1.5">{subdominioError}</p>
+                      <p class="text-[10px] text-red-500 dark:text-red-400 font-bold mt-1.5">{subdominioError}</p>
                     {:else if subdominioDisponible && broker.subdominio && broker.subdominio.length >= 3}
-                      <p class="text-[10px] text-emerald-500 font-bold mt-1.5 flex items-center gap-1"><ShieldCheck class="w-3 h-3" /> Subdominio disponible</p>
+                      <p class="text-[10px] text-emerald-500 dark:text-emerald-400 font-bold mt-1.5 flex items-center gap-1"><ShieldCheck class="w-3 h-3" /> Subdominio disponible</p>
                     {/if}
                   </div>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Facebook URL</span>
-                      <input type="url" name="facebook" bind:value={broker.facebook} placeholder="https://facebook.com/..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 outline-none">
+                      <span class="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-2">Facebook URL</span>
+                      <input type="url" name="facebook" bind:value={broker.facebook} placeholder="https://facebook.com/..." class="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/30 outline-none transition-colors">
                     </div>
                     <div>
-                      <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Instagram URL</span>
-                      <input type="url" name="instagram" bind:value={broker.instagram} placeholder="https://instagram.com/..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 outline-none">
+                      <span class="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-2">Instagram URL</span>
+                      <input type="url" name="instagram" bind:value={broker.instagram} placeholder="https://instagram.com/..." class="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/30 outline-none transition-colors">
                     </div>
                     <div>
-                      <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">TikTok URL</span>
-                      <input type="url" name="tiktok" bind:value={broker.tiktok} placeholder="https://tiktok.com/@..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 outline-none">
+                      <span class="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-2">TikTok URL</span>
+                      <input type="url" name="tiktok" bind:value={broker.tiktok} placeholder="https://tiktok.com/@..." class="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/30 outline-none transition-colors">
                     </div>
                     <div>
-                      <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">LinkedIn URL</span>
-                      <input type="url" name="linkedin" bind:value={broker.linkedin} placeholder="https://linkedin.com/in/..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-indigo-100 outline-none">
+                      <span class="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-2">LinkedIn URL</span>
+                      <input type="url" name="linkedin" bind:value={broker.linkedin} placeholder="https://linkedin.com/in/..." class="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-indigo-500/30 outline-none transition-colors">
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
+              <div class="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-zinc-800 mb-6 transition-colors">
                 <div class="flex items-center gap-3 mb-6">
-                  <Calculator class="w-5 h-5 text-emerald-500" />
-                  <h3 class="text-lg font-black text-slate-900">Finanzas y Operaciones</h3>
+                  <Calculator class="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                  <h3 class="text-lg font-black text-slate-900 dark:text-white">Finanzas y Operaciones</h3>
                 </div>
 
                 <div class="space-y-6">
                   <div>
-                    <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Comisión Promedio de Agencia</span>
-                    <p class="text-[11px] text-slate-400 mb-3">Este porcentaje alimenta automáticamente tu panel de reportes e inteligencia.</p>
+                    <span class="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-2">Comisión Promedio de Agencia</span>
+                    <p class="text-[11px] text-slate-400 dark:text-zinc-500 mb-3">Este porcentaje alimenta automáticamente tu panel de reportes e inteligencia.</p>
                     <div class="relative max-w-xs">
                       <input 
                         type="number" 
@@ -432,55 +433,56 @@
                         max="100" 
                         name="comision_default" 
                         bind:value={broker.comision_default} 
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-10 py-3 text-lg font-black text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-50 outline-none" 
+                        class="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl pl-4 pr-10 py-3 text-lg font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-colors" 
                       />
-                      <Percent class="absolute right-4 top-3.5 w-5 h-5 text-slate-400" />
+                      <Percent class="absolute right-4 top-3.5 w-5 h-5 text-slate-400 dark:text-zinc-500" />
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div class="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 mb-6">
+              <div class="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-zinc-800 mb-6 transition-colors">
                 <div class="flex items-center gap-3 mb-6">
-                  <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                  <svg class="w-5 h-5 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                   <div>
-                    <h3 class="text-lg font-black text-slate-900">Marketing & Tracking</h3>
-                    <p class="text-[11px] font-medium text-slate-500">Mide visitas y crea audiencias de retargeting para tus anuncios.</p>
+                    <h3 class="text-lg font-black text-slate-900 dark:text-white">Marketing & Tracking</h3>
+                    <p class="text-[11px] font-medium text-slate-500 dark:text-zinc-400">Mide visitas y crea audiencias de retargeting para tus anuncios.</p>
                   </div>
                 </div>
 
                 <div class="space-y-4">
-                  <div class="p-4 rounded-xl border {isPro ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-70'}">
+                  <!-- A11Y Fix: Añadido label (sr-only o aria-label) a inputs -->
+                  <div class="p-4 rounded-xl border transition-colors {isPro ? 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700' : 'bg-slate-50 dark:bg-zinc-800/50 border-slate-100 dark:border-zinc-800 opacity-70'}">
                     <div class="flex justify-between items-center mb-2">
-                      <span class="text-xs font-bold text-slate-700 flex items-center gap-2">
-                        <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
+                      <label for="pixel_fb" class="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-blue-600 dark:text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
                         Meta Pixel ID (Facebook/Instagram)
-                      </span>
-                      {#if !isPro} <span class="text-[9px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md">🔒 Plan Pro</span> {/if}
+                      </label>
+                      {#if !isPro} <span class="text-[9px] font-bold px-2 py-0.5 bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-400 rounded-md">🔒 Plan Pro</span> {/if}
                     </div>
-                    <input type="text" name="pixel_fb" bind:value={broker.pixel_fb} disabled={!isPro} placeholder={isPro ? "Ej. 10456789012345" : "Requiere mejora de plan"} class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed">
+                    <input id="pixel_fb" type="text" name="pixel_fb" bind:value={broker.pixel_fb} disabled={!isPro} placeholder={isPro ? "Ej. 10456789012345" : "Requiere mejora de plan"} class="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-4 py-2 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed transition-colors">
                   </div>
 
-                  <div class="p-4 rounded-xl border {isPro ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-70'}">
+                  <div class="p-4 rounded-xl border transition-colors {isPro ? 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700' : 'bg-slate-50 dark:bg-zinc-800/50 border-slate-100 dark:border-zinc-800 opacity-70'}">
                     <div class="flex justify-between items-center mb-2">
-                      <span class="text-xs font-bold text-slate-700 flex items-center gap-2">
-                        <svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12.24 10.285V14.4h6.806c-.275 1.765-2.056 5.174-6.806 5.174-4.095 0-7.439-3.389-7.439-7.574s3.345-7.574 7.439-7.574c2.33 0 3.891.989 4.785 1.849l3.254-3.138C18.189 1.186 15.479 0 12.24 0c-6.635 0-12 5.365-12 12s5.365 12 12 12c6.926 0 11.52-4.869 11.52-11.726 0-.788-.085-1.39-.189-1.989H12.24z"/></svg>
+                      <label for="pixel_google" class="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-amber-500 dark:text-amber-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12.24 10.285V14.4h6.806c-.275 1.765-2.056 5.174-6.806 5.174-4.095 0-7.439-3.389-7.439-7.574s3.345-7.574 7.439-7.574c2.33 0 3.891.989 4.785 1.849l3.254-3.138C18.189 1.186 15.479 0 12.24 0c-6.635 0-12 5.365-12 12s5.365 12 12 12c6.926 0 11.52-4.869 11.52-11.726 0-.788-.085-1.39-.189-1.989H12.24z"/></svg>
                         Google Analytics ID (GA4)
-                      </span>
-                      {#if !isPro} <span class="text-[9px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md">🔒 Plan Pro</span> {/if}
+                      </label>
+                      {#if !isPro} <span class="text-[9px] font-bold px-2 py-0.5 bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-400 rounded-md">🔒 Plan Pro</span> {/if}
                     </div>
-                    <input type="text" name="pixel_google" bind:value={broker.pixel_google} disabled={!isPro} placeholder={isPro ? "Ej. G-ABC123XYZ" : "Requiere mejora de plan"} class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed">
+                    <input id="pixel_google" type="text" name="pixel_google" bind:value={broker.pixel_google} disabled={!isPro} placeholder={isPro ? "Ej. G-ABC123XYZ" : "Requiere mejora de plan"} class="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-4 py-2 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed transition-colors">
                   </div>
 
-                  <div class="p-4 rounded-xl border {isElite ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-70'}">
+                  <div class="p-4 rounded-xl border transition-colors {isElite ? 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700' : 'bg-slate-50 dark:bg-zinc-800/50 border-slate-100 dark:border-zinc-800 opacity-70'}">
                     <div class="flex justify-between items-center mb-2">
-                      <span class="text-xs font-bold text-slate-700 flex items-center gap-2">
-                        <svg class="w-4 h-4 text-slate-900" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 2.22-1.15 4.39-2.92 5.75-1.84 1.4-4.29 1.83-6.6 1.4-2.18-.4-4.14-1.74-5.26-3.66-1.16-1.99-1.37-4.46-.57-6.57.82-2.18 2.67-3.9 4.88-4.57 1.59-.48 3.32-.46 4.88.08v4.06c-.84-.27-1.78-.34-2.65-.13-.88.21-1.67.75-2.18 1.48-.52.75-.71 1.72-.5 2.6.21.88.75 1.67 1.48 2.18.75.52 1.72.71 2.6.5 1.25-.29 2.21-1.36 2.45-2.62.06-.32.07-.65.07-.98V.02z"/></svg>
+                      <label for="pixel_tiktok" class="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-slate-900 dark:text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 2.22-1.15 4.39-2.92 5.75-1.84 1.4-4.29 1.83-6.6 1.4-2.18-.4-4.14-1.74-5.26-3.66-1.16-1.99-1.37-4.46-.57-6.57.82-2.18 2.67-3.9 4.88-4.57 1.59-.48 3.32-.46 4.88.08v4.06c-.84-.27-1.78-.34-2.65-.13-.88.21-1.67.75-2.18 1.48-.52.75-.71 1.72-.5 2.6.21.88.75 1.67 1.48 2.18.75.52 1.72.71 2.6.5 1.25-.29 2.21-1.36 2.45-2.62.06-.32.07-.65.07-.98V.02z"/></svg>
                         TikTok Pixel ID
-                      </span>
-                      {#if !isElite} <span class="text-[9px] font-bold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-md">🔒 Plan Elite</span> {/if}
+                      </label>
+                      {#if !isElite} <span class="text-[9px] font-bold px-2 py-0.5 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-800 dark:text-indigo-400 rounded-md">🔒 Plan Elite</span> {/if}
                     </div>
-                    <input type="text" name="pixel_tiktok" bind:value={broker.tiktok} disabled={!isElite} placeholder={isElite ? "Ej. CB1234567890" : "Exclusivo Plan Elite"} class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed">
+                    <input id="pixel_tiktok" type="text" name="pixel_tiktok" bind:value={broker.tiktok} disabled={!isElite} placeholder={isElite ? "Ej. CB1234567890" : "Exclusivo Plan Elite"} class="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-4 py-2 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed transition-colors">
                   </div>
                 </div>
               </div>
@@ -489,7 +491,7 @@
 
           <div class="lg:col-span-4 space-y-6">
             
-            <div class="bg-[#111827] text-white p-8 rounded-3xl shadow-xl relative overflow-hidden flex flex-col">
+            <div class="bg-[#111827] dark:bg-black text-white p-8 rounded-3xl shadow-xl relative overflow-hidden flex flex-col border border-transparent dark:border-zinc-800 transition-colors">
               <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white opacity-5 blur-2xl pointer-events-none"></div>
               
               <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10">Membresía Actual</h4>
@@ -519,7 +521,6 @@
               </a>
             </div>
 
-            <!-- 🚀 FIX: Formulario de Webhook con use:enhance -->
             <form method="POST" action="?/guardarWebhook" use:enhance={() => { 
               savingWebhook = true; 
               return async ({ update, result }) => { 
@@ -536,7 +537,7 @@
                 await update({ reset: false }); 
               }; 
             }}>
-              <div class="bg-[#111827] text-white p-8 rounded-3xl shadow-xl relative overflow-hidden flex flex-col">
+              <div class="bg-[#111827] dark:bg-black text-white p-8 rounded-3xl shadow-xl relative overflow-hidden flex flex-col border border-transparent dark:border-zinc-800 transition-colors">
                 <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white opacity-5 blur-2xl pointer-events-none"></div>
                 
                 <div class="flex items-center justify-between mb-4 relative z-10">
@@ -547,8 +548,9 @@
                 
                 <div class="space-y-4 relative z-10 flex-1 flex flex-col justify-end {esPlanBasico ? 'opacity-30 pointer-events-none' : ''} transition-opacity duration-300">
                   <div>
-                    <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2" for="endpoint_url">URL del Endpoint</label>
-                    <input type="url" id="endpoint_url" name="endpoint_url" bind:value={webhookUrl} disabled={esPlanBasico} class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-inner placeholder:text-slate-600">
+                    <label class="block text-[9px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-2" for="endpoint_url">URL del Endpoint</label>
+                    <!-- A11Y Fix: Añadido id para enlazar el label -->
+                    <input type="url" id="endpoint_url" name="endpoint_url" bind:value={webhookUrl} disabled={esPlanBasico} class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-inner placeholder:text-slate-500">
                   </div>
 
                   {#if form?.formId === 'webhook'}
@@ -559,7 +561,7 @@
 
                   {#if currentWebhook?.secret_token}
                     <div class="pt-2">
-                      <p class="text-[9px] text-slate-500 font-mono mb-1">Secret Token (HMAC SHA-256):</p>
+                      <p class="text-[9px] text-slate-400 font-mono mb-1">Secret Token (HMAC SHA-256):</p>
                       <code class="px-2 py-1 bg-black/30 rounded border border-white/10 text-emerald-400 text-[10px] select-all block truncate">
                         {currentWebhook.secret_token}
                       </code>
@@ -581,7 +583,7 @@
                 </div>
 
                 {#if esPlanBasico}
-                  <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950/40 backdrop-blur-[2px] p-6">
+                  <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950/40 dark:bg-black/60 backdrop-blur-[2px] p-6 transition-colors">
                     <div class="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl text-center shadow-2xl w-full">
                       <p class="text-xs font-bold text-white mb-4 leading-tight">Actualiza tu plan para conectar Webhooks</p>
                       <a href="/admin/planes" data-sveltekit-reload class="w-full inline-flex items-center justify-center bg-amber-500 hover:bg-amber-400 text-slate-900 text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-lg shadow-sm transition-transform active:scale-95">
