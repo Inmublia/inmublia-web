@@ -9,10 +9,15 @@
   } from 'lucide-svelte';
 
   let { form, data } = $props();
-  let creditosIA = $state(data?.creditos_ia ?? 15);
+  
+  // 🚀 FIX SVELTE 5 WARNING: Evita inicializar $state directo con data. 
+  // Usamos $derived para leer la data base y descontamos localmente.
+  let creditosBase = $derived(data?.creditos_ia ?? 15);
+  let creditosUsados = $state(0);
+  let creditosIA = $derived(creditosBase - creditosUsados);
+
   let planSuscripcion = $derived(data?.plan_suscripcion ?? 'basico'); 
   
-  // 🚀 EXTRACCIÓN DE PAYWALLS DESDE EL LAYOUT (Sin romper lógica extra)
   let hitPropsPaywall = $derived(data?.limits?.hitPropsPaywall || false);
   let maxProps = $derived(data?.limits?.maxProps || 0);
   let currentProps = $derived(data?.limits?.currentProps || 0);
@@ -34,6 +39,8 @@
   let valUbicacion = $state('');
   let valTipo = $state('Casa');
   let valOperacion = $state('Venta');
+  
+  // Variables explícitas para campos numéricos
   let valRecamaras = $state('');
   let valBanos = $state('');
   let valMedioBano = $state('');
@@ -182,7 +189,8 @@
       }
 
       if (result.type === 'success' && result.data) {
-        creditosIA--;
+        // Incrementamos usados en lugar de mutar un prop inicial
+        creditosUsados++;
         iaEjecutada = true;
         generandoIA = false; 
         
@@ -215,7 +223,6 @@
   }
 </script>
 
-<!-- ARQUITECTURA B2B 2026: Fondo global dinámico -->
 <div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
 <div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
@@ -238,7 +245,6 @@
 
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1000px] mx-auto px-4 sm:px-10 h-full">
-      <!-- MAIN CONTAINER: Adaptable al tema oscuro -->
       <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 p-6 sm:p-10 mb-10 transition-colors duration-300">
         
         {#if form?.error}
@@ -291,7 +297,6 @@
           return async ({ update }) => { loading = false; update(); }; 
         }} class="space-y-12">
           
-          <!-- AVISO PAYWALL -->
           {#if hitPropsPaywall}
              <div class="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-[fadeIn_0.4s_ease-out] shadow-sm">
                 <div class="flex gap-4">
@@ -314,7 +319,6 @@
               <h2 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight">1. Estructura y Multimedia</h2>
             </div>
 
-            <!-- Caja Oculta -->
             <div class="p-5 bg-slate-50/50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 flex items-start gap-4 transition-colors">
               <div class="flex items-center h-5 mt-0.5">
                 <input type="checkbox" id="is_oculta" name="is_oculta" bind:checked={isOculta} class="w-4 h-4 text-indigo-600 bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 rounded focus:ring-indigo-600 dark:focus:ring-indigo-500 cursor-pointer">
@@ -328,8 +332,6 @@
             </div>
 
             <div class="grid grid-cols-1 gap-y-6 gap-x-6 sm:grid-cols-2">
-              
-              <!-- INPUTS Y SELECTS (Adaptables al modo oscuro) -->
               <div>
                 <label for="operacion" class="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5">Operación</label>
                 <div class="relative w-full">
@@ -365,7 +367,6 @@
                 </div>
               </div>
 
-              <!-- Switch Mantenimiento -->
               <div class="sm:col-span-1">
                 <div class="flex justify-between items-center mb-1.5">
                   <label class="block text-xs font-semibold text-slate-500 dark:text-zinc-400">Cuota de Mantenimiento</label>
@@ -383,7 +384,6 @@
                 {/if}
               </div>
 
-              <!-- Comisión -->
               <div class="sm:col-span-2">
                 <label for="comision" class="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5">Comisión Pactada (%) <span class="font-normal text-[10px] text-slate-400 dark:text-zinc-500">(Opcional)</span></label>
                 <div class="relative">
@@ -401,33 +401,38 @@
                 </div>
               </div>
 
-              <!-- Matriz de Características Numéricas -->
+              <!-- 🚀 FIX: ELIMINACIÓN DEL BINDING DINÁMICO #each PARA SVELTE 5 -->
               <div class="col-span-2 grid grid-cols-3 sm:grid-cols-7 gap-4">
-                {#each [
-                  {id:'recamaras', label:'Recámaras', bind: valRecamaras, type:'number'},
-                  {id:'banos', label:'Baños', bind: valBanos, type:'number'},
-                  {id:'medio_bano', label:'1/2 Baños', bind: valMedioBano, type:'number'},
-                  {id:'estacionamientos', label:'Autos', bind: valEstacionamientos, type:'number'},
-                  {id:'m2_terreno', label:'M² Terreno', bind: valM2Terreno, type:'number'},
-                  {id:'m2_construccion', label:'M² Const.', bind: valM2Construccion, type:'number'},
-                  {id:'antiguedad', label:'Antigüedad', bind: valAntiguedad, type:'text', ph:'Ej. 5 años'}
-                ] as field}
-                  <div>
-                    <label for={field.id} class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">{field.label}</label>
-                    <input bind:value={this[field.bind]} id={field.id} type={field.type} name={field.id} class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-200 dark:placeholder:text-zinc-600 transition-colors" placeholder={field.ph || "0"} oninput={(e) => {
-                      if(field.id === 'recamaras') valRecamaras = e.target.value;
-                      if(field.id === 'banos') valBanos = e.target.value;
-                      if(field.id === 'medio_bano') valMedioBano = e.target.value;
-                      if(field.id === 'estacionamientos') valEstacionamientos = e.target.value;
-                      if(field.id === 'm2_terreno') valM2Terreno = e.target.value;
-                      if(field.id === 'm2_construccion') valM2Construccion = e.target.value;
-                      if(field.id === 'antiguedad') valAntiguedad = e.target.value;
-                    }}>
-                  </div>
-                {/each}
+                <div>
+                  <label for="recamaras" class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">Recámaras</label>
+                  <input bind:value={valRecamaras} id="recamaras" type="number" name="recamaras" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-200 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
+                </div>
+                <div>
+                  <label for="banos" class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">Baños</label>
+                  <input bind:value={valBanos} id="banos" type="number" name="banos" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-200 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
+                </div>
+                <div>
+                  <label for="medio_bano" class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">1/2 Baños</label>
+                  <input bind:value={valMedioBano} id="medio_bano" type="number" name="medio_bano" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-200 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
+                </div>
+                <div>
+                  <label for="estacionamientos" class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">Autos</label>
+                  <input bind:value={valEstacionamientos} id="estacionamientos" type="number" name="estacionamientos" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-200 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
+                </div>
+                <div>
+                  <label for="m2_terreno" class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">M² Terreno</label>
+                  <input bind:value={valM2Terreno} id="m2_terreno" type="number" name="m2_terreno" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-200 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
+                </div>
+                <div>
+                  <label for="m2_construccion" class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">M² Const.</label>
+                  <input bind:value={valM2Construccion} id="m2_construccion" type="number" name="m2_construccion" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-200 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
+                </div>
+                <div>
+                  <label for="antiguedad" class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">Antigüedad</label>
+                  <input bind:value={valAntiguedad} id="antiguedad" type="text" name="antiguedad" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-300 dark:placeholder:text-zinc-600 transition-colors" placeholder="Ej. 5 años">
+                </div>
               </div>
 
-              <!-- DROPZONES MULTIMEDIA -->
               <div class="sm:col-span-2 pt-2">
                 <label for="imagen_principal" class="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5">Fotografía Principal (Hero)</label>
                 <div class="flex justify-center px-6 pt-5 pb-6 border-2 border-slate-200 dark:border-zinc-700 border-dashed rounded-xl hover:border-slate-400 dark:hover:border-zinc-500 bg-slate-50 dark:bg-zinc-800/50 transition-colors relative overflow-hidden group h-48 cursor-pointer shadow-inner">
@@ -481,7 +486,6 @@
             </div>
           </section>
 
-          <!-- SECCIÓN IA (Mantener estética oscura como contraste de marca) -->
           <section class="relative {hitPropsPaywall ? 'opacity-50 pointer-events-none' : ''}">
             <div class="bg-slate-900 rounded-[2rem] p-6 sm:p-10 relative overflow-hidden shadow-lg border border-slate-800">
               
@@ -548,7 +552,6 @@
                     </div>
                   </div>
                 {:else}
-                  <!-- El bloque de Paywall IA se mantiene intacto con su estilo propio -->
                   <div class="w-full max-w-3xl mx-auto bg-gradient-to-br from-indigo-900/50 to-slate-900/80 border border-indigo-500/30 rounded-2xl p-8 shadow-2xl text-center relative overflow-hidden">
                     <Zap class="w-12 h-12 text-amber-400 mx-auto mb-4 animate-bounce" />
                     
@@ -594,8 +597,7 @@
                   <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl p-6 flex flex-col">
                     <div class="flex items-center justify-between mb-4">
                       <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
-                        <MessageCircle class="w-4 h-4 text-emerald-400" />
-                        Campaña WhatsApp Profesional
+                        <MessageCircle class="w-4 h-4 text-emerald-400" /> Campaña WhatsApp
                       </h4>
                       {#if !generandoIA}
                         <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600/50">
