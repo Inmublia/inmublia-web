@@ -8,7 +8,6 @@
     Pencil, Trash2, EyeOff, CheckCircle2, BadgeDollarSign, TrendingUp, Handshake
   } from 'lucide-svelte';
 
-  // 🚀 Importamos la cabecera universal
   import PageHeader from '$lib/components/PageHeader.svelte';
 
   let { data } = $props();
@@ -127,10 +126,8 @@
 
 <div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
-<!-- 🚀 FIX: El layout principal vuelve a ser relativo y el padding inferior se mantiene -->
 <div class="w-full flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out] relative">
   
-  <!-- 🚀 FIX: Usamos PageHeader. Note que la cabecera es position: absolute / sticky o relative con alto z-index -->
   <PageHeader title="Inventario Maestro" icon={Building2}>
     {#snippet subtitle()}
       Consola de Gestión Inmublia
@@ -151,16 +148,16 @@
     {/snippet}
   </PageHeader>
 
-  <!-- 🚀 FIX: El main recupera su margen negativo (-mt-16) para crear el efecto Glassmorphism debajo del Header -->
+  <!-- 🚀 FIX: Restauramos -mt-16 para sobreponer las tarjetas a la cabecera. -->
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10">
       
-      <!-- TARJETAS DE MÉTRICAS (🚀 FIX: Colores sólidos en dark mode: dark:bg-zinc-900) -->
+      <!-- 🚀 FIX: Eliminamos las transparencias (bg-zinc-900/40) para devolver colores SOLIDOS y nitidos en dark mode -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         
-        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
+        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
           <div class="flex items-center justify-between mb-3">
-            <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Valor de Portafolio</p>
+            <p class="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest">Valor de Portafolio</p>
             <div class="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-transparent group-hover:scale-110 transition-transform">
               <BadgeDollarSign class="w-4 h-4" />
             </div>
@@ -168,9 +165,9 @@
           <p class="text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">{formatter.format(valorPortafolio)}</p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
+        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
           <div class="flex items-center justify-between mb-3">
-            <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Total Unidades</p>
+            <p class="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest">Total Unidades</p>
             <div class="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-transparent group-hover:scale-110 transition-transform">
               <Building2 class="w-4 h-4" />
             </div>
@@ -178,10 +175,10 @@
           <p class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{totalPropiedades}</p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group relative overflow-hidden">
+        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group relative overflow-hidden">
           <div class="absolute -right-4 -top-4 w-24 h-24 bg-indigo-50 dark:bg-indigo-500/10 rounded-full blur-2xl opacity-50 pointer-events-none"></div>
           <div class="flex items-center justify-between mb-3 relative z-10">
-            <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Públicas</p>
+            <p class="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest">Públicas</p>
             <div class="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-transparent group-hover:scale-110 transition-transform">
               <CheckCircle2 class="w-4 h-4" />
             </div>
@@ -192,9 +189,9 @@
           </div>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
+        <div class="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group">
           <div class="flex items-center justify-between mb-3">
-            <p class="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">Pre-Mercado</p>
+            <p class="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest">Pre-Mercado</p>
             <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700 group-hover:scale-110 transition-transform">
               <EyeOff class="w-4 h-4" />
             </div>
@@ -206,29 +203,27 @@
         </div>
       </div>
 
-      <!-- LISTADO Y TABLA -->
-      <!-- 🚀 FIX: bg-zinc-900 sólido en dark mode para evitar transparencias lodosas -->
-      <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200/60 dark:border-zinc-800 overflow-hidden relative transition-colors duration-300">
+      <!-- 🚀 FIX: Mantenemos bg-zinc-900 sólido -->
+      <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 overflow-hidden relative transition-colors duration-300">
         
-        <!-- Barra de búsqueda -->
-        <div class="p-5 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/50 dark:bg-zinc-900/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="p-5 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="relative flex-1 max-w-md">
             <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-zinc-500" />
-            <input type="text" bind:value={searchQuery} placeholder="Buscar por título o colonia..." class="flex h-11 w-full rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-black/40 pl-10 pr-3 py-2 text-sm font-medium text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-500 transition-all shadow-sm">
+            <input type="text" bind:value={searchQuery} placeholder="Buscar por título o colonia..." class="flex h-11 w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 pl-10 pr-3 py-2 text-sm font-medium text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-500 transition-all shadow-sm">
           </div>
         </div>
 
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse table-fixed min-w-[900px]">
             <thead>
-              <tr class="text-[10px] font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest bg-white dark:bg-zinc-900/40 border-b border-slate-100 dark:border-zinc-800/50">
+              <tr class="text-[10px] font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest bg-white dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-800">
                 <th class="w-[40%] px-6 py-4">Activo Inmobiliario</th>
                 <th class="w-[20%] px-6 py-4">Valor</th>
                 <th class="w-[15%] px-6 py-4 text-center">Estatus</th>
                 <th class="w-[25%] px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100/80 dark:divide-zinc-800/50">
+            <tbody class="divide-y divide-slate-100/80 dark:divide-zinc-800">
               {#if propiedadesFiltradas.length === 0}
                 <tr>
                   <td colspan="4" class="px-6 py-16 text-center text-slate-500 dark:text-zinc-500 text-sm font-medium">
@@ -240,11 +235,11 @@
                 </tr>
               {:else}
                 {#each propiedadesFiltradas as propiedad}
-                  <tr class="group hover:bg-slate-50/80 dark:hover:bg-zinc-800/30 transition-colors {propiedad.estatus === 'Vendida' ? 'opacity-80 bg-slate-50/50 dark:bg-zinc-900/50' : ''}">
+                  <tr class="group hover:bg-slate-50/80 dark:hover:bg-zinc-800/50 transition-colors {propiedad.estatus === 'Vendida' ? 'opacity-80 bg-slate-50/50 dark:bg-zinc-900/50' : ''}">
                     
                     <td class="px-6 py-5">
                       <div class="flex items-center gap-4">
-                        <div class="h-14 w-20 rounded-lg overflow-hidden bg-slate-100 dark:bg-zinc-800 shrink-0 border border-slate-200/60 dark:border-zinc-700/50 shadow-sm group-hover:border-indigo-200 dark:group-hover:border-indigo-500/50 transition-colors relative">
+                        <div class="h-14 w-20 rounded-lg overflow-hidden bg-slate-100 dark:bg-zinc-800 shrink-0 border border-slate-200 dark:border-zinc-700 shadow-sm group-hover:border-indigo-200 dark:group-hover:border-indigo-500/50 transition-colors relative">
                           
                           {#if propiedad.estatus === 'Vendida'}
                             <div class="absolute inset-0 bg-white/40 dark:bg-zinc-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center overflow-hidden">
@@ -262,7 +257,7 @@
                               <span class="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-sm shrink-0">VIP</span>
                             {/if}
                           </div>
-                          <p class="text-xs text-slate-500 dark:text-zinc-500 flex items-center gap-1.5 truncate font-medium">
+                          <p class="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-1.5 truncate font-medium">
                             <MapPin class="w-3 h-3 shrink-0 text-slate-400 dark:text-zinc-600" />
                             <span class="truncate">{propiedad.ubicacion}</span>
                           </p>
@@ -373,7 +368,6 @@
   </main>
 </div>
 
-<!-- MODAL B2B -->
 {#if showUpsellModal}
   <div class="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]" onclick={() => showUpsellModal = false}>
     <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] max-w-sm w-full overflow-hidden transform transition-all border border-slate-200 dark:border-zinc-800" onclick={e => e.stopPropagation()}>
@@ -392,7 +386,7 @@
           </p>
         </div>
         <div class="flex flex-col gap-3">
-          <a href="/admin/perfil" class="w-full bg-slate-900 dark:bg-white text-white dark:text-zinc-900 font-bold py-3.5 rounded-xl text-center hover:bg-slate-800 dark:hover:bg-zinc-200 transition-all text-sm shadow-md active:scale-[0.98]">
+          <a href="/admin/perfil" class="w-full bg-slate-900 dark:bg-white text-white dark:text-zinc-900 font-bold py-3.5 rounded-xl text-center hover:bg-slate-800 dark:hover:bg-zinc-200 transition-all text-sm shadow-md active:scale-95">
             Mejorar mi Plan
           </a>
           <button onclick={() => showUpsellModal = false} class="w-full bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 font-bold py-3.5 rounded-xl text-center border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all text-sm">
