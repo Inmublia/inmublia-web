@@ -5,7 +5,6 @@
     DollarSign, CheckCircle2, Clock, Users, Timer, Target, AlertTriangle, Lightbulb
   } from 'lucide-svelte';
 
-  // 🚀 Importamos el componente universal
   import PageHeader from '$lib/components/PageHeader.svelte';
 
   let { data } = $props();
@@ -19,7 +18,6 @@
 
   let totalLeads = $derived(leads.length);
   
-  // Normalización estricta (case-insensitive)
   let leadsGanados = $derived(leads.filter(l => l.estado?.toLowerCase().trim() === 'cerrado'));
   let propiedadesVendidas = $derived(propiedades.filter(p => p.estatus?.toLowerCase().trim() === 'vendida'));
   
@@ -61,7 +59,6 @@
      return leadsGanados.length + huerfanos;
   });
 
-  // Tiempo Promedio de Cierre
   let tiempoPromedioCierre = $derived.by(() => {
     const cerradosValidos = leadsGanados.filter(l => l.creado_en && l.actualizado_en);
     if (cerradosValidos.length === 0) return null;
@@ -76,7 +73,6 @@
     return Math.round(promedio);
   });
 
-  // Embudo de Conversión "Waterfall"
   let funnelAdvanced = $derived.by(() => {
     const etapas = [
       { id: 'nuevo', label: 'Prospectos Captados', color: '#6366F1' },
@@ -100,7 +96,6 @@
     });
   });
 
-  // ROI por Fuente
   let fuentesROI = $derived.by(() => {
     const mapa = {};
     leads.forEach(l => {
@@ -118,7 +113,7 @@
     
     return Object.values(mapa)
       .map(f => ({ ...f, tasa: f.total > 0 ? (f.cerrados / f.total) * 100 : 0 }))
-      .sort((a, b) => b.tasa - a.tasa); // Ordenar por las que mejor convierten
+      .sort((a, b) => b.tasa - a.tasa); 
   });
 
   let tendenciaComisionesMeses = $derived.by(() => {
@@ -177,31 +172,35 @@
 
 <div class="fixed inset-0 w-screen h-screen bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
-<div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out] relative">
+<!-- 🚀 FIX: Arquitectura Split-Screen B2B. Bloqueamos el scroll global en Desktop (lg:h-screen lg:overflow-hidden) -->
+<div class="w-full flex flex-col font-sans text-slate-900 dark:text-zinc-100 animate-[fadeIn_0.3s_ease-out] relative min-h-screen lg:h-screen lg:overflow-hidden">
   
-  <PageHeader title="Panel de Rendimiento" icon={LineChart}>
-    {#snippet subtitle()}
-      Métricas, Finanzas y Marketing Inteligente
-    {/snippet}
+  <!-- ============================================== -->
+  <!-- ZONA SUPERIOR ESTÁTICA (Enmarcada en tu imagen) -->
+  <!-- ============================================== -->
+  <div class="w-full shrink-0 flex flex-col relative z-30 pb-4 lg:pb-6 shadow-sm dark:shadow-none bg-slate-50/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-slate-200/50 dark:border-zinc-800/50 transition-colors duration-300">
+    
+    <PageHeader title="Panel de Rendimiento" icon={LineChart}>
+      {#snippet subtitle()}
+        Métricas, Finanzas y Marketing Inteligente
+      {/snippet}
 
-    {#snippet actions()}
-      {#if tiempoPromedioCierre}
-        <div class="bg-white dark:bg-zinc-900/50 backdrop-blur-md border border-slate-200 dark:border-zinc-800 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors shadow-sm">
-          <div class="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20">
-            <Timer class="w-5 h-5" />
+      {#snippet actions()}
+        {#if tiempoPromedioCierre}
+          <div class="bg-white dark:bg-zinc-900/50 backdrop-blur-md border border-slate-200 dark:border-zinc-800 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors shadow-sm">
+            <div class="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20">
+              <Timer class="w-5 h-5" />
+            </div>
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Velocidad de Cierre</p>
+              <p class="text-lg font-black text-slate-900 dark:text-white">{tiempoPromedioCierre} Días <span class="text-xs font-medium text-slate-400 dark:text-zinc-500 ml-1">en promedio</span></p>
+            </div>
           </div>
-          <div>
-            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Velocidad de Cierre</p>
-            <p class="text-lg font-black text-slate-900 dark:text-white">{tiempoPromedioCierre} Días <span class="text-xs font-medium text-slate-400 dark:text-zinc-500 ml-1">en promedio</span></p>
-          </div>
-        </div>
-      {/if}
-    {/snippet}
-  </PageHeader>
+        {/if}
+      {/snippet}
+    </PageHeader>
 
-  <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
-    <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
-
+    <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 relative z-20 -mt-16">
       <!-- TOP 4 KPIS -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         
@@ -247,7 +246,7 @@
 
         <div class="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between group hover:border-slate-300 dark:hover:border-zinc-600 transition-all">
           <div class="flex items-center justify-between mb-4">
-            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Leads Históricos</p>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500">Leads Históricos</p>
             <div class="w-8 h-8 rounded-xl bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 flex items-center justify-center border border-slate-200 dark:border-zinc-700 shadow-sm dark:shadow-none transition-colors">
               <Users class="w-4 h-4" />
             </div>
@@ -259,6 +258,15 @@
         </div>
 
       </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- ZONA INFERIOR SCROLLABLE INDEPENDIENTE         -->
+  <!-- ============================================== -->
+  <!-- 🚀 FIX: Esta zona tiene su propio scrollbar estilizado. Nunca pisará las tarjetas superiores -->
+  <main class="w-full flex-1 relative z-20 pt-6 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+    <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
 
       <!-- SECCIÓN EMBUDO AVANZADO Y ROI POR FUENTE -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
