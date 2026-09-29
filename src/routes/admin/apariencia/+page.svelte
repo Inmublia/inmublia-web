@@ -63,47 +63,39 @@
 
 <div class="fixed inset-0 w-screen h-screen bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
-<!-- Arquitectura Split-Screen B2B -->
-<div class="w-full flex flex-col font-sans text-slate-900 dark:text-zinc-100 animate-[fadeIn_0.3s_ease-out] relative min-h-screen lg:h-screen lg:overflow-hidden">
+<div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out] relative">
   
-  <!-- ============================================== -->
-  <!-- ZONA SUPERIOR ESTÁTICA                         -->
-  <!-- ============================================== -->
-  <div class="w-full shrink-0 flex flex-col relative z-30 pb-2 lg:pb-4 transition-colors duration-300">
-    <PageHeader title="Design Studio" icon={Palette}>
-      {#snippet subtitle()}
-        Cuenta: <span class="uppercase text-slate-700 dark:text-zinc-300 font-bold">{planSuscripcion}</span>
-      {/snippet}
+  <PageHeader title="Design Studio" icon={Palette}>
+    {#snippet subtitle()}
+      Cuenta: <span class="uppercase text-slate-700 dark:text-zinc-300 font-bold">{planSuscripcion}</span>
+    {/snippet}
 
-      {#snippet actions()}
-        <form method="POST" action="?/updateTemplate" use:enhance={() => {
-          savingProfile = true;
-          return async ({ update, result }) => {
-            savingProfile = false;
-            if (result.type === 'failure') alert("❌ Error: " + (result.data?.error || "Desconocido"));
-            else if (result.type === 'success') { showSuccess = true; setTimeout(() => showSuccess = false, 4000); await invalidateAll(); }
-            update({ reset: false });
-          };
-        }}>
-          <input type="hidden" name="template_seleccionado" value={selectedTemplate}>
-          <input type="hidden" name="template_id_catalog" value={selectedLanding}>
-          
-          <button type="submit" disabled={savingProfile} class="bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-200 disabled:bg-slate-300 dark:disabled:bg-zinc-800 disabled:text-slate-500 dark:disabled:text-zinc-600 text-white dark:text-zinc-900 font-bold py-2.5 px-6 rounded-xl shadow-sm flex items-center gap-2 transition-all text-sm cursor-pointer active:scale-[0.98] border border-transparent">
-            {#if savingProfile}
-              <span class="w-4 h-4 border-2 border-white/30 dark:border-zinc-900/30 border-t-white dark:border-t-zinc-900 rounded-full animate-spin"></span> Guardando...
-            {:else}
-              <Save class="w-4 h-4" /> Guardar Configuración Global
-            {/if}
-          </button>
-        </form>
-      {/snippet}
-    </PageHeader>
-  </div>
+    {#snippet actions()}
+      <form method="POST" action="?/updateTemplate" use:enhance={() => {
+        savingProfile = true;
+        return async ({ update, result }) => {
+          savingProfile = false;
+          if (result.type === 'failure') alert("❌ Error: " + (result.data?.error || "Desconocido"));
+          else if (result.type === 'success') { showSuccess = true; setTimeout(() => showSuccess = false, 4000); await invalidateAll(); }
+          update({ reset: false });
+        };
+      }}>
+        <input type="hidden" name="template_seleccionado" value={selectedTemplate}>
+        <input type="hidden" name="template_id_catalog" value={selectedLanding}>
+        
+        <button type="submit" disabled={savingProfile} class="bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-200 disabled:bg-slate-300 dark:disabled:bg-zinc-800 disabled:text-slate-500 dark:disabled:text-zinc-600 text-white dark:text-zinc-900 font-bold py-2.5 px-6 rounded-xl shadow-sm flex items-center gap-2 transition-all text-sm cursor-pointer active:scale-[0.98] border border-transparent">
+          {#if savingProfile}
+            <span class="w-4 h-4 border-2 border-white/30 dark:border-zinc-900/30 border-t-white dark:border-t-zinc-900 rounded-full animate-spin"></span> Guardando...
+          {:else}
+            <Save class="w-4 h-4" /> Guardar Configuración Global
+          {/if}
+        </button>
+      </form>
+    {/snippet}
+  </PageHeader>
 
-  <!-- ============================================== -->
-  <!-- ZONA INFERIOR SCROLLABLE INDEPENDIENTE         -->
-  <!-- ============================================== -->
-  <main class="w-full flex-1 relative z-20 pt-4 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent" style="-webkit-mask-image: linear-gradient(to bottom, transparent, black 16px, black); mask-image: linear-gradient(to bottom, transparent, black 16px, black);">
+  <!-- 🚀 FIX: Restauramos -mt-16 para asegurar que las tarjetas floten sobre la cabecera -->
+  <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-8">
 
       {#if form?.error}
@@ -118,6 +110,7 @@
         </div>
       {/if}
 
+      <!-- 🚀 FIX: Fondos sólidos dark:bg-zinc-900 -->
       <div class="bg-white dark:bg-zinc-900 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-zinc-800 flex items-center gap-5 transition-colors">
         <div class="w-14 h-14 rounded-full border-2 border-slate-100 dark:border-zinc-700 shadow-sm overflow-hidden bg-slate-50 dark:bg-zinc-800 shrink-0 transition-colors">
           <img src={broker.avatar_url || `https://ui-avatars.com/api/?name=${broker.nombre_comercial || 'I'}&background=0f172a&color=fff`} alt="Logo" class="w-full h-full object-cover">
