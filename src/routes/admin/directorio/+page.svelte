@@ -7,6 +7,9 @@
     Mail, EyeOff, Eye, AlertCircle
   } from 'lucide-svelte';
   
+  // 🚀 Importamos la cabecera universal
+  import PageHeader from '$lib/components/PageHeader.svelte';
+  
   let { data } = $props();
   let broker = $derived(data.broker);
   let leads = $derived(data.leads || []);
@@ -60,8 +63,6 @@
     return { total, nuevosSemana };
   });
 
-  // 🚀 FIX CRÍTICO: Separación de la Lógica Pesada vs Filtro de Búsqueda
-  // clientesBase hace el trabajo pesado UNA SOLA VEZ cuando cambian los datos reales.
   let clientesBase = $derived.by(() => {
     let mapa = {};
     
@@ -72,7 +73,6 @@
         if (maxNota > fechaActividad) fechaActividad = maxNota;
       }
 
-      // FIX: Email Key Case-Insensitive para evitar perfiles duplicados
       const emailKey = (l.correo || '').toLowerCase().trim();
 
       if (!mapa[emailKey]) {
@@ -119,7 +119,6 @@
           conteoTipo[tp] = (conteoTipo[tp] || 0) + 1;
         });
 
-        // FIX: Uso de Mediana en lugar de Promedio para proteger contra outliers
         const precios = cliente.interesesHistorial.map(p => Number(p.precio) || 0).sort((a,b) => a - b);
         const mid = Math.floor(precios.length / 2);
         cliente.presupuestoInferido = precios.length === 0 ? 0 : (precios.length % 2 === 0
@@ -133,7 +132,6 @@
 
         cliente.perfil = { operacionDominante, tipoDominante, recamarasPromedio };
 
-        // FIX: Flujo funcional con .filter y .map en lugar del return defectuoso del forEach
         const matchesPuntuados = propiedades
           .filter(p => !cliente.interesesHistorial.find(i => i.id === p.id))
           .filter(p => p.operacion === operacionDominante)
@@ -149,7 +147,7 @@
 
             return score >= 60 ? { ...p, matchScore: score } : null;
           })
-          .filter(Boolean); // Limpiamos los nulls
+          .filter(Boolean);
 
         cliente.matches = matchesPuntuados.sort((a, b) => {
           if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
@@ -162,7 +160,6 @@
     .sort((a, b) => new Date(b.fecha_contacto) - new Date(a.fecha_contacto)); 
   });
 
-  // 🚀 FIX: Reactividad ultra rápida en tiempo real para la búsqueda en la UI
   let clientesInteligentes = $derived(
     searchQuery.trim() === ''
       ? clientesBase
@@ -173,7 +170,6 @@
         )
   );
 
-  // FIX: Las métricas deben basarse en 'clientesBase' para que no fluctúen mientras buscas
   let leadsSinSeguimiento = $derived.by(() => {
     const abandonados = clientesBase.filter(c => {
       if (['cerrado', 'descartado'].includes(c.estado)) return false;
@@ -203,7 +199,6 @@
     return { bg: 'bg-slate-50 dark:bg-zinc-800/50', text: 'text-slate-700 dark:text-zinc-400', border: 'border-slate-200 dark:border-zinc-700', dot: 'bg-slate-500 dark:bg-zinc-600' };
   }
 
-  // FIX: Ajuste de Zona Horaria a nivel Calendario y no por milisegundos
   function formatearFechaRelativa(fechaIso) {
     if (!fechaIso) return 'Sin fecha';
     const fecha = new Date(fechaIso);
@@ -221,7 +216,6 @@
     return fecha.toLocaleDateString('es-MX', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  // FIX: Sanitización Extrema XSS para WhatsApp
   function enviarWhatsApp(telefono, nombreCliente, propiedadMatch) {
     if (!telefono) {
       alert("Este prospecto no tiene un número de WhatsApp registrado.");
@@ -269,30 +263,25 @@
   }
 </script>
 
-<!-- ARQUITECTURA B2B 2026: Fondo Dinámico Global -->
 <div class="fixed inset-0 w-screen h-screen bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
-<div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out]">
-  <header class="w-full bg-zinc-950 text-white pt-10 pb-28 px-6 sm:px-12 relative overflow-hidden shadow-2xl shadow-zinc-900/20 shrink-0">
-    <div class="absolute top-0 left-0 w-[800px] h-[800px] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none -translate-x-1/3 -translate-y-1/3"></div>
+<div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out] relative">
+  
+  <PageHeader title="Directorio & Matchmaking" icon={Target}>
+    {#snippet subtitle()}
+      Bóveda de Clientes e Inteligencia
+    {/snippet}
 
-    <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-      <div>
-        <h1 class="text-3xl font-black tracking-tight text-white drop-shadow-sm">Directorio & Matchmaking</h1>
-        <p class="text-xs font-bold text-indigo-400 mt-1.5 flex items-center gap-2 uppercase tracking-widest">
-          <Target class="w-3.5 h-3.5" /> Bóveda de Clientes e Inteligencia
-        </p>
-      </div>
-      
+    {#snippet actions()}
       <div class="flex items-center gap-3 w-full md:w-auto">
         <div class="relative flex-1 md:w-64">
           <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-          <input type="text" bind:value={searchQuery} placeholder="Buscar lead..." class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all shadow-inner backdrop-blur-md">
+          <input type="text" bind:value={searchQuery} placeholder="Buscar lead..." class="w-full bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-sm font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all shadow-inner backdrop-blur-md">
         </div>
 
         <button 
           onclick={() => mostrarDescartados = !mostrarDescartados}
-          class="flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all text-xs font-bold shrink-0 {mostrarDescartados ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20' : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800'}"
+          class="flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold shrink-0 {mostrarDescartados ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/20' : 'bg-white dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-sm'}"
           title="Alternar Leads Descartados"
         >
           {#if mostrarDescartados}
@@ -302,18 +291,18 @@
           {/if}
         </button>
         
-        <button onclick={descargarCSV} class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20 active:scale-95 whitespace-nowrap shrink-0">
+        <button onclick={descargarCSV} class="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md dark:shadow-indigo-600/20 active:scale-95 whitespace-nowrap shrink-0 border border-transparent">
           <Download class="w-4 h-4" /> Exportar Leads
         </button>
       </div>
-    </div>
-  </header>
+    {/snippet}
+  </PageHeader>
 
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-12">
       <!-- 4 KPIS -->
       <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border-t-4 border-blue-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between transition-colors">
+        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border-t-4 border-blue-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between transition-colors">
           <div>
             <p class="text-[11px] font-bold text-slate-500 dark:text-zinc-500 mb-1">Leads este mes</p>
             <p class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter mb-1.5">{metricasMes.total}</p>
@@ -325,7 +314,7 @@
           {/if}
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border-t-4 border-emerald-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between transition-colors">
+        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border-t-4 border-emerald-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between transition-colors">
           <div>
             <p class="text-[11px] font-bold text-slate-500 dark:text-zinc-500 mb-1">En negociación</p>
             <p class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter mb-1.5">{leadsEnNegociacion.total}</p>
@@ -337,7 +326,7 @@
           {/if}
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border-t-4 border-amber-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between overflow-visible transition-colors">
+        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border-t-4 border-amber-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between overflow-visible transition-colors">
           <div>
             <p class="text-[11px] font-bold text-slate-500 dark:text-zinc-500 mb-1">Sin seguimiento +3d</p>
             <p class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter mb-1.5">{leadsSinSeguimiento.length}</p>
@@ -347,12 +336,11 @@
               <span class="text-[10px] font-bold text-rose-500 dark:text-rose-400 flex items-center gap-1 inline-flex bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 rounded border border-rose-100 dark:border-rose-500/20 transition-colors group-hover:bg-rose-100 dark:group-hover:bg-rose-500/20">
                 <AlertCircle class="w-3 h-3"/> Requieren acción
               </span>
-              <!-- Tooltip: Se mantiene oscuro en ambos modos (Premium UI) -->
-              <div class="absolute top-full left-0 mt-2 w-52 bg-zinc-900 border border-zinc-800 shadow-xl rounded-xl p-2.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                <p class="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-2 border-b border-zinc-800 pb-1.5">Leads en Riesgo</p>
+              <div class="absolute top-full left-0 mt-2 w-52 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xl rounded-xl p-2.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                <p class="text-[9px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-2 border-b border-slate-100 dark:border-zinc-800 pb-1.5">Leads en Riesgo</p>
                 <ul class="max-h-32 overflow-y-auto space-y-1.5 pr-1">
                   {#each leadsSinSeguimiento as leadObj}
-                    <li class="text-[10px] font-medium text-white truncate flex items-center gap-2">
+                    <li class="text-[10px] font-medium text-slate-700 dark:text-zinc-300 truncate flex items-center gap-2">
                       <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span> {leadObj.nombre}
                     </li>
                   {/each}
@@ -364,7 +352,7 @@
           {/if}
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border-t-4 border-indigo-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between transition-colors">
+        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border-t-4 border-indigo-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between transition-colors">
           <div>
             <p class="text-[11px] font-bold text-slate-500 dark:text-zinc-500 mb-1">Tasa de conversión</p>
             <p class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter mb-1.5">{tasaConversion.actual}%</p>
@@ -372,7 +360,7 @@
           <p class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">↑ Histórico global</p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border-t-4 border-purple-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between transition-colors">
+        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border-t-4 border-purple-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between transition-colors">
           <div>
             <p class="text-[11px] font-bold text-slate-500 dark:text-zinc-500 mb-1">Cruces exitosos</p>
             <p class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter mb-1.5">{totalMatches}</p>
@@ -388,10 +376,9 @@
         {#each clientesInteligentes as cliente}
           {@const estiloEstado = getEstadoStyle(cliente.estado)}
           
-          <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-[0_2px_8px_rgb(0,0,0,0.02)] border {cliente.estado === 'descartado' ? 'border-slate-100 dark:border-zinc-800 opacity-60' : 'border-slate-200 dark:border-zinc-800'} overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-[0_4px_15px_rgb(0,0,0,0.05)] hover:border-slate-300 dark:hover:border-zinc-700 hover:opacity-100">
+          <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border {cliente.estado === 'descartado' ? 'border-slate-100 dark:border-zinc-800 opacity-60' : 'border-slate-200 dark:border-zinc-800'} overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-zinc-700 hover:opacity-100">
             <div class="flex-1 p-3.5 lg:px-5 lg:py-4 border-b lg:border-b-0 lg:border-r border-slate-100 dark:border-zinc-800 flex items-start gap-3.5 transition-colors">
               
-              <!-- 🚀 FIX: Avatar Nativo -->
               <div class="w-10 h-10 mt-1 rounded-full bg-slate-800 dark:bg-zinc-800 shrink-0 border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-white text-[11px] font-black hidden sm:flex tracking-widest shadow-inner uppercase transition-colors">
                 {(cliente.nombre || '?').replace(/[^\p{L}\s]/gu, '').split(' ').map(n => n[0]).slice(0, 2).join('')}
               </div>
@@ -500,8 +487,8 @@
         {/each}
 
         {#if clientesInteligentes.length === 0}
-          <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-12 text-center flex flex-col items-center justify-center w-full max-w-[1400px] mx-auto transition-colors">
-            <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-300 dark:text-zinc-600 mb-3 shadow-inner transition-colors"><Search class="w-5 h-5" /></div>
+          <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-12 text-center flex flex-col items-center justify-center w-full max-w-[1400px] mx-auto transition-colors shadow-sm">
+            <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 dark:text-zinc-500 mb-3 shadow-inner transition-colors"><Search class="w-5 h-5" /></div>
             <h3 class="text-base font-black text-slate-900 dark:text-white tracking-tight mb-1.5">Bóveda Vacía</h3>
             <p class="text-xs text-slate-500 dark:text-zinc-400 font-medium max-w-sm">No tienes prospectos registrados o ninguno coincide con tu búsqueda actual.</p>
           </div>
