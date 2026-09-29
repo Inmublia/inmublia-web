@@ -120,10 +120,8 @@
   }
 </script>
 
-<!-- ARQUITECTURA B2B 2026: Fondo Dinámico Global -->
 <div class="fixed inset-0 w-screen h-screen bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
-<!-- 🚀 FIX: Misma estructura maestra que Directorio e Inventario -->
 <div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out] relative">
   
   <PageHeader title="Marketing en Redes" icon={Send}>
@@ -132,7 +130,7 @@
     {/snippet}
 
     {#snippet actions()}
-      <div class="bg-white dark:bg-zinc-900/50 backdrop-blur-md border border-slate-200 dark:border-zinc-800 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors shadow-sm">
+      <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors shadow-sm">
         <div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-500/20">
           <Sparkles class="w-5 h-5" />
         </div>
@@ -144,12 +142,11 @@
     {/snippet}
   </PageHeader>
 
-  <!-- 🚀 FIX: Restauramos el -mt-16 para que flote sobre la cinta oscura de la cabecera -->
+  <!-- 🚀 FIX: Restauramos -mt-16 para que todo el contenido se monte sobre la cinta de la cabecera -->
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
       <div class="max-w-4xl mx-auto w-full">
 
-        <!-- 🚀 FIX: Fondo sólido dark:bg-zinc-900 para evitar grises lodosos que oculten el texto de los botones inactivos -->
         <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-2 shadow-sm mb-6 flex gap-2 transition-colors">
           <button 
             onclick={() => plataformaSeleccionada = 'instagram'}
@@ -200,7 +197,6 @@
             </div>
           {/if}
 
-          <!-- 🚀 FIX: Fondo sólido dark:bg-zinc-900 -->
           <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-8 shadow-sm mb-8 transition-colors">
             
             <div class="mb-10">
