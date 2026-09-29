@@ -4,7 +4,7 @@
   import { invalidateAll } from '$app/navigation';
   import { beforeNavigate } from '$app/navigation';
   import imageCompression from 'browser-image-compression';
-  import { Settings, ShieldCheck, Loader2, Calculator, Percent, AlertOctagon, Save } from 'lucide-svelte'; 
+  import { Settings, ShieldCheck, Loader2, Calculator, Percent, AlertOctagon, Save, Lock } from 'lucide-svelte'; 
   import { onDestroy } from 'svelte';
   
   import PageHeader from '$lib/components/PageHeader.svelte';
@@ -181,43 +181,41 @@
 
 <div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
-<!-- Arquitectura Split-Screen B2B -->
-<div class="w-full flex flex-col font-sans text-slate-900 dark:text-zinc-100 animate-[fadeIn_0.3s_ease-out] relative min-h-screen lg:h-screen lg:overflow-hidden">
+<div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out] relative">
   
-  <div class="w-full shrink-0 flex flex-col relative z-30 pb-2 lg:pb-4 transition-colors duration-300">
-    <PageHeader title="Configuración de Agencia" icon={Settings}>
-      {#snippet subtitle()}
-        {#if esCancelado}
-          <AlertOctagon class="w-4 h-4 text-red-500" /> Estatus: <span class="text-red-600 dark:text-red-400 uppercase">CANCELADA</span>
-        {:else if esMoroso}
-          <AlertOctagon class="w-4 h-4 text-amber-500" /> Estatus: <span class="text-amber-600 dark:text-amber-400 uppercase">PAGO PENDIENTE</span>
-        {:else if esTrial}
-          <ShieldCheck class="w-4 h-4 text-indigo-500 dark:text-indigo-400" /> Nivel de acceso: <span class="uppercase text-indigo-600 dark:text-indigo-300 font-bold">TRIAL ({trialRestante()} DÍAS)</span>
-        {:else}
-          <ShieldCheck class="w-4 h-4 text-emerald-500" /> Nivel de acceso: <span class="uppercase text-slate-700 dark:text-zinc-300">{broker.plan_suscripcion || 'Básico'}</span>
-        {/if}
-      {/snippet}
+  <PageHeader title="Configuración de Agencia" icon={Settings}>
+    {#snippet subtitle()}
+      {#if esCancelado}
+        <AlertOctagon class="w-4 h-4 text-red-500" /> Estatus: <span class="text-red-600 dark:text-red-400 uppercase">CANCELADA</span>
+      {:else if esMoroso}
+        <AlertOctagon class="w-4 h-4 text-amber-500" /> Estatus: <span class="text-amber-600 dark:text-amber-400 uppercase">PAGO PENDIENTE</span>
+      {:else if esTrial}
+        <ShieldCheck class="w-4 h-4 text-indigo-500 dark:text-indigo-400" /> Nivel de acceso: <span class="uppercase text-indigo-600 dark:text-indigo-300 font-bold">TRIAL ({trialRestante()} DÍAS)</span>
+      {:else}
+        <ShieldCheck class="w-4 h-4 text-emerald-500" /> Nivel de acceso: <span class="uppercase text-slate-700 dark:text-zinc-300">{broker.plan_suscripcion || 'Básico'}</span>
+      {/if}
+    {/snippet}
 
-      {#snippet actions()}
-        {#if !accesoBloqueado}
-          <button type="button" onclick={() => submitBtnPerfil?.click()} disabled={savingProfile || subdominioError} class="bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-zinc-200 disabled:bg-slate-300 dark:disabled:bg-zinc-800 disabled:text-slate-500 dark:disabled:text-zinc-600 text-white dark:text-zinc-900 border border-transparent font-bold py-2.5 px-6 rounded-xl shadow-sm flex items-center gap-2 transition-all text-sm cursor-pointer active:scale-[0.98]">
-            {#if savingProfile}
-              <span class="w-4 h-4 border-2 border-white/30 dark:border-zinc-900/30 border-t-white dark:border-t-zinc-900 rounded-full animate-spin"></span> Guardando...
-            {:else}
-              <Save class="w-4 h-4" /> Guardar Perfil
-            {/if}
-          </button>
-        {/if}
-      {/snippet}
-    </PageHeader>
-  </div>
+    {#snippet actions()}
+      {#if !accesoBloqueado}
+        <button type="button" onclick={() => submitBtnPerfil?.click()} disabled={savingProfile || subdominioError} class="bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-zinc-200 disabled:bg-slate-300 dark:disabled:bg-zinc-800 disabled:text-slate-500 dark:disabled:text-zinc-600 text-white dark:text-zinc-900 border border-transparent font-bold py-2.5 px-6 rounded-xl shadow-sm flex items-center gap-2 transition-all text-sm cursor-pointer active:scale-[0.98]">
+          {#if savingProfile}
+            <span class="w-4 h-4 border-2 border-white/30 dark:border-zinc-900/30 border-t-white dark:border-t-zinc-900 rounded-full animate-spin"></span> Guardando...
+          {:else}
+            <Save class="w-4 h-4" /> Guardar Perfil
+          {/if}
+        </button>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
-  <main class="w-full flex-1 relative z-20 pt-4 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent" style="-webkit-mask-image: linear-gradient(to bottom, transparent, black 16px, black); mask-image: linear-gradient(to bottom, transparent, black 16px, black);">
+  <!-- 🚀 FIX: Restauramos -mt-16 para sobreponer las tarjetas a la cabecera -->
+  <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 h-full">
 
       {#if accesoBloqueado}
         <div class="flex items-center justify-center pt-10">
-          <div class="bg-white dark:bg-zinc-900/80 backdrop-blur-md rounded-3xl max-w-lg w-full p-10 shadow-lg text-center border border-red-100 dark:border-red-900/30 relative overflow-hidden animate-[fadeIn_0.3s_ease-out] transition-colors">
+          <div class="bg-white dark:bg-zinc-900 rounded-3xl max-w-lg w-full p-10 shadow-sm border border-red-100 dark:border-red-900/30 relative overflow-hidden animate-[fadeIn_0.3s_ease-out] transition-colors">
             <div class="absolute top-0 right-0 w-40 h-40 {esCancelado ? 'bg-red-500/10' : 'bg-amber-500/10'} rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
             
             {#if esCancelado}
@@ -226,7 +224,7 @@
               <p class="text-sm text-slate-600 dark:text-zinc-400 mb-8 leading-relaxed font-medium relative z-10">
                 Tu plan ha sido cancelado y el acceso a la plataforma ha sido revocado. Para volver a utilizar tu CRM y publicar tu inventario, es necesario recontratar un plan.
               </p>
-              <a href="/admin/planes" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white font-bold py-4 rounded-xl transition-all shadow-md active:scale-[0.98] relative z-10">
+              <a href="/admin/planes" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white font-bold py-4 rounded-xl transition-all shadow-sm active:scale-[0.98] relative z-10">
                 Ver Planes y Contratar
               </a>
             {:else}
@@ -235,7 +233,7 @@
               <p class="text-sm text-slate-600 dark:text-zinc-400 mb-8 leading-relaxed font-medium relative z-10">
                 No pudimos procesar el cobro de tu membresía. Para reactivar de inmediato el acceso a tu inventario y a la consola operativa, por favor actualiza los fondos o la tarjeta.
               </p>
-              <a href="/api/stripe/portal" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white font-bold py-4 rounded-xl transition-all shadow-md active:scale-[0.98] relative z-10">
+              <a href="/api/stripe/portal" data-sveltekit-reload class="w-full inline-flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white font-bold py-4 rounded-xl transition-all shadow-sm active:scale-[0.98] relative z-10">
                 Actualizar Tarjeta en Stripe
               </a>
             {/if}
@@ -249,7 +247,7 @@
       {:else}
 
         {#if form?.error && form?.formId !== 'webhook'}
-           <div class="mb-6 bg-red-100 dark:bg-red-500/10 text-red-800 dark:text-red-400 font-bold p-6 rounded-xl border border-red-300 dark:border-red-500/30 text-sm whitespace-pre-wrap shadow-sm" role="alert">
+           <div class="mb-6 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 font-bold p-6 rounded-xl border border-red-200 dark:border-red-500/30 text-sm whitespace-pre-wrap shadow-sm transition-colors" role="alert">
              ⚠️ DIAGNÓSTICO: {form.error}
            </div>
         {/if}
