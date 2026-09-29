@@ -28,6 +28,9 @@
   import { CheckCircle2, AlertCircle, Save, Palette, LayoutTemplate, Smartphone, ShieldCheck, Lock } from 'lucide-svelte'; 
   import TemplateCard from '$lib/components/admin/TemplateCard.svelte';
 
+  // 🚀 Importamos la cabecera universal
+  import PageHeader from '$lib/components/PageHeader.svelte';
+
   let { data, form } = $props();
   
   let broker = $derived(data.broker || {});
@@ -58,25 +61,21 @@
   }
 </script>
 
-<div class="fixed inset-0 bg-slate-50 -z-10 pointer-events-none"></div>
+<div class="fixed inset-0 w-screen h-screen bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
-<div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
+<!-- Arquitectura Split-Screen B2B -->
+<div class="w-full flex flex-col font-sans text-slate-900 dark:text-zinc-100 animate-[fadeIn_0.3s_ease-out] relative min-h-screen lg:h-screen lg:overflow-hidden">
   
-  <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
-    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
+  <!-- ============================================== -->
+  <!-- ZONA SUPERIOR ESTÁTICA                         -->
+  <!-- ============================================== -->
+  <div class="w-full shrink-0 flex flex-col relative z-30 pb-2 lg:pb-4 transition-colors duration-300">
+    <PageHeader title="Design Studio" icon={Palette}>
+      {#snippet subtitle()}
+        Cuenta: <span class="uppercase text-slate-700 dark:text-zinc-300 font-bold">{planSuscripcion}</span>
+      {/snippet}
 
-    <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-      <div>
-        <h1 class="text-3xl font-bold tracking-tight text-zinc-50 flex items-center gap-3">
-          <Palette class="w-7 h-7 text-amber-400" />
-          Design Studio
-        </h1>
-        <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
-          <ShieldCheck class="w-4 h-4 text-emerald-500" /> Cuenta: <span class="uppercase text-zinc-300">{planSuscripcion}</span>
-        </p>
-      </div>
-
-      <div>
+      {#snippet actions()}
         <form method="POST" action="?/updateTemplate" use:enhance={() => {
           savingProfile = true;
           return async ({ update, result }) => {
@@ -89,51 +88,54 @@
           <input type="hidden" name="template_seleccionado" value={selectedTemplate}>
           <input type="hidden" name="template_id_catalog" value={selectedLanding}>
           
-          <button type="submit" disabled={savingProfile} class="bg-white hover:bg-zinc-200 disabled:bg-zinc-300 disabled:text-zinc-500 text-zinc-950 font-bold py-3 px-6 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center gap-2 transition-all text-sm cursor-pointer active:scale-95">
+          <button type="submit" disabled={savingProfile} class="bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-200 disabled:bg-slate-300 dark:disabled:bg-zinc-800 disabled:text-slate-500 dark:disabled:text-zinc-600 text-white dark:text-zinc-900 font-bold py-2.5 px-6 rounded-xl shadow-sm flex items-center gap-2 transition-all text-sm cursor-pointer active:scale-[0.98] border border-transparent">
             {#if savingProfile}
-              <span class="w-4 h-4 border-2 border-zinc-950/30 border-t-zinc-950 rounded-full animate-spin"></span> Guardando...
+              <span class="w-4 h-4 border-2 border-white/30 dark:border-zinc-900/30 border-t-white dark:border-t-zinc-900 rounded-full animate-spin"></span> Guardando...
             {:else}
-              <Save class="w-4 h-4 text-amber-500" /> Guardar Configuración Global
+              <Save class="w-4 h-4" /> Guardar Configuración Global
             {/if}
           </button>
         </form>
-      </div>
-    </div>
-  </header>
+      {/snippet}
+    </PageHeader>
+  </div>
 
-  <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
+  <!-- ============================================== -->
+  <!-- ZONA INFERIOR SCROLLABLE INDEPENDIENTE         -->
+  <!-- ============================================== -->
+  <main class="w-full flex-1 relative z-20 pt-4 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent" style="-webkit-mask-image: linear-gradient(to bottom, transparent, black 16px, black); mask-image: linear-gradient(to bottom, transparent, black 16px, black);">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-8">
 
       {#if form?.error}
-        <div class="p-3.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 shadow-sm">
+        <div class="p-3.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 shadow-sm transition-colors">
           <AlertCircle class="w-4 h-4" /> {form.error}
         </div>
       {/if}
       
       {#if showSuccess}
-        <div class="p-3.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
+        <div class="p-3.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 shadow-sm transition-colors">
           <CheckCircle2 class="w-4 h-4" /> Configuración visual actualizada y sincronizada en todo el inventario.
         </div>
       {/if}
 
-      <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 flex items-center gap-5">
-        <div class="w-14 h-14 rounded-full border-2 border-slate-100 shadow-sm overflow-hidden bg-slate-50 shrink-0">
+      <div class="bg-white dark:bg-zinc-900 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-zinc-800 flex items-center gap-5 transition-colors">
+        <div class="w-14 h-14 rounded-full border-2 border-slate-100 dark:border-zinc-700 shadow-sm overflow-hidden bg-slate-50 dark:bg-zinc-800 shrink-0 transition-colors">
           <img src={broker.avatar_url || `https://ui-avatars.com/api/?name=${broker.nombre_comercial || 'I'}&background=0f172a&color=fff`} alt="Logo" class="w-full h-full object-cover">
         </div>
         <div>
-          <h2 class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Identidad Corporativa</h2>
-          <p class="text-base font-black text-slate-900 leading-tight">{broker.nombre_comercial || 'Inmublia Showcase'}</p>
+          <h2 class="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-0.5">Identidad Corporativa</h2>
+          <p class="text-base font-black text-slate-900 dark:text-white leading-tight">{broker.nombre_comercial || 'Inmublia Showcase'}</p>
         </div>
       </div>
 
       <!-- SECCIÓN 1: CATÁLOGO GLOBAL -->
-      <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200 border-l-4 border-l-amber-500">
+      <div class="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-zinc-800 border-l-4 border-l-amber-500 transition-colors">
         <div class="mb-6 flex flex-col gap-1">
-          <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
-            <LayoutTemplate class="w-4 h-4 text-amber-500" />
+          <h3 class="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <LayoutTemplate class="w-4 h-4 text-amber-500 dark:text-amber-400" />
             1. Interfaz Base de la Agencia
           </h3>
-          <p class="text-[11px] font-medium text-slate-500 leading-relaxed">Determine la maqueta global para desplegar el catálogo general con todas sus propiedades públicas.</p>
+          <p class="text-[11px] font-medium text-slate-500 dark:text-zinc-400 leading-relaxed">Determine la maqueta global para desplegar el catálogo general con todas sus propiedades públicas.</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -158,8 +160,8 @@
                 urlFullDemo={autorizado ? `https://${subdominio}.inmublia.com/?preview=${template.id}` : ''}
               />
               {#if !autorizado}
-                <div class="absolute inset-0 z-40 bg-slate-900/10 backdrop-blur-[1px] rounded-2xl flex items-center justify-center pointer-events-none">
-                  <span class="bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
+                <div class="absolute inset-0 z-40 bg-slate-900/10 dark:bg-black/40 backdrop-blur-[1px] rounded-2xl flex items-center justify-center pointer-events-none transition-colors">
+                  <span class="bg-slate-900 dark:bg-zinc-800 text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full shadow-md flex items-center gap-2 border border-slate-700 dark:border-zinc-700">
                     <Lock class="w-3.5 h-3.5" /> Requiere Plan {template.minPlan}
                   </span>
                 </div>
@@ -170,14 +172,14 @@
       </div>
 
       <!-- SECCIÓN 2: LANDING PAGES DE PROPIEDADES -->
-      <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200 border-l-4 border-l-slate-900 relative overflow-hidden">
+      <div class="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-zinc-800 border-l-4 border-l-slate-900 dark:border-l-zinc-700 relative overflow-hidden transition-colors">
         
         <div class="mb-6 flex flex-col gap-1 relative z-10">
-          <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
-            <Smartphone class="w-4 h-4 text-slate-900" />
+          <h3 class="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <Smartphone class="w-4 h-4 text-slate-900 dark:text-zinc-400" />
             2. Diseños Base de Landing Pages para Propiedades
           </h3>
-          <p class="text-[11px] font-medium text-slate-500 leading-relaxed">Seleccione la plantilla que se aplicará inmediatamente a <strong class="text-slate-800 font-bold">todo su inventario público</strong>.</p>
+          <p class="text-[11px] font-medium text-slate-500 dark:text-zinc-400 leading-relaxed">Seleccione la plantilla que se aplicará inmediatamente a <strong class="text-slate-800 dark:text-zinc-200 font-bold">todo su inventario público</strong>.</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
@@ -202,8 +204,8 @@
                 urlFullDemo={autorizado ? (previewSlug ? `https://${subdominio}.inmublia.com/${previewSlug}?template=${propTemplate.id}` : `https://${subdominio}.inmublia.com/`) : ''}
               />
               {#if !autorizado}
-                <div class="absolute inset-0 z-40 bg-slate-900/10 backdrop-blur-[1px] rounded-2xl flex items-center justify-center pointer-events-none">
-                  <span class="bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
+                <div class="absolute inset-0 z-40 bg-slate-900/10 dark:bg-black/40 backdrop-blur-[1px] rounded-2xl flex items-center justify-center pointer-events-none transition-colors">
+                  <span class="bg-slate-900 dark:bg-zinc-800 text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full shadow-md flex items-center gap-2 border border-slate-700 dark:border-zinc-700">
                     <Lock class="w-3.5 h-3.5" /> Requiere Plan {propTemplate.minPlan}
                   </span>
                 </div>
