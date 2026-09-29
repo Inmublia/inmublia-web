@@ -2,9 +2,6 @@
 <script>
   import { Sparkles, Send, Image as ImageIcon, AlertTriangle, CheckCircle2, Instagram, Facebook, Video, Loader2 } from 'lucide-svelte';
 
-  // 🚀 Importamos la cabecera universal
-  import PageHeader from '$lib/components/PageHeader.svelte';
-
   let { data } = $props();
   let propiedades = $derived(data.propiedades);
   let redes = $derived(data.redes); 
@@ -124,25 +121,34 @@
 
 <div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out] relative">
   
-  <PageHeader title="Marketing en Redes" icon={Send}>
-    {#snippet subtitle()}
-      Difunde tu inventario en múltiples plataformas con textos optimizados por IA.
-    {/snippet}
+  <!-- 🚀 FIX: Cabecera manual B2B 2026 estricta para asegurar el color oscuro en Light Mode -->
+  <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0 transition-colors duration-300">
+    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3 transition-opacity"></div>
 
-    {#snippet actions()}
-      <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors shadow-sm">
-        <div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-500/20">
+    <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div>
+        <h1 class="text-3xl font-black tracking-tight text-white flex items-center gap-3">
+          <Send class="w-7 h-7 text-purple-400" />
+          Marketing en Redes
+        </h1>
+        <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
+          Difunde tu inventario en múltiples plataformas con textos optimizados por IA.
+        </p>
+      </div>
+
+      <div class="bg-white/10 backdrop-blur-md border border-white/10 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors shadow-sm">
+        <div class="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300 border border-purple-500/20">
           <Sparkles class="w-5 h-5" />
         </div>
         <div>
-          <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Créditos IA</p>
-          <p class="text-lg font-black text-slate-900 dark:text-white">{tokensDisponibles} <span class="text-xs font-medium text-slate-400 dark:text-zinc-500 ml-1">disponibles</span></p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Créditos IA</p>
+          <p class="text-lg font-black text-white">{tokensDisponibles} <span class="text-xs font-medium text-zinc-500 ml-1">disponibles</span></p>
         </div>
       </div>
-    {/snippet}
-  </PageHeader>
+    </div>
+  </header>
 
-  <!-- 🚀 FIX: Restauramos -mt-16 para que todo el contenido se monte sobre la cinta de la cabecera -->
+  <!-- 🚀 FIX: Restauramos el -mt-16 para el Overlap -->
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
       <div class="max-w-4xl mx-auto w-full">
@@ -197,6 +203,7 @@
             </div>
           {/if}
 
+          <!-- 🚀 FIX: Fondo sólido en la tarjeta principal de publicación -->
           <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-8 shadow-sm mb-8 transition-colors">
             
             <div class="mb-10">
