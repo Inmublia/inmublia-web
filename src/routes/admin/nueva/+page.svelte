@@ -8,9 +8,6 @@
     AlertTriangle, Eye, Zap, AlertOctagon, Lock
   } from 'lucide-svelte';
 
-  // 🚀 Importamos la cabecera universal
-  import PageHeader from '$lib/components/PageHeader.svelte';
-
   let { form, data } = $props();
   
   let creditosBase = $derived(data?.creditos_ia ?? 15);
@@ -227,22 +224,21 @@
 
 <div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out] relative">
   
-  <!-- 🚀 FIX: Aplicamos el componente PageHeader -->
-  <PageHeader title="Nueva Propiedad">
-    {#snippet subtitle()}
-      Registra un nuevo activo en tu catálogo inmobiliario.
-    {/snippet}
+  <!-- 🚀 FIX: Recreamos la cabecera de forma manual para asegurar el alineamiento a la izquierda del botón Back -->
+  <header class="w-full bg-white dark:bg-zinc-950 text-slate-900 dark:text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0 border-b border-slate-200 dark:border-zinc-800 transition-colors duration-300">
+    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3 transition-opacity"></div>
 
-    {#snippet actions()}
-      <div class="flex items-center gap-4">
-        <a href="/admin" class="text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800" title="Volver al Inventario">
-          <ArrowLeft class="w-6 h-6" />
-        </a>
+    <div class="w-full max-w-[1000px] mx-auto relative z-10 flex items-center gap-5">
+      <a href="/admin" class="text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors p-3 rounded-2xl bg-slate-50 dark:bg-zinc-900 hover:bg-slate-100 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-800 shadow-sm" title="Volver al Inventario">
+        <ArrowLeft class="w-6 h-6" />
+      </a>
+      <div>
+        <h1 class="text-3xl font-black tracking-tight text-slate-900 dark:text-zinc-50">Nueva Propiedad</h1>
+        <p class="text-sm font-medium text-slate-500 dark:text-zinc-400 mt-1">Registra un nuevo activo en tu catálogo inmobiliario.</p>
       </div>
-    {/snippet}
-  </PageHeader>
+    </div>
+  </header>
 
-  <!-- 🚀 FIX: Mantenemos el -mt-16 y el max-w-[1000px] para esta vista -->
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1000px] mx-auto px-4 sm:px-10 h-full">
       <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-sm border border-slate-200 dark:border-zinc-800 p-6 sm:p-10 mb-10 transition-colors duration-300">
@@ -730,7 +726,7 @@
                  Actualizar Plan para Continuar
               </a>
             {:else}
-              <button type="submit" disabled={loading || comprimiendoGaleria} class="bg-slate-900 dark:bg-white text-white dark:text-zinc-900 font-bold py-2.5 px-8 rounded-lg disabled:opacity-50 shadow-sm hover:bg-slate-800 dark:hover:bg-slate-200 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-[0.98]">
+              <button type="submit" disabled={loading || comprimiendoGaleria} class="bg-slate-900 dark:bg-white text-white dark:text-zinc-900 font-bold py-2.5 px-8 rounded-lg disabled:opacity-50 shadow-sm hover:bg-slate-800 dark:hover:bg-slate-100 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-[0.98]">
                 {#if loading || comprimiendoGaleria}
                   <Loader2 class="animate-spin w-4 h-4 {loading ? 'text-white dark:text-zinc-900' : ''}" />
                    Procesando...
@@ -749,7 +745,7 @@
 
 <style>
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
   }
 </style>
