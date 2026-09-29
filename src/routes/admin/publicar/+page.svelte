@@ -2,8 +2,6 @@
 <script>
   import { Sparkles, Send, Image as ImageIcon, AlertTriangle, CheckCircle2, Instagram, Facebook, Video, Loader2 } from 'lucide-svelte';
 
-  import PageHeader from '$lib/components/PageHeader.svelte';
-
   let { data } = $props();
   let propiedades = $derived(data.propiedades);
   let redes = $derived(data.redes); 
@@ -123,29 +121,39 @@
 
 <div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out] relative">
   
-  <PageHeader title="Marketing en Redes" icon={Send}>
-    {#snippet subtitle()}
-      Difunde tu inventario en múltiples plataformas con textos optimizados por IA.
-    {/snippet}
+  <!-- 🚀 FIX: Cabecera manual estructurada para garantizar el Overlap visual correcto en Light/Dark Mode -->
+  <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0 transition-colors duration-300">
+    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3 transition-opacity"></div>
 
-    {#snippet actions()}
-      <div class="bg-white dark:bg-zinc-900/50 backdrop-blur-md border border-slate-200 dark:border-zinc-800 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors shadow-sm">
-        <div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-500/20">
+    <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div>
+        <h1 class="text-3xl font-black tracking-tight text-white flex items-center gap-3">
+          <Send class="w-7 h-7 text-purple-400" />
+          Marketing en Redes
+        </h1>
+        <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
+          Difunde tu inventario en múltiples plataformas con textos optimizados por IA.
+        </p>
+      </div>
+
+      <div class="bg-white/10 backdrop-blur-md border border-white/10 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors shadow-sm">
+        <div class="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300 border border-purple-500/20">
           <Sparkles class="w-5 h-5" />
         </div>
         <div>
-          <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Créditos IA</p>
-          <p class="text-lg font-black text-slate-900 dark:text-white">{tokensDisponibles} <span class="text-xs font-medium text-slate-400 dark:text-zinc-500 ml-1">disponibles</span></p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Créditos IA</p>
+          <p class="text-lg font-black text-white">{tokensDisponibles} <span class="text-xs font-medium text-zinc-500 ml-1">disponibles</span></p>
         </div>
       </div>
-    {/snippet}
-  </PageHeader>
+    </div>
+  </header>
 
+  <!-- 🚀 FIX: Restauramos -mt-16 puro sin contenedores intermedios que rompan el Z-index -->
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
       <div class="max-w-4xl mx-auto w-full">
 
-        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-2 shadow-sm mb-6 flex gap-2 transition-colors">
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-2 shadow-sm mb-6 flex gap-2 transition-colors relative z-10">
           <button 
             onclick={() => plataformaSeleccionada = 'instagram'}
             class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm transition-all {plataformaSeleccionada === 'instagram' ? 'bg-gradient-to-r from-fuchsia-600 to-pink-500 text-white shadow-md dark:shadow-none' : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800'}"
@@ -171,11 +179,12 @@
         </div>
         
         {#if !redActual}
-          <div class="bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-3xl p-6 mb-8 flex items-start gap-4 shadow-sm transition-colors">
+          <div class="bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-3xl p-6 mb-8 flex items-start gap-4 shadow-sm transition-colors relative z-10">
             <AlertTriangle class="w-6 h-6 text-rose-500 dark:text-rose-400 shrink-0" />
             <div>
               <h3 class="text-rose-600 dark:text-rose-400 font-bold mb-1 capitalize">{plataformaSeleccionada} no vinculado</h3>
               <p class="text-sm text-slate-600 dark:text-zinc-400 mb-4 font-medium">Debes conectar tu cuenta profesional de {plataformaSeleccionada} para poder publicar.</p>
+              <!-- 🚀 FIX: Enlace corregido a /admin/configuracion/redes -->
               <a href="/admin/configuracion/redes" class="inline-flex bg-slate-900 dark:bg-white border border-slate-800 dark:border-white text-white dark:text-zinc-900 text-xs font-bold px-5 py-2.5 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors shadow-sm">
                 Ir a Configuración de Redes
               </a>
@@ -184,18 +193,18 @@
         {:else}
 
           {#if errorMsg}
-            <div class="bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 text-sm font-semibold p-4 rounded-xl mb-6 flex items-center gap-3 shadow-sm transition-colors">
+            <div class="bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 text-sm font-semibold p-4 rounded-xl mb-6 flex items-center gap-3 shadow-sm transition-colors relative z-10">
               <AlertTriangle class="w-5 h-5 shrink-0" /> {errorMsg}
             </div>
           {/if}
 
           {#if mensajeExito}
-            <div class="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-sm font-semibold p-4 rounded-xl mb-6 flex items-center gap-3 shadow-sm transition-colors">
+            <div class="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-sm font-semibold p-4 rounded-xl mb-6 flex items-center gap-3 shadow-sm transition-colors relative z-10">
               <CheckCircle2 class="w-5 h-5 shrink-0" /> {mensajeExito}
             </div>
           {/if}
 
-          <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-8 shadow-sm mb-8 transition-colors">
+          <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-8 shadow-sm mb-8 transition-colors relative z-10">
             
             <div class="mb-10">
               <label for="propiedad" class="block text-xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 transition-colors">1. Selecciona una Propiedad</label>
@@ -273,7 +282,7 @@
                   {#if publicando}
                     <Loader2 class="w-5 h-5 animate-spin" /> Enviando a los servidores...
                   {:else}
-                    <Send class="w-5 h-5" /> Publicar en {plataformaSeleccionada}{redActual.username ? ` @${redActual.username}` : ''}
+                    <Send class="w-5 h-5" /> Publicar en {plataformaSeleccionada}{redActual?.username ? ` @${redActual.username}` : ''}
                   {/if}
                 </button>
               </div>
