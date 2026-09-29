@@ -2,6 +2,9 @@
 <script>
   import { Sparkles, Send, Image as ImageIcon, AlertTriangle, CheckCircle2, Instagram, Facebook, Video, Loader2 } from 'lucide-svelte';
 
+  // 🚀 Importamos la cabecera universal
+  import PageHeader from '$lib/components/PageHeader.svelte';
+
   let { data } = $props();
   let propiedades = $derived(data.propiedades);
   let redes = $derived(data.redes); 
@@ -21,18 +24,16 @@
   let mensajeExito = $state('');
   let errorMsg = $state('');
 
-  // 🚀 FIX: $effect Quirúrgico 1 - Solo limpia campos operativos al cambiar de propiedad
   $effect(() => {
-    propiedadSeleccionadaId; // dependencia explícita
+    propiedadSeleccionadaId; 
     imagenSeleccionada = '';
     captionFinal = '';
     errorMsg = '';
     mensajeExito = '';
   });
 
-  // 🚀 FIX: $effect Quirúrgico 2 - Limpia mensajes pero NO borra el texto redactado al cambiar de red
   $effect(() => {
-    plataformaSeleccionada; // dependencia explícita
+    plataformaSeleccionada; 
     errorMsg = '';
     mensajeExito = '';
   });
@@ -42,7 +43,6 @@
     errorMsg = '';
     generando = true;
     
-    // 🚀 FIX: Formateo estricto por saltos de línea y formateo de precio con comas para que la IA y el Validador hablen el mismo idioma
     const precioFormateado = propiedadActiva.precio ? Number(propiedadActiva.precio).toLocaleString('es-MX') : null;
     const partes = [
       propiedadActiva.titulo,
@@ -85,7 +85,6 @@
       return;
     }
     
-    // 🚀 FIX: Whitelist de seguridad para evitar inyección de rutas (Path Traversal)
     const PLATAFORMAS_VALIDAS = ['instagram', 'facebook'];
     if (!PLATAFORMAS_VALIDAS.includes(plataformaSeleccionada)) {
       errorMsg = 'Plataforma no disponible por el momento.';
@@ -109,7 +108,6 @@
       
       if (!res.ok) throw new Error(dataRes.error || 'Fallo al publicar');
       
-      // 🚀 FIX: Nombres capitalizados correctamente y evitamos limpiar propiedadSeleccionadaId para no matar el mensaje de éxito
       const NOMBRES_RED = { instagram: 'Instagram', facebook: 'Facebook' };
       mensajeExito = `¡Publicado exitosamente en ${NOMBRES_RED[plataformaSeleccionada]}!`;
       captionFinal = '';
@@ -122,42 +120,43 @@
   }
 </script>
 
-<!-- ARQUITECTURA B2B 2026: Fondo Dinámico Global -->
-<div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
+<div class="fixed inset-0 w-screen h-screen bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
-<div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
+<!-- Arquitectura Split-Screen B2B (Bloqueamos el scroll global en Desktop) -->
+<div class="w-full flex flex-col font-sans text-slate-900 dark:text-zinc-100 animate-[fadeIn_0.3s_ease-out] relative min-h-screen lg:h-screen lg:overflow-hidden">
   
-  <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
-    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
+  <!-- ============================================== -->
+  <!-- ZONA SUPERIOR ESTÁTICA                         -->
+  <!-- ============================================== -->
+  <div class="w-full shrink-0 flex flex-col relative z-30 pb-2 lg:pb-4 transition-colors duration-300">
+    
+    <PageHeader title="Marketing en Redes" icon={Send}>
+      {#snippet subtitle()}
+        Difunde tu inventario en múltiples plataformas con textos optimizados por IA.
+      {/snippet}
 
-    <div class="w-full max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-      <div>
-        <h1 class="text-3xl font-bold tracking-tight text-zinc-50 flex items-center gap-3">
-          <Send class="w-7 h-7 text-blue-400" />
-          Marketing en Redes
-        </h1>
-        <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
-          Difunde tu inventario en múltiples plataformas con textos optimizados por IA.
-        </p>
-      </div>
-      
-      <div class="bg-white/10 dark:bg-black/20 backdrop-blur-md border border-white/10 dark:border-white/5 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors">
-        <div class="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300">
-          <Sparkles class="w-5 h-5" />
+      {#snippet actions()}
+        <div class="bg-white dark:bg-zinc-900/50 backdrop-blur-md border border-slate-200 dark:border-zinc-800 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors shadow-sm">
+          <div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-500/20">
+            <Sparkles class="w-5 h-5" />
+          </div>
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Créditos IA</p>
+            <p class="text-lg font-black text-slate-900 dark:text-white">{tokensDisponibles} <span class="text-xs font-medium text-slate-400 dark:text-zinc-500 ml-1">disponibles</span></p>
+          </div>
         </div>
-        <div>
-          <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Créditos IA</p>
-          <p class="text-lg font-black text-white">{tokensDisponibles} <span class="text-xs font-medium text-zinc-500 ml-1">disponibles</span></p>
-        </div>
-      </div>
-    </div>
-  </header>
+      {/snippet}
+    </PageHeader>
+  </div>
 
-  <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
+  <!-- ============================================== -->
+  <!-- ZONA INFERIOR SCROLLABLE INDEPENDIENTE         -->
+  <!-- ============================================== -->
+  <main class="w-full flex-1 relative z-20 pt-4 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent" style="-webkit-mask-image: linear-gradient(to bottom, transparent, black 16px, black); mask-image: linear-gradient(to bottom, transparent, black 16px, black);">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
       <div class="max-w-4xl">
 
-        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-2 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none mb-6 flex gap-2 transition-colors">
+        <div class="bg-white dark:bg-zinc-900/40 backdrop-blur-sm border border-slate-200/60 dark:border-zinc-800/60 rounded-3xl p-2 shadow-sm mb-6 flex gap-2 transition-colors">
           <button 
             onclick={() => plataformaSeleccionada = 'instagram'}
             class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm transition-all {plataformaSeleccionada === 'instagram' ? 'bg-gradient-to-r from-fuchsia-600 to-pink-500 text-white shadow-md dark:shadow-none' : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800'}"
@@ -170,7 +169,7 @@
           >
             <Facebook class="w-5 h-5" /> Facebook
           </button>
-          <!-- 🚀 FIX: Botón de TikTok en estado Próximamente -->
+          
           <button 
             disabled
             class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm text-slate-300 dark:text-zinc-600 cursor-not-allowed relative border border-dashed border-slate-200 dark:border-zinc-700 transition-colors"
@@ -188,7 +187,7 @@
             <div>
               <h3 class="text-rose-600 dark:text-rose-400 font-bold mb-1 capitalize">{plataformaSeleccionada} no vinculado</h3>
               <p class="text-sm text-slate-600 dark:text-zinc-400 mb-4 font-medium">Debes conectar tu cuenta profesional de {plataformaSeleccionada} para poder publicar.</p>
-              <a href="/admin/configuracion/redes" class="inline-flex bg-slate-900 dark:bg-white border border-slate-800 dark:border-white text-white dark:text-zinc-900 text-xs font-bold px-5 py-2.5 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors shadow-sm">
+              <a href="/admin/perfil" class="inline-flex bg-slate-900 dark:bg-white border border-slate-800 dark:border-white text-white dark:text-zinc-900 text-xs font-bold px-5 py-2.5 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors shadow-sm">
                 Ir a Configuración de Redes
               </a>
             </div>
@@ -207,14 +206,15 @@
             </div>
           {/if}
 
-          <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-8 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none mb-8 transition-colors">
+          <!-- Fondo sólido aquí para evitar lodo visual -->
+          <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-8 shadow-sm mb-8 transition-colors">
             
             <div class="mb-10">
               <label for="propiedad" class="block text-xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 transition-colors">1. Selecciona una Propiedad</label>
               <select 
                 id="propiedad" 
                 bind:value={propiedadSeleccionadaId} 
-                class="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-white font-semibold rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-700"
+                class="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-white font-semibold rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-700"
               >
                 <option value="">-- Elige del inventario activo --</option>
                 {#each propiedades as prop}
@@ -225,7 +225,6 @@
 
             {#if propiedadActiva}
               <div class="mb-10">
-                <!-- 🚀 FIX A11Y: Se cambia <label> por <p> porque no envuelve ni referencia (for="") a ningún input real -->
                 <p class="block text-xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 transition-colors">2. Selecciona la Imagen a Publicar</p>
                 
                 {#if !propiedadActiva.galeria_urls || propiedadActiva.galeria_urls.length === 0}
@@ -236,13 +235,12 @@
                   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {#each propiedadActiva.galeria_urls as img}
                       <button 
-                        class="relative aspect-square rounded-xl overflow-hidden border-2 transition-all group {imagenSeleccionada === img ? 'border-blue-500 ring-4 ring-blue-500/20' : 'border-slate-100 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-600'}"
+                        class="relative aspect-square rounded-xl overflow-hidden border-2 transition-all group {imagenSeleccionada === img ? 'border-indigo-500 ring-4 ring-indigo-500/20' : 'border-slate-100 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-600'}"
                         onclick={() => imagenSeleccionada = img}
                       >
-                        <!-- 🚀 FIX: Loading Lazy para optimizar el frontend -->
                         <img src={img} alt="Inmueble" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                         {#if imagenSeleccionada === img}
-                          <div class="absolute inset-0 bg-blue-500/20 flex items-center justify-center backdrop-blur-[2px]">
+                          <div class="absolute inset-0 bg-indigo-500/20 flex items-center justify-center backdrop-blur-[2px]">
                             <CheckCircle2 class="w-10 h-10 text-white drop-shadow-md" />
                           </div>
                         {/if}
@@ -253,14 +251,13 @@
               </div>
 
               <div class="mb-10">
-                <!-- 🚀 FIX A11Y: Se agrega el atributo for="captionFinal" para ligarlo al textarea -->
                 <label for="captionFinal" class="block text-xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 transition-colors">3. Texto de la Publicación</label>
 
                 <div class="flex flex-col gap-4">
                   <button 
                     onclick={generarTextoIA} 
                     disabled={generando || tokensDisponibles <= 0}
-                    class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-[0_4px_15px_rgba(59,130,246,0.2)] transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                    class="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-md shadow-indigo-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                   >
                     {#if generando}
                       <Loader2 class="w-5 h-5 animate-spin" /> Redactando con IA para {plataformaSeleccionada}...
@@ -274,7 +271,7 @@
                     bind:value={captionFinal}
                     rows="5"
                     placeholder="El texto optimizado para {plataformaSeleccionada} aparecerá aquí..."
-                    class="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-white font-medium rounded-xl p-4 focus:outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-zinc-900 focus:ring-1 focus:ring-blue-500 resize-none transition-colors placeholder:text-slate-400 dark:placeholder:text-zinc-500"
+                    class="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-white font-medium rounded-xl p-4 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 focus:ring-1 focus:ring-indigo-500 resize-none transition-colors placeholder:text-slate-400 dark:placeholder:text-zinc-500 shadow-inner"
                   ></textarea>
                 </div>
               </div>
@@ -283,12 +280,11 @@
                 <button 
                   onclick={publicarEnRed}
                   disabled={publicando || !captionFinal || !imagenSeleccionada}
-                  class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest py-4 px-6 rounded-xl shadow-[0_4px_15px_rgba(37,99,235,0.2)] transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:text-slate-400 dark:disabled:text-zinc-600 disabled:border disabled:border-slate-200 dark:disabled:border-zinc-700 disabled:cursor-not-allowed disabled:shadow-none"
+                  class="w-full bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-zinc-900 font-black uppercase tracking-widest py-4 px-6 rounded-xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:text-slate-400 dark:disabled:text-zinc-600 disabled:border disabled:border-slate-200 dark:disabled:border-zinc-700 disabled:cursor-not-allowed"
                 >
                   {#if publicando}
                     <Loader2 class="w-5 h-5 animate-spin" /> Enviando a los servidores...
                   {:else}
-                    <!-- 🚀 FIX: Manejo seguro del username por si Meta falló en devolverlo -->
                     <Send class="w-5 h-5" /> Publicar en {plataformaSeleccionada}{redActual.username ? ` @${redActual.username}` : ''}
                   {/if}
                 </button>
