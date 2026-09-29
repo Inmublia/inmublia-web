@@ -172,13 +172,14 @@
 
 <div class="fixed inset-0 w-screen h-screen bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
-<!-- 🚀 FIX: Arquitectura Split-Screen B2B. Bloqueamos el scroll global en Desktop (lg:h-screen lg:overflow-hidden) -->
+<!-- Arquitectura Split-Screen B2B (Bloqueamos el scroll global en Desktop) -->
 <div class="w-full flex flex-col font-sans text-slate-900 dark:text-zinc-100 animate-[fadeIn_0.3s_ease-out] relative min-h-screen lg:h-screen lg:overflow-hidden">
   
   <!-- ============================================== -->
-  <!-- ZONA SUPERIOR ESTÁTICA (Enmarcada en tu imagen) -->
+  <!-- ZONA SUPERIOR ESTÁTICA (Mando de KPIs)         -->
   <!-- ============================================== -->
-  <div class="w-full shrink-0 flex flex-col relative z-30 pb-4 lg:pb-6 shadow-sm dark:shadow-none bg-slate-50/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-slate-200/50 dark:border-zinc-800/50 transition-colors duration-300">
+  <!-- 🚀 FIX: Se eliminaron los fondos, bordes y sombras de este contenedor. Ahora es 100% invisible para no crear la "doble cinta". -->
+  <div class="w-full shrink-0 flex flex-col relative z-30 pb-2 lg:pb-4 transition-colors duration-300">
     
     <PageHeader title="Panel de Rendimiento" icon={LineChart}>
       {#snippet subtitle()}
@@ -264,8 +265,8 @@
   <!-- ============================================== -->
   <!-- ZONA INFERIOR SCROLLABLE INDEPENDIENTE         -->
   <!-- ============================================== -->
-  <!-- 🚀 FIX: Esta zona tiene su propio scrollbar estilizado. Nunca pisará las tarjetas superiores -->
-  <main class="w-full flex-1 relative z-20 pt-6 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+  <!-- 🚀 FIX: Deslizamiento súper pulido de los reportes por debajo de la zona de KPIs -->
+  <main class="w-full flex-1 relative z-20 pt-4 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent" style="-webkit-mask-image: linear-gradient(to bottom, transparent, black 16px, black); mask-image: linear-gradient(to bottom, transparent, black 16px, black);">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
 
       <!-- SECCIÓN EMBUDO AVANZADO Y ROI POR FUENTE -->
