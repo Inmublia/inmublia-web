@@ -2,7 +2,6 @@
 <script>
   import { Sparkles, Send, Image as ImageIcon, AlertTriangle, CheckCircle2, Instagram, Facebook, Video, Loader2 } from 'lucide-svelte';
 
-  // 🚀 FIX: Importamos el componente universal
   import PageHeader from '$lib/components/PageHeader.svelte';
 
   let { data } = $props();
@@ -124,33 +123,28 @@
 
 <div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out] relative">
   
-  <!-- 🚀 FIX: Cabecera Estática con PageHeader universal -->
-  <div class="w-full shrink-0 flex flex-col relative z-30 pb-2 lg:pb-4 transition-colors duration-300">
-    <PageHeader title="Marketing en Redes" icon={Send}>
-      {#snippet subtitle()}
-        Difunde tu inventario en múltiples plataformas con textos optimizados por IA.
-      {/snippet}
+  <PageHeader title="Marketing en Redes" icon={Send}>
+    {#snippet subtitle()}
+      Difunde tu inventario en múltiples plataformas con textos optimizados por IA.
+    {/snippet}
 
-      {#snippet actions()}
-        <div class="bg-white dark:bg-zinc-900/50 backdrop-blur-md border border-slate-200 dark:border-zinc-800 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors shadow-sm">
-          <div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-500/20">
-            <Sparkles class="w-5 h-5" />
-          </div>
-          <div>
-            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Créditos IA</p>
-            <p class="text-lg font-black text-slate-900 dark:text-white">{tokensDisponibles} <span class="text-xs font-medium text-slate-400 dark:text-zinc-500 ml-1">disponibles</span></p>
-          </div>
+    {#snippet actions()}
+      <div class="bg-white dark:bg-zinc-900/50 backdrop-blur-md border border-slate-200 dark:border-zinc-800 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors shadow-sm">
+        <div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-500/20">
+          <Sparkles class="w-5 h-5" />
         </div>
-      {/snippet}
-    </PageHeader>
-  </div>
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Créditos IA</p>
+          <p class="text-lg font-black text-slate-900 dark:text-white">{tokensDisponibles} <span class="text-xs font-medium text-slate-400 dark:text-zinc-500 ml-1">disponibles</span></p>
+        </div>
+      </div>
+    {/snippet}
+  </PageHeader>
 
-  <!-- 🚀 FIX: Restauramos el -mt-16 puro sin estilos intermedios que arruinen el color -->
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
       <div class="max-w-4xl mx-auto w-full">
 
-        <!-- 🚀 FIX: Fondo sólido asegurado -->
         <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-2 shadow-sm mb-6 flex gap-2 transition-colors">
           <button 
             onclick={() => plataformaSeleccionada = 'instagram'}
@@ -182,7 +176,6 @@
             <div>
               <h3 class="text-rose-600 dark:text-rose-400 font-bold mb-1 capitalize">{plataformaSeleccionada} no vinculado</h3>
               <p class="text-sm text-slate-600 dark:text-zinc-400 mb-4 font-medium">Debes conectar tu cuenta profesional de {plataformaSeleccionada} para poder publicar.</p>
-              <!-- 🚀 FIX CRÍTICO: Enlace restaurado y arreglado hacia la configuración correcta -->
               <a href="/admin/configuracion/redes" class="inline-flex bg-slate-900 dark:bg-white border border-slate-800 dark:border-white text-white dark:text-zinc-900 text-xs font-bold px-5 py-2.5 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors shadow-sm">
                 Ir a Configuración de Redes
               </a>
@@ -202,7 +195,6 @@
             </div>
           {/if}
 
-          <!-- 🚀 FIX: Fondo sólido garantizado aquí -->
           <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-8 shadow-sm mb-8 transition-colors">
             
             <div class="mb-10">
