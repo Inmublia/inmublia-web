@@ -2,7 +2,7 @@
 <script>
   import { Sparkles, Send, Image as ImageIcon, AlertTriangle, CheckCircle2, Instagram, Facebook, Video, Loader2 } from 'lucide-svelte';
 
-  // 🚀 FIX: Usamos el PageHeader que ya teníamos y respeta el Light/Dark mode
+  // 🚀 FIX: Usamos el PageHeader nativo para mantener la misma altura de cinta que Reportes
   import PageHeader from '$lib/components/PageHeader.svelte';
 
   let { data } = $props();
@@ -122,9 +122,12 @@
 
 <div class="fixed inset-0 w-screen h-screen bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
-<div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out] relative">
+<!-- Arquitectura Split-Screen B2B (Mismo layout de Reportes) -->
+<div class="w-full flex flex-col font-sans text-slate-900 dark:text-zinc-100 animate-[fadeIn_0.3s_ease-out] relative min-h-screen lg:h-screen lg:overflow-hidden">
   
-  <!-- 🚀 FIX: Restauramos el componente PageHeader -->
+  <!-- ============================================== -->
+  <!-- ZONA SUPERIOR ESTÁTICA (Cabecera nativa)       -->
+  <!-- ============================================== -->
   <div class="w-full shrink-0 flex flex-col relative z-30 pb-2 lg:pb-4 transition-colors duration-300">
     <PageHeader title="Marketing en Redes" icon={Send}>
       {#snippet subtitle()}
@@ -145,46 +148,47 @@
     </PageHeader>
   </div>
 
-  <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
+  <!-- ============================================== -->
+  <!-- ZONA INFERIOR SCROLLABLE INDEPENDIENTE         -->
+  <!-- ============================================== -->
+  <main class="w-full flex-1 relative z-20 pt-4 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent -mt-16" style="-webkit-mask-image: linear-gradient(to bottom, transparent, black 16px, black); mask-image: linear-gradient(to bottom, transparent, black 16px, black);">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
       <div class="max-w-4xl mx-auto w-full">
 
-        <!-- 🚀 FIX: Tarjetas Grandes (min-h-[250px]) para la selección de plataforma -->
+        <!-- 🚀 FIX: Tarjetas proporcionadas, sin altura forzada, con estilo de botones anchos para mantener elegancia -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
-          <!-- Card Instagram -->
+          
           <button 
             onclick={() => plataformaSeleccionada = 'instagram'}
-            class="relative flex flex-col items-center justify-center p-6 sm:p-10 rounded-3xl border-2 transition-all duration-300 overflow-hidden group min-h-[250px] {plataformaSeleccionada === 'instagram' ? 'bg-white dark:bg-zinc-900 border-fuchsia-500 shadow-md shadow-fuchsia-500/10' : 'bg-white/60 dark:bg-zinc-900/60 border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-sm'}"
+            class="relative flex flex-col items-center justify-center py-6 px-4 rounded-3xl border-2 transition-all duration-300 overflow-hidden group {plataformaSeleccionada === 'instagram' ? 'bg-white dark:bg-zinc-900 border-fuchsia-500 shadow-md shadow-fuchsia-500/10' : 'bg-white/60 dark:bg-zinc-900/60 border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-sm'}"
           >
             {#if plataformaSeleccionada === 'instagram'}
               <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-orange-500/10 blur-2xl rounded-full"></div>
             {/if}
-            <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all {plataformaSeleccionada === 'instagram' ? 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 text-white shadow-md' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 group-hover:text-fuchsia-500'}">
-              <Instagram class="w-8 h-8" />
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-all {plataformaSeleccionada === 'instagram' ? 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 text-white shadow-md' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 group-hover:text-fuchsia-500'}">
+              <Instagram class="w-6 h-6" />
             </div>
-            <span class="text-base font-black uppercase tracking-widest {plataformaSeleccionada === 'instagram' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400'}">Instagram</span>
+            <span class="text-sm font-black uppercase tracking-widest {plataformaSeleccionada === 'instagram' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400'}">Instagram</span>
           </button>
 
-          <!-- Card Facebook -->
           <button 
             onclick={() => plataformaSeleccionada = 'facebook'}
-            class="relative flex flex-col items-center justify-center p-6 sm:p-10 rounded-3xl border-2 transition-all duration-300 overflow-hidden group min-h-[250px] {plataformaSeleccionada === 'facebook' ? 'bg-white dark:bg-zinc-900 border-blue-500 shadow-md shadow-blue-500/10' : 'bg-white/60 dark:bg-zinc-900/60 border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-sm'}"
+            class="relative flex flex-col items-center justify-center py-6 px-4 rounded-3xl border-2 transition-all duration-300 overflow-hidden group {plataformaSeleccionada === 'facebook' ? 'bg-white dark:bg-zinc-900 border-blue-500 shadow-md shadow-blue-500/10' : 'bg-white/60 dark:bg-zinc-900/60 border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-sm'}"
           >
             {#if plataformaSeleccionada === 'facebook'}
               <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-2xl rounded-full"></div>
             {/if}
-            <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all {plataformaSeleccionada === 'facebook' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 group-hover:text-blue-500'}">
-              <Facebook class="w-8 h-8 {plataformaSeleccionada === 'facebook' ? 'fill-current' : ''}" />
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-all {plataformaSeleccionada === 'facebook' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 group-hover:text-blue-500'}">
+              <Facebook class="w-6 h-6 {plataformaSeleccionada === 'facebook' ? 'fill-current' : ''}" />
             </div>
-            <span class="text-base font-black uppercase tracking-widest {plataformaSeleccionada === 'facebook' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400'}">Facebook</span>
+            <span class="text-sm font-black uppercase tracking-widest {plataformaSeleccionada === 'facebook' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400'}">Facebook</span>
           </button>
 
-          <!-- Card TikTok -->
-          <div class="relative flex flex-col items-center justify-center p-6 sm:p-10 rounded-3xl border-2 border-slate-200 dark:border-zinc-800 border-dashed bg-slate-50 dark:bg-zinc-900/30 opacity-60 grayscale cursor-not-allowed transition-colors min-h-[250px]">
-            <div class="w-16 h-16 rounded-2xl bg-black dark:bg-zinc-800 flex items-center justify-center mb-4 shadow-sm transition-colors">
-              <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 2.23-1.15 4.39-2.92 5.74-1.74 1.32-4.01 1.68-6.12 1.18-2.22-.52-4.12-2.15-4.88-4.27-.79-2.21-.51-4.75.76-6.69 1.25-1.92 3.4-3.1 5.67-3.32.04 1.4.01 2.8.03 4.21-1.34.18-2.61.94-3.23 2.12-.66 1.24-.56 2.83.25 3.98.81 1.16 2.31 1.71 3.69 1.34 1.39-.36 2.37-1.6 2.45-3.04.09-3.79.05-7.58.07-11.37.01-2.22.02-4.44.02-6.66z"/></svg>
+          <div class="relative flex flex-col items-center justify-center py-6 px-4 rounded-3xl border-2 border-slate-200 dark:border-zinc-800 border-dashed bg-slate-50 dark:bg-zinc-900/30 opacity-60 grayscale cursor-not-allowed transition-colors">
+            <div class="w-12 h-12 rounded-2xl bg-black dark:bg-zinc-800 flex items-center justify-center mb-3 shadow-sm transition-colors">
+              <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 2.23-1.15 4.39-2.92 5.74-1.74 1.32-4.01 1.68-6.12 1.18-2.22-.52-4.12-2.15-4.88-4.27-.79-2.21-.51-4.75.76-6.69 1.25-1.92 3.4-3.1 5.67-3.32.04 1.4.01 2.8.03 4.21-1.34.18-2.61.94-3.23 2.12-.66 1.24-.56 2.83.25 3.98.81 1.16 2.31 1.71 3.69 1.34 1.39-.36 2.37-1.6 2.45-3.04.09-3.79.05-7.58.07-11.37.01-2.22.02-4.44.02-6.66z"/></svg>
             </div>
-            <span class="text-base font-black uppercase tracking-widest text-slate-500 dark:text-zinc-400 mb-1 transition-colors">TikTok</span>
+            <span class="text-sm font-black uppercase tracking-widest text-slate-500 dark:text-zinc-400 mb-1 transition-colors">TikTok</span>
             <span class="text-[9px] font-black uppercase tracking-widest bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 px-2 py-0.5 rounded-md transition-colors">Próximamente</span>
           </div>
         </div>
@@ -214,6 +218,7 @@
             </div>
           {/if}
 
+          <!-- Fondo Sólido -->
           <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-8 shadow-sm mb-8 transition-colors relative z-10">
             
             <div class="mb-10">
@@ -287,7 +292,7 @@
                 <button 
                   onclick={publicarEnRed}
                   disabled={publicando || !captionFinal || !imagenSeleccionada}
-                  class="w-full bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-zinc-900 font-black uppercase tracking-widest py-4 px-6 rounded-xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-100 dark:bg-zinc-800 disabled:text-slate-400 dark:disabled:text-zinc-600 disabled:border disabled:border-slate-200 dark:disabled:border-zinc-700 disabled:cursor-not-allowed"
+                  class="w-full bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-zinc-900 font-black uppercase tracking-widest py-4 px-6 rounded-xl shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:text-slate-400 dark:disabled:text-zinc-600 disabled:border disabled:border-slate-200 dark:disabled:border-zinc-700 disabled:cursor-not-allowed"
                 >
                   {#if publicando}
                     <Loader2 class="w-5 h-5 animate-spin" /> Enviando a los servidores...
