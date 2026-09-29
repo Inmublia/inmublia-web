@@ -120,43 +120,37 @@
   }
 </script>
 
+<!-- ARQUITECTURA B2B 2026: Fondo Dinámico Global -->
 <div class="fixed inset-0 w-screen h-screen bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
-<!-- Arquitectura Split-Screen B2B (Bloqueamos el scroll global en Desktop) -->
-<div class="w-full flex flex-col font-sans text-slate-900 dark:text-zinc-100 animate-[fadeIn_0.3s_ease-out] relative min-h-screen lg:h-screen lg:overflow-hidden">
+<!-- 🚀 FIX: Misma estructura maestra que Directorio e Inventario -->
+<div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out] relative">
   
-  <!-- ============================================== -->
-  <!-- ZONA SUPERIOR ESTÁTICA                         -->
-  <!-- ============================================== -->
-  <div class="w-full shrink-0 flex flex-col relative z-30 pb-2 lg:pb-4 transition-colors duration-300">
-    
-    <PageHeader title="Marketing en Redes" icon={Send}>
-      {#snippet subtitle()}
-        Difunde tu inventario en múltiples plataformas con textos optimizados por IA.
-      {/snippet}
+  <PageHeader title="Marketing en Redes" icon={Send}>
+    {#snippet subtitle()}
+      Difunde tu inventario en múltiples plataformas con textos optimizados por IA.
+    {/snippet}
 
-      {#snippet actions()}
-        <div class="bg-white dark:bg-zinc-900/50 backdrop-blur-md border border-slate-200 dark:border-zinc-800 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors shadow-sm">
-          <div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-500/20">
-            <Sparkles class="w-5 h-5" />
-          </div>
-          <div>
-            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Créditos IA</p>
-            <p class="text-lg font-black text-slate-900 dark:text-white">{tokensDisponibles} <span class="text-xs font-medium text-slate-400 dark:text-zinc-500 ml-1">disponibles</span></p>
-          </div>
+    {#snippet actions()}
+      <div class="bg-white dark:bg-zinc-900/50 backdrop-blur-md border border-slate-200 dark:border-zinc-800 px-5 py-3 rounded-2xl flex items-center gap-4 transition-colors shadow-sm">
+        <div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-500/20">
+          <Sparkles class="w-5 h-5" />
         </div>
-      {/snippet}
-    </PageHeader>
-  </div>
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Créditos IA</p>
+          <p class="text-lg font-black text-slate-900 dark:text-white">{tokensDisponibles} <span class="text-xs font-medium text-slate-400 dark:text-zinc-500 ml-1">disponibles</span></p>
+        </div>
+      </div>
+    {/snippet}
+  </PageHeader>
 
-  <!-- ============================================== -->
-  <!-- ZONA INFERIOR SCROLLABLE INDEPENDIENTE         -->
-  <!-- ============================================== -->
-  <main class="w-full flex-1 relative z-20 pt-4 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent" style="-webkit-mask-image: linear-gradient(to bottom, transparent, black 16px, black); mask-image: linear-gradient(to bottom, transparent, black 16px, black);">
+  <!-- 🚀 FIX: Restauramos el -mt-16 para que flote sobre la cinta oscura de la cabecera -->
+  <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
-      <div class="max-w-4xl">
+      <div class="max-w-4xl mx-auto w-full">
 
-        <div class="bg-white dark:bg-zinc-900/40 backdrop-blur-sm border border-slate-200/60 dark:border-zinc-800/60 rounded-3xl p-2 shadow-sm mb-6 flex gap-2 transition-colors">
+        <!-- 🚀 FIX: Fondo sólido dark:bg-zinc-900 para evitar grises lodosos que oculten el texto de los botones inactivos -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-2 shadow-sm mb-6 flex gap-2 transition-colors">
           <button 
             onclick={() => plataformaSeleccionada = 'instagram'}
             class="flex-1 py-3 px-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm transition-all {plataformaSeleccionada === 'instagram' ? 'bg-gradient-to-r from-fuchsia-600 to-pink-500 text-white shadow-md dark:shadow-none' : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800'}"
@@ -206,7 +200,7 @@
             </div>
           {/if}
 
-          <!-- Fondo sólido aquí para evitar lodo visual -->
+          <!-- 🚀 FIX: Fondo sólido dark:bg-zinc-900 -->
           <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-8 shadow-sm mb-8 transition-colors">
             
             <div class="mb-10">
