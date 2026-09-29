@@ -13,6 +13,7 @@
   } from 'lucide-svelte';
   
   import LeadScoreBadge from '$lib/components/LeadScoreBadge.svelte';
+  import PageHeader from '$lib/components/PageHeader.svelte';
 
   let { data } = $props();
   let broker = $derived(data.broker || {});
@@ -66,7 +67,6 @@
     leads.filter(l => l.has_pending_reminder).length
   );
 
-  // 🚀 FIX: Modificamos las clases base para que sean dinámicas al Light/Dark
   const columnas = [
     { id: 'nuevo', titulo: 'Nuevos Inicios', dot: 'bg-indigo-500', bgCol: 'bg-white/40 dark:bg-zinc-900/40', border: 'border-indigo-100 dark:border-indigo-500/20', text: 'text-indigo-700 dark:text-indigo-400' },
     { id: 'contactado', titulo: 'En Conversación', dot: 'bg-sky-500', bgCol: 'bg-white/40 dark:bg-zinc-900/40', border: 'border-sky-100 dark:border-sky-500/20', text: 'text-sky-700 dark:text-sky-400' },
@@ -434,7 +434,6 @@
   }
 </script>
 
-<!-- ARQUITECTURA B2B 2026: Fondo Dinámico Global -->
 <div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative font-sans text-slate-900 dark:text-zinc-100 transition-colors duration-300">
@@ -450,38 +449,31 @@
     </div>
   {/if}
 
-  <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-4 sm:px-8 relative overflow-hidden shrink-0">
-    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
+  <PageHeader title="Pipeline" icon={Users}>
+    {#snippet subtitle()}
+      Gestión de Prospectos CRM
+      {#if totalRecordatoriosPendientes > 0}
+        <span class="bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md animate-pulse shadow-sm ring-1 ring-rose-500/50 flex items-center gap-1 ml-2">
+          <BellRing class="w-3 h-3"/> {totalRecordatoriosPendientes} Pendientes
+        </span>
+      {/if}
+    {/snippet}
 
-    <div class="w-full relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-      <div>
-        <h1 class="text-3xl font-bold tracking-tight text-zinc-50 flex items-center gap-3">
-          Pipeline
-          {#if totalRecordatoriosPendientes > 0}
-            <span class="bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md animate-pulse shadow-sm ring-1 ring-rose-500/50 flex items-center gap-1">
-              <BellRing class="w-3 h-3"/> {totalRecordatoriosPendientes} Pendientes
-            </span>
-          {/if}
-        </h1>
-        <p class="text-sm font-medium text-zinc-400 mt-1 flex items-center gap-2">
-          <MessageSquareQuote class="w-4 h-4"/> Gestión de Prospectos CRM
-        </p>
-      </div>
-
+    {#snippet actions()}
       <div class="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
         <div class="relative w-full md:max-w-md hidden sm:block flex-1">
           <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400"/>
-          <input type="text" bind:value={searchQuery} placeholder="Buscar cliente..." class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all shadow-inner backdrop-blur-md">
+          <input type="text" bind:value={searchQuery} placeholder="Buscar cliente..." class="w-full bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-sm font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all shadow-inner backdrop-blur-md">
         </div>
         
-        <button onclick={() => showModalLeadManual = true} class="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white border border-slate-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-800 h-11 px-5 gap-2 shadow-sm active:scale-95 shrink-0">
+        <button onclick={() => showModalLeadManual = true} class="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-colors bg-slate-900 dark:bg-white text-white dark:text-zinc-950 border border-transparent hover:bg-slate-800 dark:hover:bg-zinc-200 h-11 px-5 gap-2 shadow-sm active:scale-95 shrink-0">
           <Plus class="w-4 h-4"/> Nuevo Prospecto
         </button>
       </div>
-    </div>
-  </header>
+    {/snippet}
+  </PageHeader>
 
-  <!-- CONTENEDOR INTEGRADO -->
+  <!-- CONTENEDOR INTEGRADO (Con overlap restaurado) -->
   <div class="relative flex-1 flex overflow-hidden z-20 -mt-16 w-full">
     
     <button onclick={() => scrollBoard(-1)} class="{isPanelOpen ? 'hidden' : 'hidden sm:flex'} absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 dark:bg-zinc-800/90 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 border border-slate-200 dark:border-zinc-700 shadow-xl w-10 h-10 rounded-full items-center justify-center text-slate-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all backdrop-blur-sm cursor-pointer" aria-label="Desplazar tablero a la izquierda">
@@ -496,17 +488,16 @@
     <div class="flex-1 overflow-x-auto overflow-y-hidden kanban-board px-4 sm:px-8 pb-6 {isPanelOpen ? 'hidden' : 'block'}" bind:this={boardContainer}>
       <div class="flex gap-4 items-start h-full min-w-max xl:min-w-full">
         
-        <!-- 🚀 FIX: A11Y + Bimodal -->
         {#each columnas as columna}
           <div 
-            class="flex-1 min-w-[240px] xl:min-w-[220px] shrink-0 {columna.bgCol} border {columna.border} rounded-2xl p-2.5 flex flex-col h-[calc(100vh-180px)] shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none backdrop-blur-sm transition-colors duration-300"
+            class="flex-1 min-w-[240px] xl:min-w-[220px] shrink-0 bg-white dark:bg-zinc-900 border {columna.border} rounded-2xl p-2.5 flex flex-col h-[calc(100vh-180px)] shadow-sm transition-colors duration-300"
             role="region"
             aria-label={`Columna ${columna.titulo}`}
             ondragover={permitirSoltar}
             ondrop={(e) => soltar(e, columna.id)}
           >
             <!-- Cabecera de columna -->
-            <div class="sticky top-0 z-20 px-3 py-2.5 -mx-2.5 -mt-2.5 mb-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-t-xl border-b border-slate-200/60 dark:border-zinc-700/50 shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-none transition-colors duration-300">
+            <div class="sticky top-0 z-20 px-3 py-2.5 -mx-2.5 -mt-2.5 mb-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-t-xl border-b border-slate-200/60 dark:border-zinc-700/50 shadow-sm transition-colors duration-300">
               <div class="flex items-center justify-between mb-1.5">
                 <h2 class="text-[10px] font-black uppercase tracking-widest {columna.text} flex items-center gap-1.5 drop-shadow-sm">
                   <span class="w-2 h-2 rounded-full {columna.dot} shadow-sm"></span>
@@ -540,7 +531,7 @@
                   onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirPanel(lead); } }}
                   onmouseenter={() => hoveredLeadId = lead.id}
                   onmouseleave={() => hoveredLeadId = null}
-                  class="bg-white dark:bg-zinc-900 p-3 rounded-xl border {lead.scoreObj?.isHot && lead.estado !== 'cerrado' && lead.estado !== 'descartado' ? 'border-orange-300 dark:border-orange-500/50 shadow-sm shadow-orange-500/10' : lead.has_pending_reminder ? 'border-rose-300 dark:border-rose-500/50 ring-1 ring-rose-500/50' : 'border-slate-200 dark:border-zinc-700'} cursor-grab hover:-translate-y-1 hover:shadow-md dark:hover:shadow-none hover:border-slate-300 dark:hover:border-zinc-600 transition-all duration-200 relative flex flex-col gap-3"
+                  class="bg-white dark:bg-zinc-800/50 p-3 rounded-xl border {lead.scoreObj?.isHot && lead.estado !== 'cerrado' && lead.estado !== 'descartado' ? 'border-orange-300 dark:border-orange-500/50 shadow-sm shadow-orange-500/10' : lead.has_pending_reminder ? 'border-rose-300 dark:border-rose-500/50 ring-1 ring-rose-500/50' : 'border-slate-200 dark:border-zinc-700'} cursor-grab hover:-translate-y-1 hover:shadow-md dark:hover:shadow-none hover:border-slate-300 dark:hover:border-zinc-600 transition-all duration-200 relative flex flex-col gap-3"
                 >
                   
                   <div class="flex items-start justify-between gap-2">
@@ -572,7 +563,7 @@
                     </div>
                   </div>
 
-                  <div class="bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 p-2 rounded-lg flex items-center gap-2.5 transition-colors">
+                  <div class="bg-slate-50 dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 p-2 rounded-lg flex items-center gap-2.5 transition-colors">
                     <div class="w-9 h-9 rounded-md bg-slate-200 dark:bg-zinc-800 shrink-0 overflow-hidden border border-slate-200 dark:border-zinc-700 relative group-hover:border-slate-300 dark:group-hover:border-zinc-600 transition-colors">
                       {#if lead.propiedades?.imagen_url}
                         <img src={lead.propiedades.imagen_url} alt="Prop" class="w-full h-full object-cover">
@@ -792,7 +783,6 @@
                               </div>
                           {/if}
 
-                          <!-- 🚀 FIX: A11Y - Label invisible para el textarea -->
                           <label for="ia_generado" class="sr-only">Texto generado por IA para WhatsApp</label>
                           <textarea 
                               id="ia_generado"
@@ -830,7 +820,6 @@
 
                                   {#if esRecordatorio}
                                       <div class="flex gap-2.5 animate-[fadeIn_0.2s_ease-out] bg-amber-50/50 dark:bg-amber-500/10 p-2 rounded-xl border border-amber-100 dark:border-amber-500/20 mb-1 transition-colors">
-                                          <!-- 🚀 FIX: A11Y labels -->
                                           <label for="fecha_rec" class="sr-only">Fecha recordatorio</label>
                                           <input id="fecha_rec" type="date" lang="es-MX" bind:value={fechaRecordatorio} class="flex-1 bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-500/30 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-zinc-200 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none shadow-sm">
                                           
@@ -909,9 +898,7 @@
     {/if}
   </div>
 
-  <!-- MODALES DE NEGOCIO (A11Y CORREGIDO + Bimodal) -->
   {#if showModalCierre}
-    <!-- 🚀 FIX: A11Y dialog + presentation roles + tabindex -->
     <div class="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md z-[130] flex items-center justify-center p-4 transition-colors" role="presentation">
       <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-md overflow-hidden animate-[fadeIn_0.2s_ease-out] border border-slate-200 dark:border-zinc-800" role="dialog" aria-modal="true" tabindex="-1">
         <div class="p-8 border-b border-slate-100 dark:border-zinc-800 bg-emerald-50 dark:bg-emerald-500/10 text-center transition-colors">
@@ -979,7 +966,6 @@
   {/if}
 
   {#if showModalLeadManual}
-    <!-- 🚀 FIX A11Y: Se elimina el evento onclick del contenedor exterior que causaba el warning de teclado, el usuario cerrará con el botón [X] explícito o el de Cancelar. Esto es mejor práctica de Accesibilidad para modales. -->
     <div class="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md z-[130] flex items-center justify-center p-4 transition-colors" role="presentation">
       <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] w-full max-w-lg overflow-hidden animate-[fadeIn_0.2s_ease-out] flex flex-col max-h-[90vh] border border-slate-200 dark:border-zinc-800" role="dialog" aria-modal="true" tabindex="-1">
         <div class="p-6 border-b border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50 flex items-center justify-between shrink-0 transition-colors">
@@ -1075,7 +1061,6 @@
   .kanban-board { cursor: grab; }
   .kanban-board:active { cursor: grabbing; }
 
-  /* Adaptación de la barra de scroll para el modo oscuro */
   :global(.dark) .kanban-board::-webkit-scrollbar-thumb { background: #3f3f46; }
   :global(.dark) .kanban-board::-webkit-scrollbar-thumb:hover { background: #52525b; }
 
