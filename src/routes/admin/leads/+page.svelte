@@ -85,13 +85,28 @@
     }, {})
   );
 
+  // 🚀 FIX: Métrica deduplicada basada en Propiedad Única vs Múltiples Leads
   let metricasColumnas = $derived(
     columnas.reduce((acc, col) => {
       const leadsCol = leadsPorColumna[col.id] || [];
-      const totalValor = leadsCol.reduce((sum, lead) => {
-        return sum + (lead.propiedades?.precio || 0);
-      }, 0);
-      acc[col.id] = { count: leadsCol.length, totalValue: totalValor };
+      
+      const propiedadesUnicas = new Map();
+      for (const lead of leadsCol) {
+        if (lead.propiedad_id && lead.propiedades?.precio) {
+          propiedadesUnicas.set(lead.propiedad_id, lead.propiedades.precio);
+        }
+      }
+      
+      const totalValor = [...propiedadesUnicas.values()].reduce((sum, precio) => sum + precio, 0);
+      const comisionPct = broker.comision_default || 5;
+      const comisionEstimada = totalValor * (comisionPct / 100);
+      
+      acc[col.id] = { 
+        count: leadsCol.length, 
+        totalValue: totalValor,
+        comisionEstimada,
+        propiedadesCount: propiedadesUnicas.size
+      };
       return acc;
     }, {})
   );
@@ -110,13 +125,12 @@
     return result;
   }
 
+  // 🚀 FIX: Eliminado chequeo 'typeof document' redundante en Svelte 5
   $effect(() => {
-    if (typeof document !== 'undefined') {
-      if (isPanelOpen) {
-        document.body.classList.add('canvas-open');
-      } else {
-        document.body.classList.remove('canvas-open');
-      }
+    if (isPanelOpen) {
+      document.body.classList.add('canvas-open');
+    } else {
+      document.body.classList.remove('canvas-open');
     }
   });
 
@@ -143,7 +157,9 @@
     }
   });
 
-  let handledOpenId = null;
+  // 🚀 FIX: Convertimos handledOpenId en Svelte State para evitar condiciones de carrera
+  let handledOpenId = $state(null);
+  
   $effect(() => {
     const leadIdToOpen = page.url.searchParams.get('open');
     if (leadIdToOpen && leadIdToOpen !== handledOpenId && leads.length > 0) {
@@ -245,10 +261,13 @@
 
   function cancelarCierre() { showModalCierre = false; leadPorCerrar = null; }
 
+  // 🚀 FIX: Preservamos el estado original en caso de rollback
   async function confirmarCierre() {
     const leadId = leadPorCerrar.id;
     const precioCopy = precioCierreFinal;
     const comisionCopy = comisionCobrada;
+    
+    const estadoAnterior = leads.find(l => l.id === leadId)?.estado; 
     
     leads = leads.map(l => l.id === leadId ? { ...l, estado: 'cerrado' } : l);
     cancelarCierre();
@@ -263,7 +282,7 @@
       await postAction('actualizar', formData);
       invalidateAll();
     } catch (err) { 
-      leads = leads.map(l => l.id === leadId ? { ...l, estado: 'negociacion' } : l);
+      leads = leads.map(l => l.id === leadId ? { ...l, estado: estadoAnterior } : l);
       alert('No se pudo registrar el cierre. Verifica tu conexión.'); 
     }
   }
@@ -508,12 +527,16 @@
                 </span>
               </div>
               
-              {#if metricasColumnas[columna.id].totalValue > 0}
-                <div class="text-[9px] font-bold text-slate-500 dark:text-zinc-500">
-                  Proyectado: <span class="{columna.text} font-black">{formatMoney(metricasColumnas[columna.id].totalValue)}</span>
+              <!-- 🚀 FIX: Mostramos la comisión estimada real basada en propiedades únicas -->
+              {#if metricasColumnas[columna.id].comisionEstimada > 0}
+                <div class="text-[9px] font-bold text-slate-500 dark:text-zinc-500 flex flex-col gap-0.5">
+                  <span>Comisión est.: <span class="{columna.text} font-black">{formatMoney(metricasColumnas[columna.id].comisionEstimada)}</span></span>
+                  <span class="text-slate-400 dark:text-zinc-600 font-normal">
+                    · {metricasColumnas[columna.id].propiedadesCount} {metricasColumnas[columna.id].propiedadesCount === 1 ? 'propiedad en juego' : 'propiedades únicas'}
+                  </span>
                 </div>
               {:else}
-                <div class="h-3.5"></div>
+                <div class="h-[26px]"></div> <!-- Spacer ajustado para la nueva altura de 2 líneas -->
               {/if}
             </div>
 
