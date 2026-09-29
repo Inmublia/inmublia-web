@@ -1,6 +1,5 @@
 <!-- src/lib/components/PageHeader.svelte -->
 <script lang="ts">
-  // 🚀 Svelte 5 Props: Aceptamos título, icono y snippets (bloques de código HTML)
   let { 
     title, 
     icon: Icon = null, 
@@ -9,8 +8,9 @@
   } = $props();
 </script>
 
-<!-- Estándar 2026: Backdrop blur, fondos translúcidos y bordes sub-pixel -->
-<header class="w-full bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl text-slate-900 dark:text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0 border-b border-slate-200/60 dark:border-zinc-800/60 transition-colors duration-300 z-30">
+<!-- 🚀 FIX: Restauramos pb-28 (padding bottom gigante) para crear la "cinta" sobre la que flotan las tarjetas -->
+<!-- También la regresamos a position relative (no sticky) para recuperar el comportamiento original -->
+<header class="w-full bg-white dark:bg-zinc-950 text-slate-900 dark:text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0 border-b border-slate-200 dark:border-zinc-800 transition-colors duration-300">
   
   <!-- Deco Neumórfica Sutil -->
   <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3 transition-opacity"></div>
