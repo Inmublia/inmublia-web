@@ -7,7 +7,6 @@
     Mail, EyeOff, Eye, AlertCircle
   } from 'lucide-svelte';
   
-  // 🚀 Importamos la cabecera universal
   import PageHeader from '$lib/components/PageHeader.svelte';
   
   let { data } = $props();
@@ -67,13 +66,15 @@
     let mapa = {};
     
     leads.forEach(l => {
+      // 🚀 FIX C2: Prevenir colisión de key vacía
+      if (!l.correo && !l.telefono) return; // Saltar leads inútiles sin datos de contacto
+      const emailKey = l.correo ? `email:${l.correo.toLowerCase().trim()}` : `tel:${String(l.telefono).replace(/\D/g, '')}`;
+
       let fechaActividad = l.ultima_actividad ? new Date(l.ultima_actividad) : new Date(l.creado_en);
       if (l.lead_notas && l.lead_notas.length > 0) {
         const maxNota = new Date(Math.max(...l.lead_notas.map(n => new Date(n.creado_en))));
         if (maxNota > fechaActividad) fechaActividad = maxNota;
       }
-
-      const emailKey = (l.correo || '').toLowerCase().trim();
 
       if (!mapa[emailKey]) {
         mapa[emailKey] = {
@@ -92,6 +93,7 @@
         const fechaMapa = new Date(mapa[emailKey].fecha_contacto);
         if (fechaActividad > fechaMapa) {
           mapa[emailKey].fecha_contacto = fechaActividad.toISOString();
+          // Actualizamos el estado solo si hay actividad más reciente
           mapa[emailKey].estado = (l.estado || 'nuevo').toLowerCase();
         }
       }
@@ -112,7 +114,6 @@
 
         cliente.interesesHistorial.forEach(p => {
           sumaRecamaras += Number(p.recamaras) || 0;
-          
           const op = p.operacion || 'Venta';
           const tp = p.tipo || 'Casa';
           conteoOperacion[op] = (conteoOperacion[op] || 0) + 1;
@@ -132,6 +133,7 @@
 
         cliente.perfil = { operacionDominante, tipoDominante, recamarasPromedio };
 
+        // Matchmaking
         const matchesPuntuados = propiedades
           .filter(p => !cliente.interesesHistorial.find(i => i.id === p.id))
           .filter(p => p.operacion === operacionDominante)
@@ -187,6 +189,10 @@
   });
 
   let totalMatches = $derived(clientesBase.reduce((acc, c) => acc + c.matches.length, 0));
+  
+  // 🚀 FIX F5: Calcular el Pipeline Total en Juego de los clientes listados
+  let valorPipelineTotal = $derived(clientesBase.reduce((acc, c) => acc + (c.presupuestoInferido || 0), 0));
+  
   const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 
   function getEstadoStyle(estado) {
@@ -199,39 +205,36 @@
     return { bg: 'bg-slate-50 dark:bg-zinc-800/50', text: 'text-slate-700 dark:text-zinc-400', border: 'border-slate-200 dark:border-zinc-700', dot: 'bg-slate-500 dark:bg-zinc-600' };
   }
 
+  // 🚀 FIX I1: Ajuste de timezone simplificando a Días sin UTC complejas
   function formatearFechaRelativa(fechaIso) {
     if (!fechaIso) return 'Sin fecha';
     const fecha = new Date(fechaIso);
-    const hoy = new Date();
+    const diffDias = Math.floor((new Date() - fecha) / (1000 * 60 * 60 * 24));
     
-    const fechaLocal = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
-    const hoyLocal = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-    const diffDias = Math.round((hoyLocal - fechaLocal) / (1000 * 60 * 60 * 24));
-    
-    const horaStr = fecha.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
-
-    if (diffDias === 0) return `Hoy ${horaStr}`;
-    if (diffDias === 1) return `Ayer ${horaStr}`;
+    if (diffDias === 0) return 'Hoy';
+    if (diffDias === 1) return 'Ayer';
     if (diffDias < 7) return `Hace ${diffDias} días`;
     return fecha.toLocaleDateString('es-MX', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
+  // 🚀 FIX I3: Mensaje de WhatsApp humanizado y persuasivo (No más porcentajes de robot)
   function enviarWhatsApp(telefono, nombreCliente, propiedadMatch) {
     if (!telefono) {
       alert("Este prospecto no tiene un número de WhatsApp registrado.");
       return;
     }
 
-    const nombreLead = (nombreCliente || '').replace(/[^\p{L}\s]/gu, '').split(' ')[0].trim() || 'inversor';
+    const nombreLead = (nombreCliente || '').replace(/[^\p{L}\s]/gu, '').split(' ')[0].trim() || 'hola';
     const nombreBroker = (broker?.nombre_comercial || '').replace(/[^\p{L}\s]/gu, '').split(' ')[0].trim() || 'tu asesor';
 
     const msg = propiedadMatch 
-      ? `Hola ${nombreLead}, soy ${nombreBroker}. Revisando mis archivos, noté que estabas buscando propiedades de cierto perfil. Acabo de captar una exclusiva que encaja un ${propiedadMatch.matchScore}% con lo que buscabas: ${propiedadMatch.titulo}. ¿Te gustaría que te envíe el Smart Brochure?`
-      : `Hola ${nombreLead}, te saluda ${nombreBroker}. ¿Cómo va tu búsqueda de propiedad?`;
+      ? `¡Hola ${nombreLead}! Soy ${nombreBroker}. Recordando lo que buscabas, acaba de entrar a nuestro inventario una opción que creo que te va a encantar: ${propiedadMatch.titulo}. ¿Te comparto la ficha con las fotos?`
+      : `¡Hola ${nombreLead}! Te saluda ${nombreBroker}. Quería darle seguimiento a tu búsqueda, ¿sigue en pie?`;
       
     window.open(`https://wa.me/${telefono.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
   }
 
+  // 🚀 FIX I2: Prevenir Memory Leak usando Try/Finally al crear object URLs
   function descargarCSV() {
     if (clientesInteligentes.length === 0) return alert("No hay prospectos para exportar.");
 
@@ -255,11 +258,14 @@
     const blob = new Blob(["\uFEFF" + contenidoCSV], { type: 'text/csv;charset=utf-8;' }); 
     const url = URL.createObjectURL(blob);
     
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Directorio_Boveda_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Directorio_Boveda_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+    } finally {
+      URL.revokeObjectURL(url); // Garantizado que se ejecuta aunque a.click falle
+    }
   }
 </script>
 
@@ -292,7 +298,7 @@
         </button>
         
         <button onclick={descargarCSV} class="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md dark:shadow-indigo-600/20 active:scale-95 whitespace-nowrap shrink-0 border border-transparent">
-          <Download class="w-4 h-4" /> Exportar Leads
+          <Download class="w-4 h-4" /> Exportar
         </button>
       </div>
     {/snippet}
@@ -301,20 +307,18 @@
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-12">
       <!-- 4 KPIS -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border-t-4 border-blue-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between transition-colors">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        
+        <!-- 🚀 KPI NUEVO (Feature 5 de 2026): Valor en Pipeline -->
+        <div class="bg-slate-900 dark:bg-zinc-900 p-4 rounded-2xl shadow-md border-t-4 border-emerald-400 border border-slate-800 flex flex-col justify-between transition-colors">
           <div>
-            <p class="text-[11px] font-bold text-slate-500 dark:text-zinc-500 mb-1">Leads este mes</p>
-            <p class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter mb-1.5">{metricasMes.total}</p>
+            <p class="text-[11px] font-bold text-slate-400 mb-1">Pipeline Activo (Bóveda)</p>
+            <p class="text-2xl font-black text-white tracking-tighter mb-1.5">{formatter.format(valorPipelineTotal)}</p>
           </div>
-          {#if metricasMes.esPositivo}
-            <p class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">↑ {metricasMes.crecimiento}% vs mes ant.</p>
-          {:else}
-            <p class="text-[10px] font-bold text-rose-600 dark:text-rose-400">↓ {metricasMes.crecimiento}% vs mes ant.</p>
-          {/if}
+          <p class="text-[10px] font-bold text-emerald-400 flex items-center gap-1"><BadgeDollarSign class="w-3 h-3"/> Valor de Leads Vivos</p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border-t-4 border-emerald-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between transition-colors">
+        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between transition-colors">
           <div>
             <p class="text-[11px] font-bold text-slate-500 dark:text-zinc-500 mb-1">En negociación</p>
             <p class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter mb-1.5">{leadsEnNegociacion.total}</p>
@@ -326,14 +330,14 @@
           {/if}
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border-t-4 border-amber-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between overflow-visible transition-colors">
+        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between overflow-visible transition-colors">
           <div>
             <p class="text-[11px] font-bold text-slate-500 dark:text-zinc-500 mb-1">Sin seguimiento +3d</p>
             <p class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter mb-1.5">{leadsSinSeguimiento.length}</p>
           </div>
           {#if leadsSinSeguimiento.length > 0}
-            <div class="relative group cursor-help">
-              <span class="text-[10px] font-bold text-rose-500 dark:text-rose-400 flex items-center gap-1 inline-flex bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 rounded border border-rose-100 dark:border-rose-500/20 transition-colors group-hover:bg-rose-100 dark:group-hover:bg-rose-500/20">
+            <div class="relative group cursor-help w-max">
+              <span class="text-[10px] font-bold text-rose-500 dark:text-rose-400 flex items-center gap-1 bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 rounded border border-rose-100 dark:border-rose-500/20 transition-colors group-hover:bg-rose-100 dark:group-hover:bg-rose-500/20">
                 <AlertCircle class="w-3 h-3"/> Requieren acción
               </span>
               <div class="absolute top-full left-0 mt-2 w-52 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xl rounded-xl p-2.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
@@ -352,21 +356,13 @@
           {/if}
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border-t-4 border-indigo-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between transition-colors">
+        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between transition-colors">
           <div>
-            <p class="text-[11px] font-bold text-slate-500 dark:text-zinc-500 mb-1">Tasa de conversión</p>
-            <p class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter mb-1.5">{tasaConversion.actual}%</p>
-          </div>
-          <p class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">↑ Histórico global</p>
-        </div>
-
-        <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border-t-4 border-purple-500 border-x border-b border-x-slate-200 border-b-slate-200 dark:border-x-zinc-800 dark:border-b-zinc-800 flex flex-col justify-between transition-colors">
-          <div>
-            <p class="text-[11px] font-bold text-slate-500 dark:text-zinc-500 mb-1">Cruces exitosos</p>
+            <p class="text-[11px] font-bold text-slate-500 dark:text-zinc-500 mb-1">Cruces (Matches)</p>
             <p class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter mb-1.5">{totalMatches}</p>
           </div>
-          <p class="text-[10px] font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1">
-            <Zap class="w-3 h-3 fill-current" /> Matches en bóveda
+          <p class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+            <Zap class="w-3 h-3 fill-current" /> Encontrados en bóveda
           </p>
         </div>
       </div>
@@ -433,15 +429,14 @@
               </div>
             </div>
             
-            <!-- 🚀 MATCHMAKING (Directorio Zona Gris) -->
             <div class="w-full lg:w-[200px] xl:w-[260px] bg-slate-50/50 dark:bg-zinc-800/30 p-3 lg:p-4 shrink-0 flex flex-col justify-center relative border-t lg:border-t-0 border-slate-100 dark:border-zinc-800 transition-colors">
               {#if cliente.matches.length > 0}
                 {@const bestMatch = cliente.matches[0]}
                 <div class="flex items-center justify-between mb-2 relative">
-                  <p class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-1.5"><Sparkles class="w-3.5 h-3.5" /> Match</p>
+                  <p class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-1.5"><Sparkles class="w-3.5 h-3.5" /> Match Inteligente</p>
                   {#if cliente.matches.length > 1}
                     <div class="relative group">
-                      <span class="bg-indigo-100 dark:bg-indigo-500/20 text-indigo-800 dark:text-indigo-300 text-[9px] font-black px-2 py-0.5 rounded shadow-sm border border-indigo-200 dark:border-indigo-500/30 cursor-help flex items-center transition-colors">+{cliente.matches.length - 1} opciones</span>
+                      <span class="bg-indigo-100 dark:bg-indigo-500/20 text-indigo-800 dark:text-indigo-300 text-[9px] font-black px-2 py-0.5 rounded shadow-sm border border-indigo-200 dark:border-indigo-500/30 cursor-help flex items-center transition-colors">+{cliente.matches.length - 1} más</span>
                       
                       <div class="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 shadow-xl rounded-xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
                         <p class="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2 border-b border-slate-100 dark:border-zinc-800 pb-1.5 transition-colors">Otras coincidencias</p>
@@ -453,7 +448,6 @@
                                 <p class="text-[10px] font-bold text-slate-900 dark:text-white truncate">{extraMatch.titulo}</p>
                                 <div class="flex items-center gap-2 mt-1">
                                   <p class="text-[9px] font-black text-slate-500 dark:text-zinc-400">{formatter.format(extraMatch.precio)}</p>
-                                  <span class="text-[8px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-100 dark:border-emerald-500/20">{extraMatch.matchScore}%</span>
                                 </div>
                               </div>
                             </a>
@@ -474,7 +468,7 @@
                 </a>
                 
                 <button onclick={() => enviarWhatsApp(cliente.telefono, cliente.nombre, bestMatch)} class="w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-2 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 text-[11px] active:scale-95">
-                  Enviar Propiedad <ArrowRight class="w-3.5 h-3.5" />
+                  Proponer Inmueble <ArrowRight class="w-3.5 h-3.5" />
                 </button>
               {:else}
                 <div class="flex flex-col items-center justify-center text-center opacity-50 h-full py-2">
