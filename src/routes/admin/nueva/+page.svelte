@@ -8,10 +8,11 @@
     AlertTriangle, Eye, Zap, AlertOctagon, Lock
   } from 'lucide-svelte';
 
+  // 🚀 Importamos la cabecera universal
+  import PageHeader from '$lib/components/PageHeader.svelte';
+
   let { form, data } = $props();
   
-  // 🚀 FIX SVELTE 5 WARNING: Evita inicializar $state directo con data. 
-  // Usamos $derived para leer la data base y descontamos localmente.
   let creditosBase = $derived(data?.creditos_ia ?? 15);
   let creditosUsados = $state(0);
   let creditosIA = $derived(creditosBase - creditosUsados);
@@ -189,7 +190,6 @@
       }
 
       if (result.type === 'success' && result.data) {
-        // Incrementamos usados en lugar de mutar un prop inicial
         creditosUsados++;
         iaEjecutada = true;
         generandoIA = false; 
@@ -223,32 +223,32 @@
   }
 </script>
 
-<div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
+<div class="fixed inset-0 w-screen h-screen bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
-<div class="w-full h-screen overflow-y-auto flex-1 flex flex-col font-sans pb-12 animate-[fadeIn_0.3s_ease-out]">
+<div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out] relative">
   
-  <header class="w-full bg-zinc-950 text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0">
-    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
+  <!-- 🚀 FIX: Aplicamos el componente PageHeader -->
+  <PageHeader title="Nueva Propiedad">
+    {#snippet subtitle()}
+      Registra un nuevo activo en tu catálogo inmobiliario.
+    {/snippet}
 
-    <div class="w-full max-w-[1000px] mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+    {#snippet actions()}
       <div class="flex items-center gap-4">
-        <a href="/admin" class="text-zinc-400 hover:text-white transition-colors p-2.5 rounded-xl hover:bg-white/10" title="Volver al Inventario">
+        <a href="/admin" class="text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800" title="Volver al Inventario">
           <ArrowLeft class="w-6 h-6" />
         </a>
-        <div>
-          <h1 class="text-3xl font-bold tracking-tight text-zinc-50 flex items-center gap-3">Nueva Propiedad</h1>
-          <p class="text-sm font-medium text-zinc-400 mt-1">Registra un nuevo activo en tu catálogo inmobiliario.</p>
-        </div>
       </div>
-    </div>
-  </header>
+    {/snippet}
+  </PageHeader>
 
+  <!-- 🚀 FIX: Mantenemos el -mt-16 y el max-w-[1000px] para esta vista -->
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1000px] mx-auto px-4 sm:px-10 h-full">
-      <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.03)] dark:shadow-none border border-slate-200 dark:border-zinc-800 p-6 sm:p-10 mb-10 transition-colors duration-300">
+      <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-sm border border-slate-200 dark:border-zinc-800 p-6 sm:p-10 mb-10 transition-colors duration-300">
         
         {#if form?.error}
-          <div class="mb-8 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 font-semibold p-4 rounded-xl text-sm border border-red-100 dark:border-red-500/20 animate-[fadeIn_0.3s_ease-out]">{form.error}</div>
+          <div class="mb-8 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold p-4 rounded-xl text-sm border border-rose-100 dark:border-rose-500/20 animate-[fadeIn_0.3s_ease-out]">{form.error}</div>
         {/if}
 
         <form method="POST" action="?/crear" enctype="multipart/form-data" use:enhance={async ({ formData, cancel }) => { 
@@ -298,7 +298,7 @@
         }} class="space-y-12">
           
           {#if hitPropsPaywall}
-             <div class="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-[fadeIn_0.4s_ease-out] shadow-sm">
+             <div class="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-[fadeIn_0.4s_ease-out] shadow-sm transition-colors">
                 <div class="flex gap-4">
                   <div class="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center shrink-0">
                     <Lock class="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
@@ -308,18 +308,18 @@
                     <p class="text-sm text-indigo-700 dark:text-indigo-300 mt-1 font-medium">Has publicado {currentProps} de {maxProps} propiedades permitidas en tu plan actual.</p>
                   </div>
                 </div>
-                <a href="/admin/perfil" class="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl transition-all shadow-md active:scale-95 text-sm">
+                <a href="/admin/perfil" class="shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-6 rounded-xl transition-all shadow-sm active:scale-[0.98] text-sm">
                   Actualizar Plan
                 </a>
              </div>
           {/if}
 
           <section class="space-y-6 {hitPropsPaywall ? 'opacity-50 pointer-events-none' : ''}">
-            <div class="border-b border-slate-100 dark:border-zinc-800 pb-3">
+            <div class="border-b border-slate-100 dark:border-zinc-800 pb-3 transition-colors">
               <h2 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight">1. Estructura y Multimedia</h2>
             </div>
 
-            <div class="p-5 bg-slate-50/50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 flex items-start gap-4 transition-colors">
+            <div class="p-5 bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 flex items-start gap-4 transition-colors">
               <div class="flex items-center h-5 mt-0.5">
                 <input type="checkbox" id="is_oculta" name="is_oculta" bind:checked={isOculta} class="w-4 h-4 text-indigo-600 bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 rounded focus:ring-indigo-600 dark:focus:ring-indigo-500 cursor-pointer">
               </div>
@@ -380,7 +380,7 @@
                     <input bind:value={valMantenimiento} id="mantenimiento" type="text" name="mantenimiento" class="flex h-10 w-full rounded-md border border-indigo-200 dark:border-indigo-500/50 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white pl-10 pr-3 py-2 text-sm font-bold placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shadow-sm transition-colors" placeholder="Ej. 2,500">
                   </div>
                 {:else}
-                   <div class="h-10 w-full rounded-md border border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50 flex items-center px-3 text-xs text-slate-400 dark:text-zinc-500 font-medium">Sin cuota de mantenimiento</div>
+                   <div class="h-10 w-full rounded-md border border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50 flex items-center px-3 text-xs text-slate-400 dark:text-zinc-500 font-medium transition-colors">Sin cuota de mantenimiento</div>
                 {/if}
               </div>
 
@@ -401,31 +401,30 @@
                 </div>
               </div>
 
-              <!-- 🚀 FIX: ELIMINACIÓN DEL BINDING DINÁMICO #each PARA SVELTE 5 -->
               <div class="col-span-2 grid grid-cols-3 sm:grid-cols-7 gap-4">
                 <div>
                   <label for="recamaras" class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">Recámaras</label>
-                  <input bind:value={valRecamaras} id="recamaras" type="number" name="recamaras" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-200 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
+                  <input bind:value={valRecamaras} id="recamaras" type="number" name="recamaras" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-300 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
                 </div>
                 <div>
                   <label for="banos" class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">Baños</label>
-                  <input bind:value={valBanos} id="banos" type="number" name="banos" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-200 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
+                  <input bind:value={valBanos} id="banos" type="number" name="banos" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-300 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
                 </div>
                 <div>
                   <label for="medio_bano" class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">1/2 Baños</label>
-                  <input bind:value={valMedioBano} id="medio_bano" type="number" name="medio_bano" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-200 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
+                  <input bind:value={valMedioBano} id="medio_bano" type="number" name="medio_bano" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-300 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
                 </div>
                 <div>
                   <label for="estacionamientos" class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">Autos</label>
-                  <input bind:value={valEstacionamientos} id="estacionamientos" type="number" name="estacionamientos" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-200 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
+                  <input bind:value={valEstacionamientos} id="estacionamientos" type="number" name="estacionamientos" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-300 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
                 </div>
                 <div>
                   <label for="m2_terreno" class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">M² Terreno</label>
-                  <input bind:value={valM2Terreno} id="m2_terreno" type="number" name="m2_terreno" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-200 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
+                  <input bind:value={valM2Terreno} id="m2_terreno" type="number" name="m2_terreno" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-300 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
                 </div>
                 <div>
                   <label for="m2_construccion" class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">M² Const.</label>
-                  <input bind:value={valM2Construccion} id="m2_construccion" type="number" name="m2_construccion" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-200 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
+                  <input bind:value={valM2Construccion} id="m2_construccion" type="number" name="m2_construccion" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-sm text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none shadow-sm placeholder:text-slate-300 dark:placeholder:text-zinc-600 transition-colors" placeholder="0">
                 </div>
                 <div>
                   <label for="antiguedad" class="block text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5 text-center w-full">Antigüedad</label>
@@ -441,10 +440,10 @@
                     <div class="absolute inset-0 bg-black/10 z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   {/if}
                   <div class="relative z-20 flex flex-col items-center justify-center {imagePreview ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'} transition-opacity">
-                    <div class="bg-white dark:bg-zinc-800 p-3 rounded-full shadow-sm border border-slate-200 dark:border-zinc-700 mb-2 text-slate-600 dark:text-zinc-400">
+                    <div class="bg-white dark:bg-zinc-800 p-3 rounded-full shadow-sm border border-slate-200 dark:border-zinc-700 mb-2 text-slate-600 dark:text-zinc-400 transition-colors">
                       <UploadCloud class="w-5 h-5" />
                     </div>
-                    <span class="text-slate-700 dark:text-zinc-300 font-semibold bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm px-3 py-1 rounded-md text-xs shadow-sm border border-slate-200 dark:border-zinc-700">Subir Portada</span>
+                    <span class="text-slate-700 dark:text-zinc-300 font-semibold bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm px-3 py-1 rounded-md text-xs shadow-sm border border-slate-200 dark:border-zinc-700 transition-colors">Subir Portada</span>
                   </div>
                   <input id="imagen_principal" name="imagen" type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30" required onchange={handleImageChange}>
                 </div>
@@ -454,7 +453,7 @@
                 <div class="flex justify-between items-end mb-1.5">
                   <label for="galeria_input" class="block text-xs font-semibold text-slate-500 dark:text-zinc-400">Galería Secundaria (1 a 15 fotos)</label>
                   {#if comprimiendoGaleria}
-                    <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-1 rounded"><Loader2 class="w-3 h-3 animate-spin"/> Optimizando...</span>
+                    <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-1 rounded transition-colors"><Loader2 class="w-3 h-3 animate-spin"/> Optimizando...</span>
                   {/if}
                 </div>
                 <div class="flex flex-col items-center justify-center p-6 border-2 border-slate-200 dark:border-zinc-700 border-dashed rounded-xl hover:border-slate-400 dark:hover:border-zinc-500 bg-slate-50 dark:bg-zinc-800/50 transition-colors relative cursor-pointer min-h-[120px] shadow-inner">
@@ -467,7 +466,7 @@
                   {#if galeriaPreviews.length > 0}
                     <div class="mt-6 grid grid-cols-4 sm:grid-cols-6 gap-2 w-full relative z-20 pointer-events-none">
                       {#each galeriaPreviews as preview, index}
-                        <div class="aspect-square rounded-md overflow-hidden bg-slate-200 dark:bg-zinc-800 shadow-sm"><img src={preview} alt="Miniatura {index + 1}" class="w-full h-full object-cover"/></div>
+                        <div class="aspect-square rounded-md overflow-hidden bg-slate-200 dark:bg-zinc-800 shadow-sm transition-colors"><img src={preview} alt="Miniatura {index + 1}" class="w-full h-full object-cover"/></div>
                       {/each}
                     </div>
                   {/if}
@@ -476,12 +475,12 @@
 
               <div class="sm:col-span-2 pt-2">
                 <label for="video_url" class="block text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">Video Recorrido (YouTube / Vimeo)</label>
-                <input id="video_url" type="url" name="video_url" placeholder="Ej. https://www.youtube.com/watch?v=..." class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none text-slate-900 dark:text-white shadow-sm placeholder:text-slate-400 dark:placeholder:text-zinc-500 transition-colors">
+                <input id="video_url" type="url" name="video_url" placeholder="Ej. https://www.youtube.com/watch?v=..." class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none text-slate-900 dark:text-white shadow-sm placeholder:text-slate-400 dark:placeholder:text-zinc-600 transition-colors">
               </div>
 
               <div class="sm:col-span-2">
                 <label for="recorrido_3d_url" class="block text-[11px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">Recorrido 3D (Matterport)</label>
-                <input id="recorrido_3d_url" type="url" name="recorrido_3d_url" placeholder="Ej. https://my.matterport.com/show/?m=..." class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none text-slate-900 dark:text-white shadow-sm placeholder:text-slate-400 dark:placeholder:text-zinc-500 transition-colors">
+                <input id="recorrido_3d_url" type="url" name="recorrido_3d_url" placeholder="Ej. https://my.matterport.com/show/?m=..." class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none text-slate-900 dark:text-white shadow-sm placeholder:text-slate-400 dark:placeholder:text-zinc-600 transition-colors">
               </div>
             </div>
           </section>
@@ -540,7 +539,7 @@
 
                     <div class="w-full sm:w-1/3 flex flex-col items-center">
                       <div class="h-[18px] mb-2 hidden sm:block"></div> 
-                      <button type="button" onclick={generarCampañaIA} disabled={generandoIA} class="w-full relative overflow-hidden group bg-white text-slate-900 font-bold px-6 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 flex items-center justify-center gap-2 text-sm shadow-sm active:scale-95">
+                      <button type="button" onclick={generarCampañaIA} disabled={generandoIA} class="w-full relative overflow-hidden group bg-white text-slate-900 font-bold px-6 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 flex items-center justify-center gap-2 text-sm shadow-sm active:scale-[0.98]">
                         {#if generandoIA}
                           <Loader2 class="animate-spin w-4 h-4 text-slate-900" />
                           Redactando...
@@ -560,7 +559,7 @@
                       <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
                         Has utilizado todos tus créditos. Adquiere un paquete de recarga extra (Top-Up) para continuar redactando campañas sin interrupciones este mes.
                       </p>
-                      <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
+                      <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] active:scale-[0.98]">
                         <Zap class="w-4 h-4" /> Adquirir Top-Up IA
                       </a>
                     {:else if planSuscripcion === 'pro'}
@@ -568,7 +567,7 @@
                       <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
                         Has utilizado tus 125 créditos. Mejora al plan <strong>Elite (500 créditos)</strong> o adquiere una recarga para operar sin límites.
                       </p>
-                      <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
+                      <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] active:scale-[0.98]">
                         <Sparkles class="w-4 h-4" /> Mejorar a Plan Elite
                       </a>
                     {:else if planSuscripcion === 'trial'}
@@ -576,7 +575,7 @@
                       <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
                         La IA redacta más rápido y mejor. Actualiza a <strong>Pro</strong> o <strong>Elite</strong> para desbloquear todo el poder de tu Estudio Creativo en Inmublia.
                       </p>
-                      <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
+                      <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] active:scale-[0.98]">
                         <Sparkles class="w-4 h-4" /> Actualizar Plan
                       </a>
                     {:else}
@@ -584,7 +583,7 @@
                       <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
                         La Inteligencia Artificial es el motor de las agencias top. Mejora tu plan a <strong>Pro (125 créditos)</strong> o <strong>Elite (500 créditos)</strong> para dominar el mercado.
                       </p>
-                      <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
+                      <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] active:scale-[0.98]">
                         <Sparkles class="w-4 h-4" /> Desbloquear Estudio Creativo
                       </a>
                     {/if}
@@ -600,7 +599,7 @@
                         <MessageCircle class="w-4 h-4 text-emerald-400" /> Campaña WhatsApp
                       </h4>
                       {#if !generandoIA}
-                        <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600/50">
+                        <button type="button" onclick={() => copiarAlPortapapeles(textoGeneradoWhatsapp)} class="text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600/50 active:scale-[0.98]">
                           <Copy class="w-3.5 h-3.5" />
                           Copiar Mensaje
                         </button>
@@ -631,10 +630,10 @@
           </section>
 
           <section id="seccion-oficial" class="space-y-6 pt-10 border-t border-slate-100 dark:border-zinc-800 transition-colors {hitPropsPaywall ? 'opacity-50 pointer-events-none' : ''}">
-            <div class="border-b border-slate-100 dark:border-zinc-800 pb-3 flex items-center justify-between">
+            <div class="border-b border-slate-100 dark:border-zinc-800 pb-3 flex items-center justify-between transition-colors">
               <h2 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight">3. Publicación Oficial</h2>
               {#if iaEjecutada && !generandoIA}
-                <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-500/20 flex items-center gap-1.5 animate-[fadeIn_0.4s_ease-out]">
+                <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-500/20 flex items-center gap-1.5 animate-[fadeIn_0.4s_ease-out] transition-colors">
                   <CheckCircle2 class="w-3.5 h-3.5" />
                   Autocompletado por IA
                 </span>
@@ -651,7 +650,7 @@
               <textarea bind:value={valDescripcion} id="descripcion" name="descripcion" rows="12" class="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-800 dark:text-zinc-300 leading-relaxed resize-y placeholder:text-slate-300 dark:placeholder:text-zinc-600 transition-colors" placeholder="Escribe aquí los detalles de la propiedad o usa el Estudio Creativo IA para redactar..."></textarea>
             </div>
 
-            <div class="flex items-start mt-4 p-5 bg-slate-50/50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-inner transition-colors">
+            <div class="flex items-start mt-4 p-5 bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm transition-colors">
               <div class="flex items-center h-5 mt-0.5">
                 <input type="checkbox" id="destacada" name="destacada" class="w-4 h-4 text-indigo-600 bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 rounded cursor-pointer focus:ring-indigo-600 dark:focus:ring-indigo-500">
               </div>
@@ -663,14 +662,14 @@
           </section>
 
           <section class="space-y-6 pt-10 border-t border-slate-100 dark:border-zinc-800 transition-colors {hitPropsPaywall ? 'opacity-50 pointer-events-none' : ''}">
-            <div class="border-b border-slate-100 dark:border-zinc-800 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="border-b border-slate-100 dark:border-zinc-800 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors">
               <div>
                 <h2 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
                   <LayoutTemplate class="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> 4. Diseño del Smart Brochure
                 </h2>
                 <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">Elige la plantilla específica para vestir la página de este inmueble.</p>
               </div>
-              <div class="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 px-3 py-1.5 rounded-lg">
+              <div class="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 px-3 py-1.5 rounded-lg transition-colors">
                 <p class="text-[10px] font-bold text-indigo-800 dark:text-indigo-400 uppercase tracking-widest">Plan de Acceso: {planSuscripcion}</p>
               </div>
             </div>
@@ -683,10 +682,10 @@
                 {@const activo = selectedTemplate === template.id}
                 
                 <div class="flex flex-col gap-3">
-                  <label class="relative border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group {activo ? 'border-indigo-600 dark:border-indigo-500 ring-2 ring-indigo-600 dark:ring-indigo-500 shadow-md bg-indigo-50/50 dark:bg-indigo-500/10' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-500 bg-white dark:bg-zinc-900'} {!autorizado ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-1 hover:shadow-lg'}">
+                  <label class="relative border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group {activo ? 'border-indigo-600 dark:border-indigo-500 ring-2 ring-indigo-600 dark:ring-indigo-500 shadow-md bg-indigo-50 dark:bg-indigo-500/10' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-500 bg-white dark:bg-zinc-900'} {!autorizado ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-1 hover:shadow-md'}">
                     <input type="radio" bind:group={selectedTemplate} value={template.id} disabled={!autorizado} class="hidden">
                     
-                    <div class="aspect-video w-full bg-slate-100 dark:bg-zinc-800 relative overflow-hidden border-b border-slate-100 dark:border-zinc-800">
+                    <div class="aspect-video w-full bg-slate-100 dark:bg-zinc-800 relative overflow-hidden border-b border-slate-100 dark:border-zinc-800 transition-colors">
                        <img 
                          src={template.img} 
                          alt={template.nombre} 
@@ -700,20 +699,20 @@
 
                     <div class="p-4 flex flex-col justify-between flex-1 bg-transparent">
                       <div class="flex items-center justify-between gap-2">
-                        <span class="font-bold text-sm leading-tight {activo ? 'text-indigo-900 dark:text-indigo-300' : 'text-slate-900 dark:text-zinc-200'}">{template.nombre}</span>
+                        <span class="font-bold text-sm leading-tight {activo ? 'text-indigo-900 dark:text-indigo-300' : 'text-slate-900 dark:text-zinc-200'} transition-colors">{template.nombre}</span>
                         {#if !autorizado}
-                          <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 shrink-0">
+                          <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 shrink-0 transition-colors">
                             🔒 {template.minPlan}
                           </span>
                         {:else if activo}
-                          <CheckCircle2 class="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                          <CheckCircle2 class="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 transition-colors" />
                         {/if}
                       </div>
                     </div>
                   </label>
                   
                   {#if autorizado}
-                    <a href="/propiedad-demo?template={template.id}&sandbox=true" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 text-[11px] font-bold py-2 rounded-lg transition-colors border border-slate-200 dark:border-zinc-700">
+                    <a href="/propiedad-demo?template={template.id}&sandbox=true" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-50 dark:bg-zinc-800/50 text-slate-600 dark:text-zinc-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 text-[11px] font-bold py-2 rounded-lg transition-colors border border-slate-200 dark:border-zinc-700 shadow-sm dark:shadow-none">
                       <Eye class="w-3.5 h-3.5" /> Previsualizar Diseño
                     </a>
                   {/if}
@@ -723,15 +722,15 @@
           </section>
 
           <div class="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-100 dark:border-zinc-800 transition-colors">
-            <a href="/admin" class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 font-semibold py-2.5 px-6 rounded-lg transition-colors text-sm text-center">Cancelar</a>
+            <a href="/admin" class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 font-semibold py-2.5 px-6 rounded-lg transition-colors text-sm text-center shadow-sm">Cancelar</a>
             
             {#if hitPropsPaywall}
-              <a href="/admin/perfil" class="bg-indigo-600 text-white font-bold py-2.5 px-8 rounded-lg shadow-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-95">
+              <a href="/admin/perfil" class="bg-indigo-600 text-white font-bold py-2.5 px-8 rounded-lg shadow-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-[0.98]">
                  <Lock class="w-4 h-4" />
                  Actualizar Plan para Continuar
               </a>
             {:else}
-              <button type="submit" disabled={loading || comprimiendoGaleria} class="bg-slate-900 dark:bg-white text-white dark:text-zinc-900 font-bold py-2.5 px-8 rounded-lg disabled:opacity-50 shadow-sm hover:bg-slate-800 dark:hover:bg-slate-100 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-95">
+              <button type="submit" disabled={loading || comprimiendoGaleria} class="bg-slate-900 dark:bg-white text-white dark:text-zinc-900 font-bold py-2.5 px-8 rounded-lg disabled:opacity-50 shadow-sm hover:bg-slate-800 dark:hover:bg-slate-200 transition-all flex items-center justify-center gap-2 text-sm transform active:scale-[0.98]">
                 {#if loading || comprimiendoGaleria}
                   <Loader2 class="animate-spin w-4 h-4 {loading ? 'text-white dark:text-zinc-900' : ''}" />
                    Procesando...
@@ -750,7 +749,7 @@
 
 <style>
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
 </style>
