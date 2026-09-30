@@ -8,12 +8,12 @@ import { procesarLeadsEntrantes } from '$lib/server/leads-processor';
 
 export async function GET({ request }) {
   // =====================================================================
-  // 1. BARRERA DE SEGURIDAD ZERO-TRUST (Estándar 2026)
-  // Solo permite la ejecución si el orquestador externo (n8n) envía la llave correcta.
+  // 1. BARRERA DE SEGURIDAD ZERO-TRUST CON SEGREGACIÓN DE SECRETOS
+  // Escucha exclusivamente PORTALES_CRON_SECRET para aislar el dominio.
   // =====================================================================
   const authHeader = request.headers.get('Authorization');
   
-  if (!privateEnv.CRON_SECRET || authHeader !== `Bearer ${privateEnv.CRON_SECRET}`) {
+  if (!privateEnv.PORTALES_CRON_SECRET || authHeader !== `Bearer ${privateEnv.PORTALES_CRON_SECRET}`) {
     console.warn('[HEARTBEAT] Intento de ejecución rechazado. Firma no autorizada.');
     return json({ error: 'Acceso Denegado' }, { status: 401 });
   }
@@ -67,15 +67,12 @@ export async function GET({ request }) {
 
   // =====================================================================
   // EJECUCIÓN CONCURRENTE ENTERPRISE
-  // Promise.allSettled aísla los procesos. Si ML está caído, la entrada de EB sigue viva.
   // =====================================================================
   await Promise.allSettled([
     ejecutarDifusion(),
     ejecutarIngesta()
   ]);
 
-  // Retornamos 200 OK para que n8n registre la operación como exitosa,
-  // inyectando las métricas precisas para tu panel de observabilidad.
   return json({
     status: 'ok',
     timestamp: new Date().toISOString(),
