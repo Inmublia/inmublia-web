@@ -50,7 +50,8 @@ export async function load({ locals, fetch, url }) {
 
   const { data: broker, error: brokerError } = await supabaseAdmin
     .from('brokers')
-    .select('*')
+    // 🚀 ZERO-LEAK B2C: Lista explícita para evitar fuga de stripe_customer_id, webhooks y correos en el Payload.
+    .select('id, subdominio, nombre_comercial, whatsapp, logo_url, template, avatar_url, bio, instagram, linkedin, facebook, tiktok, pixel_fb, pixel_google, pixel_tiktok, status_suscripcion, plan_suscripcion, template_seleccionado, template_id_catalog')
     .eq('id', brokerId)
     .single();
 
@@ -61,7 +62,8 @@ export async function load({ locals, fetch, url }) {
   // 🚀 EL FIX MAESTRO: Pedimos tanto las Activas como las Vendidas
   const { data: propiedadesRaw } = await supabaseAdmin
       .from('propiedades')
-      .select('*')
+      // 🚀 ZERO-LEAK B2C: Lista explícita para excluir 'comision' e información privada del CRM.
+      .select('id, slug, titulo, precio, operacion, tipo, destacada, m2_terreno, m2_construccion, recamaras, banos, medio_bano, estacionamientos, antiguedad, ubicacion, imagen_url, galeria_urls, estatus, fecha_vendida, template_id, cobra_mantenimiento, mantenimiento')
       .eq('broker_id', brokerId)
       .in('estatus', ['Activa', 'Vendida']); 
 
