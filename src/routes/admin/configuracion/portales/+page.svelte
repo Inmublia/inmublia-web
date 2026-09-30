@@ -6,12 +6,11 @@
 
   let { data, form } = $props();
   let credenciales = $derived(data.credenciales);
-  let plan = $derived(data.broker?.plan_suscripcion || 'basico');
   
   let isLoadingEB = $state(false);
   let toastMsg = $state(form?.message || ($page.url.searchParams.get('success') === 'ml_connected' ? 'MercadoLibre conectado exitosamente.' : ''));
+  let errorMsg = $state(form?.error || ($page.url.searchParams.get('error') === 'csrf_violation' ? 'Error de seguridad detectado. Intenta de nuevo.' : ''));
 
-  // Helpers para estado
   const isConnected = (portalId) => credenciales.some(c => c.portal === portalId && c.estatus === 'activo');
 </script>
 
@@ -21,17 +20,23 @@
       <CheckCircle2 class="w-4 h-4" /> {toastMsg}
     </div>
   {/if}
+  
+  {#if errorMsg}
+    <div class="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-sm font-bold flex gap-2 items-center animate-[fadeIn_0.3s_ease-out]">
+      <AlertCircle class="w-4 h-4" /> {errorMsg}
+    </div>
+  {/if}
 
   <div>
     <h1 class="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
       <ShieldCheck class="w-6 h-6 text-indigo-500" /> Integración de Portales
     </h1>
-    <p class="text-sm text-slate-500 dark:text-zinc-400 mt-1">Conecta tus cuentas externas. Las credenciales se almacenan con cifrado militar AES-256-GCM.</p>
+    <p class="text-sm text-slate-500 mt-1">Conecta tus cuentas externas. Almacenamos todo con cifrado militar AES-256-GCM.</p>
   </div>
 
   <div class="space-y-4">
     <!-- MERCADO LIBRE -->
-    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all {isConnected('mercadolibre') ? 'ring-1 ring-emerald-500/50' : ''}">
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 {isConnected('mercadolibre') ? 'ring-1 ring-emerald-500/50' : ''}">
       <div class="space-y-1">
         <div class="flex items-center gap-2">
           <h2 class="text-lg font-bold text-slate-900 dark:text-white">MercadoLibre Inmuebles</h2>
@@ -59,7 +64,7 @@
     </div>
 
     <!-- EASYBROKER -->
-    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6 transition-all {isConnected('easybroker') ? 'ring-1 ring-emerald-500/50' : ''}">
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6 {isConnected('easybroker') ? 'ring-1 ring-emerald-500/50' : ''}">
       <div class="space-y-1 flex-1">
         <div class="flex items-center gap-2">
           <h2 class="text-lg font-bold text-slate-900 dark:text-white">Bolsa EasyBroker</h2>
@@ -71,14 +76,11 @@
 
         {#if !isConnected('easybroker')}
           <form method="POST" action="?/guardarEasyBroker" use:enhance={() => { isLoadingEB = true; return async ({ update }) => { await update(); isLoadingEB = false; } }} class="flex gap-2 max-w-sm mt-4">
-            <input type="password" name="api_key" placeholder="eb_test_k3y..." required class="flex-1 bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-            <button disabled={isLoadingEB} class="bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50">
-              {isLoadingEB ? 'Guardando...' : 'Conectar'}
+            <input type="password" name="api_key" placeholder="Pegar API Key aquí..." required class="flex-1 bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+            <button disabled={isLoadingEB} class="bg-slate-900 dark:bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50">
+              {isLoadingEB ? 'Verificando...' : 'Conectar'}
             </button>
           </form>
-          {#if form?.error}
-            <p class="text-[10px] font-bold text-rose-500 mt-2 flex items-center gap-1"><AlertCircle class="w-3 h-3"/> {form.error}</p>
-          {/if}
         {/if}
       </div>
 
@@ -94,13 +96,13 @@
       {/if}
     </div>
 
-    <!-- PROPPIT (Coming Soon / Upsell) -->
+    <!-- PROPPIT -->
     <div class="bg-slate-50 dark:bg-zinc-900/50 border border-dashed border-slate-300 dark:border-zinc-700 rounded-2xl p-6 opacity-70 flex justify-between items-center">
       <div>
          <h2 class="text-lg font-bold text-slate-700 dark:text-zinc-300">Red Proppit (LIFULL)</h2>
-         <p class="text-xs text-slate-500 mt-1">iCasas, Lamudi, Trovit, Mitula. Próximamente integrado vía Token de Sistema Inmublia.</p>
+         <p class="text-xs text-slate-500 mt-1">iCasas, Lamudi, Trovit, Mitula. Próximamente integrado vía Token Maestro.</p>
       </div>
-      <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 border border-slate-200 px-3 py-1 rounded-full">Próximamente</span>
+      <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 border border-slate-200 px-3 py-1 rounded-full">En desarrollo</span>
     </div>
   </div>
 </div>
