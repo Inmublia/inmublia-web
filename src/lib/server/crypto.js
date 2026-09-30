@@ -1,7 +1,6 @@
 // src/lib/server/crypto.js
 import { env as privateEnv } from '$env/dynamic/private';
 
-// Helpers nativos para Cloudflare Workers (Web Crypto API)
 const hexToUint8Array = (hex) => {
   if (!hex) return new Uint8Array(0);
   const bytes = new Uint8Array(Math.ceil(hex.length / 2));
@@ -27,7 +26,6 @@ export async function encryptToken(text) {
   const encodedText = new TextEncoder().encode(text);
   const encryptedBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encodedText);
   
-  // Guardamos IV + Ciphertext (el auth tag ya viene incluido al final del buffer por defecto en AES-GCM)
   return `${uint8ArrayToHex(iv)}:${uint8ArrayToHex(new Uint8Array(encryptedBuf))}`;
 }
 
@@ -46,8 +44,9 @@ export async function decryptToken(ciphertext) {
   }
 }
 
-// Función auxiliar para generar Hashes SHA-256 nativos (Usado en el motor de sincronización)
 export async function generarHashSha256(payloadObj) {
-  const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(payloadObj)));
+  // Parche I4: Ordenar claves alfabéticamente para serialización determinística
+  const sortedJson = JSON.stringify(payloadObj, Object.keys(payloadObj).sort());
+  const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sortedJson));
   return uint8ArrayToHex(new Uint8Array(buffer));
 }
