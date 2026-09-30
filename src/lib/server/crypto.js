@@ -1,27 +1,47 @@
 // src/lib/server/crypto.js
-import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
 import { env as privateEnv } from '$env/dynamic/private';
 
-const ALGO = 'aes-256-gcm';
+// Helpers nativos para Cloudflare Workers (Sin usar Node.js Buffer)
+const hexToUint8Array = (hex) => {
+  if (!hex) return new Uint8Array(0);
+  const bytes = new Uint8Array(Math.ceil(hex.length / 2));
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+  return bytes;
+};
 
-export function encryptToken(text) {
-  if (!text) return null;
-  const iv = randomBytes(12);
-  const cipher = createCipheriv(ALGO, Buffer.from(privateEnv.ENCRYPTION_KEY, 'hex'), iv);
-  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-  // Formato: iv:authTag:encryptedData
-  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`;
+const uint8ArrayToHex = (bytes) => {
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+async function getEncryptionKey() {
+  if (!privateEnv.ENCRYPTION_KEY) throw new Error('ENCRYPTION_KEY no configurada');
+  const keyBuf = hexToUint8Array(privateEnv.ENCRYPTION_KEY);
+  return await crypto.subtle.importKey('raw', keyBuf, 'AES-GCM', false, ['encrypt', 'decrypt']);
 }
 
-export function decryptToken(ciphertext) {
+export async function encryptToken(text) {
+  if (!text) return null;
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await getEncryptionKey();
+  
+  const encodedText = new TextEncoder().encode(text);
+  const encryptedBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encodedText);
+  
+  // Guardamos IV + Ciphertext (el auth tag ya viene incluido al final del buffer por defecto en AES-GCM)
+  return `${uint8ArrayToHex(iv)}:${uint8ArrayToHex(new Uint8Array(encryptedBuf))}`;
+}
+
+export async function decryptToken(ciphertext) {
   if (!ciphertext || !ciphertext.includes(':')) return ciphertext;
   try {
-    const [ivHex, authTagHex, encryptedHex] = ciphertext.split(':');
-    const decipher = createDecipheriv(ALGO, Buffer.from(privateEnv.ENCRYPTION_KEY, 'hex'), Buffer.from(ivHex, 'hex'));
-    decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
-    return Buffer.concat([decipher.update(Buffer.from(encryptedHex, 'hex')), decipher.final()]).toString('utf-8');
-  } catch {
+    const [ivHex, dataHex] = ciphertext.split(':');
+    const iv = hexToUint8Array(ivHex);
+    const data = hexToUint8Array(dataHex);
+    const key = await getEncryptionKey();
+    
+    const decryptedBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+    return new TextDecoder().decode(decryptedBuf);
+  } catch (err) {
     throw new Error('Fallo al descifrar credencial. Llave comprometida o inválida.');
   }
 }
