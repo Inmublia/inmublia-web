@@ -468,9 +468,9 @@
                           {#each cliente.matches.slice(1) as extraMatch (extraMatch.id)}
                             <a href="/admin/editar/{extraMatch.id}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 p-2 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg transition-colors border border-transparent hover:border-slate-100 dark:hover:border-zinc-700">
                               
-                              <!-- 🚀 FIX C3: Fallback visual para extraMatch -->
+                              <!-- 🚀 FIX C3: Fallback visual para extraMatch. Sintaxis de eventos estricta Svelte 5 -->
                               {#if extraMatch.imagen_url}
-                                <img src={extraMatch.imagen_url} alt="Match" class="w-9 h-9 rounded object-cover shrink-0 border border-slate-200 dark:border-zinc-700" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                                <img src={extraMatch.imagen_url} alt="Match" class="w-9 h-9 rounded object-cover shrink-0 border border-slate-200 dark:border-zinc-700" onerror={(e) => { e.currentTarget.style.display='none'; e.currentTarget.nextElementSibling.style.display='flex'; }}>
                                 <div class="w-9 h-9 rounded bg-slate-100 dark:bg-zinc-800 hidden items-center justify-center text-slate-400 shrink-0" style="display:none"><Building class="w-4 h-4" /></div>
                               {:else}
                                 <div class="w-9 h-9 rounded bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 shrink-0"><Building class="w-4 h-4" /></div>
@@ -493,9 +493,9 @@
                 <a href="/admin/editar/{bestMatch.id}" target="_blank" rel="noopener noreferrer" class="bg-white dark:bg-zinc-900 rounded-xl p-2 border border-indigo-100 dark:border-indigo-500/30 shadow-sm mb-2.5 flex gap-2.5 items-center cursor-pointer hover:bg-indigo-50/50 dark:hover:bg-indigo-500/10 transition-colors relative overflow-hidden">
                   <div class="absolute top-0 right-0 bg-emerald-500 text-white text-[8px] font-black px-2 py-0.5 rounded-bl shadow-sm z-10">{bestMatch.matchScore}%</div>
                   
-                  <!-- 🚀 FIX C3: Fallback visual para bestMatch -->
+                  <!-- 🚀 FIX C3: Fallback visual para bestMatch. Sintaxis de eventos estricta Svelte 5 -->
                   {#if bestMatch.imagen_url}
-                    <img src={bestMatch.imagen_url} alt="Match" class="w-9 h-9 rounded object-cover border border-slate-100 dark:border-zinc-800" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                    <img src={bestMatch.imagen_url} alt="Match" class="w-9 h-9 rounded object-cover border border-slate-100 dark:border-zinc-800" onerror={(e) => { e.currentTarget.style.display='none'; e.currentTarget.nextElementSibling.style.display='flex'; }}>
                     <div class="w-9 h-9 rounded bg-slate-100 dark:bg-zinc-800 hidden items-center justify-center text-slate-400 shrink-0" style="display:none"><Building class="w-4 h-4" /></div>
                   {:else}
                     <div class="w-9 h-9 rounded bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 shrink-0"><Building class="w-4 h-4" /></div>
