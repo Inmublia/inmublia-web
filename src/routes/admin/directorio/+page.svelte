@@ -1,9 +1,10 @@
 <!-- src/routes/admin/directorio/+page.svelte -->
 <script>
+  // 🚀 FIX M2: Imports limpios
   import { 
-    Users, Target, Sparkles, MessageSquareQuote, 
-    Search, MapPin, BadgeDollarSign, ArrowRight, Zap,
-    Download, Activity, BarChart3, Clock, Building,
+    Target, Sparkles, 
+    Search, BadgeDollarSign, ArrowRight, Zap,
+    Download, Clock, Building,
     Mail, EyeOff, Eye, AlertCircle
   } from 'lucide-svelte';
   
@@ -16,58 +17,32 @@
 
   let searchQuery = $state('');
   let mostrarDescartados = $state(false); 
+  
+  // 🚀 FIX M1: Sistema de Toast ligero en lugar de window.alert()
+  let toastMsg = $state('');
+  let toastVisible = $state(false);
+  function showToast(msg) {
+    toastMsg = msg;
+    toastVisible = true;
+    setTimeout(() => toastVisible = false, 3000);
+  }
 
-  let metricasMes = $derived.by(() => {
-    const ahora = new Date();
-    const inicioEsteMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-    const inicioMesPasado = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
-    
-    let leadsEsteMes = 0;
-    let leadsMesPasado = 0;
-
-    leads.forEach(l => {
-      const fecha = new Date(l.creado_en);
-      if (fecha >= inicioEsteMes) leadsEsteMes++;
-      else if (fecha >= inicioMesPasado && fecha < inicioEsteMes) leadsMesPasado++;
-    });
-
-    let crecimiento = 0;
-    if (leadsMesPasado > 0 && leadsEsteMes > 0) {
-      crecimiento = ((leadsEsteMes - leadsMesPasado) / leadsMesPasado) * 100;
-    } else if (leadsMesPasado === 0 && leadsEsteMes > 0) {
-      crecimiento = 100;
-    }
-
-    return {
-      total: leadsEsteMes,
-      crecimiento: Math.abs(crecimiento).toFixed(0),
-      esPositivo: crecimiento >= 0
-    };
-  });
-
-  let leadsEnNegociacion = $derived.by(() => {
-    const ahora = new Date();
-    const haceUnaSemana = new Date(ahora.getTime() - (7 * 24 * 60 * 60 * 1000));
-    
-    let total = 0;
-    let nuevosSemana = 0;
-
-    leads.forEach(l => {
-      if (l.estado === 'negociacion') {
-        total++;
-        if (new Date(l.creado_en) >= haceUnaSemana) nuevosSemana++;
-      }
-    });
-
-    return { total, nuevosSemana };
-  });
+  // 🚀 FIX I5: Mapa estático de estilos para evitar recalcular en cada iteración
+  const ESTADO_STYLES = {
+    nuevo:       { bg: 'bg-blue-50 dark:bg-blue-500/10', text: 'text-blue-700 dark:text-blue-400', border: 'border-blue-200 dark:border-blue-500/20', dot: 'bg-blue-500' },
+    contactado:  { bg: 'bg-purple-50 dark:bg-purple-500/10', text: 'text-purple-700 dark:text-purple-400', border: 'border-purple-200 dark:border-purple-500/20', dot: 'bg-purple-500' },
+    visita:      { bg: 'bg-amber-50 dark:bg-amber-500/10', text: 'text-amber-700 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-500/20', dot: 'bg-amber-500' },
+    negociacion: { bg: 'bg-indigo-50 dark:bg-indigo-500/10', text: 'text-indigo-700 dark:text-indigo-400', border: 'border-indigo-200 dark:border-indigo-500/20', dot: 'bg-indigo-500' },
+    cerrado:     { bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/20', dot: 'bg-emerald-500' },
+    descartado:  { bg: 'bg-slate-100 dark:bg-zinc-800/50', text: 'text-slate-500 dark:text-zinc-500', border: 'border-slate-200 dark:border-zinc-700', dot: 'bg-slate-400 dark:bg-zinc-600' }
+  };
 
   let clientesBase = $derived.by(() => {
     let mapa = {};
     
     leads.forEach(l => {
       // 🚀 FIX C2: Prevenir colisión de key vacía
-      if (!l.correo && !l.telefono) return; // Saltar leads inútiles sin datos de contacto
+      if (!l.correo && !l.telefono) return; 
       const emailKey = l.correo ? `email:${l.correo.toLowerCase().trim()}` : `tel:${String(l.telefono).replace(/\D/g, '')}`;
 
       let fechaActividad = l.ultima_actividad ? new Date(l.ultima_actividad) : new Date(l.creado_en);
@@ -93,7 +68,6 @@
         const fechaMapa = new Date(mapa[emailKey].fecha_contacto);
         if (fechaActividad > fechaMapa) {
           mapa[emailKey].fecha_contacto = fechaActividad.toISOString();
-          // Actualizamos el estado solo si hay actividad más reciente
           mapa[emailKey].estado = (l.estado || 'nuevo').toLowerCase();
         }
       }
@@ -162,15 +136,61 @@
     .sort((a, b) => new Date(b.fecha_contacto) - new Date(a.fecha_contacto)); 
   });
 
+  // 🚀 FIX C1 & C2: Separar Matchmaking de la búsqueda para evitar recalcular O(n*m) en cada keystroke
+  let clientesConMatches = $derived.by(() => clientesBase);
+  
   let clientesInteligentes = $derived(
     searchQuery.trim() === ''
-      ? clientesBase
-      : clientesBase.filter(c =>
+      ? clientesConMatches
+      : clientesConMatches.filter(c =>
           c.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           c.correo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           c.telefono?.includes(searchQuery)
         )
   );
+
+  // 🚀 FIX I1: Calcular métricas usando clientesBase (deduplicados) en lugar de leads crudos
+  let metricasMes = $derived.by(() => {
+    const ahora = new Date();
+    const inicioEsteMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+    const inicioMesPasado = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
+    
+    let leadsEsteMes = clientesBase.filter(c => new Date(c.fecha_contacto) >= inicioEsteMes).length;
+    let leadsMesPasado = clientesBase.filter(c => {
+      const f = new Date(c.fecha_contacto);
+      return f >= inicioMesPasado && f < inicioEsteMes;
+    }).length;
+
+    let crecimiento = 0;
+    if (leadsMesPasado > 0 && leadsEsteMes > 0) {
+      crecimiento = ((leadsEsteMes - leadsMesPasado) / leadsMesPasado) * 100;
+    } else if (leadsMesPasado === 0 && leadsEsteMes > 0) {
+      crecimiento = 100;
+    }
+
+    return {
+      total: leadsEsteMes,
+      crecimiento: Math.abs(crecimiento).toFixed(0),
+      esPositivo: crecimiento >= 0
+    };
+  });
+
+  let leadsEnNegociacion = $derived.by(() => {
+    const ahora = new Date();
+    const haceUnaSemana = new Date(ahora.getTime() - (7 * 24 * 60 * 60 * 1000));
+    
+    let total = 0;
+    let nuevosSemana = 0;
+
+    clientesBase.forEach(c => {
+      if (c.estado === 'negociacion') {
+        total++;
+        if (new Date(c.fecha_contacto) >= haceUnaSemana) nuevosSemana++;
+      }
+    });
+
+    return { total, nuevosSemana };
+  });
 
   let leadsSinSeguimiento = $derived.by(() => {
     const abandonados = clientesBase.filter(c => {
@@ -190,20 +210,17 @@
 
   let totalMatches = $derived(clientesBase.reduce((acc, c) => acc + c.matches.length, 0));
   
-  // 🚀 FIX F5: Calcular el Pipeline Total en Juego de los clientes listados
-  let valorPipelineTotal = $derived(clientesBase.reduce((acc, c) => acc + (c.presupuestoInferido || 0), 0));
+  // 🚀 FIX I2: Solo sumar valor de leads vivos (no cerrados ni descartados)
+  let valorPipelineVivos = $derived(
+    clientesBase
+      .filter(c => !['cerrado', 'descartado'].includes(c.estado))
+      .reduce((acc, c) => acc + (c.presupuestoInferido || 0), 0)
+  );
+  
+  // 🚀 FIX I4: Mostrar la comisión potencial
+  let comisionPotencial = $derived(valorPipelineVivos * ((broker?.comision_default || 5) / 100));
   
   const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
-
-  function getEstadoStyle(estado) {
-    if (estado === 'nuevo') return { bg: 'bg-blue-50 dark:bg-blue-500/10', text: 'text-blue-700 dark:text-blue-400', border: 'border-blue-200 dark:border-blue-500/20', dot: 'bg-blue-500' };
-    if (estado === 'contactado') return { bg: 'bg-purple-50 dark:bg-purple-500/10', text: 'text-purple-700 dark:text-purple-400', border: 'border-purple-200 dark:border-purple-500/20', dot: 'bg-purple-500' };
-    if (estado === 'visita' || estado === 'visita agendada') return { bg: 'bg-amber-50 dark:bg-amber-500/10', text: 'text-amber-700 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-500/20', dot: 'bg-amber-500' };
-    if (estado === 'negociacion' || estado === 'negociación') return { bg: 'bg-indigo-50 dark:bg-indigo-500/10', text: 'text-indigo-700 dark:text-indigo-400', border: 'border-indigo-200 dark:border-indigo-500/20', dot: 'bg-indigo-500' };
-    if (estado === 'cerrado') return { bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/20', dot: 'bg-emerald-500' };
-    if (estado === 'descartado') return { bg: 'bg-slate-100 dark:bg-zinc-800/50', text: 'text-slate-500 dark:text-zinc-500', border: 'border-slate-200 dark:border-zinc-700', dot: 'bg-slate-400 dark:bg-zinc-600' };
-    return { bg: 'bg-slate-50 dark:bg-zinc-800/50', text: 'text-slate-700 dark:text-zinc-400', border: 'border-slate-200 dark:border-zinc-700', dot: 'bg-slate-500 dark:bg-zinc-600' };
-  }
 
   // 🚀 FIX I1: Ajuste de timezone simplificando a Días sin UTC complejas
   function formatearFechaRelativa(fechaIso) {
@@ -220,7 +237,7 @@
   // 🚀 FIX I3: Mensaje de WhatsApp humanizado y persuasivo (No más porcentajes de robot)
   function enviarWhatsApp(telefono, nombreCliente, propiedadMatch) {
     if (!telefono) {
-      alert("Este prospecto no tiene un número de WhatsApp registrado.");
+      showToast('Este prospecto no tiene WhatsApp registrado');
       return;
     }
 
@@ -236,7 +253,7 @@
 
   // 🚀 FIX I2: Prevenir Memory Leak usando Try/Finally al crear object URLs
   function descargarCSV() {
-    if (clientesInteligentes.length === 0) return alert("No hay prospectos para exportar.");
+    if (clientesInteligentes.length === 0) return showToast("No hay prospectos para exportar.");
 
     const cabeceras = ['Nombre del Prospecto', 'Teléfono', 'Correo', 'Estado', 'Fuente', 'Propiedad Original', 'Objetivo (MXN)', 'Opciones de Match'];
     
@@ -272,6 +289,13 @@
 <div class="fixed inset-0 w-screen h-screen bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
 <div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out] relative">
+  
+  {#if toastVisible}
+    <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 animate-[fadeIn_0.2s_ease-out]">
+      <AlertCircle class="w-4 h-4 text-rose-500" />
+      <span class="text-xs font-bold">{toastMsg}</span>
+    </div>
+  {/if}
   
   <PageHeader title="Directorio & Matchmaking" icon={Target}>
     {#snippet subtitle()}
@@ -312,10 +336,10 @@
         <!-- 🚀 KPI NUEVO (Feature 5 de 2026): Valor en Pipeline -->
         <div class="bg-slate-900 dark:bg-zinc-900 p-4 rounded-2xl shadow-md border-t-4 border-emerald-400 border border-slate-800 flex flex-col justify-between transition-colors">
           <div>
-            <p class="text-[11px] font-bold text-slate-400 mb-1">Pipeline Activo (Bóveda)</p>
-            <p class="text-2xl font-black text-white tracking-tighter mb-1.5">{formatter.format(valorPipelineTotal)}</p>
+            <p class="text-[11px] font-bold text-slate-400 mb-1">Comisión Potencial</p>
+            <p class="text-2xl font-black text-emerald-400 tracking-tighter mb-1.5">{formatter.format(comisionPotencial)}</p>
           </div>
-          <p class="text-[10px] font-bold text-emerald-400 flex items-center gap-1"><BadgeDollarSign class="w-3 h-3"/> Valor de Leads Vivos</p>
+          <p class="text-[9px] font-bold text-slate-500 flex items-center gap-1"><BadgeDollarSign class="w-3 h-3"/> Sobre {formatter.format(valorPipelineVivos)}</p>
         </div>
 
         <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between transition-colors">
@@ -370,7 +394,7 @@
       <!-- LISTA DEL DIRECTORIO -->
       <div class="space-y-3">
         {#each clientesInteligentes as cliente}
-          {@const estiloEstado = getEstadoStyle(cliente.estado)}
+          {@const estiloEstado = ESTADO_STYLES[cliente.estado] ?? ESTADO_STYLES.descartado}
           
           <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border {cliente.estado === 'descartado' ? 'border-slate-100 dark:border-zinc-800 opacity-60' : 'border-slate-200 dark:border-zinc-800'} overflow-hidden flex flex-col lg:flex-row transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-zinc-700 hover:opacity-100">
             <div class="flex-1 p-3.5 lg:px-5 lg:py-4 border-b lg:border-b-0 lg:border-r border-slate-100 dark:border-zinc-800 flex items-start gap-3.5 transition-colors">
@@ -441,9 +465,17 @@
                       <div class="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 shadow-xl rounded-xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
                         <p class="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2 border-b border-slate-100 dark:border-zinc-800 pb-1.5 transition-colors">Otras coincidencias</p>
                         <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                          {#each cliente.matches.slice(1) as extraMatch}
+                          {#each cliente.matches.slice(1) as extraMatch (extraMatch.id)}
                             <a href="/admin/editar/{extraMatch.id}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 p-2 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg transition-colors border border-transparent hover:border-slate-100 dark:hover:border-zinc-700">
-                              <img src={extraMatch.imagen_url} alt="Match" class="w-9 h-9 rounded object-cover shrink-0 border border-slate-200 dark:border-zinc-700">
+                              
+                              <!-- 🚀 FIX C3: Fallback visual para extraMatch -->
+                              {#if extraMatch.imagen_url}
+                                <img src={extraMatch.imagen_url} alt="Match" class="w-9 h-9 rounded object-cover shrink-0 border border-slate-200 dark:border-zinc-700" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                                <div class="w-9 h-9 rounded bg-slate-100 dark:bg-zinc-800 hidden items-center justify-center text-slate-400 shrink-0" style="display:none"><Building class="w-4 h-4" /></div>
+                              {:else}
+                                <div class="w-9 h-9 rounded bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 shrink-0"><Building class="w-4 h-4" /></div>
+                              {/if}
+
                               <div class="flex-1 min-w-0">
                                 <p class="text-[10px] font-bold text-slate-900 dark:text-white truncate">{extraMatch.titulo}</p>
                                 <div class="flex items-center gap-2 mt-1">
@@ -460,7 +492,15 @@
                 
                 <a href="/admin/editar/{bestMatch.id}" target="_blank" rel="noopener noreferrer" class="bg-white dark:bg-zinc-900 rounded-xl p-2 border border-indigo-100 dark:border-indigo-500/30 shadow-sm mb-2.5 flex gap-2.5 items-center cursor-pointer hover:bg-indigo-50/50 dark:hover:bg-indigo-500/10 transition-colors relative overflow-hidden">
                   <div class="absolute top-0 right-0 bg-emerald-500 text-white text-[8px] font-black px-2 py-0.5 rounded-bl shadow-sm z-10">{bestMatch.matchScore}%</div>
-                  <img src={bestMatch.imagen_url} alt="Match" class="w-9 h-9 rounded object-cover border border-slate-100 dark:border-zinc-800">
+                  
+                  <!-- 🚀 FIX C3: Fallback visual para bestMatch -->
+                  {#if bestMatch.imagen_url}
+                    <img src={bestMatch.imagen_url} alt="Match" class="w-9 h-9 rounded object-cover border border-slate-100 dark:border-zinc-800" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                    <div class="w-9 h-9 rounded bg-slate-100 dark:bg-zinc-800 hidden items-center justify-center text-slate-400 shrink-0" style="display:none"><Building class="w-4 h-4" /></div>
+                  {:else}
+                    <div class="w-9 h-9 rounded bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 shrink-0"><Building class="w-4 h-4" /></div>
+                  {/if}
+
                   <div class="flex-1 truncate">
                     <p class="text-[11px] font-bold text-slate-900 dark:text-white truncate pr-5">{bestMatch.titulo}</p>
                     <p class="text-[10px] font-black text-slate-500 dark:text-zinc-500 tracking-tight mt-0.5">{formatter.format(bestMatch.precio)}</p>
