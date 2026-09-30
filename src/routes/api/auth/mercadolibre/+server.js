@@ -6,12 +6,15 @@ export async function GET({ url, cookies }) {
   const redirectUri = `${url.origin}/api/auth/mercadolibre/callback`;
   const clientId = privateEnv.ML_APP_ID;
   
-  // Generar candado CSRF seguro y guardarlo en una cookie HTTP-Only por 10 minutos
   const state = crypto.randomUUID();
+  // Parche I1: Soporte de cookies en subdominios
+  const cookieDomain = url.hostname.includes('localhost') ? 'localhost' : '.inmublia.com';
+
   cookies.set('ml_oauth_state', state, { 
     path: '/', 
+    domain: cookieDomain,
     httpOnly: true, 
-    secure: true, 
+    secure: !url.hostname.includes('localhost'), 
     sameSite: 'lax',
     maxAge: 600 
   });
