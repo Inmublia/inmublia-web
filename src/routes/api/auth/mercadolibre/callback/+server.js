@@ -9,11 +9,11 @@ export async function GET({ url, locals, cookies }) {
   const returnedState = url.searchParams.get('state');
   const expectedState = cookies.get('ml_oauth_state');
   
-  // Limpiar cookie de estado inmediatamente para prevenir re-uso
-  cookies.delete('ml_oauth_state', { path: '/' }); 
+  const cookieDomain = url.hostname.includes('localhost') ? 'localhost' : '.inmublia.com';
+  cookies.delete('ml_oauth_state', { path: '/', domain: cookieDomain }); 
 
-  // Validación estricta CSRF (OWASP)
-  if (!returnedState || returnedState !== expectedState) {
+  // Parche M2: Validación estricta anti-undefined
+  if (!returnedState || !expectedState || returnedState !== expectedState) {
     throw redirect(303, '/admin/configuracion/portales?error=csrf_violation');
   }
 
@@ -27,7 +27,6 @@ export async function GET({ url, locals, cookies }) {
 
   const redirectUri = `${url.origin}/api/auth/mercadolibre/callback`;
   
-  // Intercambio del Auth Code por Tokens de Acceso
   const tokenRes = await fetch('https://api.mercadolibre.com/oauth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
@@ -43,12 +42,10 @@ export async function GET({ url, locals, cookies }) {
   const tokenData = await tokenRes.json();
   if (!tokenRes.ok) throw redirect(303, '/admin/configuracion/portales?error=token_exchange_failed');
 
-  // Cifrado Zero-Trust en memoria
   const accessEncrypted = await encryptToken(tokenData.access_token);
   const refreshEncrypted = await encryptToken(tokenData.refresh_token);
   const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
 
-  // Guardado en BD (Soporta Key Versioning de la Fase 1)
   await locals.supabase.from('portal_credenciales').upsert({
     broker_id: broker.id, 
     portal: 'mercadolibre', 
