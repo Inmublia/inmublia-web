@@ -1,7 +1,7 @@
 // src/lib/server/crypto.js
 import { env as privateEnv } from '$env/dynamic/private';
 
-// Helpers nativos para Cloudflare Workers (Sin usar Node.js Buffer)
+// Helpers nativos para Cloudflare Workers (Web Crypto API)
 const hexToUint8Array = (hex) => {
   if (!hex) return new Uint8Array(0);
   const bytes = new Uint8Array(Math.ceil(hex.length / 2));
@@ -14,7 +14,7 @@ const uint8ArrayToHex = (bytes) => {
 };
 
 async function getEncryptionKey() {
-  if (!privateEnv.ENCRYPTION_KEY) throw new Error('ENCRYPTION_KEY no configurada');
+  if (!privateEnv.ENCRYPTION_KEY) throw new Error('ENCRYPTION_KEY no configurada en las variables de entorno.');
   const keyBuf = hexToUint8Array(privateEnv.ENCRYPTION_KEY);
   return await crypto.subtle.importKey('raw', keyBuf, 'AES-GCM', false, ['encrypt', 'decrypt']);
 }
@@ -42,6 +42,12 @@ export async function decryptToken(ciphertext) {
     const decryptedBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
     return new TextDecoder().decode(decryptedBuf);
   } catch (err) {
-    throw new Error('Fallo al descifrar credencial. Llave comprometida o inválida.');
+    throw new Error('Fallo al descifrar credencial. Llave AES-256-GCM comprometida o inválida.');
   }
+}
+
+// Función auxiliar para generar Hashes SHA-256 nativos (Usado en el motor de sincronización)
+export async function generarHashSha256(payloadObj) {
+  const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(payloadObj)));
+  return uint8ArrayToHex(new Uint8Array(buffer));
 }
