@@ -1,3 +1,4 @@
+// src/routes/[slug]/+page.server.js
 import { supabase } from '$lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { error, fail } from '@sveltejs/kit';
@@ -52,9 +53,16 @@ export async function load({ params, url }) {
     };
   }
 
-  const { data: propiedad, error: propError } = await supabase
+  // 🚀 FIX: Cliente Admin para evitar el bloqueo del RLS B2C
+  if (!privateEnv.SUPABASE_SERVICE_ROLE_KEY) {
+    throw error(500, { message: 'Configuración del servidor incompleta.' });
+  }
+  const supabaseAdminCatalog = createClient(PUBLIC_SUPABASE_URL, privateEnv.SUPABASE_SERVICE_ROLE_KEY);
+
+  const { data: propiedad, error: propError } = await supabaseAdminCatalog
     .from('propiedades')
-    .select('*')
+    // 🚀 FIX: Lista explícita para evitar fuga de comisiones en el Payload B2C
+    .select('id, broker_id, slug, titulo, precio, imagen_url, descripcion, operacion, tipo, destacada, m2_terreno, m2_construccion, recamaras, banos, medio_bano, estacionamientos, antiguedad, ubicacion, galeria_urls, video_url, estatus, recorrido_3d_url, template_id, cobra_mantenimiento, mantenimiento, fecha_vendida')
     .eq('slug', slug)
     .single();
 
@@ -72,9 +80,10 @@ export async function load({ params, url }) {
     }
   }
 
-  const { data: broker, error: brokerError } = await supabase
+  const { data: broker, error: brokerError } = await supabaseAdminCatalog
     .from('brokers')
-    .select('*')
+    // 🚀 FIX: Lista explícita para evitar fuga de Stripe ID / Webhooks en el Payload B2C
+    .select('id, subdominio, nombre_comercial, whatsapp, logo_url, template, avatar_url, bio, instagram, linkedin, facebook, tiktok, pixel_fb, pixel_google, pixel_tiktok, status_suscripcion, plan_suscripcion')
     .eq('id', propiedad.broker_id)
     .single();
 
