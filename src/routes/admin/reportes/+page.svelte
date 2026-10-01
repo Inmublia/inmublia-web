@@ -2,7 +2,7 @@
 <script>
   import { 
     TrendingUp, TrendingDown, Activity, BarChart3, RefreshCw, LineChart, PieChart, Building2,
-    CheckCircle2, Timer, Target, AlertTriangle, Cpu, Download, ArrowRightCircle, ListChecks
+    CheckCircle2, Timer, Target, AlertTriangle, Cpu, Download, ArrowRightCircle
   } from 'lucide-svelte';
 
   import PageHeader from '$lib/components/PageHeader.svelte';
@@ -10,13 +10,20 @@
   let { data } = $props();
   let broker = $derived(data.broker || {});
   let leads = $derived(data.leads || []);
-  let metricas = $derived(data.metricas || {});
   
-  // 🚀 ARQUITECTURA SÍNCRONA: El insight ya viene completo desde el servidor. Cero loaders.
+  // El insight viene listo del backend
   let insight = $derived(data.insight);
 
   let comisionBroker = $derived((broker.comision_default || 5) / 100);
   const formatearDinero = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
+
+  const getValidDate = (dateStr, fallback = new Date()) => {
+    if (!dateStr) return fallback;
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? fallback : d;
+  };
+
+  const PROB_ETAPA = { 'nuevo': 0.05, 'contactado': 0.15, 'visita': 0.35, 'negociacion': 0.65 };
 
   let periodoSeleccionado = $state('30');
   let fechaInicioCustom = $state('');
@@ -69,12 +76,40 @@
     return acc;
   }, 0));
 
+  // 🚀 FIX: Proyección calculada dinámicamente según el filtro del Dropdown (Adiós al $0)
+  let proyeccionVentas = $derived(leadsFiltrados.reduce((acc, lead) => {
+    const est = lead.estado?.toLowerCase().trim();
+    if (est !== 'descartado' && est !== 'cerrado' && lead.propiedades?.precio) {
+      return acc + (lead.propiedades.precio * comisionBroker * (PROB_ETAPA[est] || 0.05));
+    }
+    return acc;
+  }, 0));
+
   let revenueWon = $derived.by(() => {
     return leadsGanados.reduce((acc, lead) => {
       const precioBase = lead.precio_cierre || lead.propiedades?.precio || 0;
       const pct = lead.comision_cierre ? (lead.comision_cierre / 100) : comisionBroker;
       return acc + (precioBase * pct);
     }, 0);
+  });
+
+  // 🚀 FIX: Velocidad calculada dinámicamente con control de errores (Adiós al undefinedh)
+  let velocidadEstadisticas = $derived.by(() => {
+    let tiempos = [];
+    leadsFiltrados.forEach(l => {
+      const creacion = getValidDate(l.creado_en || l.created_at).getTime();
+      const ultimaAct = getValidDate(l.ultima_actividad).getTime();
+      if (ultimaAct > creacion) {
+        const horas = (ultimaAct - creacion) / (1000 * 60 * 60);
+        if (horas >= 0 && horas <= 720) tiempos.push(horas);
+      }
+    });
+    if (tiempos.length === 0) return { media: null, pctEn1h: 0 };
+    
+    tiempos.sort((a, b) => a - b);
+    const media = Math.round(tiempos[Math.floor(tiempos.length / 2)] * 10) / 10;
+    const pct = Math.round((tiempos.filter(t => t <= 1).length / tiempos.length) * 100);
+    return { media, pctEn1h: pct };
   });
 
   let funnelAdvanced = $derived.by(() => {
@@ -152,14 +187,22 @@
               <input type="date" bind:value={fechaFinCustom} class="bg-transparent text-sm font-bold outline-none text-slate-700 dark:text-zinc-300">
             </div>
           {/if}
-          <select bind:value={periodoSeleccionado} class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm font-bold shadow-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all cursor-pointer">
-            <option value="30">Últimos 30 días</option>
-            <option value="mtd">Mes actual (MTD)</option>
-            <option value="last_month">Mes anterior</option>
-            <option value="90">Últimos 90 días</option>
-            <option value="all">Todo el historial</option>
-            <option value="custom">Personalizado...</option>
-          </select>
+          
+          <!-- 🚀 FIX: Dropdown blindado con SVG personalizado y appearance-none para evitar roturas -->
+          <div class="relative">
+            <select bind:value={periodoSeleccionado} class="appearance-none bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl pl-4 pr-10 py-2.5 text-sm font-bold shadow-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all cursor-pointer min-w-[170px] text-slate-700 dark:text-zinc-200">
+              <option value="30">Últimos 30 días</option>
+              <option value="mtd">Mes actual (MTD)</option>
+              <option value="last_month">Mes anterior</option>
+              <option value="90">Últimos 90 días</option>
+              <option value="all">Todo el historial</option>
+              <option value="custom">Personalizado...</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </div>
+          </div>
+
           <button onclick={imprimirReporte} class="bg-slate-900 hover:bg-slate-800 text-white p-2.5 rounded-xl shadow-md transition-all active:scale-95" title="Exportar PDF">
             <Download class="w-5 h-5" />
           </button>
@@ -170,6 +213,7 @@
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 relative z-20 -mt-16">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         
+        <!-- Tarjeta 1: Proyección -->
         <div class="bg-zinc-950 p-6 rounded-3xl shadow-md shadow-zinc-900/10 text-white relative overflow-hidden border border-zinc-800 flex flex-col justify-between transition-colors">
           <div class="absolute top-0 right-0 -mt-8 -mr-8 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
           <div class="relative z-10 flex items-center justify-between mb-4">
@@ -177,7 +221,7 @@
             <TrendingUp class="w-5 h-5 text-indigo-400" />
           </div>
           <div class="relative z-10">
-            <h2 class="text-3xl font-black tracking-tighter truncate">{formatearDinero(metricas.proyeccionVentas || 0)}</h2>
+            <h2 class="text-3xl font-black tracking-tighter truncate">{formatearDinero(proyeccionVentas)}</h2>
             <p class="text-[10px] font-medium text-zinc-500 mt-1">Comisión Pipeline {labelPeriodo}: {formatearDinero(pipelineValue)}</p>
           </div>
         </div>
@@ -208,6 +252,7 @@
           </div>
         </div>
 
+        <!-- Tarjeta 4: Velocidad -->
         <div class="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between transition-colors">
           <div class="flex items-center justify-between mb-4">
             <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Velocidad Respuesta</p>
@@ -216,10 +261,12 @@
             </div>
           </div>
           <div>
-            <h2 class="text-3xl font-black tracking-tighter text-slate-900 dark:text-white truncate">{metricas.velocidadMedia !== null ? `${metricas.velocidadMedia}h` : '--'}</h2>
+            <h2 class="text-3xl font-black tracking-tighter text-slate-900 dark:text-white truncate">
+              {velocidadEstadisticas.media !== null ? `${velocidadEstadisticas.media}h` : '--'}
+            </h2>
             <p class="text-[10px] font-medium text-slate-500 dark:text-zinc-500 mt-1">
-              {#if metricas.pctEn1h !== undefined && metricas.velocidadMedia !== null}
-                {metricas.pctEn1h}% respondidos en &lt; 1h.
+              {#if velocidadEstadisticas.media !== null}
+                {velocidadEstadisticas.pctEn1h}% respondidos en &lt; 1h.
               {:else}
                 Datos insuficientes en {labelPeriodo}
               {/if}
@@ -234,36 +281,28 @@
   <main class="w-full flex-1 relative z-20 pt-4 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
 
-      <!-- 🚀 RENDERIZADO ESTRUCTURAL DE IA -->
-      {#if insight && insight.resumen}
-        <div class="bg-gradient-to-r from-indigo-50 to-indigo-100/50 dark:from-indigo-900/20 dark:to-indigo-800/10 border border-indigo-200 dark:border-indigo-700/30 rounded-2xl p-6 shadow-sm animate-[fadeIn_0.4s_ease-out] print:shadow-none">
-          <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-2">
-              <Cpu class="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-              <span class="text-xs font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-400">Inteligencia Estratégica AI</span>
+      <!-- 🚀 FIX: Banner Premium de Acción Directa (Adiós al formato académico) -->
+      {#if insight && insight.accion_prioritaria}
+        <div class="bg-gradient-to-r from-slate-900 to-indigo-950 dark:from-zinc-900 dark:to-indigo-950 rounded-3xl p-6 sm:p-8 shadow-xl text-white mb-6 relative overflow-hidden border border-indigo-500/20">
+          <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mt-10 -mr-10 pointer-events-none"></div>
+          <div class="flex flex-col sm:flex-row items-start gap-5 relative z-10">
+            <div class="bg-indigo-500/20 p-3.5 rounded-2xl shrink-0 border border-indigo-500/30">
+              <Cpu class="w-6 h-6 text-indigo-300" />
+            </div>
+            <div class="flex-1">
+              <h3 class="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2 flex items-center gap-2">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                </span>
+                Sugerencia Estratégica AI
+              </h3>
+              <!-- La directiva principal al frente y en grande -->
+              <p class="text-lg sm:text-xl font-medium leading-snug text-white mb-2">{insight.accion_prioritaria}</p>
+              <!-- El resumen y la evidencia pasan a ser contexto secundario y sutil -->
+              <p class="text-sm text-indigo-200/60 font-medium leading-relaxed">{insight.resumen}</p>
             </div>
           </div>
-          
-          <div class="mb-5">
-            <p class="text-sm font-medium text-slate-800 dark:text-zinc-200 leading-relaxed mb-3">{insight.resumen}</p>
-            
-            <!-- 🚀 LA EVIDENCIA MATEMÁTICA: Justificación del motor -->
-            {#if insight.evidencia}
-              <div class="flex items-start gap-2 bg-indigo-500/5 dark:bg-indigo-400/5 rounded-lg p-3 border border-indigo-500/10">
-                <ListChecks class="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-                <p class="text-xs font-medium text-slate-600 dark:text-zinc-400">
-                  <strong class="text-slate-700 dark:text-zinc-300">Evidencia del Modelo:</strong> {insight.evidencia}
-                </p>
-              </div>
-            {/if}
-          </div>
-
-          {#if insight.accion_prioritaria}
-            <div class="bg-white dark:bg-zinc-900 rounded-xl px-5 py-4 border border-indigo-100 dark:border-indigo-800/30 shadow-sm">
-              <p class="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-1.5 flex items-center gap-1.5"><ArrowRightCircle class="w-3.5 h-3.5"/> Directiva Operativa Recomendada</p>
-              <p class="text-sm font-bold text-slate-900 dark:text-white">{insight.accion_prioritaria}</p>
-            </div>
-          {/if}
         </div>
       {/if}
 
