@@ -10,77 +10,74 @@ const getValidDate = (dateStr, fallback = new Date()) => {
   return isNaN(d.getTime()) ? fallback : d;
 };
 
-const MODELS_CASCADE = [
-  '@cf/meta/llama-3.1-8b-instruct',
-  '@cf/google/gemma-2-9b-it',
-  '@cf/qwen/qwen3-30b-a3b-fp8'
-];
+// Estrategia de aislamiento: Un solo modelo ultra-estable
+const MODEL_ID = '@cf/meta/llama-3.1-8b-instruct';
 
 function parseInsightResponse(result) {
-  const raw = result?.response ?? result;
-  console.log('[STEP-AI-1] Raw Output de Cloudflare:', typeof raw === 'string' ? raw.substring(0, 100) + '...' : raw);
-  
-  const sinThinking = typeof raw === 'string' ? raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim() : raw;
+  // LOG ABSOLUTO: Vemos la radiografía de la respuesta
+  console.log('\n[RAW-CF-RESPONSE-START]');
+  console.log(JSON.stringify(result, null, 2));
+  console.log('[RAW-CF-RESPONSE-END]\n');
 
-  if (sinThinking && typeof sinThinking === 'object') return sinThinking;
+  let rawString = '';
+  if (typeof result === 'string') rawString = result;
+  else if (result?.response) rawString = result.response;
+  else if (result?.result?.response) rawString = result.result.response;
+  else rawString = JSON.stringify(result);
 
-  const match = sinThinking?.match?.(/\{[\s\S]*\}/);
+  const sinThinking = rawString.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+  const match = sinThinking.match(/\{[\s\S]*\}/);
   if (match) {
     try {
       const parsed = JSON.parse(match[0]);
-      console.log('[STEP-AI-2] JSON Extraído con Éxito');
+      console.log('[STEP-AI] JSON Parseado con éxito:', parsed);
       return parsed;
     } catch (e) {
-      console.error('[STEP-AI-ERROR] Fallo al parsear Regex:', e.message);
+      console.error('[PARSE-ERROR] Regex extrajo esto pero no es JSON válido:', match[0]);
+      throw e;
     }
   }
-  throw new Error('El modelo no devolvió un JSON extraíble.');
+
+  throw new Error('No se encontró estructura JSON en el payload.');
 }
 
 async function generarYGuardarInsight(adminDb, broker, metricasBase, platform) {
+  console.log(`[STEP-WAITUNTIL] Ejecutando Background Job. Context: ${!!platform?.context}, Ctx: ${!!platform?.ctx}`);
+  
   if (!platform?.env?.AI) {
-    console.error('[STEP-AI-0] platform.env.AI es undefined. Verifica los bindings en Cloudflare.');
+    console.error('[STEP-AI-FATAL] platform.env.AI no está inyectado en este entorno.');
     return;
   }
 
-  console.log(`[STEP-AI-START] Iniciando worker de IA para broker: ${broker.id}`);
-
   const systemPrompt = `Eres el motor de inteligencia de negocios de Inmublia.
-Responde ÚNICAMENTE con un objeto JSON válido. Cero markdown.
+Responde ÚNICAMENTE con un objeto JSON válido. Cero markdown, cero explicaciones.
 {
-  "resumen": "Análisis ejecutivo de 2 líneas",
+  "resumen": "Análisis ejecutivo de 2 líneas en español",
   "accion_prioritaria": "1 instrucción operativa concreta"
 }`;
 
-  const userPrompt = `Métricas: Pipeline $${metricasBase.pipelineValue}, Win Rate: ${metricasBase.tasaCierre}%, Leads Inactivos: ${metricasBase.leadsEstancados}.`;
+  const userPrompt = `Métricas: Pipeline $${metricasBase.pipelineValue}, Win Rate: ${metricasBase.tasaCierre}%, Leads Inactivos: ${metricasBase.leadsEstancados}, Conversión: ${metricasBase.proyeccionVentas}`;
 
   let finalInsight = null;
 
-  for (const modelId of MODELS_CASCADE) {
-    try {
-      console.log(`[STEP-AI-CALL] Probando modelo: ${modelId}`);
-      const result = await platform.env.AI.run(modelId, {
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        max_tokens: 250,
-        temperature: 0.1
-      });
+  try {
+    const result = await platform.env.AI.run(MODEL_ID, {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      max_tokens: 250,
+      temperature: 0.1
+    });
 
-      finalInsight = parseInsightResponse(result);
-      
-      if (!finalInsight.resumen || !finalInsight.accion_prioritaria) {
-        throw new Error('El JSON carece de llaves requeridas');
-      }
-      break; 
-    } catch (err) {
-      console.warn(`[STEP-AI-FALLBACK] ${modelId} falló:`, err.message);
+    finalInsight = parseInsightResponse(result);
+    
+    if (!finalInsight.resumen || !finalInsight.accion_prioritaria) {
+      throw new Error('Faltan propiedades en el JSON.');
     }
-  }
-
-  if (!finalInsight) {
-    console.error('[STEP-AI-FATAL] Colapso total de la IA. Forzando objeto de emergencia.');
+  } catch (err) {
+    console.error(`[STEP-AI-ERROR] Falló la inferencia o el parseo:`, err.message);
     finalInsight = {
       resumen: "El motor analítico experimentó un error de formato. Las métricas matemáticas están seguras.",
       accion_prioritaria: "Recargue la página para reintentar la conexión neuronal."
@@ -88,17 +85,15 @@ Responde ÚNICAMENTE con un objeto JSON válido. Cero markdown.
   }
 
   try {
-    const { error: upsertError } = await adminDb.from('ai_insights_cache').upsert({
+    await adminDb.from('ai_insights_cache').upsert({
       broker_id: broker.id,
       tipo: 'reporte_diario',
       contenido: finalInsight,
       generado_en: new Date().toISOString()
     }, { onConflict: 'broker_id, tipo' });
-
-    if (upsertError) throw upsertError;
-    console.log(`[STEP-AI-SUCCESS] Caché guardado correctamente en Supabase.`);
+    console.log('[STEP-DB] Upsert completado con éxito.');
   } catch (err) {
-    console.error('[STEP-AI-DB-ERROR] Falló el guardado en Supabase:', err.message);
+    console.error('[STEP-DB-ERROR] Error al hacer upsert:', err.message);
   }
 }
 
@@ -131,17 +126,22 @@ export const load = async ({ locals, platform }) => {
   const safeLeads = leadsRes.data || [];
   const safeProps = propsRes.data || [];
   
-  // 🚀 SANACIÓN DE CACHÉ ZOMBI
+  // 🚀 BUSTER DE CACHÉ ZOMBI
   let insightLimpio = null;
   if (insightRes.data && insightRes.data.contenido) {
     insightLimpio = insightRes.data.contenido;
-    // Si la DB devolvió un String, lo forzamos a Objeto
     if (typeof insightLimpio === 'string') {
       try { insightLimpio = JSON.parse(insightLimpio); } catch(e) {}
     }
-    // Si después de todo NO tiene resumen, es un caché corrupto, lo matamos.
-    if (!insightLimpio || typeof insightLimpio !== 'object' || !insightLimpio.resumen) {
-      console.warn('[STEP-LOAD-WARN] Se detectó un caché corrupto. Forzando regeneración.');
+    
+    // Validar si el caché actual es el mensaje de emergencia de un error previo
+    if (insightLimpio && typeof insightLimpio === 'object') {
+      const isFallback = insightLimpio.resumen && insightLimpio.resumen.includes('error de formato');
+      if (isFallback || !insightLimpio.resumen) {
+        console.warn('[STEP-LOAD] Caché corrupto o de emergencia detectado. Forzando regeneración (Bust Cache).');
+        insightLimpio = null; 
+      }
+    } else {
       insightLimpio = null;
     }
   }
@@ -212,7 +212,6 @@ export const load = async ({ locals, platform }) => {
   };
 
   if (!insightLimpio) {
-    console.log('[STEP-LOAD] Lanzando tarea asíncrona de IA en Background...');
     const adminDb = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
     const tareaIA = generarYGuardarInsight(adminDb, broker, metricasBackend, platform);
     
