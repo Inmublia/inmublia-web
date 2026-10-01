@@ -222,12 +222,12 @@
     return (nombre || '?').replace(/[^\p{L}\s]/gu, '').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
   }
 
-  // 🚀 Lógica Simple de "Next Best Action" (Reglas Duras, no IA generativa lenta)
-  function calcularSiguienteAccion(lead) {
-    if (!lead) return null;
-    const estado = lead.estado || 'nuevo';
-    const fechaRef = lead.ultima_actividad || lead.actualizado_en || lead.creado_en;
-    const diffInDays = Math.floor((new Date() - new Date(fechaRef)) / (1000 * 60 * 60 * 24));
+  // 🚀 FIX DE COMPILACIÓN: Derivamos el Next Best Action en el script, no en la vista
+  let nextBestAction = $derived.by(() => {
+    if (!selectedLead) return null;
+    const estado = selectedLead.estado || 'nuevo';
+    const fechaRef = selectedLead.ultima_actividad || selectedLead.actualizado_en || selectedLead.creado_en;
+    const diffInDays = Math.floor((new Date() - new Date(fechaRef || Date.now())) / 86400000);
 
     if (estado === 'nuevo' && diffInDays === 0) return { texto: "Lead recién llegado. Llama ahora para perfilar presupuesto y urgencia.", icon: Phone, color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-50 dark:bg-indigo-500/10" };
     if (estado === 'nuevo' && diffInDays > 0) return { texto: "Lead frío sin contactar. Envía un WhatsApp rompehielo de inmediato.", icon: MessageSquare, color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-50 dark:bg-orange-500/10" };
@@ -237,7 +237,7 @@
     if (diffInDays > 7) return { texto: `Llevas ${diffInDays} días sin tocar este lead. Retómalo o muévelo a Perdidos.`, icon: AlertTriangle, color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-50 dark:bg-rose-500/10" };
     
     return { texto: "Manda un seguimiento rápido para mantener viva la conversación.", icon: Zap, color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-50 dark:bg-indigo-500/10" };
-  }
+  });
 
   function arrancar(event, id) {
     hoveredLeadId = null;
@@ -368,7 +368,6 @@
   function manejadorNota({ formData, cancel }) {
     const notaTemp = formData.get('contenido')?.trim();
     
-    // Si la IA generó texto y no han modificado el input, usamos el texto de la IA
     const textoAGuardar = iaWsGenerado && !notaTemp ? iaWsGenerado : notaTemp;
     
     if (!textoAGuardar || guardandoNota) { cancel(); return; }
@@ -382,7 +381,7 @@
       fechaFinalFormateada = new Date(year, month - 1, day, hour, minute).toISOString();
     }
 
-    formData.set('contenido', textoAGuardar); // Actualizamos el form data
+    formData.set('contenido', textoAGuardar); 
     formData.append('is_recordatorio', esRecordatorio);
     if (esRecordatorio) formData.append('fecha_recordatorio', fechaFinalFormateada);
     
@@ -416,7 +415,7 @@
         esRecordatorio = false; 
         fechaRecordatorio = ''; 
         horaRecordatorio = '';
-        iaWsGenerado = ''; // Limpiamos la IA
+        iaWsGenerado = ''; 
         await update(); 
         await invalidateAll();
       } else {
@@ -515,7 +514,7 @@
     {/snippet}
   </PageHeader>
 
-  <!-- CONTENEDOR INTEGRADO -->
+  <!-- CONTENEDOR INTEGRADO (Con overlap restaurado) -->
   <div class="relative flex-1 flex overflow-hidden z-20 -mt-16 w-full">
     
     <button onclick={() => scrollBoard(-1)} class="{isPanelOpen ? 'hidden' : 'hidden sm:flex'} absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 dark:bg-zinc-800/90 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 border border-slate-200 dark:border-zinc-700 shadow-xl w-10 h-10 rounded-full items-center justify-center text-slate-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all backdrop-blur-sm cursor-pointer" aria-label="Desplazar tablero a la izquierda">
@@ -526,13 +525,13 @@
       <ChevronRight class="w-6 h-6"/>
     </button>
 
-    <!-- KANBAN BOARD -->
-    <div class="flex-1 overflow-x-auto overflow-y-hidden kanban-board px-4 sm:px-8 pb-6 {isPanelOpen ? 'hidden' : 'block'}" bind:this={boardContainer}>
+    <!-- KANBAN BOARD (Flujo Ininterrumpido 2026) -->
+    <div class="transition-all duration-300 ease-out flex flex-col h-full overflow-hidden {isPanelOpen ? 'w-[360px] min-w-[360px] border-r border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/40 hidden md:flex' : 'flex-1'} kanban-board px-4 sm:px-8 pb-6" bind:this={boardContainer}>
       <div class="flex gap-4 items-start h-full min-w-max xl:min-w-full">
         
         {#each columnas as columna}
           <div 
-            class="flex-1 min-w-[240px] xl:min-w-[220px] shrink-0 bg-white dark:bg-zinc-900 border {columna.border} rounded-2xl p-2.5 flex flex-col h-[calc(100vh-180px)] shadow-sm transition-colors duration-300"
+            class="{isPanelOpen ? 'w-[280px]' : 'w-[300px] xl:w-[340px]'} shrink-0 bg-white dark:bg-zinc-900 border {columna.border} rounded-2xl p-2.5 flex flex-col h-[calc(100vh-180px)] shadow-sm transition-colors duration-300"
             role="region"
             aria-label={`Columna ${columna.titulo}`}
             ondragover={permitirSoltar}
@@ -558,12 +557,13 @@
                   </span>
                 </div>
               {:else}
-                <div class="h-[26px]"></div>
+                <div class="h-[26px]"></div> <!-- Spacer ajustado para la nueva altura de 2 líneas -->
               {/if}
             </div>
 
             <div class="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-3 pb-8 pt-1">
               {#each leadsPorColumna[columna.id] || [] as lead (lead.id)}
+                
                 <div 
                   draggable="true"
                   ondragstart={(e) => arrancar(e, lead.id)}
@@ -575,10 +575,12 @@
                   onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirPanel(lead); } }}
                   onmouseenter={() => hoveredLeadId = lead.id}
                   onmouseleave={() => hoveredLeadId = null}
-                  class="bg-white dark:bg-zinc-800/50 p-3 rounded-xl border {lead.scoreObj?.isHot && lead.estado !== 'cerrado' && lead.estado !== 'descartado' ? 'border-orange-300 dark:border-orange-500/50 shadow-sm shadow-orange-500/10' : lead.has_pending_reminder ? 'border-rose-300 dark:border-rose-500/50 ring-1 ring-rose-500/50' : 'border-slate-200 dark:border-zinc-700'} cursor-grab hover:-translate-y-1 hover:shadow-md dark:hover:shadow-none hover:border-slate-300 dark:hover:border-zinc-600 transition-all duration-200 relative flex flex-col gap-3"
+                  class="bg-white dark:bg-zinc-800/50 p-3 rounded-xl border {selectedLeadId === lead.id ? 'border-indigo-500 ring-2 ring-indigo-500/20 scale-[1.02] shadow-md' : (lead.scoreObj?.isHot && lead.estado !== 'cerrado' && lead.estado !== 'descartado' ? 'border-orange-300 dark:border-orange-500/50 shadow-sm shadow-orange-500/10' : lead.has_pending_reminder ? 'border-rose-300 dark:border-rose-500/50 ring-1 ring-rose-500/50' : 'border-slate-200 dark:border-zinc-700')} cursor-grab hover:-translate-y-1 hover:shadow-md dark:hover:shadow-none hover:border-slate-300 dark:hover:border-zinc-600 transition-all duration-200 relative flex flex-col gap-3"
                 >
+                  
                   <div class="flex items-start justify-between gap-2">
                     <div class="flex items-center gap-2 min-w-0">
+                      
                       <div class="relative shrink-0">
                         <div class="w-8 h-8 rounded-full bg-slate-800 dark:bg-zinc-800 border border-slate-700 dark:border-zinc-700 text-white flex items-center justify-center text-[10px] font-black uppercase shadow-inner">
                           {getInitials(lead.nombre)}
@@ -587,6 +589,7 @@
                           <div class="absolute -top-0.5 -right-0.5 bg-rose-500 rounded-full w-2.5 h-2.5 border-2 border-white dark:border-zinc-900 shadow-sm transition-colors"></div>
                         {/if}
                       </div>
+
                       <div class="min-w-0 flex flex-col">
                         <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100 leading-tight truncate">
                           {lead.nombre}
@@ -596,6 +599,7 @@
                         </p>
                       </div>
                     </div>
+                    
                     <div class="shrink-0">
                       {#if lead.scoreObj && lead.estado !== 'cerrado' && lead.estado !== 'descartado'}
                         <LeadScoreBadge scoreData={lead.scoreObj} />
@@ -622,16 +626,18 @@
                   {#if hoveredLeadId === lead.id}
                     <div class="absolute -top-3 -right-2 flex items-center gap-1.5 bg-white dark:bg-zinc-800 p-1.5 rounded-xl shadow-lg border border-slate-200 dark:border-zinc-700 z-30 animate-[fadeIn_0.1s_ease-out] transition-colors">
                       {#if lead.telefono}
-                        <a href="https://wa.me/{String(lead.telefono).replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="w-8 h-8 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white flex items-center justify-center transition-colors" aria-label={`Enviar WhatsApp a ${lead.nombre}`} onclick={(e) => e.stopPropagation()}>
+                        <a href="https://wa.me/{String(lead.telefono).replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="w-8 h-8 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white flex items-center justify-center transition-colors" aria-label={`Enviar mensaje de WhatsApp a ${lead.nombre}`} onclick={(e) => e.stopPropagation()}>
                           <MessageSquare class="w-4 h-4" />
                         </a>
-                        <a href="tel:{String(lead.telefono).replace(/\D/g, '')}" class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:text-white flex items-center justify-center transition-colors" aria-label={`Llamar a ${lead.nombre}`} onclick={(e) => e.stopPropagation()}>
+                        <a href="tel:{String(lead.telefono).replace(/\D/g, '')}" class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:text-white flex items-center justify-center transition-colors" aria-label={`Llamar por teléfono a ${lead.nombre}`} onclick={(e) => e.stopPropagation()}>
                           <Phone class="w-4 h-4" />
                         </a>
                       {/if}
                     </div>
                   {/if}
+
                 </div>
+
               {/each}
 
               {#if (leadsPorColumna[columna.id] || []).length === 0}
@@ -645,277 +651,282 @@
       </div>
     </div>
 
-    <!-- CANVAS MODULAR (Vista Detalle Bimodal 2026) -->
+    <!-- 🚀 OVERLAY DRAWER 2026: Flota a la derecha sin romper el Kanban -->
     {#if isPanelOpen && selectedLead}
-      <div class="flex-1 w-full px-4 sm:px-8 pb-6 animate-[fadeIn_0.2s_ease-out] overflow-hidden">
-          
-          <div class="w-full h-full bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 dark:border-zinc-800 transition-colors">
-              
-              <!-- 🚀 1. HEADER DINÁMICO (Adiós a los Créditos, Hola Eficiencia) -->
-              <div class="bg-white dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-800 p-5 flex justify-between items-center shadow-sm shrink-0 transition-colors">
-                  <div class="flex items-center gap-4 min-w-0">
-                      <button aria-label="Volver al pipeline" onclick={cerrarPanel} class="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors">
-                          <ArrowLeft class="w-5 h-5" />
-                      </button>
-                      <div class="w-12 h-12 bg-gradient-to-br from-indigo-100 to-indigo-50 dark:from-indigo-900/40 dark:to-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 rounded-full flex items-center justify-center font-black text-xl text-indigo-600 dark:text-indigo-400 shrink-0">
-                          {getInitials(selectedLead.nombre)}
-                      </div>
-                      <div class="min-w-0">
-                          <div class="flex items-center gap-3">
-                              <h2 class="text-xl font-black text-slate-900 dark:text-white truncate">{selectedLead.nombre}</h2>
-                              <!-- Selector de Etapa Integrado al Título -->
-                              <select 
-                                  aria-label="Etapa del prospecto"
-                                  class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-none cursor-pointer outline-none hover:bg-slate-200 dark:hover:bg-zinc-700 shadow-sm transition-colors appearance-none"
-                                  onchange={(e) => {
-                                      if (e.target.value === 'cerrado') {
-                                          leadPorCerrar = selectedLead;
-                                          precioCierreFinal = selectedLead.propiedades?.precio || '';
-                                          comisionCobrada = broker.comision_default || 5;
-                                          showModalCierre = true;
-                                      } else {
-                                          actualizarEstadoLocalYBD(selectedLead.id, e.target.value);
-                                      }
-                                  }}
-                              >
-                                  {#each columnas as col}
-                                      <option value={col.id} selected={selectedLead.estado === col.id}>{col.titulo}</option>
-                                  {/each}
-                              </select>
-                          </div>
-                          <div class="flex items-center gap-4 text-xs font-medium text-slate-500 dark:text-zinc-400 mt-1">
-                              {#if selectedLead.telefono}
-                                <a href="tel:{String(selectedLead.telefono).replace(/\D/g, '')}" class="flex items-center gap-1.5 hover:text-indigo-600 transition-colors"><Phone class="w-3.5 h-3.5"/> {selectedLead.telefono}</a>
-                              {/if}
-                              {#if selectedLead.correo}
-                                <a href="mailto:{selectedLead.correo}" class="flex items-center gap-1.5 truncate max-w-[250px] hover:text-indigo-600 transition-colors"><Mail class="w-3.5 h-3.5"/> {selectedLead.correo}</a>
-                              {/if}
-                          </div>
-                      </div>
-                  </div>
-                  
-                  <div class="flex items-center gap-2 shrink-0 relative">
-                      <!-- Botón de WhatsApp Primario -->
-                      {#if selectedLead.telefono}
-                        <a href="https://wa.me/{String(selectedLead.telefono).replace(/\D/g, '')}" target="_blank" class="px-4 py-2 bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-white rounded-xl text-xs font-black tracking-widest uppercase flex items-center gap-2 transition-colors border border-[#25D366]/20 hover:border-[#25D366]">
-                            <MessageSquare class="w-4 h-4"/> <span class="hidden sm:inline">WhatsApp</span>
-                        </a>
-                      {/if}
-
-                      <!-- Tres puntos para acciones secundarias / destructivas -->
-                      <button onclick={() => showMenuContextual = !showMenuContextual} class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 transition-colors">
-                        <MoreHorizontal class="w-5 h-5"/>
-                      </button>
-
-                      {#if showMenuContextual}
-                        <div class="absolute top-12 right-0 w-48 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl py-1 z-50 animate-[fadeIn_0.1s_ease-out]">
-                          <button onclick={(e) => { e.stopPropagation(); pedirEliminarLead(selectedLead); }} class="w-full text-left px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 flex items-center gap-2"><Trash2 class="w-4 h-4"/> Eliminar Lead</button>
-                        </div>
-                      {/if}
-                  </div>
+      <div class="absolute inset-y-0 right-0 w-full md:w-[650px] bg-white dark:bg-zinc-950 shadow-[-20px_0_50px_-15px_rgba(0,0,0,0.15)] dark:shadow-[-20px_0_50px_-15px_rgba(0,0,0,0.5)] border-l border-slate-200 dark:border-zinc-800 z-50 flex flex-col animate-[slideInRight_0.3s_ease-out]">
+        
+        <!-- DRAWER HEADER 2026: Título y Dropdown integrados -->
+        <div class="px-6 py-5 border-b border-slate-100 dark:border-zinc-800 flex items-start justify-between bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl shrink-0 transition-colors">
+          <div class="flex items-start gap-4 min-w-0">
+            <button aria-label="Volver al pipeline" onclick={cerrarPanel} class="mt-1 p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors shrink-0">
+              <ArrowLeft class="w-5 h-5" />
+            </button>
+            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-50 dark:from-indigo-900/40 dark:to-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-xl shrink-0 border border-indigo-200 dark:border-indigo-500/30">
+              {getInitials(selectedLead.nombre)}
+            </div>
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-3 mb-1.5">
+                <h2 class="text-xl font-black text-slate-900 dark:text-white leading-tight truncate max-w-[200px] sm:max-w-xs">{selectedLead.nombre}</h2>
+                <select 
+                  aria-label="Cambiar etapa"
+                  class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 border-none cursor-pointer outline-none shadow-sm transition-colors appearance-none"
+                  onchange={(e) => {
+                      if (e.target.value === 'cerrado') {
+                          leadPorCerrar = selectedLead;
+                          precioCierreFinal = selectedLead.propiedades?.precio || '';
+                          comisionCobrada = broker.comision_default || 5;
+                          showModalCierre = true;
+                      } else {
+                          actualizarEstadoLocalYBD(selectedLead.id, e.target.value);
+                      }
+                  }}
+                >
+                  {#each columnas as col}
+                      <option value={col.id} selected={selectedLead.estado === col.id}>{col.titulo}</option>
+                  {/each}
+                </select>
               </div>
+              
+              <div class="flex items-center gap-4 text-xs font-bold text-slate-500 dark:text-zinc-400 mt-1 transition-colors">
+                {#if selectedLead.telefono}
+                  <a href="tel:{String(selectedLead.telefono).replace(/\D/g, '')}" class="flex items-center gap-1.5 hover:text-indigo-600 transition-colors"><Phone class="w-3.5 h-3.5"/> {selectedLead.telefono}</a>
+                {/if}
+                {#if selectedLead.correo}
+                  <a href="mailto:{selectedLead.correo}" class="flex items-center gap-1.5 truncate max-w-[200px] hover:text-indigo-600 transition-colors"><Mail class="w-3.5 h-3.5"/> {selectedLead.correo}</a>
+                {/if}
+              </div>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-1.5 shrink-0 relative mt-1">
+            {#if selectedLead.telefono}
+              <a href="https://wa.me/{String(selectedLead.telefono).replace(/\D/g, '')}" target="_blank" class="hidden sm:flex px-3 py-1.5 bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-white rounded-lg text-[10px] font-black tracking-widest uppercase items-center gap-1.5 transition-colors border border-[#25D366]/20 hover:border-[#25D366]">
+                  <MessageSquare class="w-3.5 h-3.5"/> WA
+              </a>
+            {/if}
 
-              <!-- 🚀 2. NEXT BEST ACTION (Banner Táctico) -->
-              {@const nba = calcularSiguienteAccion(selectedLead)}
-              {#if nba}
-                <div class="bg-slate-50 dark:bg-zinc-800/50 border-b border-slate-200 dark:border-zinc-800 px-6 py-3 shrink-0 flex items-center gap-3">
-                  <div class="w-8 h-8 rounded-full {nba.bg} {nba.color} flex items-center justify-center shrink-0">
-                    <nba.icon class="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p class="text-[10px] font-black uppercase tracking-widest {nba.color} mb-0.5">Siguiente Acción Recomendada</p>
-                    <p class="text-sm font-semibold text-slate-700 dark:text-zinc-300 leading-tight">{nba.texto}</p>
+            <!-- Tres puntos menú contextual -->
+            <button onclick={() => showMenuContextual = !showMenuContextual} class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-300 transition-colors">
+              <MoreHorizontal class="w-5 h-5"/>
+            </button>
+
+            {#if showMenuContextual}
+              <div class="absolute top-10 right-0 w-48 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl py-1 z-50 animate-[fadeIn_0.1s_ease-out]">
+                <button onclick={(e) => { e.stopPropagation(); pedirEliminarLead(selectedLead); }} class="w-full text-left px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 flex items-center gap-2"><Trash2 class="w-4 h-4"/> Eliminar Lead</button>
+              </div>
+            {/if}
+          </div>
+        </div>
+
+        <!-- 🚀 2. NEXT BEST ACTION (Banner Táctico 2026) -->
+        {#if nextBestAction}
+          <div class="bg-slate-50 dark:bg-zinc-800/50 border-b border-slate-100 dark:border-zinc-800 px-6 py-3 shrink-0 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full {nextBestAction.bg} {nextBestAction.color} flex items-center justify-center shrink-0 shadow-sm border border-slate-200/50 dark:border-zinc-700/50">
+              <svelte:component this={nextBestAction.icon} class="w-4 h-4" />
+            </div>
+            <div>
+              <p class="text-[9px] font-black uppercase tracking-widest {nextBestAction.color} mb-0.5">Siguiente Acción Recomendada</p>
+              <p class="text-xs font-bold text-slate-700 dark:text-zinc-300 leading-tight">{nextBestAction.texto}</p>
+            </div>
+          </div>
+        {/if}
+
+        <!-- SPLIT VIEW INTERNO (Propiedad vs Timeline) -->
+        <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-0 overflow-hidden">
+            
+            <!-- COLUMNA IZQUIERDA (Info Propiedad) -->
+            <div class="md:col-span-5 border-r border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-y-auto hide-scrollbar p-5 flex flex-col gap-5 transition-colors">
+                
+                <div>
+                  <span class="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest block mb-3">Interés Comercial</span>
+                  {#if selectedLead.propiedades}
+                      <div class="rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-700 shadow-sm relative aspect-[4/3] group bg-slate-100 dark:bg-zinc-800 transition-colors">
+                          {#if selectedLead.propiedades.imagen_url}
+                              <img src={selectedLead.propiedades.imagen_url} alt="Inmueble de interés" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700">
+                          {:else}
+                              <div class="w-full h-full flex items-center justify-center text-slate-400 dark:text-zinc-600"><Home class="w-8 h-8"/></div>
+                          {/if}
+                          <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent pointer-events-none"></div>
+                          <div class="absolute bottom-3 left-3 right-3">
+                              <p class="text-sm font-bold text-white truncate drop-shadow-md">{selectedLead.propiedades.titulo}</p>
+                              <p class="text-[11px] font-black text-emerald-400 mt-0.5 uppercase tracking-widest drop-shadow-md">{formatMoney(selectedLead.propiedades.precio)} MXN</p>
+                          </div>
+                      </div>
+                  {:else}
+                      <div class="p-4 bg-slate-50 dark:bg-zinc-800/50 shadow-sm rounded-xl border border-slate-200 dark:border-zinc-700 text-center transition-colors">
+                          <Building2 class="w-6 h-6 text-slate-300 dark:text-zinc-600 mx-auto mb-2"/>
+                          <p class="text-xs font-bold text-slate-500 dark:text-zinc-400">Búsqueda general</p>
+                      </div>
+                  {/if}
+                </div>
+
+                <div>
+                  <span class="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest block mb-3">Metadata</span>
+                  <div class="bg-slate-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-slate-100 dark:border-zinc-800 space-y-3 shadow-sm transition-colors">
+                    <div>
+                      <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Origen del Lead</p>
+                      <p class="text-sm font-bold text-slate-800 dark:text-zinc-200 capitalize mt-0.5">{selectedLead.origen || 'Manual'}</p>
+                    </div>
+                    <div>
+                      <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Fecha de Ingreso</p>
+                      <p class="text-sm font-bold text-slate-800 dark:text-zinc-200 mt-0.5">{new Date(selectedLead.creado_en).toLocaleDateString('es-MX', {day:'2-digit', month:'long'})}</p>
+                    </div>
+                    <div>
+                      <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Score / Temperatura</p>
+                      <p class="text-sm font-bold text-slate-800 dark:text-zinc-200 mt-0.5">{selectedLead.scoreObj?.score || '--'} / 100</p>
+                    </div>
                   </div>
                 </div>
-              {/if}
 
-              <!-- SPLIT VIEW INTERNO (Propiedad vs Timeline) -->
-              <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-0 overflow-hidden">
-                  
-                  <!-- COLUMNA IZQUIERDA (Info Propiedad) -->
-                  <div class="md:col-span-4 lg:col-span-3 border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 overflow-y-auto hide-scrollbar p-6">
-                      <!-- TARJETA PROPIEDAD -->
-                      <span class="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest block mb-3">Interés Comercial</span>
-                      {#if selectedLead.propiedades}
-                          <div class="rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-700 shadow-sm relative aspect-[4/3] group mb-4 bg-slate-100 dark:bg-zinc-800">
-                              {#if selectedLead.propiedades.imagen_url}
-                                  <img src={selectedLead.propiedades.imagen_url} alt="Inmueble de interés" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700">
-                              {:else}
-                                  <div class="w-full h-full flex items-center justify-center text-slate-400 dark:text-zinc-600"><Home class="w-8 h-8"/></div>
-                              {/if}
-                              <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent pointer-events-none"></div>
-                              <div class="absolute bottom-3 left-3 right-3">
-                                  <p class="text-sm font-bold text-white truncate drop-shadow-md">{selectedLead.propiedades.titulo}</p>
-                                  <p class="text-[11px] font-black text-emerald-400 mt-1 uppercase tracking-widest drop-shadow-md">{formatMoney(selectedLead.propiedades.precio)}</p>
-                              </div>
-                          </div>
-                      {:else}
-                          <div class="p-4 bg-slate-50 dark:bg-zinc-800/50 shadow-sm rounded-xl border border-slate-200 dark:border-zinc-700 text-center mb-4">
-                              <Building2 class="w-6 h-6 text-slate-300 dark:text-zinc-600 mx-auto mb-2"/>
-                              <p class="text-xs font-bold text-slate-500 dark:text-zinc-400">Búsqueda general</p>
-                          </div>
-                      {/if}
+            </div>
 
-                      <div class="bg-slate-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-slate-100 dark:border-zinc-800 space-y-3">
-                        <div>
-                          <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Origen del Lead</p>
-                          <p class="text-sm font-bold text-slate-800 dark:text-zinc-200 capitalize mt-0.5">{selectedLead.origen || 'Manual'}</p>
-                        </div>
-                        <div>
-                          <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Fecha de Ingreso</p>
-                          <p class="text-sm font-bold text-slate-800 dark:text-zinc-200 mt-0.5">{new Date(selectedLead.creado_en).toLocaleDateString('es-MX', {day:'2-digit', month:'long'})}</p>
-                        </div>
-                      </div>
-                  </div>
+            <!-- COLUMNA DERECHA (Timeline y Registro Operativo unificados) -->
+            <div class="md:col-span-7 flex flex-col h-full bg-slate-50/50 dark:bg-zinc-950/50 relative">
+                
+                <!-- TIMELINE SCROLLABLE -->
+                <div class="flex-1 overflow-y-auto p-5 sm:p-6 hide-scrollbar relative">
+                    <!-- Línea vertical del timeline -->
+                    <div class="absolute left-[34px] sm:left-[38px] top-6 bottom-6 w-px bg-slate-200 dark:bg-zinc-800 pointer-events-none"></div>
 
-                  <!-- COLUMNA DERECHA (Timeline y Registro Operativo unificados) -->
-                  <div class="md:col-span-8 lg:col-span-9 flex flex-col h-full bg-slate-50/50 dark:bg-zinc-950/50 relative">
-                      
-                      <!-- TIMELINE SCROLLABLE -->
-                      <div class="flex-1 overflow-y-auto p-6 hide-scrollbar relative">
-                          <!-- Línea vertical del timeline -->
-                          <div class="absolute left-9 top-6 bottom-6 w-px bg-slate-200 dark:bg-zinc-800 pointer-events-none"></div>
-
-                          {#if selectedLead.lead_notas && selectedLead.lead_notas.length > 0}
-                              <div class="space-y-6 relative z-10">
-                                  {#each selectedLead.lead_notas as nota}
-                                      <div class="relative flex items-start gap-4">
-                                          
-                                          <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-1 shadow-sm ring-4 ring-slate-50 dark:ring-zinc-950 {nota.tipo === 'recordatorio' ? (nota.completado ? 'bg-emerald-500' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-500' : 'bg-amber-400')) : 'bg-slate-400 dark:bg-zinc-600'}">
-                                            {#if nota.tipo === 'recordatorio'} <CalendarClock class="w-3.5 h-3.5 text-white"/> {:else} <MessageSquareQuote class="w-3.5 h-3.5 text-white"/> {/if}
-                                          </div>
-                                          
-                                          <div class="flex-1 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-4 shadow-sm group hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-colors">
-                                              
-                                              <div class="flex items-center justify-between mb-2">
-                                                <span class="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded {nota.tipo === 'recordatorio' ? (nota.completado ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400')) : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'}">
-                                                    {nota.tipo === 'recordatorio' ? (nota.completado ? 'Tarea Completada' : 'Tarea Pendiente') : 'Nota / Llamada'}
-                                                </span>
-                                                <span class="text-[10px] font-bold text-slate-400 dark:text-zinc-500">
-                                                    {new Date(nota.creado_en || Date.now()).toLocaleString('es-MX', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}
-                                                </span>
-                                              </div>
-                                              
-                                              <p class="text-sm font-medium {nota.completado ? 'text-slate-400 dark:text-zinc-500 line-through' : 'text-slate-800 dark:text-zinc-200'} leading-relaxed whitespace-pre-wrap">
-                                                {#if iaWsGenerado && nota.id.startsWith('temp-')} 
-                                                  {iaWsGenerado} 
-                                                {:else} 
-                                                  {nota.contenido} 
-                                                {/if}
-                                              </p>
-                                              
-                                              {#if nota.tipo === 'recordatorio' && !nota.completado && !nota.id.startsWith('temp-')}
-                                                  <div class="mt-3 flex items-center justify-between pt-3 border-t border-slate-100 dark:border-zinc-800/50">
-                                                    <span class="text-[10px] font-bold {isOverdue(nota.fecha_recordatorio) ? 'text-rose-500' : 'text-slate-500 dark:text-zinc-400'} flex items-center gap-1.5"><Clock class="w-3.5 h-3.5"/> Para el: {formatDateTime(nota.fecha_recordatorio)}</span>
-                                                    <button onclick={() => completarRecordatorio(nota.id)} class="text-[10px] font-black uppercase flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors text-slate-600 shadow-sm active:scale-95"><CheckCircle2 class="w-3.5 h-3.5"/> Marcar Resuelto</button>
-                                                  </div>
-                                              {/if}
-
-                                              {#if nota.id.startsWith('temp-')}
-                                                  <div class="mt-2 text-[10px] font-bold text-slate-400 flex items-center gap-1.5">
-                                                      <Loader2 class="w-3 h-3 animate-spin"/> Guardando...
-                                                  </div>
-                                              {/if}
-                                          </div>
-                                      </div>
-                                  {/each}
-                              </div>
-                          {:else}
-                              <div class="flex flex-col items-center justify-center h-full text-center opacity-60">
-                                  <Clock class="w-12 h-12 text-slate-300 dark:text-zinc-700 mb-3"/>
-                                  <p class="text-sm font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest">Aún no hay actividad</p>
-                                  <p class="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-1">Usa la barra inferior para registrar tu primera interacción.</p>
-                              </div>
-                          {/if}
-                      </div>
-
-                      <!-- 🚀 3. REGISTRO OPERATIVO UNIFICADO (Omnibox) -->
-                      <div class="p-4 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 shrink-0 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] relative z-20">
-                          <form method="POST" action="?/guardarNota" use:enhance={manejadorNota}>
-                              <input type="hidden" name="lead_id" value={selectedLead.id} />
-                              
-                              {#if iaWsError}
-                                  <div class="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs p-3 rounded-xl font-medium flex items-start gap-2 mb-3 shadow-sm">
-                                      <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5"/> {iaWsError}
-                                      <button aria-label="Cerrar error" onclick={() => iaWsError = ''} class="ml-auto"><X class="w-3.5 h-3.5"/></button>
-                                  </div>
-                              {/if}
-
-                              <div class="relative bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-inner focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all flex flex-col">
-                                  
-                                  <!-- El input donde se escribe todo -->
-                                  <textarea 
-                                      id="omnibox"
-                                      name="contenido"
-                                      bind:value={nuevaNotaTexto}
-                                      onkeydown={handleKeyDown}
-                                      placeholder={iaWsGenerado ? iaWsGenerado : "Comando: Escribe una minuta de llamada, o presiona Copiloto AI..."}
-                                      class="w-full bg-transparent px-4 py-3.5 text-sm font-medium text-slate-900 dark:text-white outline-none resize-none min-h-[60px] max-h-[200px] {iaWsGenerado ? 'placeholder:text-slate-800 dark:placeholder:text-zinc-200' : 'placeholder:text-slate-400 dark:placeholder:text-zinc-500'}"
-                                  ></textarea>
-                                  
-                                  <!-- Si selecciona Tarea, mostramos las fechas -->
-                                  {#if esRecordatorio}
-                                      <div class="px-4 pb-2 flex gap-3 animate-[fadeIn_0.2s_ease-out]">
-                                          <input type="date" lang="es-MX" bind:value={fechaRecordatorio} class="flex-1 bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-500/30 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-zinc-200 outline-none focus:border-amber-500 focus:ring-1 shadow-sm">
-                                          <input type="time" lang="es-MX" bind:value={horaRecordatorio} class="flex-1 bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-500/30 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-zinc-200 outline-none focus:border-amber-500 focus:ring-1 shadow-sm">
-                                      </div>
-                                  {/if}
-
-                                  <!-- Barra de Acciones del Omnibox -->
-                                  <div class="flex items-center justify-between px-3 pb-3 pt-1 border-t border-slate-100 dark:border-zinc-800/50 mt-1">
-                                      
-                                      <div class="flex items-center gap-2">
-                                          <!-- Botón de Copiloto Incrustado -->
-                                          <button type="button" 
-                                              onclick={async () => {
-                                                  iaGenerandoWs = true;
-                                                  try {
-                                                      const formData = new FormData();
-                                                      formData.append('lead_id', selectedLead.id);
-                                                      const res = await postAction('generarScriptWhatsapp', formData);
-                                                      if(res.data?.whatsapp) {
-                                                          iaWsGenerado = res.data.whatsapp;
-                                                          nuevaNotaTexto = ''; // Limpiamos para que se vea el placeholder
-                                                          creditosIA = Math.max(0, creditosIA - 1);
-                                                      }
-                                                  } catch(e) { alert(e.message); } 
-                                                  finally { iaGenerandoWs = false; }
-                                              }} 
-                                              disabled={iaGenerandoWs || creditosIA <= 0} 
-                                              class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors mt-1 {iaGenerandoWs ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-400 cursor-not-allowed' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20 disabled:opacity-50'}">
-                                              {#if iaGenerandoWs}
-                                                  <Loader2 class="w-3.5 h-3.5 animate-spin"/> Escribiendo...
-                                              {:else}
-                                                  <Zap class="w-3.5 h-3.5"/> Copiloto AI ({creditosIA})
-                                              {/if}
-                                          </button>
-
-                                          {#if iaWsGenerado}
-                                            <button type="button" onclick={() => { iaWsGenerado = ''; nuevaNotaTexto = ''; }} class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-lg transition-colors mt-1">Cancelar IA</button>
+                    {#if selectedLead.lead_notas && selectedLead.lead_notas.length > 0}
+                        <div class="space-y-6 relative z-10">
+                            {#each selectedLead.lead_notas as nota}
+                                <div class="relative flex items-start gap-3 sm:gap-4">
+                                    
+                                    <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center shrink-0 mt-1 shadow-sm ring-4 ring-white dark:ring-zinc-950 {nota.tipo === 'recordatorio' ? (nota.completado ? 'bg-emerald-500' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-500' : 'bg-amber-400')) : 'bg-slate-400 dark:bg-zinc-600'}">
+                                      {#if nota.tipo === 'recordatorio'} <CalendarClock class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white"/> {:else} <MessageSquareQuote class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white"/> {/if}
+                                    </div>
+                                    
+                                    <div class="flex-1 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-4 shadow-sm group hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-colors">
+                                        
+                                        <div class="flex items-center justify-between mb-2">
+                                          <span class="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded {nota.tipo === 'recordatorio' ? (nota.completado ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400')) : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'}">
+                                              {nota.tipo === 'recordatorio' ? (nota.completado ? 'Tarea Completada' : 'Tarea Pendiente') : 'Nota / Llamada'}
+                                          </span>
+                                          <span class="text-[10px] font-bold text-slate-400 dark:text-zinc-500">
+                                              {new Date(nota.creado_en || Date.now()).toLocaleString('es-MX', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}
+                                          </span>
+                                        </div>
+                                        
+                                        <p class="text-sm font-medium {nota.completado ? 'text-slate-400 dark:text-zinc-500 line-through' : 'text-slate-800 dark:text-zinc-200'} leading-relaxed whitespace-pre-wrap">
+                                          {#if iaWsGenerado && nota.id.startsWith('temp-')} 
+                                            {iaWsGenerado} 
+                                          {:else} 
+                                            {nota.contenido} 
                                           {/if}
-                                      </div>
-                                      
-                                      <div class="flex items-center gap-2 mt-1">
-                                          <button type="button" onclick={() => esRecordatorio = !esRecordatorio} class="px-3 py-1.5 rounded-lg {esRecordatorio ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-500/50 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-white text-slate-500 border border-slate-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400'} hover:bg-amber-50 hover:text-amber-600 text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5 shadow-sm">
-                                              <CalendarClock class="w-3.5 h-3.5"/> Tarea
-                                          </button>
-                                          <button type="submit" bind:this={submitBtn} disabled={guardandoNota || (!nuevaNotaTexto.trim() && !iaWsGenerado.trim())} class="px-5 py-1.5 rounded-lg bg-slate-900 hover:bg-indigo-600 dark:bg-white dark:hover:bg-indigo-400 text-white dark:text-zinc-900 shadow-md transition-all active:scale-95 disabled:opacity-50 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                                              {#if guardandoNota}
-                                                  <Loader2 class="w-3.5 h-3.5 animate-spin"/>
-                                              {:else}
-                                                  Guardar <Send class="w-3.5 h-3.5"/>
-                                              {/if}
-                                          </button>
-                                      </div>
-                                  </div>
-                                  
-                              </div>
-                          </form>
-                      </div>
+                                        </p>
+                                        
+                                        {#if nota.tipo === 'recordatorio' && !nota.completado && !nota.id.startsWith('temp-')}
+                                            <div class="mt-3 flex items-center justify-between pt-3 border-t border-slate-100 dark:border-zinc-800/50">
+                                              <span class="text-[10px] font-bold {isOverdue(nota.fecha_recordatorio) ? 'text-rose-500' : 'text-slate-500 dark:text-zinc-400'} flex items-center gap-1.5"><Clock class="w-3.5 h-3.5"/> Para el: {formatDateTime(nota.fecha_recordatorio)}</span>
+                                              <button onclick={() => completarRecordatorio(nota.id)} class="text-[10px] font-black uppercase flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors text-slate-600 shadow-sm active:scale-95"><CheckCircle2 class="w-3.5 h-3.5"/> Marcar Resuelto</button>
+                                            </div>
+                                        {/if}
 
-                  </div>
-              </div>
-          </div>
+                                        {#if nota.id.startsWith('temp-')}
+                                            <div class="mt-2 text-[10px] font-bold text-slate-400 flex items-center gap-1.5">
+                                                <Loader2 class="w-3 h-3 animate-spin"/> Guardando...
+                                            </div>
+                                        {/if}
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    {:else}
+                        <div class="flex flex-col items-center justify-center h-full text-center opacity-60">
+                            <Clock class="w-12 h-12 text-slate-300 dark:text-zinc-700 mb-3"/>
+                            <p class="text-sm font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest">Aún no hay actividad</p>
+                            <p class="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-1 max-w-[200px]">Usa la barra inferior para registrar tu primera interacción.</p>
+                        </div>
+                    {/if}
+                </div>
+
+                <!-- 🚀 3. REGISTRO OPERATIVO UNIFICADO (Omnibox 2026) -->
+                <div class="p-4 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 shrink-0 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] relative z-20">
+                    <form method="POST" action="?/guardarNota" use:enhance={manejadorNota}>
+                        <input type="hidden" name="lead_id" value={selectedLead.id} />
+                        
+                        {#if iaWsError}
+                            <div class="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs p-3 rounded-xl font-medium flex items-start gap-2 mb-3 shadow-sm">
+                                <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5"/> {iaWsError}
+                                <button aria-label="Cerrar error" type="button" onclick={() => iaWsError = ''} class="ml-auto"><X class="w-3.5 h-3.5"/></button>
+                            </div>
+                        {/if}
+
+                        <div class="relative bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-inner focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all flex flex-col">
+                            
+                            <!-- El input donde se escribe todo -->
+                            <textarea 
+                                id="omnibox"
+                                name="contenido"
+                                bind:value={nuevaNotaTexto}
+                                onkeydown={handleKeyDown}
+                                placeholder={iaWsGenerado ? iaWsGenerado : "Comando: Escribe una minuta, o presiona Copiloto AI..."}
+                                class="w-full bg-transparent px-4 py-3.5 text-sm font-medium text-slate-900 dark:text-white outline-none resize-none min-h-[60px] max-h-[200px] {iaWsGenerado ? 'placeholder:text-slate-800 dark:placeholder:text-zinc-200' : 'placeholder:text-slate-400 dark:placeholder:text-zinc-500'}"
+                            ></textarea>
+                            
+                            <!-- Si selecciona Tarea, mostramos las fechas -->
+                            {#if esRecordatorio}
+                                <div class="px-4 pb-2 flex gap-3 animate-[fadeIn_0.2s_ease-out]">
+                                    <input type="date" lang="es-MX" bind:value={fechaRecordatorio} class="flex-1 bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-500/30 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-zinc-200 outline-none focus:border-amber-500 focus:ring-1 shadow-sm">
+                                    <input type="time" lang="es-MX" bind:value={horaRecordatorio} class="flex-1 bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-500/30 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-zinc-200 outline-none focus:border-amber-500 focus:ring-1 shadow-sm">
+                                </div>
+                            {/if}
+
+                            <!-- Barra de Acciones del Omnibox -->
+                            <div class="flex items-center justify-between px-3 pb-3 pt-1 border-t border-slate-100 dark:border-zinc-800/50 mt-1">
+                                
+                                <div class="flex items-center gap-2">
+                                    <!-- Botón de Copiloto Incrustado -->
+                                    <button type="button" 
+                                        onclick={async () => {
+                                            iaGenerandoWs = true;
+                                            try {
+                                                const formData = new FormData();
+                                                formData.append('lead_id', selectedLead.id);
+                                                const res = await postAction('generarScriptWhatsapp', formData);
+                                                if(res.data?.whatsapp) {
+                                                    iaWsGenerado = res.data.whatsapp;
+                                                    nuevaNotaTexto = ''; // Limpiamos para que se vea el placeholder
+                                                    creditosIA = Math.max(0, creditosIA - 1);
+                                                }
+                                            } catch(e) { alert(e.message); } 
+                                            finally { iaGenerandoWs = false; }
+                                        }} 
+                                        disabled={iaGenerandoWs || creditosIA <= 0} 
+                                        class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors mt-1 {iaGenerandoWs ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-400 cursor-not-allowed' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20 disabled:opacity-50'}">
+                                        {#if iaGenerandoWs}
+                                            <Loader2 class="w-3.5 h-3.5 animate-spin"/> Pensando...
+                                        {:else}
+                                            <Zap class="w-3.5 h-3.5"/> Copiloto AI ({creditosIA})
+                                        {/if}
+                                    </button>
+
+                                    {#if iaWsGenerado}
+                                      <button type="button" onclick={() => { iaWsGenerado = ''; nuevaNotaTexto = ''; }} class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-lg transition-colors mt-1">Descartar IA</button>
+                                    {/if}
+                                </div>
+                                
+                                <div class="flex items-center gap-2 mt-1">
+                                    <button type="button" onclick={() => esRecordatorio = !esRecordatorio} class="px-3 py-1.5 rounded-lg {esRecordatorio ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-500/50 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-white text-slate-500 border border-slate-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400'} hover:bg-amber-50 hover:text-amber-600 text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5 shadow-sm">
+                                        <CalendarClock class="w-3.5 h-3.5"/> Tarea
+                                    </button>
+                                    <button type="submit" bind:this={submitBtn} disabled={guardandoNota || (!nuevaNotaTexto.trim() && !iaWsGenerado.trim())} class="px-5 py-1.5 rounded-lg bg-slate-900 hover:bg-indigo-600 dark:bg-white dark:hover:bg-indigo-400 text-white dark:text-zinc-900 shadow-md transition-all active:scale-95 disabled:opacity-50 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                        {#if guardandoNota}
+                                            <Loader2 class="w-3.5 h-3.5 animate-spin"/>
+                                        {:else}
+                                            Guardar <Send class="w-3.5 h-3.5"/>
+                                        {/if}
+                                    </button>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </div>
       </div>
     {/if}
   </div>
@@ -1092,5 +1103,10 @@
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+  
+  @keyframes slideInRight { 
+    from { transform: translateX(100%); opacity: 0; } 
+    to { transform: translateX(0); opacity: 1; } 
   }
 </style>
