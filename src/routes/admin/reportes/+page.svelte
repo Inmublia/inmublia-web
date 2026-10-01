@@ -2,7 +2,7 @@
 <script>
   import { 
     TrendingUp, TrendingDown, Activity, BarChart3, RefreshCw, LineChart, PieChart, Building2,
-    CheckCircle2, Timer, Target, AlertTriangle, Cpu, Download, ArrowRightCircle
+    CheckCircle2, Timer, Target, AlertTriangle, Cpu, Download, ArrowRightCircle, ListChecks
   } from 'lucide-svelte';
 
   import PageHeader from '$lib/components/PageHeader.svelte';
@@ -10,9 +10,6 @@
   let { data } = $props();
   let broker = $derived(data.broker || {});
   let leads = $derived(data.leads || []);
-  
-  // El insight viene listo del backend
-  let insight = $derived(data.insight);
 
   let comisionBroker = $derived((broker.comision_default || 5) / 100);
   const formatearDinero = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
@@ -39,17 +36,12 @@
 
   let leadsFiltrados = $derived.by(() => {
     if (periodoSeleccionado === 'all') return leads;
-
     const hoy = new Date();
     let limiteInicio, limiteFin = hoy;
-
-    if (periodoSeleccionado === '30') {
-      limiteInicio = new Date(hoy.getTime() - (30 * 86400000));
-    } else if (periodoSeleccionado === '90') {
-      limiteInicio = new Date(hoy.getTime() - (90 * 86400000));
-    } else if (periodoSeleccionado === 'mtd') {
-      limiteInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    } else if (periodoSeleccionado === 'last_month') {
+    if (periodoSeleccionado === '30') limiteInicio = new Date(hoy.getTime() - (30 * 86400000));
+    else if (periodoSeleccionado === '90') limiteInicio = new Date(hoy.getTime() - (90 * 86400000));
+    else if (periodoSeleccionado === 'mtd') limiteInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    else if (periodoSeleccionado === 'last_month') {
       limiteInicio = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
       limiteFin = new Date(hoy.getFullYear(), hoy.getMonth(), 0, 23, 59, 59);
     } else if (periodoSeleccionado === 'custom') {
@@ -57,7 +49,6 @@
       limiteInicio = new Date(fechaInicioCustom + 'T00:00:00');
       limiteFin = new Date(fechaFinCustom + 'T23:59:59');
     }
-
     return leads.filter(l => {
       const d = new Date(l.creado_en || l.created_at);
       return d >= limiteInicio && d <= limiteFin;
@@ -76,7 +67,6 @@
     return acc;
   }, 0));
 
-  // 🚀 FIX: Proyección calculada dinámicamente según el filtro del Dropdown (Adiós al $0)
   let proyeccionVentas = $derived(leadsFiltrados.reduce((acc, lead) => {
     const est = lead.estado?.toLowerCase().trim();
     if (est !== 'descartado' && est !== 'cerrado' && lead.propiedades?.precio) {
@@ -93,7 +83,6 @@
     }, 0);
   });
 
-  // 🚀 FIX: Velocidad calculada dinámicamente con control de errores (Adiós al undefinedh)
   let velocidadEstadisticas = $derived.by(() => {
     let tiempos = [];
     leadsFiltrados.forEach(l => {
@@ -105,7 +94,6 @@
       }
     });
     if (tiempos.length === 0) return { media: null, pctEn1h: 0 };
-    
     tiempos.sort((a, b) => a - b);
     const media = Math.round(tiempos[Math.floor(tiempos.length / 2)] * 10) / 10;
     const pct = Math.round((tiempos.filter(t => t <= 1).length / tiempos.length) * 100);
@@ -120,7 +108,6 @@
       { id: 'negociacion', label: 'En Negociación', color: '#F59E0B' },
       { id: 'cerrado', label: 'Cierres Ganados', color: '#10B981' }
     ];
-
     return etapas.map((etapa, i) => {
       const count = leadsFiltrados.filter(l => {
         const est = l.estado?.toLowerCase().trim();
@@ -139,12 +126,10 @@
   let tendenciaComisionesMeses = $derived.by(() => {
     const hoy = new Date();
     const meses = [];
-    
     for (let i = 5; i >= 0; i--) {
       const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
       meses.push({ m: d.getMonth(), y: d.getFullYear(), label: d.toLocaleDateString('es-MX', { month: 'short' }).replace('.', ''), count: 0 });
     }
-
     leadsGanados.forEach(l => {
       const d = new Date(l.actualizado_en || l.creado_en || l.created_at);
       const match = meses.find(x => x.m === d.getMonth() && x.y === d.getFullYear());
@@ -154,17 +139,14 @@
         match.count += (precioBase * porcentaje);
       }
     });
-
     const total6m = meses.reduce((sum, curr) => sum + curr.count, 0);
     const promedio = (total6m / 6);
     let mejorMes = meses[0];
     meses.forEach(m => { if(m.count > mejorMes.count) mejorMes = m; });
     const maxCount = Math.max(...meses.map(m => m.count), 1);
-    
     let tendPct = 0;
     if (meses[4].count > 0) tendPct = ((meses[5].count - meses[4].count) / meses[4].count) * 100;
     else if (meses[5].count > 0) tendPct = 100;
-
     return { datos: meses, total: total6m, promedio, mejorMes, maxCount, tendencia: tendPct.toFixed(0) };
   });
 
@@ -188,7 +170,6 @@
             </div>
           {/if}
           
-          <!-- 🚀 FIX: Dropdown blindado con SVG personalizado y appearance-none para evitar roturas -->
           <div class="relative">
             <select bind:value={periodoSeleccionado} class="appearance-none bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl pl-4 pr-10 py-2.5 text-sm font-bold shadow-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all cursor-pointer min-w-[170px] text-slate-700 dark:text-zinc-200">
               <option value="30">Últimos 30 días</option>
@@ -213,7 +194,6 @@
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 relative z-20 -mt-16">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         
-        <!-- Tarjeta 1: Proyección -->
         <div class="bg-zinc-950 p-6 rounded-3xl shadow-md shadow-zinc-900/10 text-white relative overflow-hidden border border-zinc-800 flex flex-col justify-between transition-colors">
           <div class="absolute top-0 right-0 -mt-8 -mr-8 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
           <div class="relative z-10 flex items-center justify-between mb-4">
@@ -252,7 +232,6 @@
           </div>
         </div>
 
-        <!-- Tarjeta 4: Velocidad -->
         <div class="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between transition-colors">
           <div class="flex items-center justify-between mb-4">
             <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Velocidad Respuesta</p>
@@ -281,30 +260,46 @@
   <main class="w-full flex-1 relative z-20 pt-4 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
 
-      <!-- 🚀 FIX: Banner Premium de Acción Directa (Adiós al formato académico) -->
-      {#if insight && insight.accion_prioritaria}
-        <div class="bg-gradient-to-r from-slate-900 to-indigo-950 dark:from-zinc-900 dark:to-indigo-950 rounded-3xl p-6 sm:p-8 shadow-xl text-white mb-6 relative overflow-hidden border border-indigo-500/20">
-          <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mt-10 -mr-10 pointer-events-none"></div>
-          <div class="flex flex-col sm:flex-row items-start gap-5 relative z-10">
-            <div class="bg-indigo-500/20 p-3.5 rounded-2xl shrink-0 border border-indigo-500/30">
-              <Cpu class="w-6 h-6 text-indigo-300" />
-            </div>
-            <div class="flex-1">
-              <h3 class="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2 flex items-center gap-2">
-                <span class="relative flex h-2 w-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                </span>
-                Sugerencia Estratégica AI
-              </h3>
-              <!-- La directiva principal al frente y en grande -->
-              <p class="text-lg sm:text-xl font-medium leading-snug text-white mb-2">{insight.accion_prioritaria}</p>
-              <!-- El resumen y la evidencia pasan a ser contexto secundario y sutil -->
-              <p class="text-sm text-indigo-200/60 font-medium leading-relaxed">{insight.resumen}</p>
-            </div>
+      <!-- 🚀 FIX: AWAIT NATIVO. La página carga instantáneo, solo esta caja espera a la IA -->
+      {#await data.lazy.insight}
+        <div class="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30 rounded-3xl p-6 sm:p-8 shadow-sm animate-pulse mb-6 flex items-center gap-4">
+          <div class="bg-indigo-500/20 p-3.5 rounded-2xl shrink-0">
+            <Cpu class="w-6 h-6 text-indigo-500" />
+          </div>
+          <div>
+            <p class="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-2">Generando Inteligencia Estratégica AI...</p>
+            <div class="h-3 bg-indigo-200/50 dark:bg-indigo-800/50 rounded-full w-48 mb-2"></div>
+            <div class="h-2 bg-indigo-200/30 dark:bg-indigo-800/30 rounded-full w-32"></div>
           </div>
         </div>
-      {/if}
+      {:then insight}
+        {#if insight && insight.accion_prioritaria}
+          <div class="bg-gradient-to-r from-slate-900 to-indigo-950 dark:from-zinc-900 dark:to-indigo-950 rounded-3xl p-6 sm:p-8 shadow-xl text-white mb-6 relative overflow-hidden border border-indigo-500/20">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mt-10 -mr-10 pointer-events-none"></div>
+            <div class="flex flex-col sm:flex-row items-start gap-5 relative z-10">
+              <div class="bg-indigo-500/20 p-3.5 rounded-2xl shrink-0 border border-indigo-500/30">
+                <Cpu class="w-6 h-6 text-indigo-300" />
+              </div>
+              <div class="flex-1">
+                <h3 class="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2 flex items-center gap-2">
+                  <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                  </span>
+                  Sugerencia Estratégica AI
+                </h3>
+                <p class="text-lg sm:text-xl font-medium leading-snug text-white mb-2">{insight.accion_prioritaria}</p>
+                <p class="text-sm text-indigo-200/60 font-medium leading-relaxed">
+                  {insight.resumen} 
+                  {#if insight.evidencia} 
+                    <span class="opacity-75 block mt-1">• {insight.evidencia}</span> 
+                  {/if}
+                </p>
+              </div>
+            </div>
+          </div>
+        {/if}
+      {/await}
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
         
@@ -316,12 +311,6 @@
               </h3>
               <p class="text-xs font-medium text-slate-500 mt-1">Estructura acumulativa de embudo.</p>
             </div>
-            {#if metricas.leadsEstancados > 0}
-              <div class="bg-rose-50 dark:bg-rose-500/10 px-4 py-2 rounded-xl border border-rose-100 dark:border-rose-500/20 flex items-center gap-2">
-                <AlertTriangle class="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                <span class="text-[10px] font-bold uppercase tracking-widest text-rose-700 dark:text-rose-400">{metricas.leadsEstancados} Leads en Riesgo</span>
-              </div>
-            {/if}
           </div>
 
           <div class="space-y-5">
