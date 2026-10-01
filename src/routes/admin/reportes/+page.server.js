@@ -146,9 +146,9 @@ export const load = async ({ locals, platform }) => {
     } else insightLimpio = null;
   }
 
+  // Pre-cálculo exclusivo para alimentar a la IA (30 días fijos)
   const limite30Dias = new Date(Date.now() - (30 * 86400000));
   const leads30d = safeLeads.filter(l => new Date(l.creado_en || l.created_at) >= limite30Dias);
-  
   const leadsGanados = leads30d.filter(l => l.estado?.toLowerCase().trim() === 'cerrado');
   let pipelineBruto = 0, pipelineComision = 0, leadsEstancados = 0, tiemposRespuesta = [];
   const PROB_ETAPA = { 'nuevo': 0.05, 'contactado': 0.15, 'visita': 0.35, 'negociacion': 0.65 };
@@ -203,8 +203,7 @@ export const load = async ({ locals, platform }) => {
     topPropiedad: topPropiedadArr
   };
 
-  // 🚀 FIX ARQUITECTÓNICO: "Streaming de Promesas"
-  // Pasamos la promesa VIVA al frontend, SvelteKit la resuelve sin congelar la navegación.
+  // 🚀 SvelteKit Streaming: Retornamos la promesa al vuelo
   let insightPromise;
   if (insightLimpio) {
     insightPromise = Promise.resolve(insightLimpio);
@@ -214,10 +213,11 @@ export const load = async ({ locals, platform }) => {
   }
 
   return {
-    broker, leads: safeLeads, propiedades: safeProps, metricas: metricasBackend,
-    // "lazy" indica a SvelteKit que NO bloquee la carga por esto
-    lazy: {
-      insight: insightPromise
-    }
+    broker, 
+    leads: safeLeads, 
+    propiedades: safeProps, 
+    // Restablecemos metricasBackend general para evitar que explote si llegara a usarse por accidente
+    metricas: metricasBackend, 
+    insight: insightPromise // SvelteKit resuelve esto asíncronamente en el {#await}
   };
 };
