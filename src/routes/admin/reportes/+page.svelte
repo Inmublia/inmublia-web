@@ -3,7 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { 
     TrendingUp, TrendingDown, Activity, BarChart3, RefreshCw, LineChart, PieChart, Building2,
-    CheckCircle2, Timer, Target, AlertTriangle, Cpu, Download, ArrowRightCircle
+    CheckCircle2, Timer, Target, AlertTriangle, Cpu, Download, ArrowRightCircle, Bug
   } from 'lucide-svelte';
 
   import PageHeader from '$lib/components/PageHeader.svelte';
@@ -17,11 +17,11 @@
   let cargandoInsight = $state(!data.insight);
   let realtimeChannel;
   let timeoutId;
+  let debugLog = $state(''); // 🚀 TELEMETRÍA UI
 
   let comisionBroker = $derived((broker.comision_default || 5) / 100);
   const formatearDinero = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
 
-  // 🚀 Lógica Extensiva de Fechas
   let periodoSeleccionado = $state('30');
   let fechaInicioCustom = $state('');
   let fechaFinCustom = $state('');
@@ -141,6 +141,7 @@
 
   onMount(() => {
     if (!data.insight) {
+      debugLog = 'Escuchando Realtime canal: insight-ready...';
       realtimeChannel = data.supabase
         .channel('insight-ready')
         .on('postgres_changes', { 
@@ -150,22 +151,36 @@
           filter: `broker_id=eq.${data.broker.id}` 
         }, (payload) => {
           if (payload.new && payload.new.tipo === 'reporte_diario') {
-            insight = payload.new.contenido;
-            cargandoInsight = false;
-            if (timeoutId) clearTimeout(timeoutId);
+            // 🚀 SANACIÓN REALTIME: Evitamos que una cadena mate la UI
+            let rawData = payload.new.contenido;
+            if (typeof rawData === 'string') {
+              try { rawData = JSON.parse(rawData); } catch(e) { debugLog = `Error de parseo Realtime: ${e.message}`; }
+            }
+            
+            if (rawData && rawData.resumen) {
+              insight = rawData;
+              cargandoInsight = false;
+              if (timeoutId) clearTimeout(timeoutId);
+              debugLog = 'Insight recibido exitosamente vía Realtime.';
+            } else {
+              debugLog = `Payload recibido pero corrupto: ${JSON.stringify(rawData)}`;
+            }
           }
         }).subscribe();
 
-      // Desbloqueo forzado a los 8 segundos. No permitimos que la UX se congele.
+      // Desbloqueo forzado a los 8 segundos
       timeoutId = setTimeout(() => {
         if (cargandoInsight) {
           cargandoInsight = false;
           insight = {
-            resumen: "El reporte se ha generado exitosamente. El insight estratégico está demorado por tráfico de red.",
-            accion_prioritaria: "Revisa la rentabilidad de tus canales en la tabla de ROI inferior."
+            resumen: "El reporte se generó exitosamente pero la IA tardó demasiado en responder.",
+            accion_prioritaria: "Recargue la página más tarde si desea ver el análisis estratégico."
           };
+          debugLog = 'Timeout de 8 segundos alcanzado. Se aplicó Fallback en Frontend.';
         }
       }, 8000);
+    } else {
+      debugLog = 'Insight cargado desde SSR Caché de forma instantánea.';
     }
   });
 
@@ -217,7 +232,7 @@
           </div>
           <div class="relative z-10">
             <h2 class="text-3xl font-black tracking-tighter truncate">{formatearDinero(metricas.proyeccionVentas || 0)}</h2>
-            <p class="text-[10px] font-medium text-zinc-500 mt-1">Pipeline activo: {formatearDinero(pipelineValue)}</p>
+            <p class="text-[10px] font-medium text-zinc-500 mt-1">Pipeline {labelPeriodo}: {formatearDinero(pipelineValue)}</p>
           </div>
         </div>
 
@@ -284,7 +299,7 @@
             <div class="h-3 bg-indigo-100 dark:bg-indigo-800/30 rounded w-1/2"></div>
           </div>
         </div>
-      {:else if insight}
+      {:else if insight && insight.resumen}
         <div class="bg-gradient-to-r from-indigo-50 to-indigo-100/50 dark:from-indigo-900/20 dark:to-indigo-800/10 border border-indigo-200 dark:border-indigo-700/30 rounded-2xl p-6 shadow-sm animate-[fadeIn_0.4s_ease-out] print:shadow-none">
           <div class="flex items-center gap-2 mb-4">
             <Cpu class="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -297,6 +312,19 @@
               <p class="text-sm font-bold text-slate-900 dark:text-white">{insight.accion_prioritaria}</p>
             </div>
           {/if}
+          <!-- 🚀 BLOQUE DE DEBUG: Exclusivo para asegurar qué está recibiendo el frontend -->
+          {#if debugLog}
+            <div class="mt-4 border-t border-indigo-200 dark:border-indigo-800/30 pt-2 flex items-center gap-2">
+              <Bug class="w-3 h-3 text-indigo-400"/>
+              <span class="text-[9px] font-mono text-indigo-500 opacity-60">SYS_LOG: {debugLog}</span>
+            </div>
+          {/if}
+        </div>
+      {:else}
+        <!-- 🚀 ERROR CATCHER VISUAL: Si insight existe pero no tiene .resumen -->
+        <div class="bg-rose-50 border border-rose-200 rounded-2xl p-6 shadow-sm">
+          <p class="text-xs font-black text-rose-600 uppercase">Error de Renderizado UI</p>
+          <p class="text-[10px] text-rose-500 mt-2 font-mono">{JSON.stringify(insight)}</p>
         </div>
       {/if}
 
