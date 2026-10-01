@@ -10,103 +10,98 @@ const getValidDate = (dateStr, fallback = new Date()) => {
   return isNaN(d.getTime()) ? fallback : d;
 };
 
-// 🚀 EL MODELO OFICIAL PARA JSON MODE EN CLOUDFLARE (Oct 2026)
 const MODEL_ID = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 
 function parseInsightResponse(result) {
-  // 1. Trazabilidad Cruda (Para ver exactamente qué devolvió Cloudflare)
-  console.log('\n[RAW-CF-RESPONSE]');
-  console.log(JSON.stringify(result, null, 2));
-  console.log('-------------------\n');
-
-  // 2. Extracción de respuesta dependiendo de la estructura del binding
   let rawString = '';
   if (typeof result === 'string') rawString = result;
   else if (result?.response) rawString = result.response;
   else if (result?.result?.response) rawString = result.result.response;
   else rawString = JSON.stringify(result);
 
-  // Si el motor ya lo parseó por nosotros (algunos JSON Modes lo hacen nativamente)
-  if (typeof result === 'object' && result.resumen) return result;
+  if (typeof result === 'object' && result.resumen && result.evidencia) return result;
   if (typeof result?.response === 'object' && result.response.resumen) return result.response;
 
-  // 3. Limpieza de Markdown y Think Blocks
-  const sinThinking = rawString
-    .replace(/<think>[\s\S]*?<\/think>/gi, '')
-    .replace(/```json/gi, '')
-    .replace(/```/g, '')
-    .trim();
+  const sinThinking = rawString.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```json/gi, '').replace(/```/g, '').trim();
 
   try {
     return JSON.parse(sinThinking);
   } catch (e) {
-    // 4. Último recurso: Búsqueda con Regex por si hay texto alucinado alrededor
-    console.warn('[PARSE-WARN] Parse directo falló, intentando Regex...', e.message);
     const match = sinThinking.match(/\{[\s\S]*\}/);
-    if (match) {
-      return JSON.parse(match[0]);
-    }
-    throw new Error('Imposible extraer un JSON válido del payload.');
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Imposible extraer JSON válido.');
   }
 }
 
 async function generarYGuardarInsight(adminDb, broker, metricasBase, platform) {
-  if (!platform?.env?.AI) {
-    console.error('[IA-FATAL] Binding AI no expuesto en plataforma.');
-    return null;
-  }
+  if (!platform?.env?.AI) return null;
 
-  const systemPrompt = `Eres el analista estratégico de Inmublia. 
-Analiza los datos y responde EXCLUSIVAMENTE con el JSON solicitado, sin explicaciones adicionales.`;
+  const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 
-  const userPrompt = `Métricas actuales: Pipeline Activo: $${metricasBase.pipelineValue}, Win Rate: ${metricasBase.tasaCierre}%, Leads Inactivos: ${metricasBase.leadsEstancados}`;
+  const systemPrompt = `Eres el Director Estratégico Comercial (CSO) de Inmublia.
+Tu trabajo es identificar el principal cuello de botella comercial de los ÚLTIMOS 30 DÍAS, explicar por qué importa y dictar una acción concreta.
+
+REGLAS ESTRICTAS:
+1. Usa únicamente los datos proporcionados.
+2. NUNCA uses adjetivos vacíos ("saludable", "bajo", "bueno") a menos que cites la métrica exacta.
+3. Menciona al menos DOS cifras concretas en tu justificación (evidencia).
+4. La 'accion_prioritaria' debe indicar QUÉ hacer, DÓNDE hacerlo y QUÉ MÉTRICA mejorar (ej. "Lanza una campaña en WhatsApp a los 12 leads inactivos para mejorar la conversión").
+5. Evita obviedades como "optimizar el proceso" o "dar seguimiento".
+6. El resumen debe sonar a estrategia directiva de alto nivel.`;
+
+  // 🚀 FIX: Contexto enriquecido, claro y desglosado
+  const userPrompt = `MÉTRICAS (ÚLTIMOS 30 DÍAS):
+- Inventario en Negociación (Gross): ${formatter.format(metricasBase.pipelineBruto)}
+- Comisión Potencial (Neto esperado): ${formatter.format(metricasBase.pipelineComision)}
+- Win Rate (Conversión a Cierre): ${metricasBase.tasaCierre}%
+- Leads Estancados (>15 días sin toque): ${metricasBase.leadsEstancados}
+- Velocidad de Respuesta: ${metricasBase.velocidadMedia !== null ? metricasBase.velocidadMedia + ' hrs' : 'N/A'} (${metricasBase.pctEn1h}% en <1h)
+- Mejores Canales: ${metricasBase.topCanales}
+- Propiedad más caliente: ${metricasBase.topPropiedad}`;
 
   let finalInsight = null;
   let aiGeneradoExitosamente = false;
 
   try {
-    console.log(`[IA-START] Ejecutando ${MODEL_ID} en JSON Mode...`);
-    
     const result = await platform.env.AI.run(MODEL_ID, {
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      // 🚀 JSON SCHEMA ESTRICTO NATIVO DE CLOUDFLARE
+      // 🚀 ESQUEMA DE 3 CAPAS: Obligamos a la IA a justificar antes de accionar
       response_format: {
         type: 'json_schema',
         json_schema: {
           type: 'object',
           properties: {
-            resumen: { type: 'string' },
-            accion_prioritaria: { type: 'string' }
+            resumen: { type: 'string', description: "Diagnóstico comercial de 30-40 palabras" },
+            evidencia: { type: 'string', description: "Justificación con 2 cifras exactas de las métricas (15-25 palabras)" },
+            accion_prioritaria: { type: 'string', description: "Acción táctica ejecutable enfocada en el cuello de botella (15-25 palabras)" }
           },
-          required: ['resumen', 'accion_prioritaria']
+          required: ['resumen', 'evidencia', 'accion_prioritaria']
         }
       },
-      max_tokens: 350, // Aumentado para evitar truncado de respuesta
-      temperature: 0.1
+      max_tokens: 400,
+      temperature: 0.3 // 🔥 Temperatura óptima para análisis estructurado no robótico
     });
 
     finalInsight = parseInsightResponse(result);
     
-    if (!finalInsight || typeof finalInsight.resumen !== 'string') {
-      throw new Error('El JSON devuelto carece del esquema esperado.');
+    if (!finalInsight || !finalInsight.evidencia || !finalInsight.accion_prioritaria) {
+      throw new Error('Estructura JSON incompleta.');
     }
-
     aiGeneradoExitosamente = true;
-    console.log('[IA-SUCCESS] Insight generado y validado con éxito.');
 
   } catch (err) {
-    console.error(`[IA-ERROR] Falló la inferencia:`, err);
-    
+    console.error(`[IA-ERROR]`, err.message);
+    // 🚀 LENGUAJE DE PRODUCTO, NO DE SERVIDOR
     finalInsight = {
-      resumen: "No fue posible generar el análisis automático en este momento por alta latencia en la red neuronal.",
-      accion_prioritaria: "Sus métricas matemáticas están seguras. Recargue la página en unos minutos."
+      resumen: "El análisis automático no está disponible en este momento.",
+      evidencia: "El motor de inteligencia está sincronizando datos con la red.",
+      accion_prioritaria: "Utilice los KPIs del panel inferior mientras se restablece el servicio estratégico."
     };
   }
 
-  // 🚀 PREVENCIÓN DE BUCLE: Solo guardamos en base de datos si fue un éxito real
   if (aiGeneradoExitosamente) {
     try {
       await adminDb.from('ai_insights_cache').upsert({
@@ -115,12 +110,10 @@ Analiza los datos y responde EXCLUSIVAMENTE con el JSON solicitado, sin explicac
         contenido: finalInsight,
         generado_en: new Date().toISOString()
       }, { onConflict: 'broker_id, tipo' });
-      console.log('[IA-DB] Caché guardado correctamente en Supabase.');
     } catch (err) {
-      console.error('[IA-DB-ERROR] Error al guardar caché en base de datos:', err.message);
+      console.error('[IA-DB-ERROR]', err.message);
     }
   }
-
   return finalInsight;
 }
 
@@ -128,9 +121,7 @@ export const load = async ({ locals, platform }) => {
   if (!locals.user) throw redirect(303, '/login');
 
   let db = locals.supabase;
-  if (locals.isImpersonating) {
-    db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-  }
+  if (locals.isImpersonating) db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
   let query = db.from('brokers').select('id, nombre_comercial, comision_default');
   query = (locals.isImpersonating && locals.tenantId) ? query.eq('id', locals.tenantId) : query.eq('auth_user_id', locals.user.id);
@@ -153,38 +144,33 @@ export const load = async ({ locals, platform }) => {
   const safeLeads = leadsRes.data || [];
   const safeProps = propsRes.data || [];
   
-  // 🚀 CACHE BUSTER (Destructor de fallos previos)
   let insightLimpio = null;
   if (insightRes.data && insightRes.data.contenido) {
     insightLimpio = insightRes.data.contenido;
-    if (typeof insightLimpio === 'string') {
-      try { insightLimpio = JSON.parse(insightLimpio); } catch(e) {}
-    }
+    if (typeof insightLimpio === 'string') try { insightLimpio = JSON.parse(insightLimpio); } catch(e) {}
     
     if (insightLimpio && typeof insightLimpio === 'object') {
-      // Si por error se había guardado un mensaje de fallo anteriormente, lo destruimos.
-      const isFallback = insightLimpio.resumen && (insightLimpio.resumen.includes('error de formato') || insightLimpio.resumen.includes('latencia'));
-      if (isFallback || !insightLimpio.resumen) {
-        console.log('[LOAD] Caché zombi detectado y destruido.');
-        insightLimpio = null; 
-      }
-    } else {
-      insightLimpio = null;
-    }
+      const isFallback = !insightLimpio.evidencia || (insightLimpio.resumen && insightLimpio.resumen.includes('no está disponible'));
+      if (isFallback || !insightLimpio.resumen) insightLimpio = null; 
+    } else insightLimpio = null;
   }
 
-  const leadsGanados = safeLeads.filter(l => l.estado?.toLowerCase().trim() === 'cerrado');
-  let proyeccionVentas = 0, leadsEstancados = 0, tiemposRespuesta = [];
+  // 🚀 ALINEACIÓN DE TIEMPO: Filtramos la data de la IA a 30 días para que coincida con el Frontend
+  const limite30Dias = new Date(Date.now() - (30 * 86400000));
+  const leads30d = safeLeads.filter(l => new Date(l.creado_en || l.created_at) >= limite30Dias);
+  
+  const leadsGanados = leads30d.filter(l => l.estado?.toLowerCase().trim() === 'cerrado');
+  let pipelineBruto = 0, pipelineComision = 0, leadsEstancados = 0, tiemposRespuesta = [];
   const PROB_ETAPA = { 'nuevo': 0.05, 'contactado': 0.15, 'visita': 0.35, 'negociacion': 0.65 };
   const fuentesMapa = {}, propConteo = {}, propiedadesUnicas = new Map();
 
-  safeLeads.forEach(l => {
+  leads30d.forEach(l => {
     const est = (l.estado || 'nuevo').toLowerCase().trim();
     const precioProp = l.propiedades?.precio || 0;
     
     if (!['cerrado', 'descartado'].includes(est)) {
-      proyeccionVentas += (precioProp * comisionRate * (PROB_ETAPA[est] || 0.05));
       if (l.propiedad_id && precioProp > 0) propiedadesUnicas.set(l.propiedad_id, precioProp);
+      pipelineComision += (precioProp * comisionRate * (PROB_ETAPA[est] || 0.05));
       const diasInactivo = Math.floor((new Date() - getValidDate(l.ultima_actividad || l.creado_en || l.created_at)) / 86400000);
       if (diasInactivo > 15) leadsEstancados++;
     }
@@ -199,21 +185,17 @@ export const load = async ({ locals, platform }) => {
     const f = (l.origen || l.fuente || 'Directo').trim();
     if (!fuentesMapa[f]) fuentesMapa[f] = { nombre: f, total: 0, cerrados: 0, comision: 0 };
     fuentesMapa[f].total++;
+    if (est === 'cerrado') fuentesMapa[f].cerrados++;
     
-    if (est === 'cerrado') {
-      fuentesMapa[f].cerrados++;
-      fuentesMapa[f].comision += (l.precio_cierre || precioProp) * (l.comision_cierre ? (l.comision_cierre / 100) : comisionRate);
-    }
-
     if (l.propiedades) {
       const pId = l.propiedades.id;
-      if (!propConteo[pId]) propConteo[pId] = { titulo: l.propiedades.titulo, estatus: l.propiedades.estatus, totalLeads: 0, convertidos: 0 };
+      if (!propConteo[pId]) propConteo[pId] = { titulo: l.propiedades.titulo, totalLeads: 0 };
       propConteo[pId].totalLeads++;
-      if (est === 'cerrado') propConteo[pId].convertidos++;
     }
   });
 
-  const pipelineValue = [...propiedadesUnicas.values()].reduce((sum, precio) => sum + (precio * comisionRate), 0);
+  pipelineBruto = [...propiedadesUnicas.values()].reduce((sum, precio) => sum + precio, 0);
+
   let velocidadMedia = null, pctEn1h = 0;
   if (tiemposRespuesta.length > 0) {
     tiemposRespuesta.sort((a, b) => a - b);
@@ -221,11 +203,14 @@ export const load = async ({ locals, platform }) => {
     pctEn1h = Math.round((tiemposRespuesta.filter(t => t <= 1).length / tiemposRespuesta.length) * 100);
   }
 
+  const topCanalesArr = Object.values(fuentesMapa).sort((a, b) => b.total - a.total).slice(0, 2).map(c => `${c.nombre} (${c.total} leads)`).join(', ');
+  const topPropiedadArr = Object.values(propConteo).sort((a, b) => b.totalLeads - a.totalLeads)[0]?.titulo || 'Ninguna destacada';
+
   const metricasBackend = {
-    velocidadMedia, pctEn1h, pipelineValue: Math.round(pipelineValue), proyeccionVentas: Math.round(proyeccionVentas),
-    leadsEstancados, tasaCierre: safeLeads.length > 0 ? ((leadsGanados.length / safeLeads.length) * 100).toFixed(1) : '0.0',
-    fuentesROI: Object.values(fuentesMapa).map(f => ({ ...f, tasa: f.total > 0 ? (f.cerrados / f.total) * 100 : 0 })).sort((a, b) => b.tasa - a.tasa),
-    rendimientoPropiedades: Object.values(propConteo).map(p => ({ ...p, tasa: p.totalLeads > 0 ? ((p.convertidos / p.totalLeads) * 100).toFixed(1) : '0.0' })).sort((a, b) => b.convertidos - a.convertidos || b.totalLeads - a.totalLeads).slice(0, 5)
+    velocidadMedia, pctEn1h, pipelineBruto, pipelineComision: Math.round(pipelineComision),
+    leadsEstancados, tasaCierre: leads30d.length > 0 ? ((leadsGanados.length / leads30d.length) * 100).toFixed(1) : '0.0',
+    topCanales: topCanalesArr || 'Sin canales',
+    topPropiedad: topPropiedadArr
   };
 
   if (!insightLimpio) {
@@ -234,7 +219,7 @@ export const load = async ({ locals, platform }) => {
   }
 
   return {
-    broker, leads: safeLeads, propiedades: safeProps, metricas: metricasBackend,
+    broker, leads: safeLeads, propiedades: safeProps, 
     insight: insightLimpio
   };
 };
