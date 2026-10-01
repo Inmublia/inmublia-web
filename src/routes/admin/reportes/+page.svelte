@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { 
     TrendingUp, TrendingDown, Activity, BarChart3, RefreshCw, LineChart, PieChart, Building2,
-    CheckCircle2, Timer, Target, AlertTriangle, Cpu, Download, ArrowRightCircle
+    CheckCircle2, Timer, Target, AlertTriangle, Cpu, Download
   } from 'lucide-svelte';
 
   import PageHeader from '$lib/components/PageHeader.svelte';
@@ -229,7 +229,7 @@
         if (isAiLoading) {
           clearInterval(pollInterval);
           isAiLoading = false;
-          insight = { resumen: "El análisis automático no está disponible en este momento. Utilice los KPIs en pantalla mientras se restablece el motor neuronal." };
+          insight = { resumen: "El motor de análisis está evaluando tus datos. Te sugiero revisar tus prospectos inactivos mientras se actualiza el sistema." };
         }
       }, 40000);
     }
@@ -348,34 +348,34 @@
   <main class="w-full flex-1 relative z-20 pt-4 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
 
+      <!-- 🚀 FIX UI: Tarjeta IA Compacta y Elegante (El Lobo de Wall Street se fue, llegó tu Asesor) -->
       {#if isAiLoading}
-        <div class="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30 rounded-3xl p-6 sm:p-8 shadow-sm animate-pulse mb-6 flex items-center gap-4 transition-all">
-          <div class="bg-indigo-500/20 p-3.5 rounded-2xl shrink-0">
-            <Cpu class="w-6 h-6 text-indigo-500" />
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl p-5 shadow-sm mb-6 border border-indigo-100 dark:border-indigo-900/50 relative overflow-hidden animate-pulse flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div class="absolute top-0 left-0 w-1 h-full bg-indigo-200 dark:bg-indigo-800/50"></div>
+          <div class="bg-indigo-50 dark:bg-indigo-500/10 p-3 rounded-xl shrink-0 border border-indigo-100 dark:border-indigo-500/20">
+            <Cpu class="w-5 h-5 text-indigo-400" />
           </div>
-          <div>
-            <p class="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-2">Motor Neuronal 70B Procesando...</p>
-            <div class="h-3 bg-indigo-200/50 dark:bg-indigo-800/50 rounded-full w-48 mb-2"></div>
-            <div class="h-2 bg-indigo-200/30 dark:bg-indigo-800/30 rounded-full w-32"></div>
+          <div class="flex-1">
+            <p class="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">Asesor Neuronal Procesando...</p>
+            <div class="h-2.5 bg-indigo-50 dark:bg-indigo-800/30 rounded-full w-48 mb-2"></div>
+            <div class="h-2.5 bg-indigo-50 dark:bg-indigo-800/30 rounded-full w-32"></div>
           </div>
         </div>
       {:else if insight && insight.resumen}
-        <div class="bg-gradient-to-r from-slate-900 to-indigo-950 dark:from-zinc-900 dark:to-indigo-950 rounded-3xl p-6 sm:p-8 shadow-xl text-white mb-6 relative overflow-hidden border border-indigo-500/20 animate-[fadeIn_0.5s_ease-out]">
-          <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mt-10 -mr-10 pointer-events-none"></div>
-          <div class="flex flex-col sm:flex-row items-start gap-5 relative z-10">
-            <div class="bg-indigo-500/20 p-3.5 rounded-2xl shrink-0 border border-indigo-500/30">
-              <Cpu class="w-6 h-6 text-indigo-300" />
-            </div>
-            <div class="flex-1">
-              <h3 class="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-3 flex items-center gap-2">
-                <span class="relative flex h-2 w-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                </span>
-                Sugerencia Estratégica AI
-              </h3>
-              <p class="text-base sm:text-lg font-medium leading-relaxed text-indigo-50/90 mb-0">{insight.resumen}</p>
-            </div>
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl p-5 shadow-sm mb-6 border border-indigo-100 dark:border-indigo-900/50 relative overflow-hidden animate-[fadeIn_0.5s_ease-out] flex flex-col sm:flex-row items-start sm:items-center gap-4 transition-colors">
+          <div class="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
+          <div class="bg-indigo-50 dark:bg-indigo-500/10 p-3 rounded-xl shrink-0 border border-indigo-100 dark:border-indigo-500/20">
+            <Cpu class="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div class="flex-1">
+            <h3 class="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-1.5 flex items-center gap-2">
+              <span class="relative flex h-1.5 w-1.5">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500"></span>
+              </span>
+              Consejo Estratégico AI
+            </h3>
+            <p class="text-sm sm:text-[15px] font-medium leading-relaxed text-slate-700 dark:text-zinc-300 mb-0 max-w-4xl">{insight.resumen}</p>
           </div>
         </div>
       {/if}
