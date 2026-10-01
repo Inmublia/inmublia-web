@@ -45,16 +45,14 @@ REGLAS ESTRICTAS:
 1. Usa únicamente los datos proporcionados.
 2. NUNCA uses adjetivos vacíos ("saludable", "bajo", "bueno") a menos que cites la métrica exacta.
 3. Menciona al menos DOS cifras concretas en tu justificación (evidencia).
-4. La 'accion_prioritaria' debe indicar QUÉ hacer, DÓNDE hacerlo y QUÉ MÉTRICA mejorar (ej. "Lanza una campaña en WhatsApp a los 12 leads inactivos para mejorar la conversión").
-5. Evita obviedades como "optimizar el proceso" o "dar seguimiento".
-6. El resumen debe sonar a estrategia directiva de alto nivel.`;
+4. La 'accion_prioritaria' debe indicar QUÉ hacer, DÓNDE hacerlo y QUÉ MÉTRICA mejorar.
+5. Evita obviedades. El resumen debe sonar a estrategia directiva de alto nivel.`;
 
-  // 🚀 FIX: Contexto enriquecido, claro y desglosado
   const userPrompt = `MÉTRICAS (ÚLTIMOS 30 DÍAS):
-- Inventario en Negociación (Gross): ${formatter.format(metricasBase.pipelineBruto)}
-- Comisión Potencial (Neto esperado): ${formatter.format(metricasBase.pipelineComision)}
-- Win Rate (Conversión a Cierre): ${metricasBase.tasaCierre}%
-- Leads Estancados (>15 días sin toque): ${metricasBase.leadsEstancados}
+- Inventario en Negociación: ${formatter.format(metricasBase.pipelineBruto)}
+- Comisión Potencial: ${formatter.format(metricasBase.pipelineComision)}
+- Win Rate: ${metricasBase.tasaCierre}%
+- Leads Estancados (>15 días): ${metricasBase.leadsEstancados}
 - Velocidad de Respuesta: ${metricasBase.velocidadMedia !== null ? metricasBase.velocidadMedia + ' hrs' : 'N/A'} (${metricasBase.pctEn1h}% en <1h)
 - Mejores Canales: ${metricasBase.topCanales}
 - Propiedad más caliente: ${metricasBase.topPropiedad}`;
@@ -68,37 +66,32 @@ REGLAS ESTRICTAS:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      // 🚀 ESQUEMA DE 3 CAPAS: Obligamos a la IA a justificar antes de accionar
       response_format: {
         type: 'json_schema',
         json_schema: {
           type: 'object',
           properties: {
-            resumen: { type: 'string', description: "Diagnóstico comercial de 30-40 palabras" },
-            evidencia: { type: 'string', description: "Justificación con 2 cifras exactas de las métricas (15-25 palabras)" },
-            accion_prioritaria: { type: 'string', description: "Acción táctica ejecutable enfocada en el cuello de botella (15-25 palabras)" }
+            resumen: { type: 'string' },
+            evidencia: { type: 'string' },
+            accion_prioritaria: { type: 'string' }
           },
           required: ['resumen', 'evidencia', 'accion_prioritaria']
         }
       },
       max_tokens: 400,
-      temperature: 0.3 // 🔥 Temperatura óptima para análisis estructurado no robótico
+      temperature: 0.3 
     });
 
     finalInsight = parseInsightResponse(result);
-    
-    if (!finalInsight || !finalInsight.evidencia || !finalInsight.accion_prioritaria) {
-      throw new Error('Estructura JSON incompleta.');
-    }
+    if (!finalInsight || !finalInsight.evidencia || !finalInsight.accion_prioritaria) throw new Error('Estructura JSON incompleta.');
     aiGeneradoExitosamente = true;
 
   } catch (err) {
     console.error(`[IA-ERROR]`, err.message);
-    // 🚀 LENGUAJE DE PRODUCTO, NO DE SERVIDOR
     finalInsight = {
-      resumen: "El análisis automático no está disponible en este momento.",
-      evidencia: "El motor de inteligencia está sincronizando datos con la red.",
-      accion_prioritaria: "Utilice los KPIs del panel inferior mientras se restablece el servicio estratégico."
+      resumen: "El análisis estratégico tomará unos minutos más debido a la alta carga en el motor de Inteligencia Artificial.",
+      evidencia: "Sus métricas operativas y finanzas están al 100% actualizadas.",
+      accion_prioritaria: "Proceda operando su embudo. El insight aparecerá automáticamente en su próxima visita."
     };
   }
 
@@ -110,9 +103,7 @@ REGLAS ESTRICTAS:
         contenido: finalInsight,
         generado_en: new Date().toISOString()
       }, { onConflict: 'broker_id, tipo' });
-    } catch (err) {
-      console.error('[IA-DB-ERROR]', err.message);
-    }
+    } catch (err) { console.error('[IA-DB-ERROR]', err.message); }
   }
   return finalInsight;
 }
@@ -150,12 +141,11 @@ export const load = async ({ locals, platform }) => {
     if (typeof insightLimpio === 'string') try { insightLimpio = JSON.parse(insightLimpio); } catch(e) {}
     
     if (insightLimpio && typeof insightLimpio === 'object') {
-      const isFallback = !insightLimpio.evidencia || (insightLimpio.resumen && insightLimpio.resumen.includes('no está disponible'));
+      const isFallback = !insightLimpio.evidencia || (insightLimpio.resumen && insightLimpio.resumen.includes('tomará unos minutos'));
       if (isFallback || !insightLimpio.resumen) insightLimpio = null; 
     } else insightLimpio = null;
   }
 
-  // 🚀 ALINEACIÓN DE TIEMPO: Filtramos la data de la IA a 30 días para que coincida con el Frontend
   const limite30Dias = new Date(Date.now() - (30 * 86400000));
   const leads30d = safeLeads.filter(l => new Date(l.creado_en || l.created_at) >= limite30Dias);
   
@@ -203,8 +193,8 @@ export const load = async ({ locals, platform }) => {
     pctEn1h = Math.round((tiemposRespuesta.filter(t => t <= 1).length / tiemposRespuesta.length) * 100);
   }
 
-  const topCanalesArr = Object.values(fuentesMapa).sort((a, b) => b.total - a.total).slice(0, 2).map(c => `${c.nombre} (${c.total} leads)`).join(', ');
-  const topPropiedadArr = Object.values(propConteo).sort((a, b) => b.totalLeads - a.totalLeads)[0]?.titulo || 'Ninguna destacada';
+  const topCanalesArr = Object.values(fuentesMapa).sort((a, b) => b.total - a.total).slice(0, 2).map(c => `${c.nombre} (${c.total})`).join(', ');
+  const topPropiedadArr = Object.values(propConteo).sort((a, b) => b.totalLeads - a.totalLeads)[0]?.titulo || 'N/A';
 
   const metricasBackend = {
     velocidadMedia, pctEn1h, pipelineBruto, pipelineComision: Math.round(pipelineComision),
@@ -213,13 +203,21 @@ export const load = async ({ locals, platform }) => {
     topPropiedad: topPropiedadArr
   };
 
-  if (!insightLimpio) {
+  // 🚀 FIX ARQUITECTÓNICO: "Streaming de Promesas"
+  // Pasamos la promesa VIVA al frontend, SvelteKit la resuelve sin congelar la navegación.
+  let insightPromise;
+  if (insightLimpio) {
+    insightPromise = Promise.resolve(insightLimpio);
+  } else {
     const adminDb = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-    insightLimpio = await generarYGuardarInsight(adminDb, broker, metricasBackend, platform);
+    insightPromise = generarYGuardarInsight(adminDb, broker, metricasBackend, platform);
   }
 
   return {
-    broker, leads: safeLeads, propiedades: safeProps, 
-    insight: insightLimpio
+    broker, leads: safeLeads, propiedades: safeProps, metricas: metricasBackend,
+    // "lazy" indica a SvelteKit que NO bloquee la carga por esto
+    lazy: {
+      insight: insightPromise
+    }
   };
 };
