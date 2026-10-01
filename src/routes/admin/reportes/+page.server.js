@@ -10,54 +10,39 @@ const getValidDate = (dateStr, fallback = new Date()) => {
   return isNaN(d.getTime()) ? fallback : d;
 };
 
-// Estrategia de aislamiento: Un solo modelo ultra-estable
-const MODEL_ID = '@cf/meta/llama-3.1-8b-instruct';
+// 🚀 MODELO ACTUALIZADO FP8 (Octubre 2026)
+const MODEL_ID = '@cf/meta/llama-3.1-8b-instruct-fp8';
 
 function parseInsightResponse(result) {
-  // LOG ABSOLUTO: Vemos la radiografía de la respuesta
-  console.log('\n[RAW-CF-RESPONSE-START]');
-  console.log(JSON.stringify(result, null, 2));
-  console.log('[RAW-CF-RESPONSE-END]\n');
-
-  let rawString = '';
-  if (typeof result === 'string') rawString = result;
-  else if (result?.response) rawString = result.response;
-  else if (result?.result?.response) rawString = result.result.response;
-  else rawString = JSON.stringify(result);
-
+  const rawString = typeof result === 'string' ? result : (result?.response || result?.result?.response || JSON.stringify(result));
   const sinThinking = rawString.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
   const match = sinThinking.match(/\{[\s\S]*\}/);
   if (match) {
     try {
-      const parsed = JSON.parse(match[0]);
-      console.log('[STEP-AI] JSON Parseado con éxito:', parsed);
-      return parsed;
+      return JSON.parse(match[0]);
     } catch (e) {
-      console.error('[PARSE-ERROR] Regex extrajo esto pero no es JSON válido:', match[0]);
-      throw e;
+      throw new Error(`Regex extrajo texto pero no es JSON válido: ${match[0]}`);
     }
   }
-
   throw new Error('No se encontró estructura JSON en el payload.');
 }
 
+// Transformado a función que RETORNA el insight para bloquear el Load
 async function generarYGuardarInsight(adminDb, broker, metricasBase, platform) {
-  console.log(`[STEP-WAITUNTIL] Ejecutando Background Job. Context: ${!!platform?.context}, Ctx: ${!!platform?.ctx}`);
-  
   if (!platform?.env?.AI) {
-    console.error('[STEP-AI-FATAL] platform.env.AI no está inyectado en este entorno.');
-    return;
+    console.error('[IA-FATAL] Binding AI no encontrado.');
+    return null;
   }
 
-  const systemPrompt = `Eres el motor de inteligencia de negocios de Inmublia.
-Responde ÚNICAMENTE con un objeto JSON válido. Cero markdown, cero explicaciones.
+  const systemPrompt = `Eres el analista de Inmublia.
+Responde SOLO con JSON válido:
 {
-  "resumen": "Análisis ejecutivo de 2 líneas en español",
+  "resumen": "Análisis ejecutivo 2 líneas en español",
   "accion_prioritaria": "1 instrucción operativa concreta"
 }`;
 
-  const userPrompt = `Métricas: Pipeline $${metricasBase.pipelineValue}, Win Rate: ${metricasBase.tasaCierre}%, Leads Inactivos: ${metricasBase.leadsEstancados}, Conversión: ${metricasBase.proyeccionVentas}`;
+  const userPrompt = `Pipeline: $${metricasBase.pipelineValue}, Win Rate: ${metricasBase.tasaCierre}%, Inactivos: ${metricasBase.leadsEstancados}`;
 
   let finalInsight = null;
 
@@ -67,20 +52,20 @@ Responde ÚNICAMENTE con un objeto JSON válido. Cero markdown, cero explicacion
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      max_tokens: 250,
+      max_tokens: 200,
       temperature: 0.1
     });
 
     finalInsight = parseInsightResponse(result);
     
     if (!finalInsight.resumen || !finalInsight.accion_prioritaria) {
-      throw new Error('Faltan propiedades en el JSON.');
+      throw new Error('El JSON devuelto está incompleto.');
     }
   } catch (err) {
-    console.error(`[STEP-AI-ERROR] Falló la inferencia o el parseo:`, err.message);
+    console.error(`[IA-ERROR] Falló la inferencia:`, err.message);
     finalInsight = {
-      resumen: "El motor analítico experimentó un error de formato. Las métricas matemáticas están seguras.",
-      accion_prioritaria: "Recargue la página para reintentar la conexión neuronal."
+      resumen: "El motor analítico detectó latencia en la IA. Las métricas matemáticas están desplegadas correctamente.",
+      accion_prioritaria: "Proceda con su monitoreo habitual del embudo."
     };
   }
 
@@ -91,10 +76,12 @@ Responde ÚNICAMENTE con un objeto JSON válido. Cero markdown, cero explicacion
       contenido: finalInsight,
       generado_en: new Date().toISOString()
     }, { onConflict: 'broker_id, tipo' });
-    console.log('[STEP-DB] Upsert completado con éxito.');
   } catch (err) {
-    console.error('[STEP-DB-ERROR] Error al hacer upsert:', err.message);
+    console.error('[IA-DB-ERROR] Error al guardar caché:', err.message);
   }
+
+  // 🚀 CRÍTICO: Devolvemos el resultado para inyectarlo en el Load
+  return finalInsight;
 }
 
 export const load = async ({ locals, platform }) => {
@@ -105,7 +92,7 @@ export const load = async ({ locals, platform }) => {
     db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
   }
 
-  let query = db.from('brokers').select('id, nombre_comercial, comision_default, plan_suscripcion, avatar_url');
+  let query = db.from('brokers').select('id, nombre_comercial, comision_default');
   query = (locals.isImpersonating && locals.tenantId) ? query.eq('id', locals.tenantId) : query.eq('auth_user_id', locals.user.id);
 
   const { data: broker } = await query.single();
@@ -126,34 +113,24 @@ export const load = async ({ locals, platform }) => {
   const safeLeads = leadsRes.data || [];
   const safeProps = propsRes.data || [];
   
-  // 🚀 BUSTER DE CACHÉ ZOMBI
   let insightLimpio = null;
   if (insightRes.data && insightRes.data.contenido) {
     insightLimpio = insightRes.data.contenido;
     if (typeof insightLimpio === 'string') {
       try { insightLimpio = JSON.parse(insightLimpio); } catch(e) {}
     }
-    
-    // Validar si el caché actual es el mensaje de emergencia de un error previo
     if (insightLimpio && typeof insightLimpio === 'object') {
-      const isFallback = insightLimpio.resumen && insightLimpio.resumen.includes('error de formato');
-      if (isFallback || !insightLimpio.resumen) {
-        console.warn('[STEP-LOAD] Caché corrupto o de emergencia detectado. Forzando regeneración (Bust Cache).');
-        insightLimpio = null; 
-      }
+      const isFallback = insightLimpio.resumen && insightLimpio.resumen.includes('latencia en la IA');
+      if (isFallback || !insightLimpio.resumen) insightLimpio = null; 
     } else {
       insightLimpio = null;
     }
   }
 
   const leadsGanados = safeLeads.filter(l => l.estado?.toLowerCase().trim() === 'cerrado');
-  let proyeccionVentas = 0;
-  let leadsEstancados = 0;
-  let tiemposRespuesta = [];
+  let proyeccionVentas = 0, leadsEstancados = 0, tiemposRespuesta = [];
   const PROB_ETAPA = { 'nuevo': 0.05, 'contactado': 0.15, 'visita': 0.35, 'negociacion': 0.65 };
-  const fuentesMapa = {};
-  const propConteo = {};
-  const propiedadesUnicas = new Map();
+  const fuentesMapa = {}, propConteo = {}, propiedadesUnicas = new Map();
 
   safeLeads.forEach(l => {
     const est = (l.estado || 'nuevo').toLowerCase().trim();
@@ -162,7 +139,6 @@ export const load = async ({ locals, platform }) => {
     if (!['cerrado', 'descartado'].includes(est)) {
       proyeccionVentas += (precioProp * comisionRate * (PROB_ETAPA[est] || 0.05));
       if (l.propiedad_id && precioProp > 0) propiedadesUnicas.set(l.propiedad_id, precioProp);
-
       const diasInactivo = Math.floor((new Date() - getValidDate(l.ultima_actividad || l.creado_en || l.created_at)) / 86400000);
       if (diasInactivo > 15) leadsEstancados++;
     }
@@ -180,9 +156,7 @@ export const load = async ({ locals, platform }) => {
     
     if (est === 'cerrado') {
       fuentesMapa[f].cerrados++;
-      const precioCierre = l.precio_cierre || precioProp;
-      const pctCierre = l.comision_cierre ? (l.comision_cierre / 100) : comisionRate;
-      fuentesMapa[f].comision += precioCierre * pctCierre;
+      fuentesMapa[f].comision += (l.precio_cierre || precioProp) * (l.comision_cierre ? (l.comision_cierre / 100) : comisionRate);
     }
 
     if (l.propiedades) {
@@ -194,7 +168,6 @@ export const load = async ({ locals, platform }) => {
   });
 
   const pipelineValue = [...propiedadesUnicas.values()].reduce((sum, precio) => sum + (precio * comisionRate), 0);
-
   let velocidadMedia = null, pctEn1h = 0;
   if (tiemposRespuesta.length > 0) {
     tiemposRespuesta.sort((a, b) => a - b);
@@ -202,22 +175,17 @@ export const load = async ({ locals, platform }) => {
     pctEn1h = Math.round((tiemposRespuesta.filter(t => t <= 1).length / tiemposRespuesta.length) * 100);
   }
 
-  const fuentesROI = Object.values(fuentesMapa).map(f => ({ ...f, tasa: f.total > 0 ? (f.cerrados / f.total) * 100 : 0 })).sort((a, b) => b.tasa - a.tasa);
-  const rendimientoPropiedades = Object.values(propConteo).map(p => ({ ...p, tasa: p.totalLeads > 0 ? ((p.convertidos / p.totalLeads) * 100).toFixed(1) : '0.0' })).sort((a, b) => b.convertidos - a.convertidos || b.totalLeads - a.totalLeads).slice(0, 5);
-  const tasaCierreGral = safeLeads.length > 0 ? ((leadsGanados.length / safeLeads.length) * 100) : 0;
-
   const metricasBackend = {
     velocidadMedia, pctEn1h, pipelineValue: Math.round(pipelineValue), proyeccionVentas: Math.round(proyeccionVentas),
-    leadsEstancados, tasaCierre: tasaCierreGral.toFixed(1), fuentesROI, rendimientoPropiedades
+    leadsEstancados, tasaCierre: safeLeads.length > 0 ? ((leadsGanados.length / safeLeads.length) * 100).toFixed(1) : '0.0',
+    fuentesROI: Object.values(fuentesMapa).map(f => ({ ...f, tasa: f.total > 0 ? (f.cerrados / f.total) * 100 : 0 })).sort((a, b) => b.tasa - a.tasa),
+    rendimientoPropiedades: Object.values(propConteo).map(p => ({ ...p, tasa: p.totalLeads > 0 ? ((p.convertidos / p.totalLeads) * 100).toFixed(1) : '0.0' })).sort((a, b) => b.convertidos - a.convertidos || b.totalLeads - a.totalLeads).slice(0, 5)
   };
 
+  // 🚀 EL FIX PRINCIPAL: Await Bloqueante (Adiós waitUntil)
   if (!insightLimpio) {
     const adminDb = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-    const tareaIA = generarYGuardarInsight(adminDb, broker, metricasBackend, platform);
-    
-    if (platform?.context?.waitUntil) platform.context.waitUntil(tareaIA);
-    else if (platform?.ctx?.waitUntil) platform.ctx.waitUntil(tareaIA);
-    else tareaIA.catch(e => console.error("Worker IA fallback error:", e));
+    insightLimpio = await generarYGuardarInsight(adminDb, broker, metricasBackend, platform);
   }
 
   return {
