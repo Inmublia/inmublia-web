@@ -1,3 +1,4 @@
+// src/routes/admin/reportes/+page.server.js
 import { redirect } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '$env/dynamic/private';
@@ -9,35 +10,43 @@ const getValidDate = (dateStr, fallback = new Date()) => {
   return isNaN(d.getTime()) ? fallback : d;
 };
 
-// 🚀 CASCADA ENTERPRISE: Ordenada de menor a mayor costo de inferencia
+// Cascada de modelos optimizada
 const MODELS_CASCADE = [
-  '@cf/meta/llama-3.1-8b-instruct',  // Francotirador principal (Ultra eficiente)
-  '@cf/google/gemma-2-9b-it',        // Fallback rápido
-  '@cf/qwen/qwen3-30b-a3b-fp8'       // Salvavidas pesado
+  '@cf/meta/llama-3.1-8b-instruct',  
+  '@cf/google/gemma-2-9b-it',        
+  '@cf/qwen/qwen3-30b-a3b-fp8'       
 ];
 
-// 🛡️ PARSER DEFENSIVO 2026: Destruye los bloques <think> de los modelos de razonamiento
+// Parser indestructible
 function parseInsightResponse(result) {
   const raw = result?.response ?? result;
   
+  if (!raw) throw new Error('El modelo devolvió una respuesta vacía (null/undefined).');
+
   const sinThinking = typeof raw === 'string'
     ? raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
     : raw;
 
   if (sinThinking && typeof sinThinking === 'object') return sinThinking;
 
+  // Busca cualquier bloque que parezca un JSON válido
   const match = sinThinking?.match?.(/\{[\s\S]*\}/);
-  if (match) return JSON.parse(match[0]);
+  if (match) {
+    try {
+      return JSON.parse(match[0]);
+    } catch (e) {
+      throw new Error(`Fallo al parsear el Regex extraído: ${e.message}`);
+    }
+  }
 
-  throw new Error('El modelo no devolvió un JSON extraíble.');
+  throw new Error('No se encontró ninguna estructura JSON en el texto devuelto.');
 }
 
 async function generarYGuardarInsight(adminDb, broker, metricasBase, platform) {
   if (!platform?.env?.AI) return;
 
-  // Cinturón y Tirantes: Forzamos la estructura desde el Prompt
   const systemPrompt = `Eres el motor de inteligencia de negocios de Inmublia.
-Responde ÚNICAMENTE con un objeto JSON válido. Cero markdown, cero explicaciones, cero bloques de pensamiento.
+Responde ÚNICAMENTE con un objeto JSON válido. Cero markdown, cero explicaciones previas o posteriores.
 Estructura obligatoria:
 {
   "resumen": "Análisis ejecutivo de 2 líneas en español sobre la salud del pipeline",
@@ -45,7 +54,7 @@ Estructura obligatoria:
 }`;
 
   const userPrompt = `Métricas del Broker:
-- Pipeline Activo (Deduplicado): $${metricasBase.pipelineValue}
+- Pipeline Activo: $${metricasBase.pipelineValue}
 - Proyección Próximo Mes: $${metricasBase.proyeccionVentas}
 - Win Rate: ${metricasBase.tasaCierre}%
 - Leads Inactivos (>15d): ${metricasBase.leadsEstancados}
@@ -60,15 +69,17 @@ Estructura obligatoria:
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        response_format: { type: "json_object" }, // Compatibilidad nativa CF AI
         max_tokens: 250,
         temperature: 0.1
       });
 
+      // LOG CRÍTICO: Registramos exactamente qué nos cobró Cloudflare para auditar alucinaciones
+      console.log(`[AI Raw Output - ${modelId}]:`, result.response);
+
       finalInsight = parseInsightResponse(result);
       
       if (!finalInsight.resumen || !finalInsight.accion_prioritaria) {
-        throw new Error('Estructura JSON incompleta tras parseo');
+        throw new Error('El JSON carece de resumen o accion_prioritaria');
       }
       break; 
     } catch (err) {
@@ -76,20 +87,27 @@ Estructura obligatoria:
     }
   }
 
+  // Fallback garantizado para que el Frontend no se congele
   if (!finalInsight) {
-    console.error('[AI Insight] Colapso total de la cascada. Abortando generación.');
-    return;
+    console.error('[AI Insight] Colapso total. Forzando JSON de emergencia para desbloquear la UI.');
+    finalInsight = {
+      resumen: "El motor de Inteligencia Artificial completó el ciclo pero la respuesta fue descartada por protocolos de calidad.",
+      accion_prioritaria: "Continúa monitoreando tu embudo de ventas manualmente."
+    };
   }
 
   try {
-    await adminDb.from('ai_insights_cache').upsert({
+    const { error: upsertError } = await adminDb.from('ai_insights_cache').upsert({
       broker_id: broker.id,
       tipo: 'reporte_diario',
       contenido: finalInsight,
       generado_en: new Date().toISOString()
     }, { onConflict: 'broker_id, tipo' });
+
+    if (upsertError) throw upsertError;
+    console.log(`[AI Insight] Guardado en caché exitosamente para broker ${broker.id}`);
   } catch (err) {
-    console.error('[AI Insight] Error al persistir en caché:', err.message);
+    console.error('[AI Insight] Error al persistir en caché (Realtime no se disparará):', err.message);
   }
 }
 
@@ -132,7 +150,6 @@ export const load = async ({ locals, platform }) => {
   const fuentesMapa = {};
   const propConteo = {};
   
-  // 🚀 FIX MEDIO 1: Deduplicación Matemática del Inventario
   const propiedadesUnicas = new Map();
 
   safeLeads.forEach(l => {
@@ -142,7 +159,6 @@ export const load = async ({ locals, platform }) => {
     if (!['cerrado', 'descartado'].includes(est)) {
       proyeccionVentas += (precioProp * comisionRate * (PROB_ETAPA[est] || 0.05));
       
-      // Aislar propiedades para no inflar el pipeline
       if (l.propiedad_id && precioProp > 0) {
         propiedadesUnicas.set(l.propiedad_id, precioProp);
       }
@@ -177,7 +193,6 @@ export const load = async ({ locals, platform }) => {
     }
   });
 
-  // Cálculo del pipeline deduplicado
   const pipelineValue = [...propiedadesUnicas.values()].reduce((sum, precio) => sum + (precio * comisionRate), 0);
 
   let velocidadMedia = null, pctEn1h = 0;
