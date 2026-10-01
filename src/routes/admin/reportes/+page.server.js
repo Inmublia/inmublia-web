@@ -1,4 +1,3 @@
-// src/routes/admin/reportes/+page.server.js
 import { redirect } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '$env/dynamic/private';
@@ -19,7 +18,7 @@ function parseInsightResponse(result) {
   else if (result?.result?.response) rawString = result.result.response;
   else rawString = JSON.stringify(result);
 
-  if (typeof result === 'object' && result.resumen && result.evidencia) return result;
+  if (typeof result === 'object' && result.resumen) return result;
   if (typeof result?.response === 'object' && result.response.resumen) return result.response;
 
   const sinThinking = rawString.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -34,22 +33,21 @@ function parseInsightResponse(result) {
 }
 
 async function generarYGuardarInsight(adminDb, broker, metricasBase, platform) {
-  if (!platform?.env?.AI) return;
+  if (!platform?.env?.AI) return null;
 
   const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
   const aiStart = Date.now();
 
-  const systemPrompt = `Eres el analista comercial senior de Inmublia.
-Tu trabajo NO es repetir las métricas. Identifica el principal cuello de botella comercial, explica por qué importa y conviértelo en una acción concreta.
+  // 🚀 EL NUEVO CEREBRO: Tono de Asesor/Coach Comercial
+  const systemPrompt = `Eres el Asesor Estratégico Senior (Coach Comercial) de Inmublia. 
+Tu objetivo es guiar al broker para que produzca más y cierre más tratos, entregando UN SOLO PÁRRAFO de consejo de alto valor.
 
-REGLAS:
-1. Usa únicamente los datos proporcionados.
-2. Nunca uses palabras como "saludable", "bajo", "alto", "bueno" o "malo" a menos que exista un umbral explícito.
-3. Menciona al menos DOS cifras concretas en tu evidencia.
-4. Identifica UN problema principal, no una lista genérica.
-5. La acción debe indicar QUÉ hacer, DÓNDE hacerlo y QUÉ métrica pretende mejorar.
-6. Evita frases vacías como "se requiere mejorar", "optimizar el proceso" o "dar seguimiento".
-7. CONSIDERACIÓN CRÍTICA: Considera siempre el tamaño de muestra. Cuando el volumen total de leads sea <= 5, menciona explícitamente el bajo tamaño de muestra y evita conclusiones categóricas o alarmistas.`;
+REGLAS ESTRICTAS:
+1. CERO REPETICIONES. Redacta un (1) único párrafo fluido, natural y motivador.
+2. Fusiona en ese párrafo: tu análisis, al menos DOS cifras exactas del contexto, y una recomendación clara.
+3. TONO DE MENTOR EXPERTO: Guía y recomienda, no des órdenes frías. Usa un lenguaje de apoyo corporativo como "Te sugiero enfocar", "Tu mejor oportunidad de cierre está en", "Para capitalizar esos leads, recomiendo...".
+4. CONSIDERACIÓN: Si hay muy pocos leads (<=5), enfoca tu consejo en captación y generación de volumen.
+5. Longitud máxima estricta: 50 palabras.`;
 
   const userPrompt = `MÉTRICAS (ÚLTIMOS 30 DÍAS):
 - Total de prospectos: ${metricasBase.totalLeads}
@@ -57,14 +55,14 @@ REGLAS:
 - Comisión Potencial (Neto esperado): ${formatter.format(metricasBase.pipelineComision)}
 - Win Rate (Conversión a Cierre): ${metricasBase.tasaCierre}%
 - Leads Estancados (>15 días sin toque): ${metricasBase.leadsEstancados}
-- Velocidad de Respuesta: ${metricasBase.velocidadMedia !== null ? metricasBase.velocidadMedia + ' hrs' : 'Sin datos suficientes'} (${metricasBase.pctEn1h}% en <1h)
+- Velocidad de Respuesta: ${metricasBase.velocidadMedia !== null ? metricasBase.velocidadMedia + ' hrs' : 'Sin datos'} (${metricasBase.pctEn1h}% en <1h)
 - Canales por Conversión Real: ${metricasBase.topCanales}
 - Propiedades por Conversión Real: ${metricasBase.topPropiedad}`;
 
   let finalInsight = null;
+  let aiGeneradoExitosamente = false;
 
   try {
-    console.log(`[IA-START] Lanzando inferencia 70B en background...`);
     const result = await platform.env.AI.run(MODEL_ID, {
       messages: [
         { role: 'system', content: systemPrompt },
@@ -75,36 +73,32 @@ REGLAS:
         json_schema: {
           type: 'object',
           properties: {
-            resumen: { type: 'string' },
-            evidencia: { type: 'string' },
-            accion_prioritaria: { type: 'string' }
+            resumen: { type: 'string', description: "Párrafo único de consejo comercial empático y basado en datos." }
           },
-          required: ['resumen', 'evidencia', 'accion_prioritaria']
+          required: ['resumen']
         }
       },
-      max_tokens: 450,
-      temperature: 0.3 
+      max_tokens: 250,
+      temperature: 0.35 
     });
 
-    console.log(`[IA-TIMING] Procesamiento completado en ${Date.now() - aiStart}ms`);
     finalInsight = parseInsightResponse(result);
-    
-    if (!finalInsight || !finalInsight.evidencia || !finalInsight.accion_prioritaria) {
-      throw new Error('Estructura JSON incompleta.');
-    }
-
-    // Solo guardamos si fue un éxito total. Si falla, no guardamos fallbacks falsos.
-    await adminDb.from('ai_insights_cache').upsert({
-      broker_id: broker.id,
-      tipo: 'reporte_diario',
-      contenido: finalInsight,
-      generado_en: new Date().toISOString()
-    }, { onConflict: 'broker_id, tipo' });
-    
-    console.log('[IA-SUCCESS] Insight guardado en DB exitosamente.');
+    if (!finalInsight || !finalInsight.resumen) throw new Error('Estructura JSON incompleta.');
+    aiGeneradoExitosamente = true;
 
   } catch (err) {
     console.error(`[IA-ERROR] Falló en ${Date.now() - aiStart}ms.`, err.message);
+  }
+
+  if (aiGeneradoExitosamente) {
+    try {
+      await adminDb.from('ai_insights_cache').upsert({
+        broker_id: broker.id,
+        tipo: 'reporte_diario',
+        contenido: finalInsight,
+        generado_en: new Date().toISOString()
+      }, { onConflict: 'broker_id, tipo' });
+    } catch (err) { console.error('[IA-DB-ERROR]', err.message); }
   }
 }
 
@@ -141,8 +135,11 @@ export const load = async ({ locals, platform }) => {
     if (typeof insightLimpio === 'string') try { insightLimpio = JSON.parse(insightLimpio); } catch(e) {}
     
     if (insightLimpio && typeof insightLimpio === 'object') {
-      const isFallback = !insightLimpio.evidencia || (insightLimpio.resumen && insightLimpio.resumen.includes('minutos'));
-      if (isFallback || !insightLimpio.resumen) insightLimpio = null; 
+      // Destructor del caché antiguo y robótico para forzar la nueva personalidad de Asesor
+      const isFallback = !insightLimpio.resumen || 
+                         insightLimpio.resumen.includes('analizando la red') || 
+                         insightLimpio.resumen.includes('minutos');
+      if (isFallback) insightLimpio = null; 
     } else insightLimpio = null;
   }
 
@@ -194,7 +191,6 @@ export const load = async ({ locals, platform }) => {
     pctEn1h = Math.round((tiemposRespuesta.filter(t => t <= 1).length / tiemposRespuesta.length) * 100);
   }
 
-  // 🚀 FIX: Matemáticas reales de conversión propuestas por el auditor
   const topCanalesArr = Object.values(fuentesMapa)
     .map(f => ({ nombre: f.nombre, leads: f.total, cierres: f.cerrados, conversion: f.total > 0 ? Number(((f.cerrados / f.total) * 100).toFixed(1)) : 0 }))
     .sort((a, b) => b.conversion !== a.conversion ? b.conversion - a.conversion : b.leads - a.leads)
@@ -213,7 +209,6 @@ export const load = async ({ locals, platform }) => {
     topCanales: topCanalesArr || 'Sin canales', topPropiedad: topPropiedadArr || 'N/A'
   };
 
-  // 🚀 ARQUITECTURA NO BLOQUEANTE: Usamos waitUntil
   let statusIA = insightLimpio ? 'ready' : 'loading';
 
   if (!insightLimpio && (platform?.context?.waitUntil || platform?.ctx?.waitUntil)) {
