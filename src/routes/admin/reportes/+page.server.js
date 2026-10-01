@@ -10,40 +10,83 @@ const getValidDate = (dateStr, fallback = new Date()) => {
   return isNaN(d.getTime()) ? fallback : d;
 };
 
+// 🚀 ARQUITECTURA ENTERPRISE 2026: Cascada Defensiva
+// Primera línea: Rápido y ultra-barato en neuronas. Última línea: Salvavidas pesado.
+const MODELS_CASCADE = [
+  '@cf/meta/llama-3.1-8b-instruct',
+  '@cf/google/gemma-4-9b-it',
+  '@cf/qwen/qwen3-30b-a3b-fp8'
+];
+
+// 🚀 JSON SCHEMA ESTRICTO: Constrained Decoding a nivel hardware
+const INSIGHT_SCHEMA = {
+  type: "object",
+  properties: {
+    resumen: { type: "string", description: "Análisis de 2 líneas de alto impacto directivo" },
+    accion_prioritaria: { type: "string", description: "1 instrucción operativa clara y específica" }
+  },
+  required: ["resumen", "accion_prioritaria"]
+};
+
 // Generador de IA No Bloqueante
 async function generarYGuardarInsight(supabase, broker, metricasBase, platform) {
-  try {
-    const prompt = `Actúa como un estratega ejecutivo de Real Estate SaaS. Analiza estas métricas:
+  if (!platform?.env?.AI) return;
+
+  const prompt = `Actúa como un estratega ejecutivo de Real Estate SaaS. Analiza estas métricas:
 - Pipeline Activo: $${metricasBase.pipelineValue}
 - Proyección Próximo Mes: $${metricasBase.proyeccionVentas}
 - Win Rate: ${metricasBase.tasaCierre}%
 - Leads Inactivos (>15d): ${metricasBase.leadsEstancados}
 - Velocidad Respuesta: ${metricasBase.velocidadMedia !== null ? metricasBase.velocidadMedia + 'h' : 'N/A'}
 
-Genera un JSON estricto con tono corporativo premium: {
-  "resumen": "análisis de 2 líneas de alto impacto directivo", 
-  "accion_prioritaria": "1 instrucción operativa clara y específica"
-}`;
+Genera tu análisis con tono corporativo premium.`;
 
-    if (!platform?.env?.AI) return;
+  let finalInsight = null;
 
-    const result = await platform.env.AI.run('@cf/qwen/qwen3-30b-a3b-fp8', {
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 300,
-      temperature: 0.2
-    });
+  // Bucle de supervivencia (Cascada)
+  for (const modelId of MODELS_CASCADE) {
+    try {
+      const result = await platform.env.AI.run(modelId, {
+        messages: [
+          { role: 'system', content: 'Eres el motor de inteligencia de negocios de Inmublia.' },
+          { role: 'user', content: prompt }
+        ],
+        // Bloqueo de alucinaciones: Solo permitimos tokens que construyan este JSON
+        response_format: {
+          type: "json_schema",
+          json_schema: INSIGHT_SCHEMA
+        },
+        max_tokens: 200, // Protegemos el Tier Free
+        temperature: 0.1 // Lógica estricta, cero creatividad literaria
+      });
 
-    const insight = JSON.parse(result.response);
+      finalInsight = JSON.parse(result.response);
+      
+      // Guardia de validación estructural
+      if (!finalInsight.resumen || !finalInsight.accion_prioritaria) {
+        throw new Error('Estructura JSON incompleta');
+      }
 
+      break; // Éxito: rompemos la cascada
+    } catch (err) {
+      console.warn(`[AI Fallback] ${modelId.split('/').pop()} falló:`, err.message);
+    }
+  }
+
+  if (!finalInsight) {
+    console.error('[AI Insight] Colapso total de la cascada. Abortando generación.');
+    return;
+  }
+
+  try {
     await supabase.from('ai_insights_cache').upsert({
       broker_id: broker.id,
       tipo: 'reporte_diario',
-      contenido: insight,
+      contenido: finalInsight,
       generado_en: new Date().toISOString()
     }, { onConflict: 'broker_id, tipo' });
-
   } catch (err) {
-    console.error('[AI Insight] Worker background error:', err.message);
+    console.error('[AI Insight] Error al persistir en caché:', err.message);
   }
 }
 
@@ -71,6 +114,7 @@ export const load = async ({ locals, platform }) => {
     db.from('ai_insights_cache').select('contenido, generado_en')
       .eq('broker_id', broker.id)
       .eq('tipo', 'reporte_diario')
+      // Caché de 24 horas: Cero gasto de neuronas si el broker solo navega
       .gte('generado_en', new Date(Date.now() - 86400000).toISOString())
       .maybeSingle()
   ]);
@@ -166,7 +210,7 @@ export const load = async ({ locals, platform }) => {
     rendimientoPropiedades
   };
 
-  // 4. Invocación de IA Stale-While-Revalidate
+  // 4. Invocación de IA Stale-While-Revalidate (Non-Blocking)
   if (!insightGuardado) {
     const tareaIA = generarYGuardarInsight(db, broker, metricasBackend, platform);
     
@@ -175,7 +219,7 @@ export const load = async ({ locals, platform }) => {
     } else if (platform?.ctx?.waitUntil) {
       platform.ctx.waitUntil(tareaIA);
     } else {
-      tareaIA.catch(e => console.error("Worker IA fallback:", e));
+      tareaIA.catch(e => console.error("Worker IA fallback error:", e));
     }
   }
 
