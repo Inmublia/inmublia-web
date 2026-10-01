@@ -38,7 +38,6 @@ async function generarYGuardarInsight(adminDb, broker, metricasBase, platform) {
   const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
   const aiStart = Date.now();
 
-  // 🚀 EL NUEVO CEREBRO: Tono de Asesor/Coach Comercial
   const systemPrompt = `Eres el Asesor Estratégico Senior (Coach Comercial) de Inmublia. 
 Tu objetivo es guiar al broker para que produzca más y cierre más tratos, entregando UN SOLO PÁRRAFO de consejo de alto valor.
 
@@ -108,7 +107,8 @@ export const load = async ({ locals, platform }) => {
   let db = locals.supabase;
   if (locals.isImpersonating) db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
-  let query = db.from('brokers').select('id, nombre_comercial, comision_default');
+  // 🚀 FIX: Restauramos el avatar_url y el plan_suscripcion para que no se rompa la barra lateral
+  let query = db.from('brokers').select('id, nombre_comercial, comision_default, avatar_url, plan_suscripcion');
   query = (locals.isImpersonating && locals.tenantId) ? query.eq('id', locals.tenantId) : query.eq('auth_user_id', locals.user.id);
 
   const { data: broker } = await query.single();
@@ -135,7 +135,6 @@ export const load = async ({ locals, platform }) => {
     if (typeof insightLimpio === 'string') try { insightLimpio = JSON.parse(insightLimpio); } catch(e) {}
     
     if (insightLimpio && typeof insightLimpio === 'object') {
-      // Destructor del caché antiguo y robótico para forzar la nueva personalidad de Asesor
       const isFallback = !insightLimpio.resumen || 
                          insightLimpio.resumen.includes('analizando la red') || 
                          insightLimpio.resumen.includes('minutos');
