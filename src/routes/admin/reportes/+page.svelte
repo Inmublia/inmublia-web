@@ -10,6 +10,7 @@
   let { data } = $props();
   let broker = $derived(data.broker || {});
   let leads = $derived(data.leads || []);
+  let metricas = $derived(data.metricas || {}); // 🚀 RESTAURADO Y A SALVO
 
   let comisionBroker = $derived((broker.comision_default || 5) / 100);
   const formatearDinero = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
@@ -58,6 +59,19 @@
   let totalLeads = $derived(leadsFiltrados.length);
   let leadsGanados = $derived(leadsFiltrados.filter(l => l.estado?.toLowerCase().trim() === 'cerrado'));
   let tasaCierre = $derived(totalLeads > 0 ? ((leadsGanados.length / totalLeads) * 100).toFixed(1) : '0.0');
+  
+  // Métrica calculada al vuelo de leads estancados para la UI reactiva
+  let leadsEstancadosUI = $derived.by(() => {
+    let estancados = 0;
+    leadsFiltrados.forEach(l => {
+      const est = (l.estado || 'nuevo').toLowerCase().trim();
+      if (!['cerrado', 'descartado'].includes(est)) {
+        const diasInactivo = Math.floor((new Date() - getValidDate(l.ultima_actividad || l.creado_en || l.created_at)) / 86400000);
+        if (diasInactivo > 15) estancados++;
+      }
+    });
+    return estancados;
+  });
 
   let pipelineValue = $derived(leadsFiltrados.reduce((acc, lead) => {
     const est = lead.estado?.toLowerCase().trim();
@@ -121,6 +135,45 @@
       }).length;
       return { ...etapa, count };
     });
+  });
+
+  // 🚀 FIX REACTIVO 1: Tabla de Canales ROI conectada al Filtro
+  let canalesROI = $derived.by(() => {
+    const mapa = {};
+    leadsFiltrados.forEach(l => {
+      const est = (l.estado || 'nuevo').toLowerCase().trim();
+      const f = (l.origen || l.fuente || 'Directo').trim();
+      if (!mapa[f]) mapa[f] = { nombre: f, total: 0, cerrados: 0, comision: 0 };
+      mapa[f].total++;
+      if (est === 'cerrado') {
+        mapa[f].cerrados++;
+        const precioProp = l.propiedades?.precio || 0;
+        const precioCierre = l.precio_cierre || precioProp;
+        const pct = l.comision_cierre ? (l.comision_cierre / 100) : comisionBroker;
+        mapa[f].comision += (precioCierre * pct);
+      }
+    });
+    return Object.values(mapa)
+      .map(c => ({ ...c, tasa: c.total > 0 ? (c.cerrados / c.total) * 100 : 0 }))
+      .sort((a, b) => b.tasa - a.tasa);
+  });
+
+  // 🚀 FIX REACTIVO 2: Tabla de Inventario conectada al Filtro
+  let topInventario = $derived.by(() => {
+    const conteo = {};
+    leadsFiltrados.forEach(l => {
+      const est = (l.estado || 'nuevo').toLowerCase().trim();
+      if (l.propiedades) {
+        const pId = l.propiedades.id;
+        if (!conteo[pId]) conteo[pId] = { titulo: l.propiedades.titulo, estatus: l.propiedades.estatus, totalLeads: 0, convertidos: 0 };
+        conteo[pId].totalLeads++;
+        if (est === 'cerrado') conteo[pId].convertidos++;
+      }
+    });
+    return Object.values(conteo)
+      .map(p => ({ ...p, tasa: p.totalLeads > 0 ? ((p.convertidos / p.totalLeads) * 100).toFixed(1) : '0.0' }))
+      .sort((a, b) => b.convertidos - a.convertidos || b.totalLeads - a.totalLeads)
+      .slice(0, 5);
   });
 
   let tendenciaComisionesMeses = $derived.by(() => {
@@ -260,8 +313,8 @@
   <main class="w-full flex-1 relative z-20 pt-4 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
 
-      <!-- 🚀 FIX: AWAIT NATIVO. La página carga instantáneo, solo esta caja espera a la IA -->
-      {#await data.lazy.insight}
+      <!-- 🚀 AWAIT DE LA PROMESA DE IA (STREAMING NATIVO) -->
+      {#await data.insight}
         <div class="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30 rounded-3xl p-6 sm:p-8 shadow-sm animate-pulse mb-6 flex items-center gap-4">
           <div class="bg-indigo-500/20 p-3.5 rounded-2xl shrink-0">
             <Cpu class="w-6 h-6 text-indigo-500" />
@@ -311,6 +364,12 @@
               </h3>
               <p class="text-xs font-medium text-slate-500 mt-1">Estructura acumulativa de embudo.</p>
             </div>
+            {#if leadsEstancadosUI > 0}
+              <div class="bg-rose-50 dark:bg-rose-500/10 px-4 py-2 rounded-xl border border-rose-100 dark:border-rose-500/20 flex items-center gap-2">
+                <AlertTriangle class="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                <span class="text-[10px] font-bold uppercase tracking-widest text-rose-700 dark:text-rose-400">{leadsEstancadosUI} Leads en Riesgo</span>
+              </div>
+            {/if}
           </div>
 
           <div class="space-y-5">
@@ -347,13 +406,13 @@
           </div>
 
           <div class="flex-1 overflow-auto pr-2 space-y-5 scrollbar-thin">
-            {#if !metricas.fuentesROI || metricas.fuentesROI.length === 0}
+            {#if !canalesROI || canalesROI.length === 0}
               <div class="h-full flex items-center justify-center opacity-50">
                 <p class="text-xs font-bold text-slate-500">Métricas insuficientes para análisis.</p>
               </div>
             {:else}
-              {#each metricas.fuentesROI as fuente}
-                {@const pctBar = (fuente.total / metricas.fuentesROI[0].total) * 100}
+              {#each canalesROI as fuente}
+                {@const pctBar = (fuente.total / canalesROI[0].total) * 100}
                 <div class="flex items-center gap-4">
                   <div class="w-28 shrink-0">
                     <span class="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate block" title={fuente.nombre}>{fuente.nombre}</span>
@@ -444,14 +503,14 @@
           </div>
 
           <div class="flex-1 overflow-auto pr-2 scrollbar-thin">
-            {#if !metricas.rendimientoPropiedades || metricas.rendimientoPropiedades.length === 0}
+            {#if !topInventario || topInventario.length === 0}
               <div class="h-full flex flex-col items-center justify-center text-center opacity-50 py-10">
                 <RefreshCw class="w-10 h-10 text-slate-400 mb-4" />
                 <p class="text-sm font-bold">Datos insuficientes para clasificación</p>
               </div>
             {:else}
               <div class="space-y-4">
-                {#each metricas.rendimientoPropiedades as prop, i}
+                {#each topInventario as prop, i}
                   <div class="flex items-center justify-between p-4 rounded-2xl border border-slate-100 dark:border-zinc-700/50 bg-slate-50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-800 transition-colors shadow-sm">
                     <div class="flex items-center gap-4 truncate pr-4">
                       <div class="w-8 h-8 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-600 font-black text-xs flex items-center justify-center shrink-0 shadow-sm">
