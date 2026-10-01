@@ -10,77 +10,117 @@ const getValidDate = (dateStr, fallback = new Date()) => {
   return isNaN(d.getTime()) ? fallback : d;
 };
 
-// 🚀 MODELO ACTUALIZADO FP8 (Octubre 2026)
-const MODEL_ID = '@cf/meta/llama-3.1-8b-instruct-fp8';
+// 🚀 EL MODELO OFICIAL PARA JSON MODE EN CLOUDFLARE (Oct 2026)
+const MODEL_ID = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 
 function parseInsightResponse(result) {
-  const rawString = typeof result === 'string' ? result : (result?.response || result?.result?.response || JSON.stringify(result));
-  const sinThinking = rawString.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  // 1. Trazabilidad Cruda (Para ver exactamente qué devolvió Cloudflare)
+  console.log('\n[RAW-CF-RESPONSE]');
+  console.log(JSON.stringify(result, null, 2));
+  console.log('-------------------\n');
 
-  const match = sinThinking.match(/\{[\s\S]*\}/);
-  if (match) {
-    try {
+  // 2. Extracción de respuesta dependiendo de la estructura del binding
+  let rawString = '';
+  if (typeof result === 'string') rawString = result;
+  else if (result?.response) rawString = result.response;
+  else if (result?.result?.response) rawString = result.result.response;
+  else rawString = JSON.stringify(result);
+
+  // Si el motor ya lo parseó por nosotros (algunos JSON Modes lo hacen nativamente)
+  if (typeof result === 'object' && result.resumen) return result;
+  if (typeof result?.response === 'object' && result.response.resumen) return result.response;
+
+  // 3. Limpieza de Markdown y Think Blocks
+  const sinThinking = rawString
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/```json/gi, '')
+    .replace(/```/g, '')
+    .trim();
+
+  try {
+    return JSON.parse(sinThinking);
+  } catch (e) {
+    // 4. Último recurso: Búsqueda con Regex por si hay texto alucinado alrededor
+    console.warn('[PARSE-WARN] Parse directo falló, intentando Regex...', e.message);
+    const match = sinThinking.match(/\{[\s\S]*\}/);
+    if (match) {
       return JSON.parse(match[0]);
-    } catch (e) {
-      throw new Error(`Regex extrajo texto pero no es JSON válido: ${match[0]}`);
     }
+    throw new Error('Imposible extraer un JSON válido del payload.');
   }
-  throw new Error('No se encontró estructura JSON en el payload.');
 }
 
-// Transformado a función que RETORNA el insight para bloquear el Load
 async function generarYGuardarInsight(adminDb, broker, metricasBase, platform) {
   if (!platform?.env?.AI) {
-    console.error('[IA-FATAL] Binding AI no encontrado.');
+    console.error('[IA-FATAL] Binding AI no expuesto en plataforma.');
     return null;
   }
 
-  const systemPrompt = `Eres el analista de Inmublia.
-Responde SOLO con JSON válido:
-{
-  "resumen": "Análisis ejecutivo 2 líneas en español",
-  "accion_prioritaria": "1 instrucción operativa concreta"
-}`;
+  const systemPrompt = `Eres el analista estratégico de Inmublia. 
+Analiza los datos y responde EXCLUSIVAMENTE con el JSON solicitado, sin explicaciones adicionales.`;
 
-  const userPrompt = `Pipeline: $${metricasBase.pipelineValue}, Win Rate: ${metricasBase.tasaCierre}%, Inactivos: ${metricasBase.leadsEstancados}`;
+  const userPrompt = `Métricas actuales: Pipeline Activo: $${metricasBase.pipelineValue}, Win Rate: ${metricasBase.tasaCierre}%, Leads Inactivos: ${metricasBase.leadsEstancados}`;
 
   let finalInsight = null;
+  let aiGeneradoExitosamente = false;
 
   try {
+    console.log(`[IA-START] Ejecutando ${MODEL_ID} en JSON Mode...`);
+    
     const result = await platform.env.AI.run(MODEL_ID, {
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      max_tokens: 200,
+      // 🚀 JSON SCHEMA ESTRICTO NATIVO DE CLOUDFLARE
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          type: 'object',
+          properties: {
+            resumen: { type: 'string' },
+            accion_prioritaria: { type: 'string' }
+          },
+          required: ['resumen', 'accion_prioritaria']
+        }
+      },
+      max_tokens: 350, // Aumentado para evitar truncado de respuesta
       temperature: 0.1
     });
 
     finalInsight = parseInsightResponse(result);
     
-    if (!finalInsight.resumen || !finalInsight.accion_prioritaria) {
-      throw new Error('El JSON devuelto está incompleto.');
+    if (!finalInsight || typeof finalInsight.resumen !== 'string') {
+      throw new Error('El JSON devuelto carece del esquema esperado.');
     }
+
+    aiGeneradoExitosamente = true;
+    console.log('[IA-SUCCESS] Insight generado y validado con éxito.');
+
   } catch (err) {
-    console.error(`[IA-ERROR] Falló la inferencia:`, err.message);
+    console.error(`[IA-ERROR] Falló la inferencia:`, err);
+    
     finalInsight = {
-      resumen: "El motor analítico detectó latencia en la IA. Las métricas matemáticas están desplegadas correctamente.",
-      accion_prioritaria: "Proceda con su monitoreo habitual del embudo."
+      resumen: "No fue posible generar el análisis automático en este momento por alta latencia en la red neuronal.",
+      accion_prioritaria: "Sus métricas matemáticas están seguras. Recargue la página en unos minutos."
     };
   }
 
-  try {
-    await adminDb.from('ai_insights_cache').upsert({
-      broker_id: broker.id,
-      tipo: 'reporte_diario',
-      contenido: finalInsight,
-      generado_en: new Date().toISOString()
-    }, { onConflict: 'broker_id, tipo' });
-  } catch (err) {
-    console.error('[IA-DB-ERROR] Error al guardar caché:', err.message);
+  // 🚀 PREVENCIÓN DE BUCLE: Solo guardamos en base de datos si fue un éxito real
+  if (aiGeneradoExitosamente) {
+    try {
+      await adminDb.from('ai_insights_cache').upsert({
+        broker_id: broker.id,
+        tipo: 'reporte_diario',
+        contenido: finalInsight,
+        generado_en: new Date().toISOString()
+      }, { onConflict: 'broker_id, tipo' });
+      console.log('[IA-DB] Caché guardado correctamente en Supabase.');
+    } catch (err) {
+      console.error('[IA-DB-ERROR] Error al guardar caché en base de datos:', err.message);
+    }
   }
 
-  // 🚀 CRÍTICO: Devolvemos el resultado para inyectarlo en el Load
   return finalInsight;
 }
 
@@ -113,15 +153,21 @@ export const load = async ({ locals, platform }) => {
   const safeLeads = leadsRes.data || [];
   const safeProps = propsRes.data || [];
   
+  // 🚀 CACHE BUSTER (Destructor de fallos previos)
   let insightLimpio = null;
   if (insightRes.data && insightRes.data.contenido) {
     insightLimpio = insightRes.data.contenido;
     if (typeof insightLimpio === 'string') {
       try { insightLimpio = JSON.parse(insightLimpio); } catch(e) {}
     }
+    
     if (insightLimpio && typeof insightLimpio === 'object') {
-      const isFallback = insightLimpio.resumen && insightLimpio.resumen.includes('latencia en la IA');
-      if (isFallback || !insightLimpio.resumen) insightLimpio = null; 
+      // Si por error se había guardado un mensaje de fallo anteriormente, lo destruimos.
+      const isFallback = insightLimpio.resumen && (insightLimpio.resumen.includes('error de formato') || insightLimpio.resumen.includes('latencia'));
+      if (isFallback || !insightLimpio.resumen) {
+        console.log('[LOAD] Caché zombi detectado y destruido.');
+        insightLimpio = null; 
+      }
     } else {
       insightLimpio = null;
     }
@@ -182,7 +228,6 @@ export const load = async ({ locals, platform }) => {
     rendimientoPropiedades: Object.values(propConteo).map(p => ({ ...p, tasa: p.totalLeads > 0 ? ((p.convertidos / p.totalLeads) * 100).toFixed(1) : '0.0' })).sort((a, b) => b.convertidos - a.convertidos || b.totalLeads - a.totalLeads).slice(0, 5)
   };
 
-  // 🚀 EL FIX PRINCIPAL: Await Bloqueante (Adiós waitUntil)
   if (!insightLimpio) {
     const adminDb = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
     insightLimpio = await generarYGuardarInsight(adminDb, broker, metricasBackend, platform);
