@@ -34,33 +34,37 @@ function parseInsightResponse(result) {
 }
 
 async function generarYGuardarInsight(adminDb, broker, metricasBase, platform) {
-  if (!platform?.env?.AI) return null;
+  if (!platform?.env?.AI) return;
 
   const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+  const aiStart = Date.now();
 
-  const systemPrompt = `Eres el Director Estratégico Comercial (CSO) de Inmublia.
-Tu trabajo es identificar el principal cuello de botella comercial de los ÚLTIMOS 30 DÍAS, explicar por qué importa y dictar una acción concreta.
+  const systemPrompt = `Eres el analista comercial senior de Inmublia.
+Tu trabajo NO es repetir las métricas. Identifica el principal cuello de botella comercial, explica por qué importa y conviértelo en una acción concreta.
 
-REGLAS ESTRICTAS:
+REGLAS:
 1. Usa únicamente los datos proporcionados.
-2. NUNCA uses adjetivos vacíos ("saludable", "bajo", "bueno") a menos que cites la métrica exacta.
-3. Menciona al menos DOS cifras concretas en tu justificación (evidencia).
-4. La 'accion_prioritaria' debe indicar QUÉ hacer, DÓNDE hacerlo y QUÉ MÉTRICA mejorar.
-5. Evita obviedades. El resumen debe sonar a estrategia directiva de alto nivel.`;
+2. Nunca uses palabras como "saludable", "bajo", "alto", "bueno" o "malo" a menos que exista un umbral explícito.
+3. Menciona al menos DOS cifras concretas en tu evidencia.
+4. Identifica UN problema principal, no una lista genérica.
+5. La acción debe indicar QUÉ hacer, DÓNDE hacerlo y QUÉ métrica pretende mejorar.
+6. Evita frases vacías como "se requiere mejorar", "optimizar el proceso" o "dar seguimiento".
+7. CONSIDERACIÓN CRÍTICA: Considera siempre el tamaño de muestra. Cuando el volumen total de leads sea <= 5, menciona explícitamente el bajo tamaño de muestra y evita conclusiones categóricas o alarmistas.`;
 
   const userPrompt = `MÉTRICAS (ÚLTIMOS 30 DÍAS):
-- Inventario en Negociación: ${formatter.format(metricasBase.pipelineBruto)}
-- Comisión Potencial: ${formatter.format(metricasBase.pipelineComision)}
-- Win Rate: ${metricasBase.tasaCierre}%
-- Leads Estancados (>15 días): ${metricasBase.leadsEstancados}
-- Velocidad de Respuesta: ${metricasBase.velocidadMedia !== null ? metricasBase.velocidadMedia + ' hrs' : 'N/A'} (${metricasBase.pctEn1h}% en <1h)
-- Mejores Canales: ${metricasBase.topCanales}
-- Propiedad más caliente: ${metricasBase.topPropiedad}`;
+- Total de prospectos: ${metricasBase.totalLeads}
+- Inventario en Negociación (Gross): ${formatter.format(metricasBase.pipelineBruto)}
+- Comisión Potencial (Neto esperado): ${formatter.format(metricasBase.pipelineComision)}
+- Win Rate (Conversión a Cierre): ${metricasBase.tasaCierre}%
+- Leads Estancados (>15 días sin toque): ${metricasBase.leadsEstancados}
+- Velocidad de Respuesta: ${metricasBase.velocidadMedia !== null ? metricasBase.velocidadMedia + ' hrs' : 'Sin datos suficientes'} (${metricasBase.pctEn1h}% en <1h)
+- Canales por Conversión Real: ${metricasBase.topCanales}
+- Propiedades por Conversión Real: ${metricasBase.topPropiedad}`;
 
   let finalInsight = null;
-  let aiGeneradoExitosamente = false;
 
   try {
+    console.log(`[IA-START] Lanzando inferencia 70B en background...`);
     const result = await platform.env.AI.run(MODEL_ID, {
       messages: [
         { role: 'system', content: systemPrompt },
@@ -78,34 +82,30 @@ REGLAS ESTRICTAS:
           required: ['resumen', 'evidencia', 'accion_prioritaria']
         }
       },
-      max_tokens: 400,
+      max_tokens: 450,
       temperature: 0.3 
     });
 
+    console.log(`[IA-TIMING] Procesamiento completado en ${Date.now() - aiStart}ms`);
     finalInsight = parseInsightResponse(result);
-    if (!finalInsight || !finalInsight.evidencia || !finalInsight.accion_prioritaria) throw new Error('Estructura JSON incompleta.');
-    aiGeneradoExitosamente = true;
+    
+    if (!finalInsight || !finalInsight.evidencia || !finalInsight.accion_prioritaria) {
+      throw new Error('Estructura JSON incompleta.');
+    }
+
+    // Solo guardamos si fue un éxito total. Si falla, no guardamos fallbacks falsos.
+    await adminDb.from('ai_insights_cache').upsert({
+      broker_id: broker.id,
+      tipo: 'reporte_diario',
+      contenido: finalInsight,
+      generado_en: new Date().toISOString()
+    }, { onConflict: 'broker_id, tipo' });
+    
+    console.log('[IA-SUCCESS] Insight guardado en DB exitosamente.');
 
   } catch (err) {
-    console.error(`[IA-ERROR]`, err.message);
-    finalInsight = {
-      resumen: "El análisis estratégico tomará unos minutos más debido a la alta carga en el motor de Inteligencia Artificial.",
-      evidencia: "Sus métricas operativas y finanzas están al 100% actualizadas.",
-      accion_prioritaria: "Proceda operando su embudo. El insight aparecerá automáticamente en su próxima visita."
-    };
+    console.error(`[IA-ERROR] Falló en ${Date.now() - aiStart}ms.`, err.message);
   }
-
-  if (aiGeneradoExitosamente) {
-    try {
-      await adminDb.from('ai_insights_cache').upsert({
-        broker_id: broker.id,
-        tipo: 'reporte_diario',
-        contenido: finalInsight,
-        generado_en: new Date().toISOString()
-      }, { onConflict: 'broker_id, tipo' });
-    } catch (err) { console.error('[IA-DB-ERROR]', err.message); }
-  }
-  return finalInsight;
 }
 
 export const load = async ({ locals, platform }) => {
@@ -141,15 +141,15 @@ export const load = async ({ locals, platform }) => {
     if (typeof insightLimpio === 'string') try { insightLimpio = JSON.parse(insightLimpio); } catch(e) {}
     
     if (insightLimpio && typeof insightLimpio === 'object') {
-      const isFallback = !insightLimpio.evidencia || (insightLimpio.resumen && insightLimpio.resumen.includes('tomará unos minutos'));
+      const isFallback = !insightLimpio.evidencia || (insightLimpio.resumen && insightLimpio.resumen.includes('minutos'));
       if (isFallback || !insightLimpio.resumen) insightLimpio = null; 
     } else insightLimpio = null;
   }
 
-  // Pre-cálculo exclusivo para alimentar a la IA (30 días fijos)
   const limite30Dias = new Date(Date.now() - (30 * 86400000));
   const leads30d = safeLeads.filter(l => new Date(l.creado_en || l.created_at) >= limite30Dias);
   const leadsGanados = leads30d.filter(l => l.estado?.toLowerCase().trim() === 'cerrado');
+  
   let pipelineBruto = 0, pipelineComision = 0, leadsEstancados = 0, tiemposRespuesta = [];
   const PROB_ETAPA = { 'nuevo': 0.05, 'contactado': 0.15, 'visita': 0.35, 'negociacion': 0.65 };
   const fuentesMapa = {}, propConteo = {}, propiedadesUnicas = new Map();
@@ -173,14 +173,15 @@ export const load = async ({ locals, platform }) => {
     }
 
     const f = (l.origen || l.fuente || 'Directo').trim();
-    if (!fuentesMapa[f]) fuentesMapa[f] = { nombre: f, total: 0, cerrados: 0, comision: 0 };
+    if (!fuentesMapa[f]) fuentesMapa[f] = { nombre: f, total: 0, cerrados: 0 };
     fuentesMapa[f].total++;
     if (est === 'cerrado') fuentesMapa[f].cerrados++;
     
     if (l.propiedades) {
       const pId = l.propiedades.id;
-      if (!propConteo[pId]) propConteo[pId] = { titulo: l.propiedades.titulo, totalLeads: 0 };
+      if (!propConteo[pId]) propConteo[pId] = { titulo: l.propiedades.titulo, totalLeads: 0, convertidos: 0 };
       propConteo[pId].totalLeads++;
+      if (est === 'cerrado') propConteo[pId].convertidos++;
     }
   });
 
@@ -193,31 +194,38 @@ export const load = async ({ locals, platform }) => {
     pctEn1h = Math.round((tiemposRespuesta.filter(t => t <= 1).length / tiemposRespuesta.length) * 100);
   }
 
-  const topCanalesArr = Object.values(fuentesMapa).sort((a, b) => b.total - a.total).slice(0, 2).map(c => `${c.nombre} (${c.total})`).join(', ');
-  const topPropiedadArr = Object.values(propConteo).sort((a, b) => b.totalLeads - a.totalLeads)[0]?.titulo || 'N/A';
+  // 🚀 FIX: Matemáticas reales de conversión propuestas por el auditor
+  const topCanalesArr = Object.values(fuentesMapa)
+    .map(f => ({ nombre: f.nombre, leads: f.total, cierres: f.cerrados, conversion: f.total > 0 ? Number(((f.cerrados / f.total) * 100).toFixed(1)) : 0 }))
+    .sort((a, b) => b.conversion !== a.conversion ? b.conversion - a.conversion : b.leads - a.leads)
+    .slice(0, 3)
+    .map(c => `${c.nombre} (Leads: ${c.leads}, Conversión: ${c.conversion}%)`).join(' | ');
+
+  const topPropiedadArr = Object.values(propConteo)
+    .map(p => ({ titulo: p.titulo, leads: p.totalLeads, conversion: p.totalLeads > 0 ? Number(((p.convertidos / p.totalLeads) * 100).toFixed(1)) : 0 }))
+    .sort((a, b) => b.leads - a.leads)
+    .slice(0, 2)
+    .map(p => `${p.titulo} (Leads: ${p.leads}, Conversión: ${p.conversion}%)`).join(' | ');
 
   const metricasBackend = {
-    velocidadMedia, pctEn1h, pipelineBruto, pipelineComision: Math.round(pipelineComision),
+    totalLeads: leads30d.length, velocidadMedia, pctEn1h, pipelineBruto, pipelineComision: Math.round(pipelineComision),
     leadsEstancados, tasaCierre: leads30d.length > 0 ? ((leadsGanados.length / leads30d.length) * 100).toFixed(1) : '0.0',
-    topCanales: topCanalesArr || 'Sin canales',
-    topPropiedad: topPropiedadArr
+    topCanales: topCanalesArr || 'Sin canales', topPropiedad: topPropiedadArr || 'N/A'
   };
 
-  // 🚀 SvelteKit Streaming: Retornamos la promesa al vuelo
-  let insightPromise;
-  if (insightLimpio) {
-    insightPromise = Promise.resolve(insightLimpio);
-  } else {
+  // 🚀 ARQUITECTURA NO BLOQUEANTE: Usamos waitUntil
+  let statusIA = insightLimpio ? 'ready' : 'loading';
+
+  if (!insightLimpio && (platform?.context?.waitUntil || platform?.ctx?.waitUntil)) {
     const adminDb = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-    insightPromise = generarYGuardarInsight(adminDb, broker, metricasBackend, platform);
+    const job = generarYGuardarInsight(adminDb, broker, metricasBackend, platform);
+    if (platform?.context?.waitUntil) platform.context.waitUntil(job);
+    else platform.ctx.waitUntil(job);
   }
 
   return {
-    broker, 
-    leads: safeLeads, 
-    propiedades: safeProps, 
-    // Restablecemos metricasBackend general para evitar que explote si llegara a usarse por accidente
-    metricas: metricasBackend, 
-    insight: insightPromise // SvelteKit resuelve esto asíncronamente en el {#await}
+    broker, leads: safeLeads, propiedades: safeProps, metricas: metricasBackend,
+    insightStatus: statusIA,
+    insight: insightLimpio 
   };
 };
