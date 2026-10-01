@@ -1,5 +1,6 @@
 <!-- src/routes/admin/reportes/+page.svelte -->
 <script>
+  import { onMount, onDestroy } from 'svelte';
   import { 
     TrendingUp, TrendingDown, Activity, BarChart3, RefreshCw, LineChart, PieChart, Building2,
     CheckCircle2, Timer, Target, AlertTriangle, Cpu, Download, ArrowRightCircle, ListChecks
@@ -10,9 +11,15 @@
   let { data } = $props();
   let broker = $derived(data.broker || {});
   let leads = $derived(data.leads || []);
-  let metricas = $derived(data.metricas || {}); // 🚀 RESTAURADO Y A SALVO
+  let metricas = $derived(data.metricas || {});
 
-  let comisionBroker = $derived((broker.comision_default || 5) / 100);
+  // 🚀 ESTADO Y POLLING PARA IA
+  let insight = $state(data.insight);
+  let isAiLoading = $state(data.insightStatus === 'loading');
+  let pollInterval;
+  let failSafeTimeout;
+
+  const comisionBroker = $derived((broker.comision_default || 5) / 100);
   const formatearDinero = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
 
   const getValidDate = (dateStr, fallback = new Date()) => {
@@ -59,8 +66,7 @@
   let totalLeads = $derived(leadsFiltrados.length);
   let leadsGanados = $derived(leadsFiltrados.filter(l => l.estado?.toLowerCase().trim() === 'cerrado'));
   let tasaCierre = $derived(totalLeads > 0 ? ((leadsGanados.length / totalLeads) * 100).toFixed(1) : '0.0');
-  
-  // Métrica calculada al vuelo de leads estancados para la UI reactiva
+
   let leadsEstancadosUI = $derived.by(() => {
     let estancados = 0;
     leadsFiltrados.forEach(l => {
@@ -137,7 +143,6 @@
     });
   });
 
-  // 🚀 FIX REACTIVO 1: Tabla de Canales ROI conectada al Filtro
   let canalesROI = $derived.by(() => {
     const mapa = {};
     leadsFiltrados.forEach(l => {
@@ -158,7 +163,6 @@
       .sort((a, b) => b.tasa - a.tasa);
   });
 
-  // 🚀 FIX REACTIVO 2: Tabla de Inventario conectada al Filtro
   let topInventario = $derived.by(() => {
     const conteo = {};
     leadsFiltrados.forEach(l => {
@@ -204,6 +208,40 @@
   });
 
   function imprimirReporte() { window.print(); }
+
+  // 🚀 LÓGICA DE POLLING (Silencioso y Seguro)
+  onMount(() => {
+    if (isAiLoading && broker.id) {
+      pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/admin/reportes/insight?broker_id=${broker.id}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.ready && json.insight) {
+              insight = json.insight;
+              isAiLoading = false;
+              clearInterval(pollInterval);
+            }
+          }
+        } catch (e) {
+          console.error("Error consultando IA:", e);
+        }
+      }, 3000); // Preguntamos cada 3 segundos
+
+      // Si Cloudflare falló por debajo y nunca guardó nada, paramos de preguntar a los 40s
+      failSafeTimeout = setTimeout(() => {
+        if (isAiLoading) {
+          clearInterval(pollInterval);
+          isAiLoading = false;
+        }
+      }, 40000);
+    }
+  });
+
+  onDestroy(() => {
+    if (pollInterval) clearInterval(pollInterval);
+    if (failSafeTimeout) clearTimeout(failSafeTimeout);
+  });
 </script>
 
 <div class="fixed inset-0 w-screen h-screen bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
@@ -313,46 +351,44 @@
   <main class="w-full flex-1 relative z-20 pt-4 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
 
-      <!-- 🚀 AWAIT DE LA PROMESA DE IA (STREAMING NATIVO) -->
-      {#await data.insight}
-        <div class="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30 rounded-3xl p-6 sm:p-8 shadow-sm animate-pulse mb-6 flex items-center gap-4">
+      <!-- 🚀 LOADER REACTIVO BASADO EN POLLING -->
+      {#if isAiLoading}
+        <div class="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30 rounded-3xl p-6 sm:p-8 shadow-sm animate-pulse mb-6 flex items-center gap-4 transition-all">
           <div class="bg-indigo-500/20 p-3.5 rounded-2xl shrink-0">
             <Cpu class="w-6 h-6 text-indigo-500" />
           </div>
           <div>
-            <p class="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-2">Generando Inteligencia Estratégica AI...</p>
+            <p class="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-2">Motor Neuronal 70B Procesando...</p>
             <div class="h-3 bg-indigo-200/50 dark:bg-indigo-800/50 rounded-full w-48 mb-2"></div>
             <div class="h-2 bg-indigo-200/30 dark:bg-indigo-800/30 rounded-full w-32"></div>
           </div>
         </div>
-      {:then insight}
-        {#if insight && insight.accion_prioritaria}
-          <div class="bg-gradient-to-r from-slate-900 to-indigo-950 dark:from-zinc-900 dark:to-indigo-950 rounded-3xl p-6 sm:p-8 shadow-xl text-white mb-6 relative overflow-hidden border border-indigo-500/20">
-            <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mt-10 -mr-10 pointer-events-none"></div>
-            <div class="flex flex-col sm:flex-row items-start gap-5 relative z-10">
-              <div class="bg-indigo-500/20 p-3.5 rounded-2xl shrink-0 border border-indigo-500/30">
-                <Cpu class="w-6 h-6 text-indigo-300" />
-              </div>
-              <div class="flex-1">
-                <h3 class="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2 flex items-center gap-2">
-                  <span class="relative flex h-2 w-2">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                  </span>
-                  Sugerencia Estratégica AI
-                </h3>
-                <p class="text-lg sm:text-xl font-medium leading-snug text-white mb-2">{insight.accion_prioritaria}</p>
-                <p class="text-sm text-indigo-200/60 font-medium leading-relaxed">
-                  {insight.resumen} 
-                  {#if insight.evidencia} 
-                    <span class="opacity-75 block mt-1">• {insight.evidencia}</span> 
-                  {/if}
-                </p>
-              </div>
+      {:else if insight && insight.accion_prioritaria}
+        <div class="bg-gradient-to-r from-slate-900 to-indigo-950 dark:from-zinc-900 dark:to-indigo-950 rounded-3xl p-6 sm:p-8 shadow-xl text-white mb-6 relative overflow-hidden border border-indigo-500/20 animate-[fadeIn_0.5s_ease-out]">
+          <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mt-10 -mr-10 pointer-events-none"></div>
+          <div class="flex flex-col sm:flex-row items-start gap-5 relative z-10">
+            <div class="bg-indigo-500/20 p-3.5 rounded-2xl shrink-0 border border-indigo-500/30">
+              <Cpu class="w-6 h-6 text-indigo-300" />
+            </div>
+            <div class="flex-1">
+              <h3 class="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2 flex items-center gap-2">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                </span>
+                Sugerencia Estratégica AI
+              </h3>
+              <p class="text-lg sm:text-xl font-medium leading-snug text-white mb-2">{insight.accion_prioritaria}</p>
+              <p class="text-sm text-indigo-200/60 font-medium leading-relaxed">
+                {insight.resumen} 
+                {#if insight.evidencia} 
+                  <span class="opacity-75 block mt-1">• {insight.evidencia}</span> 
+                {/if}
+              </p>
             </div>
           </div>
-        {/if}
-      {/await}
+        </div>
+      {/if}
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
         
