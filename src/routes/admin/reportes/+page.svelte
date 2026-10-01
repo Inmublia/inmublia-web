@@ -221,7 +221,7 @@
             <h2 class="text-3xl font-black tracking-tighter text-slate-900 dark:text-white truncate">{metricas.velocidadMedia !== null ? `${metricas.velocidadMedia}h` : '--'}</h2>
             <p class="text-[10px] font-semibold text-slate-500 dark:text-zinc-500 mt-1">
               {#if metricas.pctEn1h !== undefined}
-                {metricas.pctEn1h}% respondidos en < 1h.
+                {metricas.pctEn1h}% respondidos en &lt; 1h.
               {:else}
                 Faltan datos de actividad
               {/if}
