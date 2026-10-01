@@ -1,226 +1,569 @@
-// src/routes/admin/reportes/+page.server.js
-import { redirect } from '@sveltejs/kit';
-import { createClient } from '@supabase/supabase-js';
-import { env } from '$env/dynamic/private';
-import { env as publicEnv } from '$env/dynamic/public';
+<script>
+  import { onMount, onDestroy } from 'svelte';
+  import { 
+    TrendingUp, TrendingDown, Activity, BarChart3, RefreshCw, LineChart, PieChart, Building2,
+    CheckCircle2, Timer, Target, AlertTriangle, Cpu, Download, ArrowRightCircle
+  } from 'lucide-svelte';
 
-const getValidDate = (dateStr, fallback = new Date()) => {
-  if (!dateStr) return fallback;
-  const d = new Date(dateStr);
-  return isNaN(d.getTime()) ? fallback : d;
-};
+  import PageHeader from '$lib/components/PageHeader.svelte';
 
-const MODEL_ID = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+  let { data } = $props();
+  let broker = $derived(data.broker || {});
+  let leads = $derived(data.leads || []);
+  let metricas = $derived(data.metricas || {});
 
-function parseInsightResponse(result) {
-  let rawString = '';
-  if (typeof result === 'string') rawString = result;
-  else if (result?.response) rawString = result.response;
-  else if (result?.result?.response) rawString = result.result.response;
-  else rawString = JSON.stringify(result);
+  let insight = $state(data.insight);
+  let isAiLoading = $state(data.insightStatus === 'loading');
+  let pollInterval;
+  let failSafeTimeout;
 
-  if (typeof result === 'object' && result.resumen) return result;
-  if (typeof result?.response === 'object' && result.response.resumen) return result.response;
+  const comisionBroker = $derived((broker.comision_default || 5) / 100);
+  const formatearDinero = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
 
-  const sinThinking = rawString.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```json/gi, '').replace(/```/g, '').trim();
+  const getValidDate = (dateStr, fallback = new Date()) => {
+    if (!dateStr) return fallback;
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? fallback : d;
+  };
 
-  try {
-    return JSON.parse(sinThinking);
-  } catch (e) {
-    const match = sinThinking.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error('Imposible extraer JSON válido.');
-  }
-}
-
-async function generarYGuardarInsight(adminDb, broker, metricasBase, platform) {
-  if (!platform?.env?.AI) return null;
-
-  const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
-  const aiStart = Date.now();
-
-  // 🚀 FIX QUIRÚRGICO: Prompt forzando un solo párrafo maestro
-  const systemPrompt = `Eres el Director Estratégico Comercial (CSO) de Inmublia.
-Tu trabajo es entregar UN SOLO PÁRRAFO de Inteligencia de Negocios de alto impacto.
-
-REGLAS ESTRICTAS:
-1. CERO REPETICIONES. Redacta un (1) único párrafo fluido y contundente.
-2. Fusiona en ese párrafo: el diagnóstico, al menos DOS cifras exactas de evidencia, y UNA acción táctica a ejecutar hoy.
-3. Tono directivo, afilado y ejecutivo. Ve directo al grano.
-4. CONSIDERACIÓN: Si hay muy pocos leads (<=5), no seas categórico con las tasas de conversión.
-5. Longitud máxima estricta: 50 palabras.`;
-
-  const userPrompt = `MÉTRICAS (ÚLTIMOS 30 DÍAS):
-- Total de prospectos: ${metricasBase.totalLeads}
-- Inventario en Negociación (Gross): ${formatter.format(metricasBase.pipelineBruto)}
-- Comisión Potencial (Neto esperado): ${formatter.format(metricasBase.pipelineComision)}
-- Win Rate (Conversión a Cierre): ${metricasBase.tasaCierre}%
-- Leads Estancados (>15 días sin toque): ${metricasBase.leadsEstancados}
-- Velocidad de Respuesta: ${metricasBase.velocidadMedia !== null ? metricasBase.velocidadMedia + ' hrs' : 'Sin datos suficientes'} (${metricasBase.pctEn1h}% en <1h)
-- Canales por Conversión Real: ${metricasBase.topCanales}
-- Propiedades por Conversión Real: ${metricasBase.topPropiedad}`;
-
-  let finalInsight = null;
-
-  try {
-    console.log(`[IA-START] Lanzando inferencia 70B en background...`);
-    const result = await platform.env.AI.run(MODEL_ID, {
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      // 🚀 FIX QUIRÚRGICO: Schema de un solo campo para evitar la repetición
-      response_format: {
-        type: 'json_schema',
-        json_schema: {
-          type: 'object',
-          properties: {
-            resumen: { type: 'string', description: "Párrafo único fusionando diagnóstico, métricas y acción." }
-          },
-          required: ['resumen']
-        }
-      },
-      max_tokens: 250,
-      temperature: 0.3 
-    });
-
-    console.log(`[IA-TIMING] Procesamiento completado en ${Date.now() - aiStart}ms`);
-    finalInsight = parseInsightResponse(result);
-    
-    if (!finalInsight || !finalInsight.resumen) {
-      throw new Error('Estructura JSON incompleta.');
-    }
-
-    await adminDb.from('ai_insights_cache').upsert({
-      broker_id: broker.id,
-      tipo: 'reporte_diario',
-      contenido: finalInsight,
-      generado_en: new Date().toISOString()
-    }, { onConflict: 'broker_id, tipo' });
-    
-    console.log('[IA-SUCCESS] Insight guardado en DB exitosamente.');
-
-  } catch (err) {
-    console.error(`[IA-ERROR] Falló en ${Date.now() - aiStart}ms.`, err.message);
-  }
-}
-
-export const load = async ({ locals, platform }) => {
-  if (!locals.user) throw redirect(303, '/login');
-
-  let db = locals.supabase;
-  if (locals.isImpersonating) db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-
-  let query = db.from('brokers').select('id, nombre_comercial, comision_default');
-  query = (locals.isImpersonating && locals.tenantId) ? query.eq('id', locals.tenantId) : query.eq('auth_user_id', locals.user.id);
-
-  const { data: broker } = await query.single();
-  if (!broker) throw redirect(303, '/login');
-
-  const comisionRate = (broker.comision_default || 5) / 100;
-
-  const [leadsRes, propsRes, insightRes] = await Promise.all([
-    db.from('leads').select('*, propiedades (*)').eq('broker_id', broker.id),
-    db.from('propiedades').select('*').eq('broker_id', broker.id),
-    db.from('ai_insights_cache').select('contenido, generado_en')
-      .eq('broker_id', broker.id)
-      .eq('tipo', 'reporte_diario')
-      .gte('generado_en', new Date(Date.now() - 86400000).toISOString())
-      .maybeSingle()
-  ]);
-
-  const safeLeads = leadsRes.data || [];
-  const safeProps = propsRes.data || [];
-  
-  let insightLimpio = null;
-  if (insightRes.data && insightRes.data.contenido) {
-    insightLimpio = insightRes.data.contenido;
-    if (typeof insightLimpio === 'string') try { insightLimpio = JSON.parse(insightLimpio); } catch(e) {}
-    
-    if (insightLimpio && typeof insightLimpio === 'object') {
-      const isFallback = !insightLimpio.resumen || insightLimpio.resumen.includes('analizando la red');
-      if (isFallback) insightLimpio = null; 
-    } else insightLimpio = null;
-  }
-
-  const limite30Dias = new Date(Date.now() - (30 * 86400000));
-  const leads30d = safeLeads.filter(l => new Date(l.creado_en || l.created_at) >= limite30Dias);
-  const leadsGanados = leads30d.filter(l => l.estado?.toLowerCase().trim() === 'cerrado');
-  
-  let pipelineBruto = 0, pipelineComision = 0, leadsEstancados = 0, tiemposRespuesta = [];
   const PROB_ETAPA = { 'nuevo': 0.05, 'contactado': 0.15, 'visita': 0.35, 'negociacion': 0.65 };
-  const fuentesMapa = {}, propConteo = {}, propiedadesUnicas = new Map();
 
-  leads30d.forEach(l => {
-    const est = (l.estado || 'nuevo').toLowerCase().trim();
-    const precioProp = l.propiedades?.precio || 0;
-    
-    if (!['cerrado', 'descartado'].includes(est)) {
-      if (l.propiedad_id && precioProp > 0) propiedadesUnicas.set(l.propiedad_id, precioProp);
-      pipelineComision += (precioProp * comisionRate * (PROB_ETAPA[est] || 0.05));
-      const diasInactivo = Math.floor((new Date() - getValidDate(l.ultima_actividad || l.creado_en || l.created_at)) / 86400000);
-      if (diasInactivo > 15) leadsEstancados++;
+  let periodoSeleccionado = $state('30');
+  let fechaInicioCustom = $state('');
+  let fechaFinCustom = $state('');
+
+  let labelPeriodo = $derived.by(() => {
+    if (periodoSeleccionado === 'all') return 'histórico';
+    if (periodoSeleccionado === 'mtd') return 'este mes';
+    if (periodoSeleccionado === 'last_month') return 'mes pasado';
+    if (periodoSeleccionado === 'custom') return 'periodo selec.';
+    return `últimos ${periodoSeleccionado} d.`;
+  });
+
+  let leadsFiltrados = $derived.by(() => {
+    if (periodoSeleccionado === 'all') return leads;
+    const hoy = new Date();
+    let limiteInicio, limiteFin = hoy;
+    if (periodoSeleccionado === '30') limiteInicio = new Date(hoy.getTime() - (30 * 86400000));
+    else if (periodoSeleccionado === '90') limiteInicio = new Date(hoy.getTime() - (90 * 86400000));
+    else if (periodoSeleccionado === 'mtd') limiteInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    else if (periodoSeleccionado === 'last_month') {
+      limiteInicio = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+      limiteFin = new Date(hoy.getFullYear(), hoy.getMonth(), 0, 23, 59, 59);
+    } else if (periodoSeleccionado === 'custom') {
+      if (!fechaInicioCustom || !fechaFinCustom) return leads;
+      limiteInicio = new Date(fechaInicioCustom + 'T00:00:00');
+      limiteFin = new Date(fechaFinCustom + 'T23:59:59');
     }
+    return leads.filter(l => {
+      const d = new Date(l.creado_en || l.created_at);
+      return d >= limiteInicio && d <= limiteFin;
+    });
+  });
 
-    const creacion = getValidDate(l.creado_en || l.created_at).getTime();
-    const ultimaAct = getValidDate(l.ultima_actividad).getTime();
-    if (ultimaAct > creacion) {
-      const horas = (ultimaAct - creacion) / (1000 * 60 * 60);
-      if (horas >= 0 && horas <= 720) tiemposRespuesta.push(horas);
+  let totalLeads = $derived(leadsFiltrados.length);
+  let leadsGanados = $derived(leadsFiltrados.filter(l => l.estado?.toLowerCase().trim() === 'cerrado'));
+  let tasaCierre = $derived(totalLeads > 0 ? ((leadsGanados.length / totalLeads) * 100).toFixed(1) : '0.0');
+
+  let leadsEstancadosUI = $derived.by(() => {
+    let estancados = 0;
+    leadsFiltrados.forEach(l => {
+      const est = (l.estado || 'nuevo').toLowerCase().trim();
+      if (!['cerrado', 'descartado'].includes(est)) {
+        const diasInactivo = Math.floor((new Date() - getValidDate(l.ultima_actividad || l.creado_en || l.created_at)) / 86400000);
+        if (diasInactivo > 15) estancados++;
+      }
+    });
+    return estancados;
+  });
+
+  let pipelineValue = $derived(leadsFiltrados.reduce((acc, lead) => {
+    const est = lead.estado?.toLowerCase().trim();
+    if (est !== 'descartado' && est !== 'cerrado' && lead.propiedades?.precio) {
+      return acc + (lead.propiedades.precio * comisionBroker);
     }
+    return acc;
+  }, 0));
 
-    const f = (l.origen || l.fuente || 'Directo').trim();
-    if (!fuentesMapa[f]) fuentesMapa[f] = { nombre: f, total: 0, cerrados: 0 };
-    fuentesMapa[f].total++;
-    if (est === 'cerrado') fuentesMapa[f].cerrados++;
-    
-    if (l.propiedades) {
-      const pId = l.propiedades.id;
-      if (!propConteo[pId]) propConteo[pId] = { titulo: l.propiedades.titulo, totalLeads: 0, convertidos: 0 };
-      propConteo[pId].totalLeads++;
-      if (est === 'cerrado') propConteo[pId].convertidos++;
+  let proyeccionVentas = $derived(leadsFiltrados.reduce((acc, lead) => {
+    const est = lead.estado?.toLowerCase().trim();
+    if (est !== 'descartado' && est !== 'cerrado' && lead.propiedades?.precio) {
+      return acc + (lead.propiedades.precio * comisionBroker * (PROB_ETAPA[est] || 0.05));
+    }
+    return acc;
+  }, 0));
+
+  let revenueWon = $derived.by(() => {
+    return leadsGanados.reduce((acc, lead) => {
+      const precioBase = lead.precio_cierre || lead.propiedades?.precio || 0;
+      const pct = lead.comision_cierre ? (lead.comision_cierre / 100) : comisionBroker;
+      return acc + (precioBase * pct);
+    }, 0);
+  });
+
+  let velocidadEstadisticas = $derived.by(() => {
+    let tiempos = [];
+    leadsFiltrados.forEach(l => {
+      const creacion = getValidDate(l.creado_en || l.created_at).getTime();
+      const ultimaAct = getValidDate(l.ultima_actividad).getTime();
+      if (ultimaAct > creacion) {
+        const horas = (ultimaAct - creacion) / (1000 * 60 * 60);
+        if (horas >= 0 && horas <= 720) tiempos.push(horas);
+      }
+    });
+    if (tiempos.length === 0) return { media: null, pctEn1h: 0 };
+    tiempos.sort((a, b) => a - b);
+    const media = Math.round(tiempos[Math.floor(tiempos.length / 2)] * 10) / 10;
+    const pct = Math.round((tiempos.filter(t => t <= 1).length / tiempos.length) * 100);
+    return { media, pctEn1h: pct };
+  });
+
+  let funnelAdvanced = $derived.by(() => {
+    const etapas = [
+      { id: 'nuevo', label: 'Prospectos Captados', color: '#6366F1' },
+      { id: 'contactado', label: 'Contactados', color: '#3B82F6' },
+      { id: 'visita', label: 'Visitas / Citas', color: '#8B5CF6' },
+      { id: 'negociacion', label: 'En Negociación', color: '#F59E0B' },
+      { id: 'cerrado', label: 'Cierres Ganados', color: '#10B981' }
+    ];
+    return etapas.map((etapa, i) => {
+      const count = leadsFiltrados.filter(l => {
+        const est = l.estado?.toLowerCase().trim();
+        if (est === 'descartado') return false;
+        if (i === 0) return true;
+        if (i === 1) return ['contactado', 'visita', 'negociacion', 'cerrado'].includes(est);
+        if (i === 2) return ['visita', 'negociacion', 'cerrado'].includes(est);
+        if (i === 3) return ['negociacion', 'cerrado'].includes(est);
+        if (i === 4) return est === 'cerrado';
+        return false;
+      }).length;
+      return { ...etapa, count };
+    });
+  });
+
+  let canalesROI = $derived.by(() => {
+    const mapa = {};
+    leadsFiltrados.forEach(l => {
+      const est = (l.estado || 'nuevo').toLowerCase().trim();
+      const f = (l.origen || l.fuente || 'Directo').trim();
+      if (!mapa[f]) mapa[f] = { nombre: f, total: 0, cerrados: 0, comision: 0 };
+      mapa[f].total++;
+      if (est === 'cerrado') {
+        mapa[f].cerrados++;
+        const precioProp = l.propiedades?.precio || 0;
+        const precioCierre = l.precio_cierre || precioProp;
+        const pct = l.comision_cierre ? (l.comision_cierre / 100) : comisionBroker;
+        mapa[f].comision += (precioCierre * pct);
+      }
+    });
+    return Object.values(mapa)
+      .map(c => ({ ...c, tasa: c.total > 0 ? (c.cerrados / c.total) * 100 : 0 }))
+      .sort((a, b) => b.tasa - a.tasa);
+  });
+
+  let topInventario = $derived.by(() => {
+    const conteo = {};
+    leadsFiltrados.forEach(l => {
+      const est = (l.estado || 'nuevo').toLowerCase().trim();
+      if (l.propiedades) {
+        const pId = l.propiedades.id;
+        if (!conteo[pId]) conteo[pId] = { titulo: l.propiedades.titulo, estatus: l.propiedades.estatus, totalLeads: 0, convertidos: 0 };
+        conteo[pId].totalLeads++;
+        if (est === 'cerrado') conteo[pId].convertidos++;
+      }
+    });
+    return Object.values(conteo)
+      .map(p => ({ ...p, tasa: p.totalLeads > 0 ? ((p.convertidos / p.totalLeads) * 100).toFixed(1) : '0.0' }))
+      .sort((a, b) => b.convertidos - a.convertidos || b.totalLeads - a.totalLeads)
+      .slice(0, 5);
+  });
+
+  let tendenciaComisionesMeses = $derived.by(() => {
+    const hoy = new Date();
+    const meses = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+      meses.push({ m: d.getMonth(), y: d.getFullYear(), label: d.toLocaleDateString('es-MX', { month: 'short' }).replace('.', ''), count: 0 });
+    }
+    leadsGanados.forEach(l => {
+      const d = new Date(l.actualizado_en || l.creado_en || l.created_at);
+      const match = meses.find(x => x.m === d.getMonth() && x.y === d.getFullYear());
+      if (match) {
+        const precioBase = l.precio_cierre || l.propiedades?.precio || 0;
+        const porcentaje = l.comision_cierre ? (l.comision_cierre / 100) : comisionBroker;
+        match.count += (precioBase * porcentaje);
+      }
+    });
+    const total6m = meses.reduce((sum, curr) => sum + curr.count, 0);
+    const promedio = (total6m / 6);
+    let mejorMes = meses[0];
+    meses.forEach(m => { if(m.count > mejorMes.count) mejorMes = m; });
+    const maxCount = Math.max(...meses.map(m => m.count), 1);
+    let tendPct = 0;
+    if (meses[4].count > 0) tendPct = ((meses[5].count - meses[4].count) / meses[4].count) * 100;
+    else if (meses[5].count > 0) tendPct = 100;
+    return { datos: meses, total: total6m, promedio, mejorMes, maxCount, tendencia: tendPct.toFixed(0) };
+  });
+
+  function imprimirReporte() { window.print(); }
+
+  onMount(() => {
+    if (isAiLoading && broker.id) {
+      pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/admin/reportes/insight?broker_id=${broker.id}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.ready && json.insight) {
+              insight = json.insight;
+              isAiLoading = false;
+              clearInterval(pollInterval);
+            }
+          }
+        } catch (e) {
+          console.error("Error consultando IA:", e);
+        }
+      }, 3000);
+
+      failSafeTimeout = setTimeout(() => {
+        if (isAiLoading) {
+          clearInterval(pollInterval);
+          isAiLoading = false;
+          insight = { resumen: "El análisis automático no está disponible en este momento. Utilice los KPIs en pantalla mientras se restablece el motor neuronal." };
+        }
+      }, 40000);
     }
   });
 
-  pipelineBruto = [...propiedadesUnicas.values()].reduce((sum, precio) => sum + precio, 0);
+  onDestroy(() => {
+    if (pollInterval) clearInterval(pollInterval);
+    if (failSafeTimeout) clearTimeout(failSafeTimeout);
+  });
+</script>
 
-  let velocidadMedia = null, pctEn1h = 0;
-  if (tiemposRespuesta.length > 0) {
-    tiemposRespuesta.sort((a, b) => a - b);
-    velocidadMedia = Math.round(tiemposRespuesta[Math.floor(tiemposRespuesta.length / 2)] * 10) / 10;
-    pctEn1h = Math.round((tiemposRespuesta.filter(t => t <= 1).length / tiemposRespuesta.length) * 100);
-  }
+<div class="fixed inset-0 w-screen h-screen bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
-  const topCanalesArr = Object.values(fuentesMapa)
-    .map(f => ({ nombre: f.nombre, leads: f.total, cierres: f.cerrados, conversion: f.total > 0 ? Number(((f.cerrados / f.total) * 100).toFixed(1)) : 0 }))
-    .sort((a, b) => b.conversion !== a.conversion ? b.conversion - a.conversion : b.leads - a.leads)
-    .slice(0, 3)
-    .map(c => `${c.nombre} (Leads: ${c.leads}, Conversión: ${c.conversion}%)`).join(' | ');
+<div class="w-full flex flex-col font-sans text-slate-900 dark:text-zinc-100 animate-[fadeIn_0.3s_ease-out] relative min-h-screen lg:h-screen lg:overflow-hidden">
+  
+  <div class="w-full shrink-0 flex flex-col relative z-30 pb-2 lg:pb-4 transition-colors duration-300 print:hidden">
+    <PageHeader title="Panel de Rendimiento" icon={LineChart}>
+      {#snippet subtitle()} Hub Analítico Inmublia {/snippet}
+      {#snippet actions()}
+        <div class="flex items-center gap-3">
+          {#if periodoSeleccionado === 'custom'}
+            <div class="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl px-3 py-2 shadow-sm animate-[fadeIn_0.2s_ease-out]">
+              <input type="date" bind:value={fechaInicioCustom} class="bg-transparent text-sm font-bold outline-none text-slate-700 dark:text-zinc-300">
+              <span class="text-slate-300">-</span>
+              <input type="date" bind:value={fechaFinCustom} class="bg-transparent text-sm font-bold outline-none text-slate-700 dark:text-zinc-300">
+            </div>
+          {/if}
+          
+          <div class="relative">
+            <select bind:value={periodoSeleccionado} class="appearance-none bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl pl-4 pr-10 py-2.5 text-sm font-bold shadow-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all cursor-pointer min-w-[170px] text-slate-700 dark:text-zinc-200">
+              <option value="30">Últimos 30 días</option>
+              <option value="mtd">Mes actual (MTD)</option>
+              <option value="last_month">Mes anterior</option>
+              <option value="90">Últimos 90 días</option>
+              <option value="all">Todo el historial</option>
+              <option value="custom">Personalizado...</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </div>
+          </div>
 
-  const topPropiedadArr = Object.values(propConteo)
-    .map(p => ({ titulo: p.titulo, leads: p.totalLeads, conversion: p.totalLeads > 0 ? Number(((p.convertidos / p.totalLeads) * 100).toFixed(1)) : 0 }))
-    .sort((a, b) => b.leads - a.leads)
-    .slice(0, 2)
-    .map(p => `${p.titulo} (Leads: ${p.leads}, Conversión: ${p.conversion}%)`).join(' | ');
+          <button onclick={imprimirReporte} class="bg-slate-900 hover:bg-slate-800 text-white p-2.5 rounded-xl shadow-md transition-all active:scale-95" title="Exportar PDF">
+            <Download class="w-5 h-5" />
+          </button>
+        </div>
+      {/snippet}
+    </PageHeader>
 
-  const metricasBackend = {
-    totalLeads: leads30d.length, velocidadMedia, pctEn1h, pipelineBruto, pipelineComision: Math.round(pipelineComision),
-    leadsEstancados, tasaCierre: leads30d.length > 0 ? ((leadsGanados.length / leads30d.length) * 100).toFixed(1) : '0.0',
-    topCanales: topCanalesArr || 'Sin canales', topPropiedad: topPropiedadArr || 'N/A'
-  };
+    <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 relative z-20 -mt-16">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        
+        <div class="bg-zinc-950 p-6 rounded-3xl shadow-md shadow-zinc-900/10 text-white relative overflow-hidden border border-zinc-800 flex flex-col justify-between transition-colors">
+          <div class="absolute top-0 right-0 -mt-8 -mr-8 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="relative z-10 flex items-center justify-between mb-4">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Proyección Próx. Mes</p>
+            <TrendingUp class="w-5 h-5 text-indigo-400" />
+          </div>
+          <div class="relative z-10">
+            <h2 class="text-3xl font-black tracking-tighter truncate">{formatearDinero(proyeccionVentas)}</h2>
+            <p class="text-[10px] font-medium text-zinc-500 mt-1">Comisión Pipeline {labelPeriodo}: {formatearDinero(pipelineValue)}</p>
+          </div>
+        </div>
 
-  let statusIA = insightLimpio ? 'ready' : 'loading';
+        <div class="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between transition-colors">
+          <div class="flex items-center justify-between mb-4">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Comisiones Ganadas</p>
+            <div class="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-transparent">
+              <CheckCircle2 class="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <h2 class="text-3xl font-black tracking-tighter text-slate-900 dark:text-white truncate">{formatearDinero(revenueWon)}</h2>
+            <p class="text-[10px] font-medium text-slate-500 dark:text-zinc-500 mt-1">De <strong class="text-emerald-600 dark:text-emerald-400">{leadsGanados.length} transacciones</strong> en {labelPeriodo}.</p>
+          </div>
+        </div>
 
-  if (!insightLimpio && (platform?.context?.waitUntil || platform?.ctx?.waitUntil)) {
-    const adminDb = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-    const job = generarYGuardarInsight(adminDb, broker, metricasBackend, platform);
-    if (platform?.context?.waitUntil) platform.context.waitUntil(job);
-    else platform.ctx.waitUntil(job);
-  }
+        <div class="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between transition-colors">
+          <div class="flex items-center justify-between mb-4">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Win Rate</p>
+            <div class="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-100 dark:border-transparent">
+              <Target class="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <h2 class="text-3xl font-black tracking-tighter text-slate-900 dark:text-white truncate">{tasaCierre}%</h2>
+            <p class="text-[10px] font-medium text-slate-500 dark:text-zinc-500 mt-1">Basado en <strong class="text-blue-600 dark:text-blue-400">{totalLeads} prospectos</strong> ({labelPeriodo}).</p>
+          </div>
+        </div>
 
-  return {
-    broker, leads: safeLeads, propiedades: safeProps, metricas: metricasBackend,
-    insightStatus: statusIA,
-    insight: insightLimpio 
-  };
-};
+        <div class="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between transition-colors">
+          <div class="flex items-center justify-between mb-4">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Velocidad Respuesta</p>
+            <div class="w-8 h-8 rounded-xl bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 flex items-center justify-center border border-slate-200 dark:border-zinc-700 shadow-sm transition-colors">
+              <Timer class="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <h2 class="text-3xl font-black tracking-tighter text-slate-900 dark:text-white truncate">
+              {velocidadEstadisticas.media !== null ? `${velocidadEstadisticas.media}h` : '--'}
+            </h2>
+            <p class="text-[10px] font-medium text-slate-500 dark:text-zinc-500 mt-1">
+              {#if velocidadEstadisticas.media !== null}
+                {velocidadEstadisticas.pctEn1h}% respondidos en &lt; 1h.
+              {:else}
+                Datos insuficientes en {labelPeriodo}
+              {/if}
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <main class="w-full flex-1 relative z-20 pt-4 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+    <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
+
+      {#if isAiLoading}
+        <div class="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30 rounded-3xl p-6 sm:p-8 shadow-sm animate-pulse mb-6 flex items-center gap-4 transition-all">
+          <div class="bg-indigo-500/20 p-3.5 rounded-2xl shrink-0">
+            <Cpu class="w-6 h-6 text-indigo-500" />
+          </div>
+          <div>
+            <p class="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-2">Motor Neuronal 70B Procesando...</p>
+            <div class="h-3 bg-indigo-200/50 dark:bg-indigo-800/50 rounded-full w-48 mb-2"></div>
+            <div class="h-2 bg-indigo-200/30 dark:bg-indigo-800/30 rounded-full w-32"></div>
+          </div>
+        </div>
+      {:else if insight && insight.resumen}
+        <div class="bg-gradient-to-r from-slate-900 to-indigo-950 dark:from-zinc-900 dark:to-indigo-950 rounded-3xl p-6 sm:p-8 shadow-xl text-white mb-6 relative overflow-hidden border border-indigo-500/20 animate-[fadeIn_0.5s_ease-out]">
+          <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mt-10 -mr-10 pointer-events-none"></div>
+          <div class="flex flex-col sm:flex-row items-start gap-5 relative z-10">
+            <div class="bg-indigo-500/20 p-3.5 rounded-2xl shrink-0 border border-indigo-500/30">
+              <Cpu class="w-6 h-6 text-indigo-300" />
+            </div>
+            <div class="flex-1">
+              <h3 class="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-3 flex items-center gap-2">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                </span>
+                Sugerencia Estratégica AI
+              </h3>
+              <p class="text-base sm:text-lg font-medium leading-relaxed text-indigo-50/90 mb-0">{insight.resumen}</p>
+            </div>
+          </div>
+        </div>
+      {/if}
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        
+        <div class="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-8 shadow-sm transition-colors">
+          <div class="flex items-center justify-between mb-8">
+            <div>
+              <h3 class="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <BarChart3 class="w-5 h-5 text-indigo-500" /> Pipeline de Conversión
+              </h3>
+              <p class="text-xs font-medium text-slate-500 mt-1">Estructura acumulativa de embudo.</p>
+            </div>
+            {#if leadsEstancadosUI > 0}
+              <div class="bg-rose-50 dark:bg-rose-500/10 px-4 py-2 rounded-xl border border-rose-100 dark:border-rose-500/20 flex items-center gap-2">
+                <AlertTriangle class="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                <span class="text-[10px] font-bold uppercase tracking-widest text-rose-700 dark:text-rose-400">{leadsEstancadosUI} Leads en Riesgo</span>
+              </div>
+            {/if}
+          </div>
+
+          <div class="space-y-5">
+            {#each funnelAdvanced as etapa, i}
+              {@const baseCount = funnelAdvanced[0].count}
+              {@const pct = baseCount === 0 ? 0 : Math.round((etapa.count / baseCount) * 100)}
+              {@const perdidos = i > 0 ? funnelAdvanced[i-1].count - etapa.count : 0}
+              
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">{etapa.label}</span>
+                  <div class="flex items-center gap-4">
+                    {#if perdidos > 0}
+                      <span class="text-[10px] text-slate-500 font-bold px-2 py-0.5 rounded bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 flex items-center gap-1"><TrendingDown class="w-3 h-3 text-rose-500"/> {perdidos}</span>
+                    {/if}
+                    <span class="text-sm font-black text-slate-900 dark:text-white">{etapa.count}</span>
+                    <span class="text-[11px] font-bold text-slate-400 w-8 text-right">{pct}%</span>
+                  </div>
+                </div>
+                <div class="h-4 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden flex shadow-inner">
+                  <div class="h-full rounded-full transition-all duration-700" style="width:{pct}%; background:{etapa.color}"></div>
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-8 shadow-sm flex flex-col">
+          <div class="mb-6">
+            <h3 class="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <PieChart class="w-5 h-5 text-emerald-500" /> Atribución de Canal (ROI)
+            </h3>
+            <p class="text-xs font-medium text-slate-500 mt-1">Rendimiento por fuente de tráfico ({labelPeriodo}).</p>
+          </div>
+
+          <div class="flex-1 overflow-auto pr-2 space-y-5 scrollbar-thin">
+            {#if !canalesROI || canalesROI.length === 0}
+              <div class="h-full flex items-center justify-center opacity-50">
+                <p class="text-xs font-bold text-slate-500">Métricas insuficientes para análisis.</p>
+              </div>
+            {:else}
+              {#each canalesROI as fuente}
+                {@const pctBar = (fuente.total / canalesROI[0].total) * 100}
+                <div class="flex items-center gap-4">
+                  <div class="w-28 shrink-0">
+                    <span class="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate block" title={fuente.nombre}>{fuente.nombre}</span>
+                  </div>
+                  <div class="flex-1 h-7 bg-slate-100 dark:bg-zinc-800 rounded-lg overflow-hidden relative shadow-inner">
+                    <div class="h-full rounded-lg transition-all flex items-center px-3 bg-indigo-50 dark:bg-indigo-500/20 border-r border-indigo-200 dark:border-indigo-500/50" style="width:{pctBar}%;">
+                      <span class="text-[10px] font-black text-indigo-700 dark:text-indigo-400">{fuente.total}</span>
+                    </div>
+                  </div>
+                  <div class="w-16 text-right shrink-0">
+                    <span class="text-sm font-black {fuente.tasa > 5 ? 'text-emerald-600' : 'text-slate-500'}">{fuente.tasa.toFixed(1)}%</span>
+                    <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400">Conversión</p>
+                  </div>
+                  <div class="w-24 text-right shrink-0">
+                    <span class="text-sm font-black text-slate-900 dark:text-white">{formatearDinero(fuente.comision)}</span>
+                  </div>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        </div>
+
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        
+        <div class="lg:col-span-8 bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col transition-colors">
+          <div class="mb-8">
+            <h3 class="text-lg font-black text-slate-900 dark:text-white">Flujo de Comisiones Generadas</h3>
+            <p class="text-xs font-medium text-slate-500 mt-1">Acumulado Histórico: <strong class="text-slate-700 dark:text-zinc-300">{formatearDinero(tendenciaComisionesMeses.total)} MXN</strong></p>
+          </div>
+
+          <div class="flex-1 flex flex-col justify-end min-h-[220px] mb-8 pt-4">
+            <div class="flex justify-between items-end h-40 gap-4 sm:gap-8 relative">
+              <div class="absolute inset-0 flex flex-col justify-between opacity-10 pointer-events-none">
+                <div class="w-full h-px bg-slate-900 dark:bg-white"></div>
+                <div class="w-full h-px bg-slate-900 dark:bg-white"></div>
+                <div class="w-full h-px bg-slate-900 dark:bg-white"></div>
+              </div>
+
+              {#each tendenciaComisionesMeses.datos as mes, i}
+                <div class="flex-1 flex flex-col items-center gap-3 group relative z-10 h-full justify-end">
+                  <span class="text-xs font-bold text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white px-3 py-1.5 rounded-lg shadow-lg z-20 whitespace-nowrap border border-slate-200 dark:border-zinc-700">
+                    {formatearDinero(mes.count)}
+                  </span>
+                  <div class="w-full max-w-[48px] {i === 5 ? 'bg-indigo-600 shadow-[0_4px_20px_rgba(79,70,229,0.3)]' : 'bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 border border-slate-300 dark:border-zinc-700'} rounded-t-xl transition-all duration-500 cursor-pointer" style="height: {(mes.count / tendenciaComisionesMeses.maxCount) * 100}%"></div>
+                  <span class="text-[11px] font-bold {i === 5 ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-zinc-500'} capitalize flex items-center gap-1">
+                    {mes.label} {#if i === 5}<TrendingUp class="w-3 h-3"/>{/if}
+                  </span>
+                </div>
+              {/each}
+            </div>
+            <div class="w-full h-px bg-slate-200 dark:bg-zinc-800 mt-3"></div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-6 pt-4 border-t border-slate-100 dark:border-zinc-800/50">
+            <div>
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Promedio Mensual</p>
+              <p class="text-2xl font-black text-slate-900 dark:text-white">{formatearDinero(tendenciaComisionesMeses.promedio)}</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Mes de Alto Rendimiento</p>
+              <p class="text-2xl font-black text-indigo-600 dark:text-indigo-400 capitalize"><span class="text-sm font-bold text-slate-900 dark:text-white truncate block sm:inline">{tendenciaComisionesMeses.mejorMes.label}</span> • {formatearDinero(tendenciaComisionesMeses.mejorMes.count)}</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Crecimiento (MoM)</p>
+              <div class="flex items-center gap-2">
+                {#if tendenciaComisionesMeses.tendencia >= 0}
+                  <TrendingUp class="w-5 h-5 text-emerald-500" />
+                  <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400">{Math.abs(tendenciaComisionesMeses.tendencia)}%</p>
+                {:else}
+                  <TrendingDown class="w-5 h-5 text-rose-500" />
+                  <p class="text-2xl font-black text-rose-600 dark:text-rose-400">{Math.abs(tendenciaComisionesMeses.tendencia)}%</p>
+                {/if}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-4 bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col transition-colors">
+          <div class="mb-6 pb-4 border-b border-slate-100 dark:border-zinc-800/50 flex justify-between items-center">
+            <div>
+              <h3 class="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Building2 class="w-5 h-5 text-amber-500" /> Top Inventario
+              </h3>
+              <p class="text-xs font-medium text-slate-500 mt-1">Convertibilidad del portafolio.</p>
+            </div>
+          </div>
+
+          <div class="flex-1 overflow-auto pr-2 scrollbar-thin">
+            {#if !topInventario || topInventario.length === 0}
+              <div class="h-full flex flex-col items-center justify-center text-center opacity-50 py-10">
+                <RefreshCw class="w-10 h-10 text-slate-400 mb-4" />
+                <p class="text-sm font-bold">Datos insuficientes para clasificación</p>
+              </div>
+            {:else}
+              <div class="space-y-4">
+                {#each topInventario as prop, i}
+                  <div class="flex items-center justify-between p-4 rounded-2xl border border-slate-100 dark:border-zinc-700/50 bg-slate-50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-800 transition-colors shadow-sm">
+                    <div class="flex items-center gap-4 truncate pr-4">
+                      <div class="w-8 h-8 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-600 font-black text-xs flex items-center justify-center shrink-0 shadow-sm">
+                        {i + 1}
+                      </div>
+                      <div class="truncate">
+                        <h4 class="text-sm font-bold text-slate-900 dark:text-white truncate" title={prop.titulo}>{prop.titulo}</h4>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">{prop.estatus}</p>
+                      </div>
+                    </div>
+                    <div class="text-right shrink-0 bg-white dark:bg-zinc-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700/50 shadow-sm">
+                      <p class="text-base font-black text-blue-600 dark:text-blue-400">{prop.totalLeads}</p>
+                      <p class="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-0.5">{prop.convertidos} Cierres</p>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<style>
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
