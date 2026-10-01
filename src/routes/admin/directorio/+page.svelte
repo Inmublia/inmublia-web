@@ -34,7 +34,6 @@
 
   const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 
-  // Búsqueda ultraligera (Matchmaking ya viene resuelto del server)
   let clientesInteligentes = $derived.by(() => {
     let filtrados = directorio.filter(c => mostrarDescartados || c.estado !== 'descartado');
     if (filtroEtapa) filtrados = filtrados.filter(c => c.estado === filtroEtapa);
@@ -48,7 +47,6 @@
     return filtrados;
   });
 
-  // KPIs Calculados basados en el payload limpio
   let leadsSinSeguimiento = $derived(
     directorio.filter(c => !['cerrado', 'descartado'].includes(c.estado) && Math.floor((new Date() - new Date(c.fecha_contacto)) / 86400000) >= 3)
   );
@@ -80,7 +78,7 @@
       ? `¡Hola ${nombreLead}! Soy ${nombreBroker}. Recordando lo que buscabas, acaba de entrar a nuestro inventario una opción que creo que te va a encantar: ${propiedadMatch.titulo}. ¿Te comparto la ficha con las fotos?`
       : `¡Hola ${nombreLead}! Te saluda ${nombreBroker}. Quería darle seguimiento a tu búsqueda, ¿sigue en pie?`;
       
-    window.open(`https://wa.me/${telefono.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+    window.open(`https://wa.me/${telefono.toString().replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
   }
 
   function descargarCSV() {
@@ -96,7 +94,7 @@
         `"${l.correo || ''}"`,
         `"${l.estado || ''}"`,
         l.score || 0,
-        diasInactivo,
+        isNaN(diasInactivo) ? 0 : diasInactivo,
         l.altaIntencion ? 'SÍ' : 'NO',
         `"${l.fuente || ''}"`,
         `"${propOriginal.replace(/"/g, '""')}"`,
@@ -149,17 +147,17 @@
   <main class="w-full flex-1 flex flex-col relative z-20 -mt-16">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-12">
       
-      <!-- Bandeja de Acciones (Nivel 2A) -->
+      <!-- Bandeja de Acciones -->
       {#if leadsSinSeguimiento.length > 0}
         <div class="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700/30 rounded-2xl p-4 mb-6 animate-[fadeIn_0.3s_ease-out]">
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-2">
               <Zap class="w-5 h-5 text-amber-500 fill-current" />
               <h3 class="text-sm font-black text-amber-800 dark:text-amber-300">
-                {leadsSinSeguimiento.length} prospectos necesitan atención hoy
+                {leadsSinSeguimiento.length} {leadsSinSeguimiento.length === 1 ? 'prospecto necesita' : 'prospectos necesitan'} atención hoy
               </h3>
             </div>
-            <button onclick={() => mostrarBandeja = !mostrarBandeja} class="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+            <button onclick={() => mostrarBandeja = !mostrarBandeja} class="text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline">
               {mostrarBandeja ? 'Ocultar' : 'Ver todos'}
             </button>
           </div>
@@ -168,7 +166,7 @@
               {@const dias = Math.floor((new Date() - new Date(lead.fecha_contacto)) / 86400000)}
               <div class="flex items-center justify-between bg-white dark:bg-zinc-900 rounded-xl px-3 py-2.5 border border-amber-100 dark:border-amber-800/30 shadow-sm">
                 <div class="flex items-center gap-2.5">
-                  <div class="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-[10px] font-black text-amber-700 dark:text-amber-400">{dias}d</div>
+                  <div class="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-[10px] font-black text-amber-700 dark:text-amber-400">{isNaN(dias) ? 0 : dias}d</div>
                   <div>
                     <p class="text-[12px] font-bold text-slate-900 dark:text-white truncate max-w-[120px]">{lead.nombre}</p>
                     <p class="text-[9px] text-slate-400 dark:text-zinc-500 capitalize">{lead.estado}</p>
@@ -183,7 +181,7 @@
         </div>
       {/if}
 
-      <!-- KPIs Pipeline Estructurado (Nivel 1C) -->
+      <!-- KPIs Pipeline -->
       <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         {#each ['nuevo','contactado','visita','negociacion','cerrado'] as etapa}
           {@const leadsEtapa = directorio.filter(c => c.estado === etapa)}
@@ -216,7 +214,6 @@
                 <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-baseline gap-2.5 truncate">
                     <h3 class="text-[15px] font-black text-slate-900 dark:text-white tracking-tight truncate">{cliente.nombre}</h3>
-                    <!-- Score Badge (Nivel 1A) -->
                     {#if cliente.score > 0}
                       <span class="px-2 py-0.5 rounded-full text-[10px] font-black text-white {cliente.score >= 75 ? 'bg-emerald-500' : cliente.score >= 50 ? 'bg-amber-500' : 'bg-slate-400'}">
                         {cliente.score}
@@ -232,14 +229,13 @@
                     </button>
                   </div>
                 </div>
-                <p class="text-[10px] font-medium text-slate-400 font-mono mb-2">{cliente.telefono} • {cliente.correo}</p>
+                <p class="text-[10px] font-medium text-slate-400 font-mono mb-2">{cliente.telefono || 'Sin teléfono'} • {cliente.correo || 'Sin correo'}</p>
                 
                 <div class="flex flex-wrap items-center gap-2 mb-2.5">
                   <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 {estiloEstado.bg} {estiloEstado.text} {estiloEstado.border}">
                     <span class="w-1.5 h-1.5 rounded-full {estiloEstado.dot}"></span> <span class="capitalize">{cliente.estado}</span>
                   </span>
                   
-                  <!-- Alta Intención (Nivel 2B) -->
                   {#if cliente.altaIntencion}
                     <span class="px-2 py-0.5 rounded-full text-[9px] font-black bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800/30">
                       🔥 {cliente.interesesHistorial?.length} prop. vistas
@@ -263,7 +259,7 @@
                   {/if}
                 </div>
                 
-                <a href="/admin/editar/{bestMatch.id}" target="_blank" class="bg-white dark:bg-zinc-900 rounded-xl p-2 border border-indigo-100 shadow-sm mb-2.5 flex gap-2.5 items-center relative overflow-hidden">
+                <a href="/admin/editar/{bestMatch.id}" target="_blank" class="bg-white dark:bg-zinc-900 rounded-xl p-2 border border-indigo-100 shadow-sm mb-2.5 flex gap-2.5 items-center relative overflow-hidden hover:border-indigo-300 transition-colors">
                   <div class="absolute top-0 right-0 bg-emerald-500 text-white text-[8px] font-black px-2 py-0.5 rounded-bl z-10">{bestMatch.matchScore}%</div>
                   {#if bestMatch.imagen_url}
                     <img src={bestMatch.imagen_url} alt="Match" class="w-9 h-9 rounded object-cover border border-slate-100" onerror={(e) => { e.currentTarget.style.display='none'; e.currentTarget.nextElementSibling.style.display='flex'; }}>
@@ -272,7 +268,7 @@
                     <div class="w-9 h-9 rounded bg-slate-100 flex items-center justify-center text-slate-400"><Building class="w-4 h-4" /></div>
                   {/if}
                   <div class="flex-1 truncate">
-                    <p class="text-[11px] font-bold text-slate-900 truncate pr-5">{bestMatch.titulo}</p>
+                    <p class="text-[11px] font-bold text-slate-900 dark:text-white truncate pr-5">{bestMatch.titulo}</p>
                     <p class="text-[10px] font-black text-slate-500 mt-0.5">{formatter.format(bestMatch.precio)}</p>
                   </div>
                 </a>
@@ -289,6 +285,14 @@
             </div>
           </div>
         {/each}
+
+        {#if clientesInteligentes.length === 0}
+          <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-12 text-center flex flex-col items-center justify-center w-full transition-colors shadow-sm">
+            <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 mb-3 shadow-inner"><Search class="w-5 h-5" /></div>
+            <h3 class="text-base font-black text-slate-900 dark:text-white tracking-tight mb-1.5">Bóveda Vacía</h3>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 font-medium max-w-sm">No tienes prospectos registrados o ninguno coincide con tu búsqueda.</p>
+          </div>
+        {/if}
       </div>
     </div>
   </main>
