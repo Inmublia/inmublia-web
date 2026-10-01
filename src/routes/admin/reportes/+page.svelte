@@ -1,9 +1,8 @@
 <!-- src/routes/admin/reportes/+page.svelte -->
 <script>
-  import { onMount, onDestroy } from 'svelte';
   import { 
     TrendingUp, TrendingDown, Activity, BarChart3, RefreshCw, LineChart, PieChart, Building2,
-    CheckCircle2, Timer, Target, AlertTriangle, Cpu, Download, ArrowRightCircle, Bug
+    CheckCircle2, Timer, Target, AlertTriangle, Cpu, Download, ArrowRightCircle
   } from 'lucide-svelte';
 
   import PageHeader from '$lib/components/PageHeader.svelte';
@@ -13,11 +12,8 @@
   let leads = $derived(data.leads || []);
   let metricas = $derived(data.metricas || {});
   
-  let insight = $state(data.insight);
-  let cargandoInsight = $state(!data.insight);
-  let realtimeChannel;
-  let timeoutId;
-  let debugLog = $state(''); // 🚀 TELEMETRÍA UI
+  // 🚀 ADIÓS ESTADOS COMPLEJOS: El servidor ya nos entregó el dato final.
+  let insight = $derived(data.insight);
 
   let comisionBroker = $derived((broker.comision_default || 5) / 100);
   const formatearDinero = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(valor);
@@ -36,17 +32,12 @@
 
   let leadsFiltrados = $derived.by(() => {
     if (periodoSeleccionado === 'all') return leads;
-
     const hoy = new Date();
     let limiteInicio, limiteFin = hoy;
-
-    if (periodoSeleccionado === '30') {
-      limiteInicio = new Date(hoy.getTime() - (30 * 86400000));
-    } else if (periodoSeleccionado === '90') {
-      limiteInicio = new Date(hoy.getTime() - (90 * 86400000));
-    } else if (periodoSeleccionado === 'mtd') {
-      limiteInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    } else if (periodoSeleccionado === 'last_month') {
+    if (periodoSeleccionado === '30') limiteInicio = new Date(hoy.getTime() - (30 * 86400000));
+    else if (periodoSeleccionado === '90') limiteInicio = new Date(hoy.getTime() - (90 * 86400000));
+    else if (periodoSeleccionado === 'mtd') limiteInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    else if (periodoSeleccionado === 'last_month') {
       limiteInicio = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
       limiteFin = new Date(hoy.getFullYear(), hoy.getMonth(), 0, 23, 59, 59);
     } else if (periodoSeleccionado === 'custom') {
@@ -54,7 +45,6 @@
       limiteInicio = new Date(fechaInicioCustom + 'T00:00:00');
       limiteFin = new Date(fechaFinCustom + 'T23:59:59');
     }
-
     return leads.filter(l => {
       const d = new Date(l.creado_en || l.created_at);
       return d >= limiteInicio && d <= limiteFin;
@@ -67,19 +57,11 @@
 
   let pipelineValue = $derived(leadsFiltrados.reduce((acc, lead) => {
     const est = lead.estado?.toLowerCase().trim();
-    if (est !== 'descartado' && est !== 'cerrado' && lead.propiedades?.precio) {
-      return acc + (lead.propiedades.precio * comisionBroker);
-    }
+    if (est !== 'descartado' && est !== 'cerrado' && lead.propiedades?.precio) return acc + (lead.propiedades.precio * comisionBroker);
     return acc;
   }, 0));
 
-  let revenueWon = $derived.by(() => {
-    return leadsGanados.reduce((acc, lead) => {
-      const precioBase = lead.precio_cierre || lead.propiedades?.precio || 0;
-      const pct = lead.comision_cierre ? (lead.comision_cierre / 100) : comisionBroker;
-      return acc + (precioBase * pct);
-    }, 0);
-  });
+  let revenueWon = $derived.by(() => leadsGanados.reduce((acc, lead) => acc + ((lead.precio_cierre || lead.propiedades?.precio || 0) * (lead.comision_cierre ? (lead.comision_cierre / 100) : comisionBroker)), 0));
 
   let funnelAdvanced = $derived.by(() => {
     const etapas = [
@@ -89,7 +71,6 @@
       { id: 'negociacion', label: 'En Negociación', color: '#F59E0B' },
       { id: 'cerrado', label: 'Cierres Ganados', color: '#10B981' }
     ];
-
     return etapas.map((etapa, i) => {
       const count = leadsFiltrados.filter(l => {
         const est = l.estado?.toLowerCase().trim();
@@ -108,86 +89,27 @@
   let tendenciaComisionesMeses = $derived.by(() => {
     const hoy = new Date();
     const meses = [];
-    
     for (let i = 5; i >= 0; i--) {
       const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
       meses.push({ m: d.getMonth(), y: d.getFullYear(), label: d.toLocaleDateString('es-MX', { month: 'short' }).replace('.', ''), count: 0 });
     }
-
     leadsGanados.forEach(l => {
       const d = new Date(l.actualizado_en || l.creado_en || l.created_at);
       const match = meses.find(x => x.m === d.getMonth() && x.y === d.getFullYear());
-      if (match) {
-        const precioBase = l.precio_cierre || l.propiedades?.precio || 0;
-        const porcentaje = l.comision_cierre ? (l.comision_cierre / 100) : comisionBroker;
-        match.count += (precioBase * porcentaje);
-      }
+      if (match) match.count += ((l.precio_cierre || l.propiedades?.precio || 0) * (l.comision_cierre ? (l.comision_cierre / 100) : comisionBroker));
     });
-
     const total6m = meses.reduce((sum, curr) => sum + curr.count, 0);
     const promedio = (total6m / 6);
     let mejorMes = meses[0];
     meses.forEach(m => { if(m.count > mejorMes.count) mejorMes = m; });
     const maxCount = Math.max(...meses.map(m => m.count), 1);
-    
     let tendPct = 0;
     if (meses[4].count > 0) tendPct = ((meses[5].count - meses[4].count) / meses[4].count) * 100;
     else if (meses[5].count > 0) tendPct = 100;
-
     return { datos: meses, total: total6m, promedio, mejorMes, maxCount, tendencia: tendPct.toFixed(0) };
   });
 
   function imprimirReporte() { window.print(); }
-
-  onMount(() => {
-    if (!data.insight) {
-      debugLog = 'Escuchando Realtime canal: insight-ready...';
-      realtimeChannel = data.supabase
-        .channel('insight-ready')
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public', 
-          table: 'ai_insights_cache', 
-          filter: `broker_id=eq.${data.broker.id}` 
-        }, (payload) => {
-          if (payload.new && payload.new.tipo === 'reporte_diario') {
-            // 🚀 SANACIÓN REALTIME: Evitamos que una cadena mate la UI
-            let rawData = payload.new.contenido;
-            if (typeof rawData === 'string') {
-              try { rawData = JSON.parse(rawData); } catch(e) { debugLog = `Error de parseo Realtime: ${e.message}`; }
-            }
-            
-            if (rawData && rawData.resumen) {
-              insight = rawData;
-              cargandoInsight = false;
-              if (timeoutId) clearTimeout(timeoutId);
-              debugLog = 'Insight recibido exitosamente vía Realtime.';
-            } else {
-              debugLog = `Payload recibido pero corrupto: ${JSON.stringify(rawData)}`;
-            }
-          }
-        }).subscribe();
-
-      // Desbloqueo forzado a los 8 segundos
-      timeoutId = setTimeout(() => {
-        if (cargandoInsight) {
-          cargandoInsight = false;
-          insight = {
-            resumen: "El reporte se generó exitosamente pero la IA tardó demasiado en responder.",
-            accion_prioritaria: "Recargue la página más tarde si desea ver el análisis estratégico."
-          };
-          debugLog = 'Timeout de 8 segundos alcanzado. Se aplicó Fallback en Frontend.';
-        }
-      }, 8000);
-    } else {
-      debugLog = 'Insight cargado desde SSR Caché de forma instantánea.';
-    }
-  });
-
-  onDestroy(() => {
-    if (timeoutId) clearTimeout(timeoutId);
-    if (realtimeChannel) data.supabase.removeChannel(realtimeChannel);
-  });
 </script>
 
 <div class="fixed inset-0 w-screen h-screen bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
@@ -288,22 +210,13 @@
   <main class="w-full flex-1 relative z-20 pt-4 pb-12 overflow-visible lg:overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent">
     <div class="w-full max-w-[1400px] mx-auto px-4 sm:px-10 space-y-6">
 
-      {#if cargandoInsight}
-        <div class="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30 rounded-2xl p-6 shadow-sm animate-pulse">
-          <div class="flex items-center gap-2">
-            <Cpu class="w-4 h-4 text-indigo-500" />
-            <span class="text-xs font-black uppercase tracking-widest text-indigo-500">Procesando Inteligencia de Negocio...</span>
-          </div>
-          <div class="mt-4 space-y-2.5">
-            <div class="h-3 bg-indigo-100 dark:bg-indigo-800/30 rounded w-3/4"></div>
-            <div class="h-3 bg-indigo-100 dark:bg-indigo-800/30 rounded w-1/2"></div>
-          </div>
-        </div>
-      {:else if insight && insight.resumen}
+      {#if insight && insight.resumen}
         <div class="bg-gradient-to-r from-indigo-50 to-indigo-100/50 dark:from-indigo-900/20 dark:to-indigo-800/10 border border-indigo-200 dark:border-indigo-700/30 rounded-2xl p-6 shadow-sm animate-[fadeIn_0.4s_ease-out] print:shadow-none">
-          <div class="flex items-center gap-2 mb-4">
-            <Cpu class="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            <span class="text-xs font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-400">Análisis Estructural AI</span>
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <Cpu class="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <span class="text-xs font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-400">Análisis Estructural AI</span>
+            </div>
           </div>
           <p class="text-sm font-medium text-slate-800 dark:text-zinc-200 mb-4 leading-relaxed">{insight.resumen}</p>
           {#if insight.accion_prioritaria}
@@ -312,19 +225,6 @@
               <p class="text-sm font-bold text-slate-900 dark:text-white">{insight.accion_prioritaria}</p>
             </div>
           {/if}
-          <!-- 🚀 BLOQUE DE DEBUG: Exclusivo para asegurar qué está recibiendo el frontend -->
-          {#if debugLog}
-            <div class="mt-4 border-t border-indigo-200 dark:border-indigo-800/30 pt-2 flex items-center gap-2">
-              <Bug class="w-3 h-3 text-indigo-400"/>
-              <span class="text-[9px] font-mono text-indigo-500 opacity-60">SYS_LOG: {debugLog}</span>
-            </div>
-          {/if}
-        </div>
-      {:else}
-        <!-- 🚀 ERROR CATCHER VISUAL: Si insight existe pero no tiene .resumen -->
-        <div class="bg-rose-50 border border-rose-200 rounded-2xl p-6 shadow-sm">
-          <p class="text-xs font-black text-rose-600 uppercase">Error de Renderizado UI</p>
-          <p class="text-[10px] text-rose-500 mt-2 font-mono">{JSON.stringify(insight)}</p>
         </div>
       {/if}
 
