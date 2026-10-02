@@ -34,7 +34,15 @@
 
   let esRecordatorio = $state(false);
   let fechaRecordatorio = $state('');
-  let horaRecordatorio = $state(''); 
+  
+  // 🚀 FIX: Lógica de Tiempo Custom (Adiós input nativo)
+  let showTimePicker = $state(false);
+  let horaSeleccionada = $state('10:00');
+  const opcionesHora = [];
+  for (let i = 8; i <= 20; i++) {
+    opcionesHora.push(`${i.toString().padStart(2, '0')}:00`);
+    opcionesHora.push(`${i.toString().padStart(2, '0')}:30`);
+  }
   
   let iaGenerandoWs = $state(false);
   let iaWsGenerado = $state('');
@@ -97,7 +105,6 @@
       const totalValor = [...propiedadesUnicas.values()].reduce((sum, precio) => sum + precio, 0);
       const comisionPct = broker.comision_default || 5;
       const comisionEstimada = totalValor * (comisionPct / 100);
-      
       acc[col.id] = { count: leadsCol.length, totalValue: totalValor, comisionEstimada, propiedadesCount: propiedadesUnicas.size };
       return acc;
     }, {})
@@ -197,7 +204,7 @@
     return (nombre || '?').replace(/[^\p{L}\s]/gu, '').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
   }
 
-  // 🚀 FIX: Reactividad UI para el Panel Central (Sin @const en HTML)
+  // 🚀 FIX: Widget Central Premium Reactivo
   let leadColumna = $derived.by(() => {
     if (!selectedLead) return columnas[0];
     return columnas.find(c => c.id === selectedLead.estado) || columnas[0];
@@ -212,7 +219,7 @@
       const overdue = isOverdue(urgente.fecha_recordatorio);
       return { 
         tipo: 'tarea', titulo: overdue ? 'TAREA ATRASADA' : 'PRÓXIMA TAREA', texto: urgente.contenido, fecha: formatDateTime(urgente.fecha_recordatorio),
-        colorClases: overdue ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30' : 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30'
+        colorClases: overdue ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/40' : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40'
       };
     }
     
@@ -220,7 +227,7 @@
       const ultima = selectedLead.lead_notas[0];
       return {
         tipo: 'actividad', titulo: 'ÚLTIMA INTERACCIÓN', texto: ultima.contenido, fecha: formatDateTime(ultima.creado_en),
-        colorClases: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-zinc-800/50 dark:text-zinc-400 dark:border-zinc-700'
+        colorClases: 'bg-indigo-50 text-indigo-800 border-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 dark:border-indigo-800/50' // 🚀 Color vibrante para que destaque
       };
     }
     return null;
@@ -267,7 +274,6 @@
     const leadId = leadPorCerrar.id;
     const precioCopy = precioCierreFinal;
     const comisionCopy = comisionCobrada;
-    
     const estadoAnterior = leads.find(l => l.id === leadId)?.estado; 
     
     leads = leads.map(l => l.id === leadId ? { ...l, estado: 'cerrado' } : l);
@@ -307,15 +313,10 @@
 
   async function completarRecordatorio(notaId) {
     const now = new Date();
-    
     leads = leads.map(l => {
       if (l.id !== selectedLeadId) return l;
-      const updatedNotas = (l.lead_notas || []).map(n => 
-        n.id === notaId ? { ...n, completado: true } : n
-      );
-      const tienePendientes = updatedNotas.some(
-        n => n.tipo === 'recordatorio' && !n.completado && new Date(n.fecha_recordatorio) <= now
-      );
+      const updatedNotas = (l.lead_notas || []).map(n => n.id === notaId ? { ...n, completado: true } : n);
+      const tienePendientes = updatedNotas.some(n => n.tipo === 'recordatorio' && !n.completado && new Date(n.fecha_recordatorio) <= now);
       return { ...l, lead_notas: updatedNotas, has_pending_reminder: tienePendientes };
     });
 
@@ -343,23 +344,25 @@
       nuevaNotaTexto = ''; 
       esRecordatorio = false; 
       fechaRecordatorio = ''; 
-      horaRecordatorio = ''; 
+      horaRecordatorio = '10:00'; 
+      horaSeleccionada = '10:00';
       iaGenerandoWs = false; 
       iaWsGenerado = ''; 
       iaWsError = '';
+      showTimePicker = false;
     }, 200);
   }
 
   function manejadorNota({ formData, cancel }) {
     const notaTemp = formData.get('contenido')?.trim();
     if (!notaTemp || guardandoNota) { cancel(); return; }
-    if (esRecordatorio && (!fechaRecordatorio || !horaRecordatorio)) { alert("Selecciona fecha y hora"); cancel(); return; }
+    if (esRecordatorio && (!fechaRecordatorio || !horaSeleccionada)) { alert("Selecciona fecha y hora para la tarea"); cancel(); return; }
     
     guardandoNota = true;
     let fechaFinalFormateada = null;
     if (esRecordatorio) {
       const [year, month, day] = fechaRecordatorio.split('-');
-      const [hour, minute] = horaRecordatorio.split(':');
+      const [hour, minute] = horaSeleccionada.split(':');
       fechaFinalFormateada = new Date(year, month - 1, day, hour, minute).toISOString();
     }
 
@@ -388,7 +391,7 @@
       guardandoNota = false;
       
       if (result.type === 'success') {
-        nuevaNotaTexto = ''; esRecordatorio = false; fechaRecordatorio = ''; horaRecordatorio = '';
+        nuevaNotaTexto = ''; esRecordatorio = false; fechaRecordatorio = ''; horaSeleccionada = '10:00'; showTimePicker = false;
         await update(); await invalidateAll();
       } else {
         const errorDB = result.data?.error || "Error Desconocido al comunicarse con el servidor.";
@@ -432,7 +435,21 @@
       if (nuevaNotaTexto.trim() && submitBtn) submitBtn.click(); 
     }
   }
+
+  // 🚀 Control del Time Picker Custom
+  function toggleTimePicker(e) {
+    e.stopPropagation();
+    showTimePicker = !showTimePicker;
+  }
+  
+  function selectTime(hora, e) {
+    e.stopPropagation();
+    horaSeleccionada = hora;
+    showTimePicker = false;
+  }
 </script>
+
+<svelte:window onclick={() => { if(showTimePicker) showTimePicker = false; }} />
 
 <div class="fixed inset-0 bg-slate-50 dark:bg-zinc-950 -z-10 pointer-events-none transition-colors duration-300"></div>
 
@@ -515,13 +532,12 @@
                   </span>
                 </div>
               {:else}
-                <div class="h-[26px]"></div>
+                <div class="h-[26px]"></div> 
               {/if}
             </div>
 
             <div class="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-3 pb-8 pt-1">
               {#each leadsPorColumna[columna.id] || [] as lead (lead.id)}
-                
                 <div 
                   draggable="true"
                   ondragstart={(e) => arrancar(e, lead.id)}
@@ -535,10 +551,8 @@
                   onmouseleave={() => hoveredLeadId = null}
                   class="bg-white dark:bg-zinc-800/50 p-3 rounded-xl border {lead.scoreObj?.isHot && lead.estado !== 'cerrado' && lead.estado !== 'descartado' ? 'border-orange-300 dark:border-orange-500/50 shadow-sm shadow-orange-500/10' : lead.has_pending_reminder ? 'border-rose-300 dark:border-rose-500/50 ring-1 ring-rose-500/50' : 'border-slate-200 dark:border-zinc-700'} cursor-grab hover:-translate-y-1 hover:shadow-md dark:hover:shadow-none hover:border-slate-300 dark:hover:border-zinc-600 transition-all duration-200 relative flex flex-col gap-3"
                 >
-                  
                   <div class="flex items-start justify-between gap-2">
                     <div class="flex items-center gap-2 min-w-0">
-                      
                       <div class="relative shrink-0">
                         <div class="w-8 h-8 rounded-full bg-slate-800 dark:bg-zinc-800 border border-slate-700 dark:border-zinc-700 text-white flex items-center justify-center text-[10px] font-black uppercase shadow-inner">
                           {getInitials(lead.nombre)}
@@ -547,7 +561,6 @@
                           <div class="absolute -top-0.5 -right-0.5 bg-rose-500 rounded-full w-2.5 h-2.5 border-2 border-white dark:border-zinc-900 shadow-sm transition-colors"></div>
                         {/if}
                       </div>
-
                       <div class="min-w-0 flex flex-col">
                         <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100 leading-tight truncate">
                           {lead.nombre}
@@ -557,7 +570,6 @@
                         </p>
                       </div>
                     </div>
-                    
                     <div class="shrink-0">
                       {#if lead.scoreObj && lead.estado !== 'cerrado' && lead.estado !== 'descartado'}
                         <LeadScoreBadge scoreData={lead.scoreObj} />
@@ -585,7 +597,7 @@
                     <div class="absolute -top-3 -right-2 flex items-center gap-1.5 bg-white dark:bg-zinc-800 p-1.5 rounded-xl shadow-lg border border-slate-200 dark:border-zinc-700 z-30 animate-[fadeIn_0.1s_ease-out] transition-colors">
                       {#if lead.telefono}
                         <a href="https://wa.me/{String(lead.telefono).replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="w-8 h-8 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white flex items-center justify-center transition-colors" aria-label={`Enviar mensaje de WhatsApp a ${lead.nombre}`} onclick={(e) => e.stopPropagation()}>
-                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                          <MessageSquare class="w-4 h-4" />
                         </a>
                         <a href="tel:{String(lead.telefono).replace(/\D/g, '')}" class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:text-white flex items-center justify-center transition-colors" aria-label={`Llamar por teléfono a ${lead.nombre}`} onclick={(e) => e.stopPropagation()}>
                           <Phone class="w-4 h-4" />
@@ -596,9 +608,7 @@
                       </button>
                     </div>
                   {/if}
-
                 </div>
-
               {/each}
 
               {#if (leadsPorColumna[columna.id] || []).length === 0}
@@ -612,13 +622,13 @@
       </div>
     </div>
 
-    <!-- CANVAS MODULAR (Vista Detalle Quirúrgica) -->
+    <!-- CANVAS MODULAR (Vista Detalle Bimodal Quirúrgica) -->
     {#if isPanelOpen && selectedLead}
       <div class="flex-1 w-full px-4 sm:px-8 pb-6 animate-[fadeIn_0.2s_ease-out] overflow-hidden">
           
           <div class="w-full h-full bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl flex flex-col p-4 sm:p-6 overflow-hidden border border-slate-200 dark:border-zinc-800 transition-colors">
               
-              <!-- 🚀 1. HEADER (Etapa a todo color) -->
+              <!-- 🚀 1. HEADER (Etapa a todo color, Widget Impactante y Botón WA Original) -->
               <div class="bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col xl:flex-row justify-between items-start xl:items-center shadow-sm shrink-0 gap-4 mb-5 transition-colors">
                   <div class="flex items-center gap-4 w-full xl:w-auto">
                       <button aria-label="Volver al pipeline" onclick={cerrarPanel} class="p-2 text-slate-400 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-xl transition-colors border border-slate-200 dark:border-zinc-700 shrink-0 shadow-sm">
@@ -657,15 +667,15 @@
                       </div>
                   </div>
                   
-                  <!-- 🚀 2. VISTA RÁPIDA (En medio del header) -->
+                  <!-- 🚀 2. WIDGET CENTRAL PREMIUM (Aumentado y estilizado) -->
                   {#if infoVistaRapida}
-                    <div class="flex-1 w-full xl:w-auto xl:max-w-xs mx-4 hidden xl:block animate-[fadeIn_0.3s_ease-out]">
-                      <div class="p-2.5 rounded-xl border shadow-sm {infoVistaRapida.colorClases} flex flex-col transition-colors">
-                        <div class="flex items-center justify-between mb-1">
-                          <span class="text-[9px] font-black uppercase tracking-widest">{infoVistaRapida.titulo}</span>
-                          <span class="text-[9px] font-bold opacity-80">{infoVistaRapida.fecha}</span>
+                    <div class="flex-1 w-full xl:w-auto xl:max-w-sm mx-4 hidden xl:block animate-[fadeIn_0.3s_ease-out]">
+                      <div class="px-5 py-3 rounded-2xl border shadow-md {infoVistaRapida.colorClases} flex flex-col transition-colors backdrop-blur-md">
+                        <div class="flex items-center justify-between mb-1.5">
+                          <span class="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"><Clock class="w-3.5 h-3.5"/> {infoVistaRapida.titulo}</span>
+                          <span class="text-[10px] font-bold opacity-75">{infoVistaRapida.fecha}</span>
                         </div>
-                        <p class="text-xs font-medium truncate opacity-90">{infoVistaRapida.texto}</p>
+                        <p class="text-sm font-semibold truncate opacity-95">{infoVistaRapida.texto}</p>
                       </div>
                     </div>
                   {/if}
@@ -678,11 +688,9 @@
                           <Sparkles class="w-4 h-4" /> {creditosIA} Créditos
                       </div>
                       
-                      <!-- 🚀 5. WHATSAPP AUTÉNTICO -->
-                      {#if selectedLead.telefono}
-                        <a href="https://wa.me/{String(selectedLead.telefono).replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl text-[11px] font-black tracking-widest uppercase transition-colors flex items-center gap-2 whitespace-nowrap shadow-md shadow-[#25D366]/20">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                            WhatsApp
+                      <!-- 🚀 5. LOGO OFICIAL WHATSAPP -->
+                      <a href="https://wa.me/{String(selectedLead.telefono || '').replace(/\D/g, '')}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-[#25D366] hover:bg-[#1DA851] text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 whitespace-nowrap shadow-md shadow-[#25D366]/30">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> WhatsApp
                         </a>
                       {/if}
                   </div>
@@ -692,7 +700,7 @@
               <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden">
                   
                   <!-- COLUMNA IZQUIERDA (IA, Termostato, Propiedad) -->
-                  <div class="md:col-span-4 lg:col-span-5 flex flex-col gap-5 overflow-y-auto hide-scrollbar pb-4">
+                  <div class="md:col-span-5 flex flex-col gap-5 overflow-y-auto hide-scrollbar pb-4 pr-1">
                       
                       <!-- SUGERENCIA IA -->
                       <div class="bg-indigo-50/40 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/10 rounded-2xl p-4 shadow-sm shrink-0 flex flex-col transition-colors">
@@ -727,9 +735,9 @@
                           </div>
 
                           {#if iaWsError}
-                              <div class="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] p-2 rounded-lg font-medium flex items-start gap-1 mb-2 shadow-sm transition-colors">
-                                  <AlertTriangle class="w-3.5 h-3.5 shrink-0 mt-0.5 text-rose-500 dark:text-rose-400"/> {iaWsError}
-                                  <button aria-label="Cerrar error" type="button" onclick={() => iaWsError = ''} class="ml-auto hover:text-rose-800 dark:hover:text-rose-300"><X class="w-3 h-3"/></button>
+                              <div class="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs p-3 rounded-xl font-medium flex items-start gap-2 mb-3 shadow-sm transition-colors">
+                                  <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5 text-rose-500 dark:text-rose-400"/> {iaWsError}
+                                  <button aria-label="Cerrar error" type="button" onclick={() => iaWsError = ''} class="ml-auto hover:text-rose-800 dark:hover:text-rose-300"><X class="w-3.5 h-3.5"/></button>
                               </div>
                           {/if}
 
@@ -742,7 +750,7 @@
                           ></textarea>
                           
                           {#if iaWsGenerado}
-                              <div class="flex justify-end gap-2 mt-2 animate-[fadeIn_0.2s_ease-out]">
+                              <div class="flex justify-end gap-2 mt-3 animate-[fadeIn_0.2s_ease-out]">
                                   <button type="button" onclick={() => iaWsGenerado = ''} class="px-2.5 py-1.5 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-colors shadow-sm">Descartar</button>
                                   <a href="https://wa.me/{String(selectedLead.telefono || '').replace(/\D/g, '')}?text={encodeURIComponent(iaWsGenerado)}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1.5 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg text-[9px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1 shadow-md shadow-[#25D366]/20">
                                       Enviar a WhatsApp
@@ -817,21 +825,19 @@
                       </div>
                   </div>
 
-                  <!-- 🚀 4. COLUMNA DERECHA EXCLUSIVA PARA REGISTRO DE SEGUIMIENTO -->
-                  <div class="md:col-span-8 lg:col-span-7 flex flex-col h-full bg-slate-50/50 dark:bg-zinc-950/30 border border-slate-200 dark:border-zinc-800 rounded-2xl overflow-hidden transition-colors">
+                  <!-- 🚀 4 y 5. COLUMNA DERECHA EXCLUSIVA PARA REGISTRO DE SEGUIMIENTO Y FORMULARIO -->
+                  <div class="md:col-span-7 flex flex-col h-full bg-slate-50/50 dark:bg-zinc-950/30 border border-slate-200 dark:border-zinc-800 rounded-2xl overflow-hidden transition-colors">
                       
-                      <!-- Header del Seguimiento -->
-                      <div class="p-4 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0 flex items-center gap-2">
+                      <div class="p-4 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0 flex items-center gap-2 transition-colors">
                           <Clock class="w-4 h-4 text-indigo-500"/>
                           <span class="text-[10px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest block">Registro de Seguimiento</span>
                       </div>
 
-                      <!-- 4. TIMELINE DE SEGUIMIENTO A PANTALLA COMPLETA -->
                       <div class="flex-1 overflow-y-auto p-5 hide-scrollbar relative">
                           {#if selectedLead.lead_notas && selectedLead.lead_notas.length > 0}
                               <div class="space-y-0 relative before:absolute before:inset-0 before:ml-[11px] before:h-full before:w-[2px] before:bg-slate-200 dark:before:bg-zinc-700">
                                   {#each selectedLead.lead_notas as nota}
-                                      <div class="relative flex items-center gap-3 pb-4 last:pb-0">
+                                      <div class="relative flex items-start gap-3 pb-4 last:pb-0">
                                           
                                           <div class="absolute left-0 w-[24px] flex justify-center z-10">
                                               <div class="w-2.5 h-2.5 rounded-full ring-4 ring-[#F8FAFC] dark:ring-zinc-950 {nota.tipo === 'recordatorio' ? (nota.completado ? 'bg-emerald-500' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-500' : 'bg-amber-400')) : 'bg-slate-400 dark:bg-zinc-500'}"></div>
@@ -852,8 +858,8 @@
                                               </p>
                                               
                                               {#if nota.tipo === 'recordatorio' && !nota.completado && !nota.id.startsWith('temp-')}
-                                                  <button type="button" onclick={() => completarRecordatorio(nota.id)} class="mt-2 text-[10px] font-black uppercase flex items-center gap-1 px-2 py-1.5 rounded bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-600 transition-colors active:scale-95 text-slate-500 shadow-sm">
-                                                      <CheckCircle2 class="w-3 h-3"/> Resuelto
+                                                  <button type="button" onclick={() => completarRecordatorio(nota.id)} class="mt-2 text-[10px] font-black uppercase flex items-center gap-1 px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-600 transition-colors active:scale-95 text-slate-500 shadow-sm">
+                                                      <CheckCircle2 class="w-3 h-3"/> Marcar Resuelto
                                                   </button>
                                               {/if}
 
@@ -874,7 +880,6 @@
                           {/if}
                       </div>
 
-                      <!-- 🚀 5. FORMULARIO EN LA PARTE INFERIOR DEL TIMELINE -->
                       <div class="p-4 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0 transition-colors">
                           <form method="POST" action="?/guardarNota" use:enhance={manejadorNota} class="flex flex-col gap-2.5">
                               <input type="hidden" name="lead_id" value={selectedLead.id} />
@@ -889,19 +894,32 @@
                               </div>
 
                               {#if esRecordatorio}
-                                  <div class="flex gap-2.5 animate-[fadeIn_0.2s_ease-out] bg-amber-50/50 dark:bg-amber-500/10 p-2.5 rounded-xl border border-amber-100 dark:border-amber-500/20 transition-colors">
-                                      <label for="fecha_rec" class="sr-only">Fecha recordatorio</label>
-                                      <input id="fecha_rec" type="date" lang="es-MX" bind:value={fechaRecordatorio} class="flex-1 bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-500/30 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-200 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none shadow-sm">
+                                  <!-- 🚀 FIX: TIEMPO CUSTOM (Dropdown estilo Moderno, Adiós Input Nativo Horrible) -->
+                                  <div class="flex gap-2.5 animate-[fadeIn_0.2s_ease-out] bg-amber-50/50 dark:bg-amber-500/10 p-2.5 rounded-xl border border-amber-100 dark:border-amber-500/20 transition-colors relative">
+                                      <input type="date" lang="es-MX" bind:value={fechaRecordatorio} class="flex-1 bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-500/30 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-200 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none shadow-sm cursor-pointer">
                                       
-                                      <label for="hora_rec" class="sr-only">Hora recordatorio</label>
-                                      <input id="hora_rec" type="time" lang="es-MX" bind:value={horaRecordatorio} class="flex-1 bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-500/30 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-200 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none shadow-sm">
+                                      <!-- Custom Time Picker Dropdown -->
+                                      <div class="flex-1 relative">
+                                        <button type="button" onclick={toggleTimePicker} class="w-full h-full bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-500/30 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-200 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none shadow-sm flex items-center justify-between text-left">
+                                          {horaSeleccionada} <Clock class="w-3 h-3 text-amber-500"/>
+                                        </button>
+                                        
+                                        {#if showTimePicker}
+                                          <div class="absolute z-[100] bottom-full mb-1 w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl max-h-48 overflow-y-auto hide-scrollbar animate-[fadeIn_0.1s_ease-out]">
+                                            {#each opcionesHora as hora}
+                                              <button type="button" onclick={(e) => selectTime(hora, e)} class="w-full text-left px-4 py-2 text-xs font-bold {horaSeleccionada === hora ? 'bg-amber-50 dark:bg-amber-500/20 text-amber-600' : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800'} transition-colors">
+                                                {hora}
+                                              </button>
+                                            {/each}
+                                          </div>
+                                        {/if}
+                                      </div>
                                   </div>
                               {/if}
 
                               <div class="relative flex items-end gap-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl p-2.5 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all shadow-inner">
-                                  <label for="nota_contenido" class="sr-only">Contenido de la nota</label>
-                                  <textarea id="nota_contenido" name="contenido" bind:value={nuevaNotaTexto} onkeydown={handleKeyDown} placeholder={esRecordatorio ? "Describe la acción o fecha a agendar..." : "Registra una llamada o minuta rápida..."} class="flex-1 bg-transparent border-none outline-none text-sm text-slate-800 dark:text-zinc-200 placeholder-slate-400 dark:placeholder-zinc-500 resize-none min-h-[40px] px-2 py-1 font-medium leading-snug" required></textarea>
-                                  <button type="submit" bind:this={submitBtn} disabled={guardandoNota || !nuevaNotaTexto.trim()} class="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg {esRecordatorio ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-slate-900 dark:bg-white hover:bg-indigo-600 text-white dark:text-zinc-900'} transition-colors disabled:opacity-50 disabled:bg-slate-200 shadow-sm" aria-label="Guardar nota o recordatorio">
+                                  <textarea name="contenido" bind:value={nuevaNotaTexto} onkeydown={handleKeyDown} placeholder={esRecordatorio ? "Describe la acción o fecha a agendar..." : "Registra una llamada o minuta rápida..."} class="flex-1 bg-transparent border-none outline-none text-sm text-slate-800 dark:text-zinc-200 placeholder-slate-400 dark:placeholder-zinc-500 resize-none min-h-[40px] px-2 py-1 font-medium leading-snug" required></textarea>
+                                  <button type="submit" bind:this={submitBtn} disabled={guardandoNota || !nuevaNotaTexto.trim()} class="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg {esRecordatorio ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-slate-900 dark:bg-white hover:bg-indigo-600 text-white dark:text-zinc-900'} transition-colors disabled:opacity-50 disabled:bg-slate-200 shadow-sm">
                                       {#if guardandoNota}
                                           <Loader2 class="w-4 h-4 animate-spin"/>
                                       {:else}
