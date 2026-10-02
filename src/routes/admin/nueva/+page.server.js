@@ -14,18 +14,18 @@ const TEMPLATE_MIN_PLAN = {
   prop_elite_1: 'elite'
 };
 
-// 🚀 CASCADA DE MODELOS DEFINIDA POR EL USUARIO
 const MODELS_CASCADE = [
   '@cf/qwen/qwen3-30b-a3b-fp8',
   '@cf/ibm/granite-4.0-h-micro',
   '@cf/google/gemma-4-26b-a4b-it'
 ];
 
-// 🚀 MEJORA DE PROMPT: TONE_GUIDES ESTRICTOS (ANTI-MULTAS NOM-247)
+// 🚀 TONE_GUIDES ESTRICTOS (ANTI-ALUCINACIÓN)
 const TONE_GUIDES = {
-  lujo: 'Exclusivo y sobrio. Resalta estatus y diseño arquitectónico usando un lenguaje premium. PROHIBIDO usar adjetivos exagerados como "majestuoso", "sueño" o "inigualable".',
-  familiar: 'Cálido y seguro. Enfocado en la comodidad, la convivencia y la tranquilidad del entorno para la familia.',
-  inversionista: 'Analítico y profesional. Enfocado en la ubicación estratégica y funcionalidad. PROHIBIDO garantizar plusvalía, usar la palabra "garantizado" o hacer promesas financieras.'
+  profesional: 'Claro, comercial y confiable. Prioriza información concreta, distribución, características, precio y ubicación. Evita adornos innecesarios.',
+  lujo: 'Sofisticado y sobrio. Destaca arquitectura, materiales y diseño únicamente cuando esos atributos estén presentes en los datos. Nunca confundas elegancia con exageración.',
+  familiar: 'Cálido y práctico. Destaca distribución, espacios y funcionalidad para la vida cotidiana. No asumas que el comprador tiene hijos ni inventes características del entorno.',
+  inversionista: 'Analítico y comercial. Destaca precio, características físicas, ubicación y elementos objetivos. Nunca prometas plusvalía, rentabilidad o retorno garantizado.'
 };
 
 const ALLOWED_OPERATIONS = new Set(['Venta', 'Renta']);
@@ -52,7 +52,6 @@ const MAX_TOTAL_IMAGE_BYTES = 40 * 1024 * 1024;
 
 function getPlan(value) {
   const plan = String(value || 'basico').toLowerCase().trim();
-  // El trial tiene permisos equivalentes a elite en plantillas
   if (plan === 'trial') return 'elite';
   return Object.hasOwn(PLAN_RANK, plan) ? plan : 'basico';
 }
@@ -192,7 +191,6 @@ async function validateImageFile(file, label) {
   };
 }
 
-// ⚠️ CERO MODIFICACIONES AQUÍ: LÓGICA ORIGINAL RESTAURADA
 function parseAiResponse(result) {
   const raw = result?.response ?? result;
 
@@ -234,6 +232,44 @@ function validateAiContent(payload) {
   return { titulo, descripcion, whatsapp };
 }
 
+// 🚀 QUALITY GUARD EDITORIAL: Previene alucinaciones y tono spam
+function validateGeneratedCopy(content) {
+  const texto = `${content.titulo} ${content.descripcion} ${content.whatsapp}`.toLowerCase();
+
+  const forbiddenPatterns = [
+    'la mejor',
+    'única oportunidad',
+    'plusvalía garantizada',
+    'rentabilidad garantizada',
+    'inversión garantizada',
+    'de tus sueños',
+    'inigualable',
+    'imperdible',
+    'oportunidad de oro',
+    'majestuoso'
+  ];
+
+  const prohibited = forbiddenPatterns.find(p => texto.includes(p));
+
+  if (prohibited) {
+    throw new Error(`Copy rechazado (Filtro Anti-Spam): lenguaje comercial prohibido detectado -> "${prohibited}".`);
+  }
+
+  if (!content.titulo || content.titulo.split(/\s+/).length > 15) {
+    throw new Error('El título generado excede las 15 palabras permitidas.');
+  }
+
+  if (content.descripcion.length < 80) {
+    throw new Error('La descripción generada es demasiado corta para publicarse.');
+  }
+
+  if (content.whatsapp.length < 20 || content.whatsapp.length > 600) {
+    throw new Error('La longitud del script de WhatsApp está fuera de los rangos óptimos.');
+  }
+
+  return content;
+}
+
 export const load = async ({ locals }) => {
   const user = locals.user;
 
@@ -253,11 +289,10 @@ export const load = async ({ locals }) => {
         creditos_ia: 0,
         plan_suscripcion: 'basico',
         comision_global: 5,
-        limits: null // Pasado por el layout
+        limits: null
       };
     }
 
-    // 🚀 LÓGICA DE CRÉDITOS IA (Incluyendo el Trial de 15 créditos)
     let creditosReales = Math.max(0, Number(broker.ia_creditos_disponibles) || 0);
 
     return {
@@ -293,40 +328,25 @@ export const actions = {
     const ubicacion = normalizePlainText(formData.get('ubicacion'), 100);
     const tipo = normalizePlainText(formData.get('tipo'), 50);
     const operacion = normalizePlainText(formData.get('operacion'), 30);
-    const tono = normalizePlainText(formData.get('tono'), 30) || 'lujo';
+    const tono = normalizePlainText(formData.get('tono'), 30) || 'profesional';
 
     const precio = parseLocalizedNumber(formData.get('precio'), {
       min: 1,
       max: 1_000_000_000
     });
 
-    const recamaras = parseLocalizedNumber(formData.get('recamaras'), {
-      min: 0,
-      max: 100,
-      integer: true
-    });
+    const recamaras = parseLocalizedNumber(formData.get('recamaras'), { min: 0, max: 100, integer: true });
+    const banos = parseLocalizedNumber(formData.get('banos'), { min: 0, max: 100 });
+    const medioBano = parseLocalizedNumber(formData.get('medio_bano'), { min: 0, max: 100 });
+    const estacionamientos = parseLocalizedNumber(formData.get('estacionamientos'), { min: 0, max: 100, integer: true });
+    
+    // 🚀 LÓGICA REFINADA PARA M2 (null en vez de 0 absoluto)
+    const m2Terreno = parseLocalizedNumber(formData.get('m2_terreno'), { min: 0, max: 10_000_000 });
+    const m2Construccion = parseLocalizedNumber(formData.get('m2_construccion'), { min: 0, max: 10_000_000 });
 
-    const banos = parseLocalizedNumber(formData.get('banos'), {
-      min: 0,
-      max: 100
-    });
-
-    const medioBano = parseLocalizedNumber(formData.get('medio_bano'), {
-      min: 0,
-      max: 100
-    });
-
-    const estacionamientos = parseLocalizedNumber(formData.get('estacionamientos'), {
-      min: 0,
-      max: 100,
-      integer: true
-    });
-
-    const mantenimiento = parseLocalizedNumber(formData.get('mantenimiento'), {
-      min: 0,
-      max: 10_000_000
-    });
-
+    const mantenimientoNum = parseLocalizedNumber(formData.get('mantenimiento'), { min: 0, max: 10_000_000 });
+    const cobraMantenimiento = formData.get('cobra_mantenimiento') === 'true' || formData.get('cobra_mantenimiento') === 'on';
+    
     const antiguedad = normalizePlainText(formData.get('antiguedad'), 50) || 'No especificada';
 
     if (!ubicacion || precio === null) {
@@ -343,11 +363,10 @@ export const actions = {
 
     const requestId = crypto.randomUUID();
 
-    // 🛡️ C1: Confiamos el bloqueo atómico exclusivamente a la RPC sin SELECT previo
     const reservation = await reserveAiCredit(locals.supabase, user.id, requestId);
 
     if (!reservation) {
-      return fail(403, { error: 'No tienes créditos de IA disponibles o petición duplicada.' });
+      return fail(403, { error: 'No tienes créditos de IA disponibles o es una petición duplicada.' });
     }
 
     let creditConfirmed = false;
@@ -355,47 +374,80 @@ export const actions = {
     let errorLog = [];
 
     try {
+      // 🚀 CONSTRUCCIÓN DEL OBJETO CON DATOS PRECISOS
       const propertyFacts = {
         operacion,
         tipo,
         ubicacion,
         precio_mxn: precio,
-        mantenimiento_mxn: mantenimiento ?? 0,
-        recamaras: recamaras ?? 0,
-        banos: banos ?? 0,
-        medios_banos: medioBano ?? 0,
-        estacionamientos: estacionamientos ?? 0,
+        mantenimiento_estado: cobraMantenimiento 
+          ? `$${(mantenimientoNum ?? 0).toLocaleString('es-MX')} MXN` 
+          : 'Sin cuota de mantenimiento',
+        m2_terreno: m2Terreno ?? null,
+        m2_construccion: m2Construccion ?? null,
+        recamaras: recamaras ?? null,
+        banos: banos ?? null,
+        medios_banos: medioBano ?? null,
+        estacionamientos: estacionamientos ?? null,
         antiguedad
       };
 
-      // 🚀 MEJORA DE PROMPT: REGLAS ESTRICTAS DE ANTI-ALUCINACIÓN Y COMPATIBILIDAD CON TU PARSEADOR
+      // 🚀 NUEVA ARQUITECTURA DE PROMPT: Broker Profesional + NOM-247
       const systemPrompt = [
-        'Eres un Copywriter Inmobiliario Certificado operando en México bajo la normativa PROFECO NOM-247-SE-2021.',
-        'REGLA 1 (CERO ALUCINACIONES): Usa EXCLUSIVAMENTE los datos proporcionados. Si una amenidad, característica, espacio o métrica no aparece explícitamente en DATOS_PROPIEDAD, ASUME QUE NO EXISTE. No inventes albercas, jardines, seguridad ni cercanía a puntos de interés.',
-        'REGLA 2 (LEGALIDAD NOM-247): ESTRICTAMENTE PROHIBIDO usar superlativos engañosos (ej. "el mejor", "único", "inigualable") y hacer promesas financieras o subjetivas (ej. "inversión garantizada", "plusvalía segura", "oportunidad de oro").',
-        `REGLA 3 (TONO): ${TONE_GUIDES[tono]}`,
-        'REGLA 4 (DATOS NUMÉRICOS): Si el valor de recamaras, banos, medios_banos o estacionamientos es 0, OMÍTELOS POR COMPLETO de la redacción. Si mantenimiento_mxn es 0, redacta textualmente "sin cuota de mantenimiento".',
-        'REGLA 5 (FORMATO DE RESPUESTA): Devuelve ÚNICA Y EXCLUSIVAMENTE un objeto JSON válido. No uses bloques Markdown como ```json. Empieza directamente con { y termina con }.',
-        'ESTRUCTURA DEL JSON REQUERIDA:',
+        'Eres un broker inmobiliario profesional en México que está dando de alta un NUEVO INMUEBLE en su CRM operando bajo la estricta normativa PROFECO NOM-247-SE-2021.',
+        'Conoces la propiedad y estás transformando los datos reales capturados en una publicación clara, objetiva y comercial.',
+        'Tu trabajo NO es inventar beneficios ni escribir publicidad genérica o exagerada.',
+        '━━━━━━━━━━━━━━━━━━━━',
+        'PRINCIPIO FUNDAMENTAL (CERO ALUCINACIONES):',
+        'Los DATOS_PROPIEDAD provistos por el usuario son la ÚNICA fuente de verdad.',
+        'Si un dato no aparece explícitamente, NO existe para esta publicación. Nunca inventes: amenidades, albercas, jardines, seguridad, cercanía a escuelas/hospitales, plusvalía, disponibilidad ni características arquitectónicas.',
+        '━━━━━━━━━━━━━━━━━━━━',
+        'ROL, VOZ Y LEGALIDAD:',
+        'Evita frases de relleno tipo "una excelente oportunidad", "la casa de tus sueños", "imperdible".',
+        'NUNCA garantices plusvalía, rentabilidad ni retorno.',
+        'NUNCA afirmes que la propiedad es "la mejor" o "inigualable".',
+        'Usa exactamente los valores monetarios y de superficie proporcionados.',
+        `TONO SELECCIONADO: ${TONE_GUIDES[tono]}. El tono nunca puede modificar los hechos, solo la forma de expresarlos.`,
+        '━━━━━━━━━━━━━━━━━━━━',
+        'INSTRUCCIONES DE FORMATO JSON:',
+        'Devuelve ÚNICAMENTE un objeto JSON válido.',
         '{',
-        '  "titulo": "Título descriptivo atractivo de máximo 10 palabras. NO uses comillas dobles internas.",',
-        '  "descripcion": "3 párrafos fluidos y descriptivos. IMPORTANTE: Para separar los párrafos, usa estrictamente la etiqueta HTML <br><br> (NO uses caracteres de escape como \\n). Enfócate en la funcionalidad real de los espacios dados.",',
-        '  "whatsapp": "Mensaje ultracorto (máximo 2 oraciones) para WhatsApp. Casual y directo. Cierra con una pregunta para agendar visita. Máximo 1 emoji."',
+        '  "titulo": "Título claro de 6 a 12 palabras (Ej. Casa en venta en Zapopan, 3 recámaras y cochera)",',
+        '  "descripcion": "3 párrafos cortos (100-180 palabras). Párrafo 1: Qué es, dónde y precio. Párrafo 2: Características físicas (si un valor numérico como recámaras es null, omítelo). Párrafo 3: Cierre comercial natural. Usa el carácter especial \\n para los saltos de línea, NO uses etiquetas HTML como <br>.",',
+        '  "whatsapp": "Mensaje escrito en 1ra persona por el broker. Máximo 3 oraciones. Casual, directo. Elige el siguiente paso lógico (agendar visita, compartir ficha, revisar disponibilidad) según la operación. Máximo 1 emoji."',
         '}'
-      ].join(' ');
+      ].join('\n');
 
-      // 🚀 MEJORA DE PROMPT: INPUT ESTRUCTURADO COMO LISTADO
-      const userPrompt = `DATOS_PROPIEDAD:
-- Operación: ${propertyFacts.operacion}
-- Tipo: ${propertyFacts.tipo}
-- Ubicación: ${propertyFacts.ubicacion}
-- Precio: $${propertyFacts.precio_mxn.toLocaleString('es-MX')} MXN
-- Mantenimiento: ${propertyFacts.mantenimiento_mxn > 0 ? '$' + propertyFacts.mantenimiento_mxn.toLocaleString('es-MX') + ' MXN' : 'Sin cuota'}
-- Recámaras: ${propertyFacts.recamaras}
-- Baños Completos: ${propertyFacts.banos}
-- Medios Baños: ${propertyFacts.medios_banos}
-- Estacionamientos: ${propertyFacts.estacionamientos}
-- Antigüedad: ${propertyFacts.antiguedad}`;
+      const userPrompt = `FICHA REAL DEL INMUEBLE
+━━━━━━━━━━━━━━━━━━━━
+IDENTIDAD
+━━━━━━━━━━━━━━━━━━━━
+Operación: ${propertyFacts.operacion}
+Tipo: ${propertyFacts.tipo}
+Ubicación: ${propertyFacts.ubicacion}
+
+━━━━━━━━━━━━━━━━━━━━
+PRECIO Y COSTOS
+━━━━━━━━━━━━━━━━━━━━
+Precio: $${propertyFacts.precio_mxn.toLocaleString('es-MX')} MXN
+Mantenimiento: ${propertyFacts.mantenimiento_estado}
+
+━━━━━━━━━━━━━━━━━━━━
+SUPERFICIES
+━━━━━━━━━━━━━━━━━━━━
+Terreno: ${propertyFacts.m2_terreno ? propertyFacts.m2_terreno + ' m²' : 'No especificado'}
+Construcción: ${propertyFacts.m2_construccion ? propertyFacts.m2_construccion + ' m²' : 'No especificada'}
+
+━━━━━━━━━━━━━━━━━━━━
+CARACTERÍSTICAS FÍSICAS
+━━━━━━━━━━━━━━━━━━━━
+Recámaras: ${propertyFacts.recamaras ?? 'No especificado'}
+Baños completos: ${propertyFacts.banos ?? 'No especificado'}
+Medios baños: ${propertyFacts.medios_banos ?? 'No especificado'}
+Estacionamientos: ${propertyFacts.estacionamientos ?? 'No especificado'}
+Antigüedad: ${propertyFacts.antiguedad}
+
+OBJETIVO: Convierte estos datos en el JSON solicitado sin inventar NADA.`;
 
       for (const modelId of MODELS_CASCADE) {
         try {
@@ -404,11 +456,14 @@ export const actions = {
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt }
             ],
-            max_tokens: 1200,
-            temperature: 0.5
+            max_tokens: 800, // Ajustado a 800 para mayor precisión, menos relleno
+            temperature: 0.3 // Ajustado a 0.3 para cero alucinaciones
           });
 
-          finalContent = validateAiContent(parseAiResponse(result));
+          // Pasa por el parser, verificador de estructura y el filtro editorial estricto
+          const parsedContent = validateAiContent(parseAiResponse(result));
+          finalContent = validateGeneratedCopy(parsedContent);
+          
           break; 
         } catch (err) {
           errorLog.push(`${modelId.split('/').pop()}: ${err.message}`);
@@ -417,18 +472,17 @@ export const actions = {
       }
 
       if (!finalContent) {
-        throw new Error(`Cascada agotada. Errores: ${errorLog.join(' | ')}`);
+        throw new Error(`Cascada IA fallida tras agotar modelos. Errores: ${errorLog.join(' | ')}`);
       }
 
       const confirmed = await confirmAiCredit(locals.supabase, user.id, requestId);
 
       if (!confirmed) {
-        throw new Error('No fue posible confirmar el consumo del crédito.');
+        throw new Error('No fue posible confirmar el consumo del crédito en la base de datos.');
       }
 
       creditConfirmed = true;
 
-      // 🛡️ C2: Consulta del saldo real tras la confirmación atómica
       const { data: brokerActualizado } = await locals.supabase
         .from('brokers')
         .select('ia_creditos_disponibles')
@@ -450,7 +504,7 @@ export const actions = {
       });
 
       return fail(502, {
-        error: 'No fue posible generar el contenido. Tu crédito fue reembolsado.'
+        error: `Error al generar: ${error instanceof Error ? error.message : 'Intenta nuevamente.'}`
       });
     }
   },
@@ -584,14 +638,12 @@ export const actions = {
       return fail(403, { error: 'Perfil de agencia no encontrado.' });
     }
 
-    // 🚀 FIX PAYWALL INVENTARIO: Validación dura en Servidor (Evita hackers)
     const esTrial = broker.status_suscripcion === 'trial';
     const planOriginal = (broker.plan_suscripcion || 'basico').toLowerCase();
     
     const limitesInventario = { basico: 15, trial: 5, pro: 999999, elite: 999999 };
     const limiteActualProps = esTrial ? limitesInventario['trial'] : (limitesInventario[planOriginal] || 15);
 
-    // Contar rápido antes de insertar
     const { count: propsCount } = await locals.supabase
       .from('propiedades')
       .select('id', { count: 'exact', head: true })
@@ -612,7 +664,7 @@ export const actions = {
     const commissionFinal =
       comision === null ? Number(broker.comision_default) || 5 : comision;
 
-    const cdnDomain = platform.env.CDN_URL || '[https://cdn.inmublia.com](https://cdn.inmublia.com)';
+    const cdnDomain = platform.env.CDN_URL || 'https://cdn.inmublia.com';
 
     let cdnBaseUrl;
 
