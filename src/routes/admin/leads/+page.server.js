@@ -6,7 +6,6 @@ import { calcularScore } from '$lib/scoring.js';
 import { reserveAiCredit, confirmAiCredit, refundAiCredit } from '$lib/server/ai-credits.js';
 import { etapaLegible } from '$lib/utils/leads.js';
 
-// 🚀 CASCADA ENTERPRISE: Modelos capaces de seguir el tono y las instrucciones
 const MODELS_CASCADE = [
   '@cf/qwen/qwen3-30b-a3b-fp8',
   '@cf/mistralai/mistral-small-3.1-24b-instruct',
@@ -122,7 +121,6 @@ export const actions = {
   crearLeadManual: async ({ request, locals }) => {
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización.' });
     
-    // 🚀 FIX: Recuperación Dinámica de Sesión
     let user = locals.user;
     if (!user && locals.supabase) {
       const { data } = await locals.supabase.auth.getUser();
@@ -176,9 +174,8 @@ export const actions = {
 
       const { error: notaErr } = await locals.supabase.from('lead_notas').insert(notaPayload);
 
-      // 🚀 INYECCIÓN DE AUTO-SANACIÓN
       if (notaErr && notaErr.message.includes('lead_notas_broker_id_fkey')) {
-        notaPayload.broker_id = user.id; // Fallback dinámico al auth.users ID
+        notaPayload.broker_id = user.id; 
         await locals.supabase.from('lead_notas').insert(notaPayload);
       }
     }
@@ -187,7 +184,7 @@ export const actions = {
   },
 
   actualizar: async ({ request, locals }) => {
-    if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización: No puedes alterar los prospectos del cliente.' });
+    if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización: No puedes alterar los prospectos.' });
     
     let user = locals.user;
     if (!user && locals.supabase) {
@@ -249,7 +246,7 @@ export const actions = {
   },
 
   guardarNota: async ({ request, locals }) => {
-    if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización: No puedes agregar notas al cliente.' });
+    if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización: No puedes agregar notas.' });
     
     let user = locals.user;
     if (!user && locals.supabase) {
@@ -283,10 +280,8 @@ export const actions = {
 
     let { error: notaError } = await locals.supabase.from('lead_notas').insert(payloadNota);
 
-    // 🚀 INYECCIÓN DE AUTO-SANACIÓN ARQUITECTÓNICA
     if (notaError && notaError.message.includes('lead_notas_broker_id_fkey')) {
-        console.warn('⚠️ Auto-Fix Activo: Llave foránea desalineada en Supabase. Usando auth.users ID en lugar de brokers ID.');
-        payloadNota.broker_id = user.id; // Cambiamos el ID al vuelo
+        payloadNota.broker_id = user.id; 
         const retry = await locals.supabase.from('lead_notas').insert(payloadNota);
         notaError = retry.error;
     }
@@ -355,6 +350,7 @@ export const actions = {
     
     const brokerNombre = broker.nombre_comercial || 'el asesor';
 
+    // Recuperamos el lead con sus relaciones
     const { data: lead } = await locals.supabase
         .from('leads')
         .select(`*, propiedades(titulo), lead_notas(contenido, tipo, creado_en, completado, fecha_recordatorio)`)
@@ -366,7 +362,7 @@ export const actions = {
 
     const requestId = crypto.randomUUID();
     const reservation = await reserveAiCredit(locals.supabase, user.id, requestId);
-    if (!reservation) return fail(403, { error: 'No tienes créditos de IA o existe un error transaccional.' });
+    if (!reservation) return fail(403, { error: 'No tienes créditos de IA.' });
 
     let creditConfirmed = false;
     let finalContent = null;
@@ -377,39 +373,50 @@ export const actions = {
     try {
         const hoyStr = new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' });
         
-        const notasRecientes = (lead.lead_notas || [])
-            .sort((a,b) => new Date(a.creado_en).getTime() - new Date(b.creado_en).getTime())
-            .slice(-6)
+        // 🚀 NUEVA ARQUITECTURA DE DATOS: Historial Estructurado
+        const notasOrdenadas = (lead.lead_notas || []).sort((a,b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime());
+        
+        const notasRecientes = notasOrdenadas
+            .slice(0, 6)
+            .reverse() // Orden cronológico para que la IA entienda la línea de tiempo
             .map(n => {
               const fecha = new Date(n.creado_en).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
-              const estado = n.completado ? '[HECHO]' : '[PENDIENTE]';
-              const fechaRec = (!n.completado && n.fecha_recordatorio)
-                ? ` → para el ${new Date(n.fecha_recordatorio).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}`
-                : '';
-              return `• ${fecha} | ${n.tipo.toUpperCase()} ${estado}: "${n.contenido}"${fechaRec}`;
+              let contextoTag = '[INTERACCIÓN/NOTA]';
+              
+              if (n.tipo === 'recordatorio') {
+                  contextoTag = n.completado ? '[TAREA COMPLETADA]' : `[TAREA PENDIENTE: vence ${new Date(n.fecha_recordatorio).toLocaleDateString('es-MX')}]`;
+              }
+              
+              return `Fecha: ${fecha} | Evento: ${contextoTag} -> Detalles: "${n.contenido}"`;
             })
             .join('\n');
 
+        // 🚀 NUEVA ARQUITECTURA: Calcular Objetivo Comercial Estratégico ("Termostato")
+        const scoreObj = calcularScore({ ...lead, lead_notas: notasOrdenadas });
+        const objetivoComercial = scoreObj.accion || 'Retomar el contacto para avanzar de etapa.';
+
+        // 🚀 PROMPT EVOLUCIONADO (Estructurado, Anti-Alucinaciones y con Quality Guard)
         const systemPrompt = `/no_think
-Eres un asesor inmobiliario en México redactando un WhatsApp para tu cliente.
+Eres un experto asesor inmobiliario en México. Tu objetivo es redactar el próximo mensaje de WhatsApp para el cliente.
 
-CONTEXTO:
-- Tú eres: ${brokerNombre} (hablas en primera persona, nunca menciones tu nombre explícitamente en la firma)
-- Tu cliente: ${primerNombre} (tutéalo siempre, nunca uses usted)
-- Etapa de venta: ${etapaLegible(lead.estado)}
-- Inmueble de interés: ${lead.propiedades ? lead.propiedades.titulo : 'Búsqueda general'}
+CONTEXTO COMERCIAL:
+- Tu nombre de agencia/asesor: ${brokerNombre}
+- Nombre del Cliente: ${primerNombre} (Tutéalo, sé amigable pero profesional)
+- Etapa en el Embudo: ${etapaLegible(lead.estado)}
+- Inmueble de Interés: ${lead.propiedades ? lead.propiedades.titulo : 'Búsqueda general de propiedades'}
+- OBJETIVO COMERCIAL DEL MENSAJE: ${objetivoComercial}
 
-ESCRIBE UN MENSAJE DE WHATSAPP QUE:
-1. Inicie exactamente saludándolo por su primer nombre: "Hola ${primerNombre}," o "¡Hola ${primerNombre}!"
-2. Sea conversacional y cálido.
-3. Tenga máximo 2-4 oraciones cortas.
-4. Use 1 emoji natural al final (🏡 ✨ 👋).
-5. Cierre con una pregunta casual.
+REGLAS DE ORO (ANTI-ALUCINACIÓN):
+1. Inicia siempre con "Hola ${primerNombre}," o "¡Hola ${primerNombre}!".
+2. NUNCA inventes características de la propiedad (como planta baja, jardín, número de cuartos) si no están en el historial.
+3. NUNCA asumas que hubo un recorrido físico a menos que el historial diga explícitamente "Recorrido" o "Visita".
+4. NUNCA suenes a call center ("Espero que te encuentres muy bien", "Te contacto por este medio").
+5. Limita el uso de emojis a máximo 1 o 2 en todo el mensaje. 
+6. Cierra con una pregunta corta y conversacional para obligar a una respuesta y cumplir el OBJETIVO COMERCIAL.
 
-EVITA escribir: "Espero que estés bien", "Te contacto para...", "usted", "su propiedad".
-Escribe SOLO el mensaje.`;
+Devuelve EXCLUSIVAMENTE el texto del mensaje. Sin comillas ni explicaciones previas.`;
 
-        const userPrompt = `FECHA DE HOY: ${hoyStr}\nHISTORIAL DEL CLIENTE:\n${notasRecientes || '— Primer contacto. Preséntate.'}\nINSTRUCCIÓN: Redacta el mensaje HOY basándote exclusivamente en el historial.`;
+        const userPrompt = `FECHA ACTUAL: ${hoyStr}\n\nHISTORIAL DE EVENTOS:\n${notasRecientes || '— Aún no hay eventos. Este es el primer contacto de seguimiento.'}\n\nINSTRUCCIÓN: Redacta el mensaje de WhatsApp de HOY basándote exclusivamente en los eventos y buscando cumplir el OBJETIVO COMERCIAL.`;
 
         for (const modelId of MODELS_CASCADE) {
             try {
@@ -419,7 +426,7 @@ Escribe SOLO el mensaje.`;
                         { role: 'user', content: userPrompt }
                     ],
                     max_tokens: 600, 
-                    temperature: 0.7 
+                    temperature: 0.6 // Menor temperatura para evitar alucinaciones
                 });
 
                 const parsed = parseAiResponse(result);
@@ -427,12 +434,13 @@ Escribe SOLO el mensaje.`;
                 const textoLower = textoWhatsapp.toLowerCase();
                 const nombreLower = primerNombre.toLowerCase();
                 
+                // Quality Guard
                 if (!textoLower.includes(`hola ${nombreLower}`) && !textoLower.includes(`¡hola ${nombreLower}`) && !textoLower.includes(`buenos ${nombreLower}`)) {
-                  throw new Error('Guardia: Mensaje no inicia con el saludo esperado.');
+                  throw new Error('Guardia: El mensaje no inicia con el saludo esperado.');
                 }
 
-                const patronesProhibidos = [/\bme llamaré\b/, /\bme marco a\b/, /\bcómo está\b(?![n])/, /\ble agradezco\b/, /\busted\b/, /\bsu propiedad\b/];
-                if (patronesProhibidos.some(p => p.test(textoLower))) throw new Error(`Guardia: Lenguaje formal prohibido.`);
+                const patronesProhibidos = [/\bme llamaré\b/, /\bme marco a\b/, /\bcómo está\b(?![n])/, /\ble agradezco\b/, /\busted\b/, /\bsu propiedad\b/, /espero (que )?(te encuentres|estés) bien/];
+                if (patronesProhibidos.some(p => p.test(textoLower))) throw new Error(`Guardia: Lenguaje formal o cliché de call center detectado.`);
                 if (textoWhatsapp.length < 15 || textoWhatsapp.length > 500) throw new Error(`Guardia: Longitud inválida.`);
 
                 finalContent = { whatsapp: textoWhatsapp };
@@ -443,7 +451,7 @@ Escribe SOLO el mensaje.`;
             }
         }
 
-        if (!finalContent) throw new Error('El generador de Inteligencia Artificial tardó demasiado.');
+        if (!finalContent) throw new Error('El generador tardó demasiado o no superó los filtros de calidad (Quality Guard).');
 
         const confirmed = await confirmAiCredit(locals.supabase, user.id, requestId);
         if (!confirmed) throw new Error('Fallo al confirmar consumo de crédito IA.');
