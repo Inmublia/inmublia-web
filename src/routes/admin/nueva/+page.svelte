@@ -26,7 +26,7 @@
 
   let generandoIA = $state(false);
   let iaEjecutada = $state(false);
-  let tonoIA = $state('lujo'); 
+  let tonoIA = $state('profesional'); // 🚀 FIX: Tono por defecto más maduro
   let iaErrorMsg = $state('');
   
   let textoGeneradoWhatsapp = $state('');
@@ -155,12 +155,18 @@
       formData.append('precio', precioLimpio);
       formData.append('tipo', valTipo);
       formData.append('operacion', valOperacion);
-      formData.append('recamaras', valRecamaras || '0');
-      formData.append('banos', valBanos || '0');
-      formData.append('medio_bano', valMedioBano || '0');
-      formData.append('estacionamientos', valEstacionamientos || '0');
+      formData.append('recamaras', valRecamaras || '');
+      formData.append('banos', valBanos || '');
+      formData.append('medio_bano', valMedioBano || '');
+      formData.append('estacionamientos', valEstacionamientos || '');
       formData.append('antiguedad', valAntiguedad || 'No especificada'); 
+      
+      // 🚀 FIX: Pasamos los M2 a la IA
+      formData.append('m2_terreno', valM2Terreno || '');
+      formData.append('m2_construccion', valM2Construccion || '');
+      
       formData.append('tono', tonoIA); 
+      formData.append('cobra_mantenimiento', cobraMantenimiento);
 
       if (cobraMantenimiento && valMantenimiento) {
         formData.append('mantenimiento', valMantenimiento.toString().replace(/[^0-9.]/g, ''));
@@ -224,7 +230,6 @@
 
 <div class="w-full flex-1 flex flex-col font-sans text-slate-900 dark:text-zinc-100 pb-12 animate-[fadeIn_0.3s_ease-out] relative">
   
-  <!-- 🚀 FIX: Recreamos la cabecera de forma manual para asegurar el alineamiento a la izquierda del botón Back -->
   <header class="w-full bg-white dark:bg-zinc-950 text-slate-900 dark:text-white pt-8 pb-28 px-6 sm:px-10 relative overflow-hidden shrink-0 border-b border-slate-200 dark:border-zinc-800 transition-colors duration-300">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none translate-x-1/3 -translate-y-1/3 transition-opacity"></div>
 
@@ -516,9 +521,10 @@
                       <label for="tono-ia" class="text-[10px] font-bold text-slate-300 uppercase tracking-widest text-center w-full">Tono de Redacción</label>
                       <div class="relative w-full">
                         <select id="tono-ia" bind:value={tonoIA} class="w-full bg-slate-900 text-white border border-slate-700 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner cursor-pointer appearance-none pr-10">
+                          <option value="profesional">Claro / Comercial</option>
                           <option value="lujo">Premium / Elegante</option>
                           <option value="familiar">Familiar / Cálido</option>
-                          <option value="inversionista">Analítico / ROI</option>
+                          <option value="inversionista">Analítico / Inversionista</option>
                         </select>
                         <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                           <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
