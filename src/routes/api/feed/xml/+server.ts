@@ -1,28 +1,61 @@
 import { error } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
-import { supabaseAdmin } from '$lib/server/supabase'; 
+import { createClient } from '@supabase/supabase-js';
+import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
+
+// 1. Inicialización nativa al estilo Inmublia Web
+// Usamos la Service Role Key para saltar el RLS en esta operación de servidor a servidor (Zero Trust)
+const supabaseUrl = publicEnv.PUBLIC_SUPABASE_URL || env.SUPABASE_URL;
+const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Variables de entorno de Supabase faltantes en el servidor.');
+}
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+        autoRefreshToken: false,
+        persistSession: false
+    }
+});
 
 export async function GET({ url }: RequestEvent) {
-    // 1. Validación de Seguridad (Zero Trust)
     const feedToken = url.searchParams.get('token');
     
     if (!feedToken) {
         throw error(401, 'Token de sindicación requerido. Ejemplo: ?token=xyz');
     }
 
-    const { data: brokerData, error: brokerError } = await supabaseAdmin
+    // 2. Validación Zero Trust con Políticas de Expiración y Portal Destino
+    const { data: tokenData, error: tokenError } = await supabaseAdmin
         .from('broker_syndication_tokens')
-        .select('broker_id')
+        .select('id, broker_id, is_active, expires_at')
         .eq('token', feedToken)
         .single();
 
-    if (brokerError || !brokerData) {
-        throw error(403, 'Token inválido o revocado');
+    if (tokenError || !tokenData) {
+        throw error(403, 'Token inválido.');
     }
 
-    const brokerId = brokerData.broker_id;
+    if (!tokenData.is_active) {
+        throw error(403, 'Token revocado por el administrador.');
+    }
 
-    // 2. Extraer propiedades autorizadas
+    if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) {
+        throw error(403, 'Token expirado. Contacta a soporte.');
+    }
+
+    const brokerId = tokenData.broker_id;
+
+    // 3. Rastro de Auditoría (Fuego y Olvido, no bloquea el hilo)
+    supabaseAdmin
+        .from('broker_syndication_tokens')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', tokenData.id)
+        .then();
+
+    // 4. Extraer propiedades autorizadas
     const { data: properties, error: dbError } = await supabaseAdmin
         .from('propiedades')
         .select(`
@@ -44,10 +77,10 @@ export async function GET({ url }: RequestEvent) {
         .eq('difusion_activa', true); 
 
     if (dbError) {
-        throw error(500, 'Error interno al consultar el Ledger de propiedades');
+        throw error(500, 'Error interno al consultar el Ledger de propiedades.');
     }
 
-    // 3. Construcción Eficiente del XML
+    // 5. Construcción Eficiente del XML
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<adverts>\n`;
 
     if (properties) {
