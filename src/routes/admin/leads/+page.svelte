@@ -3,7 +3,7 @@
   import { invalidateAll, goto } from '$app/navigation';
   import { enhance } from '$app/forms';
   import { page } from '$app/state'; 
-  import { untrack } from 'svelte';
+  import { untrack, onMount } from 'svelte';
   
   import { 
     Search, X, Phone, Mail, Home, Send, Trash2, Clock, UserCircle,
@@ -19,6 +19,17 @@
   let broker = $derived(data.broker || {});
   let propiedadesOptions = $derived(data.propiedades || []); 
   
+  // 🚀 V6: Aislamiento por Tenant para Idempotencia de Red
+  let effectiveBrokerId = $derived(broker.id);
+  let REQUEST_KEY = $derived(`inmublia:ai:leads:request:${effectiveBrokerId || 'guest'}`);
+  let iaRequestId = '';
+
+  onMount(() => {
+    if (effectiveBrokerId) {
+      iaRequestId = sessionStorage.getItem(REQUEST_KEY) ?? '';
+    }
+  });
+
   let leads = $state(data.leads || []);
   let draggedLeadId = $state(null);
   
@@ -542,7 +553,6 @@
     {/snippet}
   </PageHeader>
 
-  <!-- CONTENEDOR INTEGRADO -->
   <div class="relative flex-1 flex overflow-hidden z-20 -mt-16 w-full">
     
     <button onclick={() => scrollBoard(-1)} class="{isPanelOpen ? 'hidden' : 'hidden sm:flex'} absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 dark:bg-zinc-800/90 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 border border-slate-200 dark:border-zinc-700 shadow-xl w-10 h-10 rounded-full items-center justify-center text-slate-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all backdrop-blur-sm cursor-pointer" aria-label="Desplazar tablero a la izquierda">
@@ -565,7 +575,6 @@
             ondragover={permitirSoltar}
             ondrop={(e) => soltar(e, columna.id)}
           >
-            <!-- Cabecera de columna -->
             <div class="sticky top-0 z-20 px-3 py-2.5 -mx-2.5 -mt-2.5 mb-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-t-xl border-b border-slate-200/60 dark:border-zinc-700/50 shadow-sm transition-colors duration-300">
               <div class="flex items-center justify-between mb-1.5">
                 <h2 class="text-[10px] font-black uppercase tracking-widest {columna.text} flex items-center gap-1.5 drop-shadow-sm">
@@ -682,7 +691,7 @@
       </div>
     </div>
 
-    <!-- CANVAS MODULAR (Vista Detalle Bimodal original) -->
+    <!-- CANVAS MODULAR (Vista Detalle Bimodal) -->
     {#if isPanelOpen && selectedLead}
       <div class="flex-1 w-full px-4 sm:px-8 pb-6 animate-[fadeIn_0.2s_ease-out] overflow-hidden">
           
@@ -691,7 +700,6 @@
               <!-- HEADER DE EXPEDIENTE -->
               <div class="bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col xl:flex-row justify-between items-start xl:items-center shadow-sm shrink-0 gap-4 mb-5 transition-colors">
                   
-                  <!-- 🚀 FIX 1: Datos del Lead Justificados (Sin espacios muertos) -->
                   <div class="flex items-start gap-4 min-w-0">
                       <button aria-label="Volver al pipeline" onclick={cerrarPanel} class="p-2 text-slate-400 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-xl transition-colors border border-slate-200 dark:border-zinc-700 shrink-0 shadow-sm mt-1">
                           <ArrowLeft class="w-5 h-5" />
@@ -725,7 +733,6 @@
                               </select>
                           </div>
                           
-                          <!-- Contacto apilado de forma compacta debajo del nombre -->
                           <div class="flex items-center gap-3 text-[11px] font-bold text-slate-500 dark:text-zinc-400 mt-1 transition-colors">
                               {#if selectedLead.telefono}
                                 <a href="tel:{String(selectedLead.telefono).replace(/\D/g, '')}" class="flex items-center gap-1 hover:text-indigo-600 transition-colors"><Phone class="w-3.5 h-3.5"/> {selectedLead.telefono}</a>
@@ -738,7 +745,6 @@
                       </div>
                   </div>
                   
-                  <!-- Widget Premium en el Centro -->
                   {#if infoVistaRapida}
                     <div class="hidden xl:flex flex-1 justify-center mx-4 animate-[fadeIn_0.3s_ease-out]">
                       <div class="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl px-5 py-4 flex flex-col justify-center relative overflow-hidden shadow-sm min-w-[280px] max-w-[360px]">
@@ -754,7 +760,6 @@
                     </div>
                   {/if}
 
-                  <!-- 🚀 FIX 2: Columna Derecha Apilada (Créditos arriba, WhatsApp abajo, mismo ancho w-[140px]) -->
                   <div class="flex items-start gap-2 w-full xl:w-auto shrink-0 justify-end mt-2 xl:mt-0 relative">
                       
                       <div class="flex flex-col items-end gap-1.5 w-[140px]">
@@ -770,7 +775,6 @@
                         {/if}
                       </div>
 
-                      <!-- Menú Contextual Desplazado -->
                       <div class="relative mt-1">
                         <button onclick={() => showMenuContextual = !showMenuContextual} class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-300 transition-colors">
                           <MoreHorizontal class="w-5 h-5"/>
@@ -790,24 +794,42 @@
                   <!-- COLUMNA IZQUIERDA -->
                   <div class="md:col-span-5 flex flex-col gap-3 overflow-y-auto hide-scrollbar pb-4">
                       
-                      <!-- SUGERENCIA IA -->
+                      <!-- 🚀 V6: SUGERENCIA IA CON IDEMPOTENCIA -->
                       <div class="bg-indigo-50/40 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/10 rounded-2xl p-4 shadow-sm shrink-0 flex flex-col transition-colors">
                           <div class="flex items-center justify-between mb-3">
                               <span class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2">
                                   <Sparkles class="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" /> Inmublia AI
                               </span>
                               
-                              <form id="form-whatsapp-ia" method="POST" action="?/generarScriptWhatsapp" use:enhance={() => {
+                              <form id="form-whatsapp-ia" method="POST" action="?/generarScriptWhatsapp" use:enhance={({ formData, cancel }) => {
+                                  if (iaGenerandoWs) return cancel();
                                   iaGenerandoWs = true; iaWsError = ''; iaWsGenerado = '';
+
+                                  if (!iaRequestId) {
+                                      iaRequestId = crypto.randomUUID();
+                                      sessionStorage.setItem(REQUEST_KEY, iaRequestId);
+                                  }
+                                  formData.append('request_id', iaRequestId);
+
                                   return async ({ result, update }) => {
                                       iaGenerandoWs = false;
+                                      
                                       if (result.type === 'success' && result.data?.whatsapp) {
                                           iaWsGenerado = result.data.whatsapp;
                                           creditosIA = Math.max(0, creditosIA - 1); 
+                                          sessionStorage.removeItem(REQUEST_KEY);
+                                          iaRequestId = '';
                                           await update({ reset: false });
                                           await invalidateAll();
                                       } else if (result.type === 'failure') {
                                           iaWsError = result.data?.error || 'No se pudo generar el script de IA.';
+                                          const terminalStates = ['released', 'already_finalized', 'ineligible'];
+                                          if (terminalStates.includes(result.data?.status) || result.data?.error?.includes('créditos') || result.data?.error?.includes('inactiva') || result.data?.error?.includes('corrupto')) {
+                                             sessionStorage.removeItem(REQUEST_KEY);
+                                             iaRequestId = ''; 
+                                          }
+                                      } else if (result.type === 'error') {
+                                          iaWsError = 'Error de red. Reintenta (no se descontarán créditos adicionales).';
                                       }
                                   };
                               }}>
@@ -922,13 +944,11 @@
                       </div>
 
                       <div class="flex-1 overflow-y-auto p-5 hide-scrollbar relative">
-                          <!-- Línea vertical del timeline -->
                           <div class="absolute left-9 top-6 bottom-6 w-px bg-slate-100 dark:bg-zinc-800 pointer-events-none"></div>
 
                           {#if selectedLead.lead_notas && selectedLead.lead_notas.length > 0}
                               <div class="space-y-4 relative z-10">
                                   {#each selectedLead.lead_notas as nota}
-                                      <!-- 🚀 FIX 3: TIMELINE A 1 SOLA LÍNEA (Flex Row Estricto) -->
                                       <div class="relative flex items-center gap-3">
                                           
                                           <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 ring-4 ring-white dark:ring-zinc-900 shadow-sm {nota.tipo === 'recordatorio' ? (nota.completado ? 'bg-emerald-500' : (isOverdue(nota.fecha_recordatorio) ? 'bg-rose-500' : 'bg-amber-400')) : 'bg-slate-400 dark:bg-zinc-600'}">
@@ -941,12 +961,10 @@
                                                   {nota.tipo === 'recordatorio' ? (nota.completado ? 'Tarea Completada' : 'Tarea Programada') : 'Nota'}
                                               </span>
                                               
-                                              <!-- Contenido Truncado a 1 Línea -->
                                               <p class="flex-1 text-[13px] font-medium {nota.completado ? 'text-slate-400 dark:text-zinc-500 line-through' : 'text-slate-700 dark:text-zinc-200'} truncate" title={nota.contenido}>
                                                   {nota.contenido}
                                               </p>
                                               
-                                              <!-- Fecha Alineada a la Derecha -->
                                               <span class="shrink-0 text-[9px] font-bold text-slate-400 dark:text-zinc-500 ml-auto flex items-center gap-1.5">
                                                   {#if nota.tipo === 'recordatorio' && !nota.completado && !nota.id.startsWith('temp-')}
                                                     <span class="text-rose-500 flex items-center gap-1"><Clock class="w-3 h-3"/> Vence: {formatDateTime(nota.fecha_recordatorio)}</span>
@@ -993,7 +1011,6 @@
 
                                   {#if esRecordatorio}
                                       <div class="h-4 w-px bg-slate-200 dark:bg-zinc-700 mx-1 hidden sm:block"></div>
-                                      <!-- 🚀 4. Svelte Custom Popover Inline a la derecha -->
                                       <div class="flex items-center gap-2 animate-[fadeIn_0.2s_ease-out]">
                                           <div class="relative flex items-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-sm focus-within:border-amber-500 transition-colors h-[28px] px-2.5 cursor-text">
                                             <input type="date" lang="es-MX" bind:value={fechaRecordatorio} class="bg-transparent text-[10px] font-bold text-slate-700 dark:text-zinc-200 outline-none cursor-pointer" required>
