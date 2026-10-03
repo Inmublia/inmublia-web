@@ -2,6 +2,8 @@ import { redirect } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
+// 🚀 V6: Importación del estándar de identidad
+import { resolveEffectiveTenant } from '$lib/server/supabase-admin.js';
 
 const getValidDate = (dateStr, fallback = new Date()) => {
   if (!dateStr) return fallback;
@@ -32,7 +34,8 @@ function parseInsightResponse(result) {
   }
 }
 
-async function generarYGuardarInsight(adminDb, broker, metricasBase, platform) {
+// 🛡️ Nota SRE: Esta función NO descuenta créditos (Shadow Billing). Es un beneficio pasivo del plan.
+async function generarYGuardarInsight(adminDb, brokerId, metricasBase, platform) {
   if (!platform?.env?.AI) return null;
 
   const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
@@ -43,7 +46,7 @@ Tu objetivo es guiar al broker para que produzca más y cierre más tratos, entr
 
 REGLAS ESTRICTAS:
 1. CERO REPETICIONES. Redacta un (1) único párrafo fluido, natural y motivador.
-2. Fusiona en ese párrafo: tu análisis, al menos DOS cifras exactas del contexto, y una recomendación clara.
+​​2. Fusiona en ese párrafo: tu análisis, al menos DOS cifras exactas del contexto, y una recomendación clara.
 3. TONO DE MENTOR EXPERTO: Guía y recomienda, no des órdenes frías. Usa un lenguaje de apoyo corporativo como "Te sugiero enfocar", "Tu mejor oportunidad de cierre está en", "Para capitalizar esos leads, recomiendo...".
 4. CONSIDERACIÓN: Si hay muy pocos leads (<=5), enfoca tu consejo en captación y generación de volumen.
 5. Longitud máxima estricta: 50 palabras.`;
@@ -92,7 +95,7 @@ REGLAS ESTRICTAS:
   if (aiGeneradoExitosamente) {
     try {
       await adminDb.from('ai_insights_cache').upsert({
-        broker_id: broker.id,
+        broker_id: brokerId,
         tipo: 'reporte_diario',
         contenido: finalInsight,
         generado_en: new Date().toISOString()
@@ -102,16 +105,27 @@ REGLAS ESTRICTAS:
 }
 
 export const load = async ({ locals, platform }) => {
-  if (!locals.user) throw redirect(303, '/login');
+  const user = locals.user;
+  if (!user) throw redirect(303, '/login');
+
+  // 🚀 V6: Resolución Centralizada de Tenant
+  let tenantContext;
+  try {
+    tenantContext = await resolveEffectiveTenant(locals, user);
+  } catch(e) { 
+    throw redirect(303, '/login'); 
+  }
 
   let db = locals.supabase;
-  if (locals.isImpersonating) db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  if (tenantContext.isImpersonating) {
+    db = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  }
 
-  // 🚀 FIX: Restauramos el avatar_url y el plan_suscripcion para que no se rompa la barra lateral
-  let query = db.from('brokers').select('id, nombre_comercial, comision_default, avatar_url, plan_suscripcion');
-  query = (locals.isImpersonating && locals.tenantId) ? query.eq('id', locals.tenantId) : query.eq('auth_user_id', locals.user.id);
+  const { data: broker } = await db.from('brokers')
+    .select('id, nombre_comercial, comision_default, avatar_url, plan_suscripcion')
+    .eq('id', tenantContext.brokerId)
+    .single();
 
-  const { data: broker } = await query.single();
   if (!broker) throw redirect(303, '/login');
 
   const comisionRate = (broker.comision_default || 5) / 100;
@@ -212,7 +226,8 @@ export const load = async ({ locals, platform }) => {
 
   if (!insightLimpio && (platform?.context?.waitUntil || platform?.ctx?.waitUntil)) {
     const adminDb = createClient(publicEnv.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-    const job = generarYGuardarInsight(adminDb, broker, metricasBackend, platform);
+    // 🚀 Pasamos directamente el brokerId
+    const job = generarYGuardarInsight(adminDb, broker.id, metricasBackend, platform);
     if (platform?.context?.waitUntil) platform.context.waitUntil(job);
     else platform.ctx.waitUntil(job);
   }
