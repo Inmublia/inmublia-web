@@ -4,8 +4,6 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
 
-// 1. Inicialización nativa al estilo Inmublia Web
-// Usamos la Service Role Key para saltar el RLS en esta operación de servidor a servidor (Zero Trust)
 const supabaseUrl = publicEnv.PUBLIC_SUPABASE_URL || env.SUPABASE_URL;
 const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -14,10 +12,7 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseKey, {
-    auth: {
-        autoRefreshToken: false,
-        persistSession: false
-    }
+    auth: { autoRefreshToken: false, persistSession: false }
 });
 
 export async function GET({ url }: RequestEvent) {
@@ -27,7 +22,6 @@ export async function GET({ url }: RequestEvent) {
         throw error(401, 'Token de sindicación requerido. Ejemplo: ?token=xyz');
     }
 
-    // 2. Validación Zero Trust con Políticas de Expiración y Portal Destino
     const { data: tokenData, error: tokenError } = await supabaseAdmin
         .from('broker_syndication_tokens')
         .select('id, broker_id, is_active, expires_at')
@@ -48,14 +42,14 @@ export async function GET({ url }: RequestEvent) {
 
     const brokerId = tokenData.broker_id;
 
-    // 3. Rastro de Auditoría (Fuego y Olvido, no bloquea el hilo)
+    // Rastro de auditoría sin bloquear
     supabaseAdmin
         .from('broker_syndication_tokens')
         .update({ last_used_at: new Date().toISOString() })
         .eq('id', tokenData.id)
         .then();
 
-    // 4. Extraer propiedades autorizadas
+    // EXTRACCIÓN CON TUS NOMBRES DE COLUMNA REALES
     const { data: properties, error: dbError } = await supabaseAdmin
         .from('propiedades')
         .select(`
@@ -63,24 +57,23 @@ export async function GET({ url }: RequestEvent) {
             titulo,
             descripcion,
             precio,
-            moneda,
-            tipo_operacion,
-            tipo_propiedad,
-            habitaciones,
+            operacion,
+            tipo,
+            recamaras,
             banos,
-            metros_construccion,
-            metros_terreno,
-            imagenes ( url )
+            m2_construccion,
+            m2_terreno,
+            imagen_url,
+            galeria_urls
         `)
         .eq('broker_id', brokerId)
-        .eq('estado', 'activa')
-        .eq('difusion_activa', true); 
+        .eq('estatus', 'Activa'); // <-- Verifica si en tu BD es 'Activa', 'Activo' o 'activa'
 
     if (dbError) {
+        console.error("Error de Supabase:", dbError);
         throw error(500, 'Error interno al consultar el Ledger de propiedades.');
     }
 
-    // 5. Construcción Eficiente del XML
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<adverts>\n`;
 
     if (properties) {
@@ -90,26 +83,34 @@ export async function GET({ url }: RequestEvent) {
             
             xml += `  <advert>\n`;
             xml += `    <id><![CDATA[${prop.id}]]></id>\n`;
-            xml += `    <type><![CDATA[${prop.tipo_propiedad}]]></type>\n`;
-            xml += `    <operation><![CDATA[${prop.tipo_operacion}]]></operation>\n`;
+            xml += `    <type><![CDATA[${prop.tipo}]]></type>\n`;
+            xml += `    <operation><![CDATA[${prop.operacion}]]></operation>\n`;
             xml += `    <title><![CDATA[${title}]]></title>\n`;
             xml += `    <description><![CDATA[${description}]]></description>\n`;
-            xml += `    <price currency="${prop.moneda}">${prop.precio}</price>\n`;
-            xml += `    <rooms>${prop.habitaciones || 0}</rooms>\n`;
+            xml += `    <price currency="MXN">${prop.precio || 0}</price>\n`;
+            xml += `    <rooms>${prop.recamaras || 0}</rooms>\n`;
             xml += `    <bathrooms>${prop.banos || 0}</bathrooms>\n`;
-            xml += `    <floor_area unit="meters">${prop.metros_construccion || 0}</floor_area>\n`;
-            xml += `    <plot_area unit="meters">${prop.metros_terreno || 0}</plot_area>\n`;
+            xml += `    <floor_area unit="meters">${prop.m2_construccion || 0}</floor_area>\n`;
+            xml += `    <plot_area unit="meters">${prop.m2_terreno || 0}</plot_area>\n`;
             
-            if (prop.imagenes && prop.imagenes.length > 0) {
-                xml += `    <pictures>\n`;
-                prop.imagenes.forEach((img: any) => {
-                    xml += `      <picture>\n`;
-                    xml += `        <picture_url><![CDATA[${img.url}]]></picture_url>\n`;
-                    xml += `      </picture>\n`;
-                });
-                xml += `    </pictures>\n`;
+            xml += `    <pictures>\n`;
+            // Procesar foto principal
+            if (prop.imagen_url) {
+                xml += `      <picture>\n`;
+                xml += `        <picture_url><![CDATA[${prop.imagen_url}]]></picture_url>\n`;
+                xml += `      </picture>\n`;
             }
-            
+            // Procesar galería (Arreglo de URLs)
+            if (prop.galeria_urls && Array.isArray(prop.galeria_urls)) {
+                prop.galeria_urls.forEach((imgUrl: string) => {
+                    if (imgUrl) {
+                        xml += `      <picture>\n`;
+                        xml += `        <picture_url><![CDATA[${imgUrl}]]></picture_url>\n`;
+                        xml += `      </picture>\n`;
+                    }
+                });
+            }
+            xml += `    </pictures>\n`;
             xml += `  </advert>\n`;
         }
     }
@@ -128,12 +129,9 @@ function escapeXML(unsafe: string | null) {
     if (!unsafe) return '';
     return unsafe.replace(/[<>&'"]/g, function (c) {
         switch (c) {
-            case '<': return '&lt;';
-            case '>': return '&gt;';
-            case '&': return '&amp;';
-            case '\'': return '&apos;';
-            case '"': return '&quot;';
-            default: return c;
+            case '<': return '&lt;'; case '>': return '&gt;';
+            case '&': return '&amp;'; case '\'': return '&apos;';
+            case '"': return '&quot;'; default: return c;
         }
     });
 }
