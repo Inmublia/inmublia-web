@@ -1,6 +1,8 @@
 // src/routes/admin/nueva/+page.server.js
 import { redirect, fail } from '@sveltejs/kit';
-import { reserveAiCredit, confirmAiCredit, refundAiCredit } from '$lib/server/ai-credits.js';
+// 🚀 V6: Importaciones del Motor SRE
+import { getAiCreditStatus, reserveAiCredit, confirmAiCredit, releaseAiCredit, getAiGenerationOperation } from '$lib/server/ai-credits.js';
+import { resolveEffectiveTenant } from '$lib/server/supabase-admin.js';
 
 const PLAN_RANK = {
   basico: 0,
@@ -80,7 +82,6 @@ function normalizeMultilineText(value, maxLength = 3000) {
 
 function parseLocalizedNumber(value, { min = 0, max = Number.MAX_SAFE_INTEGER, integer = false } = {}) {
   const raw = normalizePlainText(value, 50).replace(/[$\s]/g, '');
-
   if (!raw || !/^-?[\d.,]+$/.test(raw)) return null;
 
   const commaCount = (raw.match(/,/g) || []).length;
@@ -278,35 +279,42 @@ export const load = async ({ locals }) => {
   }
 
   try {
+    // 🚀 V6: Resolución Centralizada de Tenant
+    const { brokerId } = await resolveEffectiveTenant(locals, user);
+    
+    // Obtenemos los límites comerciales base
     const { data: broker, error } = await locals.supabase
       .from('brokers')
-      .select('ia_creditos_disponibles, plan_suscripcion, comision_default, status_suscripcion')
-      .eq('auth_user_id', user.id)
+      .select('plan_suscripcion, comision_default')
+      .eq('id', brokerId)
       .single();
 
-    if (error || !broker) {
-      return {
-        creditos_ia: 0,
-        plan_suscripcion: 'basico',
-        comision_global: 5,
-        limits: null
-      };
-    }
+    if (error || !broker) throw new Error('Broker data not found');
 
-    let creditosReales = Math.max(0, Number(broker.ia_creditos_disponibles) || 0);
+    // 🚀 V6: Consultamos Saldo al Motor Transaccional Seguro
+    const status = await getAiCreditStatus(brokerId);
+    if (!status.ok) throw new Error(status.error || 'Database Error');
+
+    // Mantenemos compatibility con Svelte
+    locals.effectiveBrokerId = brokerId;
 
     return {
-      creditos_ia: creditosReales,
+      effectiveBrokerId: brokerId,
+      creditos_ia: status.status === 'ineligible' ? 0 : status.credits_available,
       plan_suscripcion: getPlan(broker.plan_suscripcion),
-      comision_global: Number(broker.comision_default) || 5
+      comision_global: Number(broker.comision_default) || 5,
+      limits: null 
     };
   } catch (error) {
     console.error('[Load Nueva Propiedad Error]', error);
-
+    // V6: Fail-Closed para métricas comerciales en caso de caída de DB
     return {
-      creditos_ia: 0,
-      plan_suscripcion: 'basico',
-      comision_global: 5
+      effectiveBrokerId: null,
+      creditos_ia: null, 
+      error_ia: true,
+      plan_suscripcion: null,
+      comision_global: null,
+      limits: null
     };
   }
 };
@@ -325,6 +333,14 @@ export const actions = {
 
     const formData = await request.formData();
 
+    // 🚀 V6: Resolución de Identidad Multi-Tenant
+    let tenantContext;
+    try {
+      tenantContext = await resolveEffectiveTenant(locals, user);
+    } catch(e) { 
+      return fail(404, { error: 'Perfil de Agencia no encontrado.' }); 
+    }
+
     const ubicacion = normalizePlainText(formData.get('ubicacion'), 100);
     const tipo = normalizePlainText(formData.get('tipo'), 50);
     const operacion = normalizePlainText(formData.get('operacion'), 30);
@@ -340,7 +356,6 @@ export const actions = {
     const medioBano = parseLocalizedNumber(formData.get('medio_bano'), { min: 0, max: 100 });
     const estacionamientos = parseLocalizedNumber(formData.get('estacionamientos'), { min: 0, max: 100, integer: true });
     
-    // 🚀 LÓGICA REFINADA PARA M2 (null en vez de 0 absoluto)
     const m2Terreno = parseLocalizedNumber(formData.get('m2_terreno'), { min: 0, max: 10_000_000 });
     const m2Construccion = parseLocalizedNumber(formData.get('m2_construccion'), { min: 0, max: 10_000_000 });
 
@@ -361,20 +376,30 @@ export const actions = {
       return fail(400, { error: 'Tono de redacción no válido.' });
     }
 
-    const requestId = crypto.randomUUID();
+    // 🚀 V6: Idempotency Protection 
+    const rawRequestId = formData.get('request_id');
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!rawRequestId || !uuidRegex.test(rawRequestId)) return fail(400, { error: 'Operación malformada. Por favor recarga la página.' });
 
-    const reservation = await reserveAiCredit(locals.supabase, user.id, requestId);
+    // 🚀 V6: Reservar Crédito
+    const reservation = await reserveAiCredit(tenantContext.brokerId, rawRequestId, tenantContext.actorUserId);
 
-    if (!reservation) {
-      return fail(403, { error: 'No tienes créditos de IA disponibles o es una petición duplicada.' });
+    if (!reservation || !reservation.ok) {
+      if (reservation?.error === 'INELIGIBLE_STATUS') return fail(403, { error: 'Tu cuenta está inactiva o con pagos pendientes.' });
+      if (reservation?.error === 'REQUEST_ALREADY_FINALIZED') return fail(409, { error: 'Esta solicitud ya finalizó previamente. Modifica un campo para reintentar.', status: 'released' });
+      if (reservation?.error === 'INVALID_PLAN') return fail(409, { error: 'Plan de suscripción no válido o corrupto.' });
+      if (reservation?.error === 'REQUEST_ID_BROKER_MISMATCH') return fail(409, { error: 'Identificador de operación inválido.' });
+      return fail(403, { error: reservation?.error === 'INSUFFICIENT_CREDITS' ? 'No tienes créditos de IA disponibles para tu plan actual.' : 'Error al reservar crédito.' });
     }
+
+    if (reservation.status === 'in_progress') return fail(429, { error: 'La generación está en proceso.', status: 'running' });
+    if (reservation.status === 'already_consumed' && reservation.result) return { ...reservation.result, creditos_ia_restantes: reservation.credits_available };
 
     let creditConfirmed = false;
     let finalContent = null;
     let errorLog = [];
 
     try {
-      // 🚀 CONSTRUCCIÓN DEL OBJETO CON DATOS PRECISOS
       const propertyFacts = {
         operacion,
         tipo,
@@ -392,7 +417,6 @@ export const actions = {
         antiguedad
       };
 
-      // 🚀 NUEVA ARQUITECTURA DE PROMPT: Broker Profesional + NOM-247
       const systemPrompt = [
         'Eres un broker inmobiliario profesional en México que está dando de alta un NUEVO INMUEBLE en su CRM operando bajo la estricta normativa PROFECO NOM-247-SE-2021.',
         'Conoces la propiedad y estás transformando los datos reales capturados en una publicación clara, objetiva y comercial.',
@@ -456,11 +480,10 @@ OBJETIVO: Convierte estos datos en el JSON solicitado sin inventar NADA.`;
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt }
             ],
-            max_tokens: 800, // Ajustado a 800 para mayor precisión, menos relleno
-            temperature: 0.3 // Ajustado a 0.3 para cero alucinaciones
+            max_tokens: 800, 
+            temperature: 0.3 
           });
 
-          // Pasa por el parser, verificador de estructura y el filtro editorial estricto
           const parsedContent = validateAiContent(parseAiResponse(result));
           finalContent = validateGeneratedCopy(parsedContent);
           
@@ -475,33 +498,45 @@ OBJETIVO: Convierte estos datos en el JSON solicitado sin inventar NADA.`;
         throw new Error(`Cascada IA fallida tras agotar modelos. Errores: ${errorLog.join(' | ')}`);
       }
 
-      const confirmed = await confirmAiCredit(locals.supabase, user.id, requestId);
-
-      if (!confirmed) {
-        throw new Error('No fue posible confirmar el consumo del crédito en la base de datos.');
-      }
+      // 🚀 V6: Confirmación Segura de Consumo
+      const consumeRes = await confirmAiCredit(tenantContext.brokerId, rawRequestId, finalContent);
+      if (!consumeRes || !consumeRes.ok) throw new Error('Fallo confirmación atómica DB.');
 
       creditConfirmed = true;
 
-      const { data: brokerActualizado } = await locals.supabase
-        .from('brokers')
-        .select('ia_creditos_disponibles')
-        .eq('auth_user_id', user.id)
-        .single();
-
       return {
         ...finalContent,
-        creditos_ia_restantes: Math.max(0, Number(brokerActualizado?.ia_creditos_disponibles) || 0)
+        creditos_ia_restantes: consumeRes.credits_available
       };
+
     } catch (error) {
       if (!creditConfirmed) {
-        await refundAiCredit(locals.supabase, user.id, requestId);
+        // 🚀 V6: AMBIGUITY RESOLVER (Protección en caso de Network Timeout Post-Run)
+        const opState = await getAiGenerationOperation(tenantContext.brokerId, rawRequestId);
+        
+        if (opState.ok) {
+           if (opState.status === 'completed' && opState.result) {
+             // La Base de Datos sí guardó el consumo y el JSON. Lo devolvemos y cerramos el ciclo.
+             return { ...opState.result, creditos_ia_restantes: opState.credits_available }; 
+           } else if (opState.status === 'running') {
+             // La operación está colgada. NO liberamos a ciegas.
+             return fail(429, { error: 'La red está tardando. Por favor, reintenta en unos segundos.', status: 'running' });
+           } else if (opState.status === 'failed') {
+             // Error formal (Ej. Error de parseo). Aquí sí liberamos.
+             await releaseAiCredit(tenantContext.brokerId, rawRequestId, 'AI_TIMEOUT_OR_PARSE_ERROR');
+             return fail(500, { error: `La Inteligencia Artificial falló al procesar los datos. Tu crédito fue liberado.`, status: 'released' });
+           }
+        }
+        
+        // ESTADO 100% UNKNOWN (Supabase no respondió)
+        // No hacemos Release.
+        return fail(502, { 
+            error: `No pudimos confirmar el estado de la generación debido a inestabilidad de red. Tu operación quedó protegida, reintenta para verificar el estado.`, 
+            status: 'unknown' 
+        });
       }
 
-      console.error('[AI Generation Error]', {
-        requestId,
-        message: error instanceof Error ? error.message : 'Error desconocido'
-      });
+      console.error('[AI Generation Error]', { requestId: rawRequestId, message: error instanceof Error ? error.message : 'Error desconocido' });
 
       return fail(502, {
         error: `Error al generar: ${error instanceof Error ? error.message : 'Intenta nuevamente.'}`
@@ -510,6 +545,7 @@ OBJETIVO: Convierte estos datos en el JSON solicitado sin inventar NADA.`;
   },
 
   crear: async ({ request, locals, platform }) => {
+    // La función crear() permanece exactamente INTACTA
     const user = locals.user;
 
     if (!user) {
