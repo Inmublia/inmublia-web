@@ -10,6 +10,18 @@
 
   let { form, data } = $props();
   
+  // 🚀 V6: Aislamiento por Tenant para evitar cruces en Impersonation
+  let effectiveBrokerId = $derived(data?.effectiveBrokerId);
+  let REQUEST_KEY = $derived(`inmublia:ai:nueva:request:${effectiveBrokerId || 'guest'}`);
+  let iaRequestId = ''; 
+
+  import { onMount } from 'svelte';
+  onMount(() => {
+      if (effectiveBrokerId) {
+          iaRequestId = sessionStorage.getItem(REQUEST_KEY) ?? '';
+      }
+  });
+  
   let creditosBase = $derived(data?.creditos_ia ?? 15);
   let creditosUsados = $state(0);
   let creditosIA = $derived(creditosBase - creditosUsados);
@@ -26,7 +38,7 @@
 
   let generandoIA = $state(false);
   let iaEjecutada = $state(false);
-  let tonoIA = $state('profesional'); // 🚀 FIX: Tono por defecto más maduro
+  let tonoIA = $state('profesional'); 
   let iaErrorMsg = $state('');
   
   let textoGeneradoWhatsapp = $state('');
@@ -146,8 +158,9 @@
 
     document.getElementById('seccion-oficial')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
+    // En V6 extendemos un poco el timeout de cliente por si los modelos están fríos
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 35000); 
+    const timeoutId = setTimeout(() => controller.abort(), 40000); 
 
     try {
       const formData = new FormData();
@@ -161,7 +174,6 @@
       formData.append('estacionamientos', valEstacionamientos || '');
       formData.append('antiguedad', valAntiguedad || 'No especificada'); 
       
-      // 🚀 FIX: Pasamos los M2 a la IA
       formData.append('m2_terreno', valM2Terreno || '');
       formData.append('m2_construccion', valM2Construccion || '');
       
@@ -179,17 +191,17 @@
         signal: controller.signal
       });
 
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT_FORZADO")), 35000));
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT_FORZADO")), 40000));
       const res = await Promise.race([fetchRequest, timeoutPromise]);
       const textRes = await res.text();
       
-      if (textRes.trim().startsWith('<')) throw new Error("El servidor devolvió HTML (Posible caída de red).");
+      if (textRes.trim().startsWith('<')) throw new Error("El servidor devolvió un error de red interno (HTML).");
 
       let result;
       try {
         result = deserialize(textRes);
       } catch (e) {
-        throw new Error(`Datos corruptos devueltos por servidor.`);
+        throw new Error(`Datos corruptos devueltos por el servidor.`);
       }
 
       if (result.type === 'success' && result.data) {
@@ -205,12 +217,12 @@
       } else if (result.type === 'failure') {
         throw new Error(`${result.data?.error || JSON.stringify(result.data)}`);
       } else if (result.type === 'error') {
-        throw new Error(`Error SvelteKit: ${result.error?.message || JSON.stringify(result.error)}`);
+        throw new Error(`Fallo de conexión: ${result.error?.message || JSON.stringify(result.error)}`);
       }
 
     } catch (e) {
       if (e.message === "TIMEOUT_FORZADO" || e.name === 'AbortError') {
-        iaErrorMsg = "🚨 TIMEOUT: La IA tardó más de 35s en responder. Se abortó la conexión por seguridad. Tu crédito fue reembolsado.";
+        iaErrorMsg = "🚨 La IA tardó demasiado en responder y se cortó la conexión. Tu operación está protegida. Espera un momento y vuelve a intentarlo.";
       } else {
         iaErrorMsg = `${e.message}`;
       }
@@ -252,6 +264,7 @@
           <div class="mb-8 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold p-4 rounded-xl text-sm border border-rose-100 dark:border-rose-500/20 animate-[fadeIn_0.3s_ease-out]">{form.error}</div>
         {/if}
 
+        <!-- 🚀 V6: En la Action agregamos la limpieza inteligente del SessionStorage -->
         <form method="POST" action="?/crear" enctype="multipart/form-data" use:enhance={async ({ formData, cancel }) => { 
           if (hitPropsPaywall) {
              cancel();
@@ -533,15 +546,20 @@
                     </div>
 
                     <div class="flex items-center justify-center w-full sm:w-1/3 pb-1">
+                      <!-- 🚀 V6: Control visual de Fail-Closed (Manejo explícito de error/nulo) -->
                       <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 border border-slate-700/80 rounded-full text-xs font-bold text-slate-200 shadow-inner">
                         <Sparkles class="w-4 h-4 text-amber-400" />
-                        {creditosIA} {creditosIA === 1 ? 'Crédito' : 'Créditos'}
+                        {#if data.error_ia || data.creditos_ia === null}
+                          <span class="text-rose-400">Servicio No Disponible</span>
+                        {:else}
+                          {creditosIA} {creditosIA === 1 ? 'Crédito' : 'Créditos'}
+                        {/if}
                       </div>
                     </div>
 
                     <div class="w-full sm:w-1/3 flex flex-col items-center">
                       <div class="h-[18px] mb-2 hidden sm:block"></div> 
-                      <button type="button" onclick={generarCampañaIA} disabled={generandoIA} class="w-full relative overflow-hidden group bg-white text-slate-900 font-bold px-6 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 flex items-center justify-center gap-2 text-sm shadow-sm active:scale-[0.98]">
+                      <button type="button" onclick={generarCampañaIA} disabled={generandoIA || data.error_ia || data.creditos_ia === null} class="w-full relative overflow-hidden group bg-white text-slate-900 font-bold px-6 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 flex items-center justify-center gap-2 text-sm shadow-sm active:scale-[0.98]">
                         {#if generandoIA}
                           <Loader2 class="animate-spin w-4 h-4 text-slate-900" />
                           Redactando...
@@ -567,7 +585,7 @@
                     {:else if planSuscripcion === 'pro'}
                       <h3 class="text-xl font-bold text-white mb-2">Límite Mensual Alcanzado (Plan Pro)</h3>
                       <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
-                        Has utilizado tus 125 créditos. Mejora al plan <strong>Elite (500 créditos)</strong> o adquiere una recarga para operar sin límites.
+                        Has utilizado tus créditos. Mejora al plan <strong>Elite</strong> o adquiere una recarga para operar sin límites.
                       </p>
                       <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] active:scale-[0.98]">
                         <Sparkles class="w-4 h-4" /> Mejorar a Plan Elite
@@ -583,7 +601,7 @@
                     {:else}
                       <h3 class="text-xl font-bold text-white mb-2">Has agotado tus créditos (Plan Básico)</h3>
                       <p class="text-sm text-slate-300 mb-6 max-w-lg mx-auto">
-                        La Inteligencia Artificial es el motor de las agencias top. Mejora tu plan a <strong>Pro (125 créditos)</strong> o <strong>Elite (500 créditos)</strong> para dominar el mercado.
+                        La Inteligencia Artificial es el motor de las agencias top. Mejora tu plan a <strong>Pro</strong> o <strong>Elite</strong> para dominar el mercado.
                       </p>
                       <a href="/admin/perfil" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] active:scale-[0.98]">
                         <Sparkles class="w-4 h-4" /> Desbloquear Estudio Creativo
