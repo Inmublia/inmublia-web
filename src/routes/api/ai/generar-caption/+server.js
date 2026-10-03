@@ -1,5 +1,7 @@
 import { json } from '@sveltejs/kit';
-import { reserveAiCredit, confirmAiCredit, refundAiCredit } from '$lib/server/ai-credits';
+// 🚀 V6: Importaciones del Motor SRE
+import { reserveAiCredit, confirmAiCredit, releaseAiCredit, getAiGenerationOperation } from '$lib/server/ai-credits.js';
+import { resolveEffectiveTenant } from '$lib/server/supabase-admin.js';
 
 const MODELS_CASCADE = [
   '@cf/qwen/qwen3-30b-a3b-fp8',
@@ -18,12 +20,11 @@ const PLATFORM_RULES = {
 function buildSystemPrompt({ plataforma = 'instagram' } = {}) {
   const reglaPlataforma = PLATFORM_RULES[plataforma] || PLATFORM_RULES.instagram;
   
-  // 🚀 FIX: Tono profesional y directivo. Evitamos palabras agresivas ("PROHIBIDO") que activan el rechazo del modelo.
   return `Eres un redactor inmobiliario profesional para ${plataforma} en México.
 
 INSTRUCCIONES VITALES DE REDACCIÓN:
 1. Basa tu texto ÚNICA Y EXCLUSIVAMENTE en la información proporcionada (etiquetada como [DATO]).
-2. No agregues medidas, precios, ubicaciones, amenidades ni características arquitectónicas que no estén explícitamente en la lista.
+​2. No agregues medidas, precios, ubicaciones, amenidades ni características arquitectónicas que no estén explícitamente en la lista.
 3. Si la lista de datos es breve, redacta un texto corto, elegante y misterioso.
 
 FORMATO ESTRICTO:
@@ -42,7 +43,6 @@ function formatearDatos(texto) {
     .join('\n');
 }
 
-// 🚀 FIX: Escudo Anti-Rechazos. Evita que te cobren si el modelo se niega a trabajar.
 function detectarRechazo(caption) {
   const lower = caption.toLowerCase();
   const rechazos = [
@@ -119,17 +119,30 @@ export async function POST({ request, locals, platform }) {
     await platform.env.KV.put(key, String(hits + 1), { expirationTtl: 60 });
   }
 
-  const { data: broker } = await locals.supabase
-    .from('brokers')
-    .select('id')
-    .eq('auth_user_id', user.id)
-    .single();
+  // 🚀 V6: Resolución de Identidad Multi-Tenant
+  let tenantContext;
+  try {
+    tenantContext = await resolveEffectiveTenant(locals, user);
+  } catch(e) { 
+    return json({ error: 'Perfil de Agencia no encontrado.' }, { status: 404 }); 
+  }
 
-  if (!broker) return json({ error: 'Perfil no encontrado' }, { status: 403 });
+  // 🚀 V6: Reserva del Crédito con SRE Constraints
+  const reservation = await reserveAiCredit(tenantContext.brokerId, requestId, tenantContext.actorUserId);
+  
+  if (!reservation || !reservation.ok) {
+    if (reservation?.error === 'INELIGIBLE_STATUS') return json({ error: 'Tu cuenta está inactiva o con pagos pendientes.' }, { status: 403 });
+    if (reservation?.error === 'REQUEST_ALREADY_FINALIZED') return json({ error: 'Esta solicitud ya finalizó previamente.' }, { status: 409 });
+    if (reservation?.error === 'INVALID_PLAN') return json({ error: 'Plan de suscripción no válido o corrupto.' }, { status: 409 });
+    if (reservation?.error === 'REQUEST_ID_BROKER_MISMATCH') return json({ error: 'Identificador de operación inválido.' }, { status: 409 });
+    return json({ error: reservation?.error === 'INSUFFICIENT_CREDITS' ? 'No tienes créditos de IA.' : 'Error al reservar crédito.' }, { status: 409 });
+  }
 
-  const reservation = await reserveAiCredit(locals.supabase, user.id, requestId);
-  if (!reservation) {
-    return json({ error: 'Sin créditos de IA disponibles.' }, { status: 403 });
+  if (reservation.status === 'in_progress') return json({ error: 'La generación está en proceso. Espera un momento.' }, { status: 429 });
+  
+  // Idempotencia absoluta
+  if (reservation.status === 'already_consumed' && reservation.result) {
+      return json({ success: true, caption: reservation.result.caption, tokens_restantes: reservation.credits_available });
   }
 
   let creditConfirmed = false;
@@ -160,7 +173,6 @@ export async function POST({ request, locals, platform }) {
         const textoCaption = parsed.caption || parsed.Caption || parsed.texto;
         if (!textoCaption) throw new Error('Respuesta incompleta');
 
-        // 🚀 FIX: Revisar rechazos de IA ANTES de cobrar el crédito
         detectarRechazo(textoCaption);
         detectarAlucinacion(textoCaption, caracteristicas);
 
@@ -178,35 +190,41 @@ export async function POST({ request, locals, platform }) {
       }
     }
 
-    console.log(JSON.stringify({ 
-      event: 'ai_caption_attempt', 
-      userId: user.id, 
-      requestId, 
-      attempts: attemptLog 
-    }));
-
     if (!finalContent) throw new Error('Cascada agotada sin respuesta válida.');
 
-    const confirmed = await confirmAiCredit(locals.supabase, user.id, requestId);
-    if (!confirmed) throw new Error('Fallo al confirmar crédito IA.');
+    // 🚀 V6: Confirmación Atómica Segura
+    const consumeRes = await confirmAiCredit(tenantContext.brokerId, requestId, finalContent);
+    if (!consumeRes || !consumeRes.ok) throw new Error('Fallo confirmación atómica DB.');
+    
     creditConfirmed = true;
-
-    const { data: saldoActual } = await locals.supabase
-      .from('brokers')
-      .select('ia_creditos_disponibles')
-      .eq('id', broker.id)
-      .single();
 
     return json({
       success: true,
       caption: finalContent.caption,
-      tokens_restantes: saldoActual?.ia_creditos_disponibles ?? 0
+      tokens_restantes: consumeRes.credits_available
     });
 
   } catch (error) {
-    // 🛡️ FIX: Si la IA rechaza o alucina en todos los modelos, el crédito se devuelve intacto.
-    if (!creditConfirmed) await refundAiCredit(locals.supabase, user.id, requestId);
+    if (!creditConfirmed) {
+      // 🚀 V6: AMBIGUITY RESOLVER (Protección en caso de Network Timeout Post-Run)
+      const opState = await getAiGenerationOperation(tenantContext.brokerId, requestId);
+      
+      if (opState.ok) {
+         if (opState.status === 'completed' && opState.result) {
+           return json({ success: true, caption: opState.result.caption, tokens_restantes: opState.credits_available });
+         } else if (opState.status === 'running') {
+           return json({ error: 'Operación en proceso. Reintenta en unos segundos.' }, { status: 429 });
+         } else if (opState.status === 'failed') {
+           await releaseAiCredit(tenantContext.brokerId, requestId, 'AI_TIMEOUT_OR_PARSE_ERROR');
+           return json({ error: 'La IA no pudo procesar esta solicitud. Tu crédito fue liberado.' }, { status: 500 });
+         }
+      }
+      
+      // ESTADO 100% UNKNOWN (Supabase no respondió). No liberamos a ciegas.
+      return json({ error: `Fallo de red al confirmar la generación. Reintenta la operación para validar tu estado.` }, { status: 502 });
+    }
+    
     console.error('[Caption IA Error]', attemptLog.length ? attemptLog : error.message);
-    return json({ error: 'La IA no pudo procesar esta solicitud. No se te cobró ningún crédito.' }, { status: 502 });
+    return json({ error: 'Error interno de servidor.' }, { status: 500 });
   }
 }
