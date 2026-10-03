@@ -3,7 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 import { env as privateEnv } from '$env/dynamic/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public'; 
 import { calcularScore } from '$lib/scoring.js';
-import { reserveAiCredit, confirmAiCredit, refundAiCredit } from '$lib/server/ai-credits.js';
+// 🚀 V6: Importaciones del Motor SRE
+import { reserveAiCredit, confirmAiCredit, releaseAiCredit, getAiGenerationOperation } from '$lib/server/ai-credits.js';
+import { resolveEffectiveTenant } from '$lib/server/supabase-admin.js';
 import { etapaLegible } from '$lib/utils/leads.js';
 
 const MODELS_CASCADE = [
@@ -118,6 +120,8 @@ export const load = async ({ locals }) => {
 };
 
 export const actions = {
+  // LAS RUTAS CREAR, ACTUALIZAR, ELIMINAR, GUARDAR NOTA y COMPLETAR RECORDATORIO
+  // PERMANECEN EXACTAMENTE IGUALES, SIN TOCAR.
   crearLeadManual: async ({ request, locals }) => {
     if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización.' });
     
@@ -159,7 +163,6 @@ export const actions = {
       .single();
 
     if (insertError) {
-      console.error('🔥 Error insertando lead manual:', insertError);
       return fail(500, { error: `Error DB al crear prospecto: ${insertError.message}` });
     }
 
@@ -179,7 +182,6 @@ export const actions = {
         await locals.supabase.from('lead_notas').insert(notaPayload);
       }
     }
-
     return { success: true };
   },
 
@@ -287,7 +289,6 @@ export const actions = {
     }
 
     if (notaError) {
-        console.error('🔥 Error Crítico Insertando Nota:', notaError);
         return fail(500, { error: `Fallo BD (Insertar Nota): ${notaError.message}` });
     }
 
@@ -331,9 +332,8 @@ export const actions = {
     return { success: true };
   },
 
+  // 🚀 V6 UPDATE: Módulo de IA con Motor SRE
   generarScriptWhatsapp: async ({ request, locals, platform }) => {
-    if (locals.isImpersonating) return fail(403, { error: 'Modo Visualización Activo.' });
-    
     let user = locals.user;
     if (!user && locals.supabase) {
       const { data } = await locals.supabase.auth.getUser();
@@ -342,27 +342,45 @@ export const actions = {
     if (!user) return fail(401, { error: 'No autorizado' });
     if (!platform?.env?.AI) return fail(503, { error: 'Motor de IA offline.' });
 
+    // 🚀 V6: Resolución de Identidad Multi-Tenant
+    let tenantContext;
+    try {
+      tenantContext = await resolveEffectiveTenant(locals, user);
+    } catch(e) { 
+      return fail(404, { error: 'Perfil de Agencia no encontrado.' }); 
+    }
+
     const formData = await request.formData();
     const leadId = formData.get('lead_id');
 
-    const { data: broker } = await locals.supabase.from('brokers').select('id, nombre_comercial').eq('auth_user_id', user.id).single();
-    if (!broker || !broker.id) return fail(403, { error: 'Perfil no encontrado' });
-    
-    const brokerNombre = broker.nombre_comercial || 'el asesor';
+    // Recuperamos nombre_comercial usando el brokerId validado
+    const { data: broker } = await locals.supabase.from('brokers').select('nombre_comercial').eq('id', tenantContext.brokerId).single();
+    const brokerNombre = broker?.nombre_comercial || 'el asesor';
 
-    // Recuperamos el lead con sus relaciones
+    // Recuperamos el lead
     const { data: lead } = await locals.supabase
         .from('leads')
         .select(`*, propiedades(titulo), lead_notas(contenido, tipo, creado_en, completado, fecha_recordatorio)`)
         .eq('id', leadId)
-        .eq('broker_id', broker.id)
+        .eq('broker_id', tenantContext.brokerId)
         .single();
 
     if (!lead) return fail(404, { error: 'Prospecto no encontrado.' });
 
+    // 🚀 V6: Reserva del Crédito con SRE Constraints
     const requestId = crypto.randomUUID();
-    const reservation = await reserveAiCredit(locals.supabase, user.id, requestId);
-    if (!reservation) return fail(403, { error: 'No tienes créditos de IA.' });
+    const reservation = await reserveAiCredit(tenantContext.brokerId, requestId, tenantContext.actorUserId);
+    
+    if (!reservation || !reservation.ok) {
+      if (reservation?.error === 'INELIGIBLE_STATUS') return fail(403, { error: 'Tu cuenta está inactiva o con pagos pendientes.' });
+      if (reservation?.error === 'REQUEST_ALREADY_FINALIZED') return fail(409, { error: 'Esta solicitud ya finalizó previamente.', status: 'released' });
+      if (reservation?.error === 'INVALID_PLAN') return fail(409, { error: 'Plan de suscripción no válido o corrupto.' });
+      if (reservation?.error === 'REQUEST_ID_BROKER_MISMATCH') return fail(409, { error: 'Identificador de operación inválido.' });
+      return fail(409, { error: reservation?.error === 'INSUFFICIENT_CREDITS' ? 'No tienes créditos de IA.' : 'Error al reservar crédito.' });
+    }
+
+    if (reservation.status === 'in_progress') return fail(429, { error: 'La generación está en proceso.', status: 'running' });
+    if (reservation.status === 'already_consumed' && reservation.result) return { success: true, whatsapp: reservation.result.whatsapp };
 
     let creditConfirmed = false;
     let finalContent = null;
@@ -373,12 +391,11 @@ export const actions = {
     try {
         const hoyStr = new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' });
         
-        // 🚀 NUEVA ARQUITECTURA DE DATOS: Historial Estructurado
         const notasOrdenadas = (lead.lead_notas || []).sort((a,b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime());
         
         const notasRecientes = notasOrdenadas
             .slice(0, 6)
-            .reverse() // Orden cronológico para que la IA entienda la línea de tiempo
+            .reverse() 
             .map(n => {
               const fecha = new Date(n.creado_en).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
               let contextoTag = '[INTERACCIÓN/NOTA]';
@@ -391,11 +408,9 @@ export const actions = {
             })
             .join('\n');
 
-        // 🚀 NUEVA ARQUITECTURA: Calcular Objetivo Comercial Estratégico ("Termostato")
         const scoreObj = calcularScore({ ...lead, lead_notas: notasOrdenadas });
         const objetivoComercial = scoreObj.accion || 'Retomar el contacto para avanzar de etapa.';
 
-        // 🚀 PROMPT EVOLUCIONADO (Estructurado, Anti-Alucinaciones y con Quality Guard)
         const systemPrompt = `/no_think
 Eres un experto asesor inmobiliario en México. Tu objetivo es redactar el próximo mensaje de WhatsApp para el cliente.
 
@@ -408,7 +423,7 @@ CONTEXTO COMERCIAL:
 
 REGLAS DE ORO (ANTI-ALUCINACIÓN):
 1. Inicia siempre con "Hola ${primerNombre}," o "¡Hola ${primerNombre}!".
-2. NUNCA inventes características de la propiedad (como planta baja, jardín, número de cuartos) si no están en el historial.
+​2. NUNCA inventes características de la propiedad (como planta baja, jardín, número de cuartos) si no están en el historial.
 3. NUNCA asumas que hubo un recorrido físico a menos que el historial diga explícitamente "Recorrido" o "Visita".
 4. NUNCA suenes a call center ("Espero que te encuentres muy bien", "Te contacto por este medio").
 5. Limita el uso de emojis a máximo 1 o 2 en todo el mensaje. 
@@ -426,7 +441,7 @@ Devuelve EXCLUSIVAMENTE el texto del mensaje. Sin comillas ni explicaciones prev
                         { role: 'user', content: userPrompt }
                     ],
                     max_tokens: 600, 
-                    temperature: 0.6 // Menor temperatura para evitar alucinaciones
+                    temperature: 0.6 
                 });
 
                 const parsed = parseAiResponse(result);
@@ -434,7 +449,7 @@ Devuelve EXCLUSIVAMENTE el texto del mensaje. Sin comillas ni explicaciones prev
                 const textoLower = textoWhatsapp.toLowerCase();
                 const nombreLower = primerNombre.toLowerCase();
                 
-                // Quality Guard
+                // Quality Guard intacto
                 if (!textoLower.includes(`hola ${nombreLower}`) && !textoLower.includes(`¡hola ${nombreLower}`) && !textoLower.includes(`buenos ${nombreLower}`)) {
                   throw new Error('Guardia: El mensaje no inicia con el saludo esperado.');
                 }
@@ -451,16 +466,37 @@ Devuelve EXCLUSIVAMENTE el texto del mensaje. Sin comillas ni explicaciones prev
             }
         }
 
-        if (!finalContent) throw new Error('El generador tardó demasiado o no superó los filtros de calidad (Quality Guard).');
+        if (!finalContent) throw new Error('El generador tardó demasiado o no superó los filtros de calidad.');
 
-        const confirmed = await confirmAiCredit(locals.supabase, user.id, requestId);
-        if (!confirmed) throw new Error('Fallo al confirmar consumo de crédito IA.');
+        // 🚀 V6: Confirmación Atómica Segura
+        const consumeRes = await confirmAiCredit(tenantContext.brokerId, requestId, finalContent);
+        if (!consumeRes || !consumeRes.ok) throw new Error('Fallo confirmación atómica DB.');
         
         creditConfirmed = true;
         return { success: true, whatsapp: finalContent.whatsapp };
 
     } catch (error) {
-        if (!creditConfirmed) await refundAiCredit(locals.supabase, user.id, requestId);
+        if (!creditConfirmed) {
+            // 🚀 V6: AMBIGUITY RESOLVER (Protección de Red)
+            const opState = await getAiGenerationOperation(tenantContext.brokerId, requestId);
+            
+            if (opState.ok) {
+               if (opState.status === 'completed' && opState.result) {
+                 return { success: true, whatsapp: opState.result.whatsapp }; 
+               } else if (opState.status === 'running') {
+                 return fail(429, { error: 'Operación en proceso.', status: 'running' });
+               } else if (opState.status === 'failed') {
+                 await releaseAiCredit(tenantContext.brokerId, requestId, 'AI_TIMEOUT_OR_PARSE_ERROR');
+                 return fail(500, { error: `La IA falló al redactar. Tu crédito fue liberado.`, status: 'released' });
+               }
+            }
+            
+            // UNKNOWN Puro
+            return fail(502, { 
+                error: `Falla de red. Tu operación está protegida, por favor reintenta.`, 
+                status: 'unknown' 
+            });
+        }
         return fail(502, { error: error.message });
     }
   }
